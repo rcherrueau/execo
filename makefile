@@ -1,6 +1,6 @@
 .PHONY: all build install clean doc cleandoc check dist
 
-all: build doc
+all: build
 
 build:
 	python setup.py build --g5k
