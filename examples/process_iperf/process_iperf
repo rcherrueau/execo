@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from execo import *
+import datetime
+
+num_processes_to_test = (1, 2, 4, 8, 16, 32, 64)
+iperf_length = 20
+
+timer = Timer().start()
+server = Process('iperf -s', ignore_exit_code = True).start()
+experiments = dict()
+import re
+for simultaneous in num_processes_to_test:
+    clients = [ Process('iperf -c localhost -t %i' % iperf_length).start() for num_try in xrange(0, simultaneous) ]
+    map(Process.wait, clients)
+    exit_codes = []
+    bandwidths_num = []
+    bandwidths_str = []
+    for client in clients:
+        exit_codes.append(client.exit_code())
+        (bw, unit) = re.search(' ([.0-9]+) (.?)bits/sec', client.stdout()).group(1, 2)
+        bandwidth = float(bw)
+        if unit == 'G':
+            bandwidth *= 1e9
+        elif unit == 'M':
+            bandwidth *= 1e6
+        elif unit == 'K':
+            bandwidth *= 1e3
+        bandwidths_num.append(bandwidth)
+        bandwidths_str.append(re.search(' ([.0-9]+ .?bits/sec)', client.stdout()).group(1))
+        experiments[simultaneous] = { 'exit_codes': exit_codes, 'bandwidths_num': bandwidths_num, 'bandwidths_str': bandwidths_str }
+server.kill()
+server.wait()
+print "# gnuplot command file"
+print "# generated on %s UTC" % (datetime.datetime.utcnow(),)
+print "# tested with number of processes: %s" % (num_processes_to_test,)
+print "# each process running for %i seconds" % (iperf_length,)
+print "# total time taken: %s" % (format_duration(timer.get_elapsed()),)
+print """
+set terminal png
+set output 'process-iperf.png'
+set style data linespoints
+#set logscale x 2
+set logscale y
+set title "performances of simultaneous local iperf clients"
+set xlabel "number of simultaneous clients"
+set ylabel "bandwidth"
+plot '-' title "avg per client", '-' title "total"
+""",
+for simultaneous in sorted(experiments.keys()):
+    avg_bw = sum(experiments[simultaneous]['bandwidths_num']) / len(experiments[simultaneous]['bandwidths_num'])
+    print "%f %f" % (simultaneous, avg_bw)
+print "e"
+for simultaneous in sorted(experiments.keys()):
+    sum_bw = sum(experiments[simultaneous]['bandwidths_num'])
+    print "%f %f" % (simultaneous, sum_bw)
+print "e"

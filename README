@@ -1,0 +1,25 @@
+--------------------------------------------
+Readme / documentation for the execo package
+--------------------------------------------
+
+contact: matthieu.imbert@inria.fr
+
+installation instructions
+-------------------------
+
+use the supplied makefile.
+
+targets are:
+
+- build: to compile py files.
+
+- install: to install. Pass option PREFIX=... for installing in a
+  non-default location.
+
+- doc: to build doc
+
+- check: to run unittests and doctests
+
+- clean: to clean
+
+- dist: to package
