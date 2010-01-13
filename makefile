@@ -3,10 +3,10 @@
 all: build
 
 build:
-	python setup.py build --g5k
+	python setup.py build
 
 install: build
-	python setup.py install --g5k --prefix=$(PREFIX)
+	python setup.py install --prefix=$(PREFIX)
 
 doc: cleandoc
 	epydoc --docformat "restructuredtext en" -v --html --output=epydoc execo.py execo_g5k.py
