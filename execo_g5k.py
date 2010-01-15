@@ -289,7 +289,28 @@ class Kadeployer(Remote):
                 error = True
         return error
 
-def get_current_oar_jobs(sites = None, local = True, connexion_params = None, timeout = g5k_configuration['default_timeout']):
+def _convert_endpoint(endpoint):
+    """Convert endpoint from ``datetime.datetime`` or
+    ``datetime.timedelta``, or deltat in seconds, to unix timestamp."""
+    if endpoint != None:
+        if isinstance(endpoint, datetime.datetime):
+            endpoint = datetime_to_unixts(endpoint)
+        elif isinstance(endpoint, datetime.timedelta):
+            endpoint = time.time() + timedelta_to_seconds(endpoint)
+        elif endpoint < 315532800: # timestamp before Jan 1 1980, assume it is a deltat (less than 10 years)
+            endpoint = time.time() + endpoint
+    return endpoint
+
+def _date_in_range(date, range):
+    """Check that a date is inside a range. If range is None, return True."""
+    if range == None: return True
+    if range[0] and date < range[0]:
+        return False
+    if range[1] and date > range[1]:
+        return False
+    return True
+
+def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
     """Return a list of current active oar job ids. The list contains tuples (oarjob id, site), with site == None for local site.
 
     :Parameters:
@@ -297,12 +318,30 @@ def get_current_oar_jobs(sites = None, local = True, connexion_params = None, ti
         an iterable of sites to connect to.
       local
         boolean indicating if we retrieve from local site
+      start_between
+        a tuple (low, high) of endpoints. Filters and returns only
+        jobs whose start date is in between these endpoints. Each
+        endpoint may be given as a ``datetime.datetime`` (absolute
+        date), as a ``datetime.timedelta`` (delta from now), as an
+        absolute unix timestamp, or as a delta from now in seconds (if
+        unix timestamp before 315532800 (Jan 1 1980), then assume it
+        is a deltat (less than 10 years)).
+      end_between
+        a tuple (low, high) of endpoints. Filters and returns only
+        jobs whose end date is in between these endpoints. Each
+        endpoint may be given as a ``datetime.datetime`` (absolute
+        date), as a ``datetime.timedelta`` (delta from now), as an
+        absolute unix timestamp, or as a delta from now in seconds (if
+        unix timestamp before 315532800 (Jan 1 1980), then assume it
+        is a deltat, (less than 10 years)).
       connexion_params
         connexion params to connect to other site's frontend if needed
       timeout
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
     """
+    if start_between: start_between = map(_convert_endpoint, start_between)
+    if end_between: end_between = map(_convert_endpoint, end_between)
     if connexion_params == None:
         connexion_params = default_frontend_connexion_params
     processes = []
@@ -327,22 +366,56 @@ def get_current_oar_jobs(sites = None, local = True, connexion_params = None, ti
         for process in processes:
             jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
             oar_job_ids.extend([ (int(jobid), process.site) for jobid in jobs ])
+        if start_between or end_between:
+            filtered_job_ids = []
+            for jobsite in oar_job_ids:
+                info = get_oar_job_info(jobsite[0], jobsite[1], connexion_params, timeout)
+                if (_date_in_range(info['start_date'], start_between)
+                    and _date_in_range(info['start_date'] + info['duration'], end_between)):
+                    filtered_job_ids.append(jobsite)
+            oar_job_ids = filtered_job_ids
         return oar_job_ids
     raise Exception, "error list of current oar jobs: %s" % (processes,)
 
-def get_current_oargrid_jobs(timeout = g5k_configuration['default_timeout']):
+def get_current_oargrid_jobs(start_between = None, end_between = None, timeout = g5k_configuration['default_timeout']):
     """Return a list of current active oargrid job ids.
 
     :Parameters:
+      start_between
+        a tuple (low, high) of endpoints. Filters and returns only
+        jobs whose start date is in between these endpoints. Each
+        endpoint may be given as a ``datetime.datetime`` (absolute
+        date), as a ``datetime.timedelta`` (delta from now), as an
+        absolute unix timestamp, or as a delta from now in seconds (if
+        unix timestamp before 315532800 (Jan 1 1980), then assume it
+        is a deltat (less than 10 years)).
+      end_between
+        a tuple (low, high) of endpoints. Filters and returns only
+        jobs whose end date is in between these endpoints. Each
+        endpoint may be given as a ``datetime.datetime`` (absolute
+        date), as a ``datetime.timedelta`` (delta from now), as an
+        absolute unix timestamp, or as a delta from now in seconds (if
+        unix timestamp before 315532800 (Jan 1 1980), then assume it
+        is a deltat, (less than 10 years)).
       timeout
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
     """
+    if start_between: start_between = map(_convert_endpoint, start_between)
+    if end_between: end_between = map(_convert_endpoint, end_between)
     cmd = "oargridstat"
     process = Process(cmd, timeout = timeout, pty = True).run()
     if process.ok():
         jobs = re.findall("^Reservation # (\d+):$", process.stdout(), re.MULTILINE)
         oargrid_job_ids = map(int, jobs)
+        if start_between or end_between:
+            filtered_job_ids = []
+            for job in oargrid_job_ids:
+                info = get_oargrid_job_info(job, timeout)
+                if (_date_in_range(info['start_date'], start_between)
+                    and _date_in_range(info['start_date'] + info['duration'], end_between)):
+                    filtered_job_ids.append(job)
+            oargrid_job_ids = filtered_job_ids
         return oargrid_job_ids
     raise Exception, "error list of current oargrid jobs: %s" % (process,)
 
