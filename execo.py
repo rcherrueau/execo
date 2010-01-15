@@ -435,7 +435,7 @@ def sleep(delay = None, until = None):
         if (sleeptime > 0 and dt > sleeptime) or (sleeptime <= 0 and dt > 0):
             sleeptime = dt
     if sleeptime > 0:
-        logger.info("sleeping %s secs" % format_duration(sleeptime))
+        logger.info("sleeping %s" % format_duration(sleeptime))
         _safe_sleep(sleeptime)
         logger.info("end sleeping")
         return sleeptime
