@@ -52,5 +52,5 @@
 # g5k_configuration = {
 #     'default_environment_name': None,
 #     'default_environment_file': None,
-#     'default_timeout': 60,
+#     'default_timeout': 300,
 #     }
