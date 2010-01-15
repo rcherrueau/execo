@@ -406,7 +406,7 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
     cmd = "oargridstat"
     process = Process(cmd, timeout = timeout, pty = True).run()
     if process.ok():
-        jobs = re.findall("^Reservation # (\d+):$", process.stdout(), re.MULTILINE)
+        jobs = re.findall("Reservation # (\d+):", process.stdout(), re.MULTILINE)
         oargrid_job_ids = map(int, jobs)
         if start_between or end_between:
             filtered_job_ids = []
@@ -590,7 +590,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_t
     process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
-        host_addresses = re.findall("^\s*(\S+)\s*$", process.stdout(), re.MULTILINE)
+        host_addresses = re.findall("\s+(\S+)\s+", process.stdout(), re.MULTILINE)
         hosts = set()
         for host_address in host_addresses:
             hosts.add(FrozenHost(host_address))
