@@ -1284,8 +1284,10 @@ class _Conductor(object):
         except Exception, e:
             print "exception in conductor thread"
             traceback.print_exc()
-            print "interrupt main thread:"
-            thread.interrupt_main()
+            os.kill(os.getpid(), signal.SIGTERM)
+            # killing myself works, whereas sys.exit(1) or
+            # thread.interrupt_main() don't work if main thread is
+            # waiting for an os level blocking call.
 
     def __io_loop(self):
         # conductor thread infinite loop
