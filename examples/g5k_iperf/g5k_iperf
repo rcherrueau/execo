@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# this example can only be run in grid5000. You need to have at least
+# one oargrid reservation
+
 import execo, execo_g5k, logging
 
 execo.set_log_level(logging.INFO)

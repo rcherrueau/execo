@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# install iperf to be able to run this example.
+# it outputs a gnuplot script to stdout.
+
 from execo import *
 import datetime
 
