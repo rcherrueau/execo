@@ -398,16 +398,16 @@ def _safe_sleep(secs):
         time.sleep(secs)
         end = time.time()
 
-def _timedelta_to_seconds(td):
+def timedelta_to_seconds(td):
     """Convert a ``datetime.timedelta`` to a number of seconds (float)."""
     return td.days * 86400 + td.seconds + td.microseconds / 1e6
 
 _epoch = datetime.datetime (1970, 1, 1, 0, 0, 0, 0)
 
-def _datetime_to_unixts(dt):
+def datetime_to_unixts(dt):
     """Convert a ``datetime.datetime`` to a unix timestamp (float)."""
     elapsed = dt - _epoch
-    return _timedelta_to_seconds(elapsed)
+    return timedelta_to_seconds(elapsed)
 
 def sleep(delay = None, until = None):
     """Sleep until a given delay has elapsed or until a given date.
@@ -424,9 +424,9 @@ def sleep(delay = None, until = None):
         a unix timestamp (int or float).
     """
     if delay != None and isinstance(delay, datetime.timedelta):
-        delay = _timedelta_to_seconds(delay)
+        delay = timedelta_to_seconds(delay)
     if until != None and isinstance(until, datetime.datetime):
-        until = _datetime_to_unixts(until)
+        until = datetime_to_unixts(until)
     sleeptime = 0
     if delay != None:
         sleeptime = delay
