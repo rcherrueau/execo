@@ -339,7 +339,7 @@ def get_current_oargrid_jobs(timeout = g5k_configuration['default_timeout']):
         ``g5k_configuration['default_timeout']``
     """
     cmd = "oargridstat"
-    process = Process(cmd, timeout = timeout).run()
+    process = Process(cmd, timeout = timeout, pty = True).run()
     if process.ok():
         jobs = re.findall("^Reservation # (\d+):$", process.stdout(), re.MULTILINE)
         oargrid_job_ids = map(int, jobs)
@@ -417,7 +417,7 @@ def get_oargrid_job_start_time(oargrid_job_id = None, timeout = g5k_configuratio
         ``g5k_configuration['default_timeout']``
     """
     cmd = "oargridstat %i" % oargrid_job_id
-    process = Process(cmd, timeout = timeout)
+    process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
         result = re.search("^start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)$", process.stdout(), re.MULTILINE)
@@ -490,7 +490,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_t
         ``g5k_configuration['default_timeout']``
     """
     cmd = "oargridstat -wl %i" % oargrid_job_id
-    process = Process(cmd, timeout = timeout, pty = False)
+    process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
         host_addresses = re.findall("^\s*(\S+)\s*$", process.stdout(), re.MULTILINE)
