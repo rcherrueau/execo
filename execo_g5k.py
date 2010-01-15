@@ -15,11 +15,11 @@ important exported functions:
 
 - `get_current_oargrid_jobs`
 
-- `get_oar_job_start_time`
+- `get_oar_job_info`
 
 - `wait_oar_job_start`
 
-- `get_oargrid_job_start_time`
+- `get_oargrid_job_info`
 
 - `wait_oargrid_job_start`
 
@@ -346,8 +346,8 @@ def get_current_oargrid_jobs(timeout = g5k_configuration['default_timeout']):
         return oargrid_job_ids
     raise Exception, "error list of current oargrid jobs: %s" % (process,)
 
-def get_oar_job_start_time(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
-    """Return a unix timestamp of an oar job start time.
+def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
+    """Return a dict with informations about an oar job.
 
     :Parameters:
       oar_job_id
@@ -363,6 +363,12 @@ def get_oar_job_start_time(oar_job_id = None, site = None, connexion_params = No
       timeout
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
+
+    Hash returned contains these keys:
+
+    - ``start_date``: unix timestamp of job's start date
+
+    - ``duration``: unix timestamp of job's duration
     """
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
@@ -380,10 +386,16 @@ def get_oar_job_start_time(oar_job_id = None, site = None, connexion_params = No
         process = Process(cmd, timeout = timeout)
     process.run()
     if process.ok():
-        result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)$", process.stdout(), re.MULTILINE)
-        if result:
-            start_time = time.mktime(time.strptime(result.group(1), "%Y-%m-%d %H:%M:%S"))
-            return start_time
+        job_info = dict()
+        start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)$", process.stdout(), re.MULTILINE)
+        if start_date_result:
+            start_date = time.mktime(time.strptime(start_date_result.group(1), "%Y-%m-%d %H:%M:%S"))
+            job_info['start_date'] = start_date
+        duration_result = re.search("^\s*walltime = (\d+):(\d\d):(\d\d)$", process.stdout(), re.MULTILINE)
+        if duration_result:
+            duration = int(duration_result.group(1)) * 3600 + int(duration_result.group(2)) * 60 + int(duration_result.group(3))
+            job_info['duration'] = duration
+        return job_info
     raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
 def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
@@ -404,10 +416,10 @@ def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, 
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
     """
-    sleep(until = get_oar_job_start_time(oar_job_id, site, connexion_params, timeout))
+    sleep(until = get_oar_job_info(oar_job_id, site, connexion_params, timeout)['start_date'])
     
-def get_oargrid_job_start_time(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
-    """Return a unix timestamp of an oargrid job start time.
+def get_oargrid_job_info(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
+    """Return a dict with informations about an oargrid job.
 
     :Parameters:
       oargrid_job_id
@@ -415,15 +427,27 @@ def get_oargrid_job_start_time(oargrid_job_id = None, timeout = g5k_configuratio
       timeout
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
+
+    Hash returned contains these keys:
+
+    - ``start_date``: unix timestamp of job's start date
+
+    - ``duration``: unix timestamp of job's duration
     """
     cmd = "oargridstat %i" % oargrid_job_id
     process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
-        result = re.search("^start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)$", process.stdout(), re.MULTILINE)
-        if result:
-            start_time = time.mktime(time.strptime(result.group(1), "%Y-%m-%d %H:%M:%S"))
-            return start_time
+        job_info = dict()
+        start_date_result = re.search("start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)", process.stdout(), re.MULTILINE)
+        if start_date_result:
+            start_date = time.mktime(time.strptime(start_date_result.group(1), "%Y-%m-%d %H:%M:%S"))
+            job_info['start_date'] = start_date
+        duration_result = re.search("walltime : (\d+):(\d\d):(\d\d)", process.stdout(), re.MULTILINE)
+        if duration_result:
+            duration = int(duration_result.group(1)) * 3600 + int(duration_result.group(2)) * 60 + int(duration_result.group(3))
+            job_info['duration'] = duration
+        return job_info
     raise Exception, "error retrieving info for oargrid job %i: %s" % (oargrid_job_id, process)
 
 def wait_oargrid_job_start(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
@@ -436,7 +460,7 @@ def wait_oargrid_job_start(oargrid_job_id = None, timeout = g5k_configuration['d
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
     """
-    sleep(until = get_oargrid_job_start_time(oargrid_job_id, timeout))
+    sleep(until = get_oargrid_job_info(oargrid_job_id, timeout)['start_date'])
 
 def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
     """Return an iterable of `FrozenHost` containing the hosts of an oar job.
