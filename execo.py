@@ -155,7 +155,8 @@ December 2009
 """
 
 from __future__ import with_statement
-import datetime, logging, os, select, time, thread, threading, subprocess, signal, errno, fcntl, sys, traceback, Queue, re, socket
+import datetime, logging, os, select, time, thread, threading, subprocess
+import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty, termios
 
 configuration = {
     'log_level': logging.WARNING,
@@ -171,7 +172,7 @@ configuration = {
 
 - ``log_level``: the log level (see module ``logging``)
 
-- ``kill_timeout``: number of seconds to wait after a clean SIGHUP
+- ``kill_timeout``: number of seconds to wait after a clean SIGTERM
   kill before assuming that the process is not responsive and killing
   it with SIGKILL
 
@@ -557,14 +558,14 @@ class Process(object):
     >>> client.ended()
     False
     >>> client.wait()
-    Process(cmd='iperf -c localhost -t 2', timeout=None, stdout_handler=None, stderr_handler=None, close_stdin=True, shell=True, ignore_exit_code=False, ignore_timeout=False)
+    Process(cmd='iperf -c localhost -t 2', timeout=None, stdout_handler=None, stderr_handler=None, close_stdin=True, shell=True, ignore_exit_code=False, ignore_timeout=False, pty=False)
     >>> client.ended()
     True
     >>> server.ended()
     False
     >>> server.kill()
     >>> server.wait()
-    Process(cmd='iperf -s', timeout=None, stdout_handler=None, stderr_handler=None, close_stdin=True, shell=True, ignore_exit_code=True, ignore_timeout=False)
+    Process(cmd='iperf -s', timeout=None, stdout_handler=None, stderr_handler=None, close_stdin=True, shell=True, ignore_exit_code=True, ignore_timeout=False, pty=False)
     >>> server.ended()
     True
     """
@@ -580,14 +581,14 @@ class Process(object):
                 return func(*args, **kw)
         return wrapper
 
-    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, close_stdin = True, shell = True, ignore_exit_code = False, ignore_timeout = False, ignore_error = False):
+    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, close_stdin = None, shell = True, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, pty = False):
         """
         :Parameters:
           cmd
             string or tuple containing the command and args to run.
           timeout
             timeout (in seconds, or None for no timeout) after which
-            the subprocess will automatically be sent a SIGHUP
+            the subprocess will automatically be sent a SIGTERM
           stdout_handler
             instance of `ProcessOutputHandler` for handling activity
             on subprocess stdout
@@ -595,7 +596,8 @@ class Process(object):
             instance of `ProcessOutputHandler` for handling activity
             on subprocess stderr
           close_stdin
-            whether or not to close subprocess's stdin
+            boolean. whether or not to close subprocess's stdin. If
+            None (default value), automatically choose based on pty.
           shell
             whether or not to use a shell to run the cmd. See
             ``subprocess.Popen``
@@ -604,10 +606,16 @@ class Process(object):
             generate a warning
           ignore_timeout
             if True, a subprocess which reaches its timeout will be
-            sent a SIGHUP, but it won't generate a warning
+            sent a SIGTERM, but it won't generate a warning
           ignore_error
             if True, a subprocess raising an OS level error won't
             generate a warning
+          pty
+            open a pseudo tty and connect process's stdin and stdout
+            to it (stderr is still connected as a pipe). Make process
+            a session leader. If lacking permissions to signals to the
+            process, try to simulate sending control characters to its
+            pty.
         """
         self.__lock = threading.RLock()
         self.__cmd = cmd
@@ -623,29 +631,36 @@ class Process(object):
         self.__timeout = timeout
         self.__timeout_date = None
         self.__timeouted = False
-        self.__already_got_sighup = False
+        self.__already_got_sigterm = False
         self.__forced_kill = False
         self.__stdout = ""
         self.__stderr = ""
         self.__stdout_ioerror = False
         self.__stderr_ioerror = False
-        self.__close_stdin = close_stdin
         self.__shell = shell
         self.__ignore_exit_code = ignore_exit_code
         self.__ignore_timeout = ignore_timeout
         self.__ignore_error = ignore_error
         self.__stdout_handler = stdout_handler
         self.__stderr_handler = stderr_handler
+        self.__pty = pty
+        if close_stdin == None:
+            if self.__pty:
+                self.__close_stdin = False
+            else:
+                self.__close_stdin = True
+        else:
+            self.__close_stdin = close_stdin
 
     @__synchronized
     def __repr__(self):
         with self.__lock:
-            return style("Process", 'object_repr') + "(cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r)" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout)
+            return style("Process", 'object_repr') + "(cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r)" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
 
     @__synchronized
     def __str__(self):
         with self.__lock:
-            return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, ignore_exit_code=%s, ignore_timeout=%s , started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code)
+            return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, pty=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__pty, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code)
 
     @__synchronized
     def cmd(self):
@@ -721,7 +736,7 @@ class Process(object):
     def forced_kill(self):
         """Return a boolean indicating if the subprocess was killed forcibly.
 
-        When a subprocess is killed with SIGHUP (either manually or
+        When a subprocess is killed with SIGTERM (either manually or
         automatically, due to reaching a timeout), execo will wait
         some time (constant set in execo source) and if after this
         timeout the subprocess is still running, it will be killed
@@ -740,20 +755,35 @@ class Process(object):
         return self.__stderr
 
     @__synchronized
-    def stdout_file(self):
+    def stdout_fd(self):
         """Return the subprocess stdout filehandle or None if not
         available."""
         if self.__process != None:
-            return self.__process.stdout
+            if self.__pty:
+                return self.__ptymaster
+            else:
+                return self.__process.stdout.fileno()
         else:
             return None
 
     @__synchronized
-    def stderr_file(self):
+    def stderr_fd(self):
         """Return the subprocess stderr filehandle or None if not
         available."""
         if self.__process != None:
-            return self.__process.stderr
+            return self.__process.stderr.fileno()
+        else:
+            return None
+
+    @__synchronized
+    def stdin_fd(self):
+        """Return the subprocess stdin filehandle or None if not
+        available."""
+        if self.__process != None:
+            if self.__pty:
+                return self.__ptymaster
+            else:
+                return self.__process.stdin.fileno()
         else:
             return None
 
@@ -816,12 +846,22 @@ class Process(object):
         # Conductor.__update_terminated_processes() won't be called
         # before the process has been registered to the conductor
             try:
-                self.__process = subprocess.Popen(self.__cmd,
-                                                  stdin = subprocess.PIPE,
-                                                  stdout = subprocess.PIPE,
-                                                  stderr = subprocess.PIPE,
-                                                  close_fds = True,
-                                                  shell = self.__shell)
+                if self.__pty:
+                    (self.__ptymaster, self.__ptyslave) = pty.openpty()
+                    self.__process = subprocess.Popen(self.__cmd,
+                                                      stdin = self.__ptyslave,
+                                                      stdout = self.__ptyslave,
+                                                      stderr = subprocess.PIPE,
+                                                      close_fds = True,
+                                                      shell = self.__shell,
+                                                      preexec_fn = os.setsid)
+                else:
+                    self.__process = subprocess.Popen(self.__cmd,
+                                                      stdin = subprocess.PIPE,
+                                                      stdout = subprocess.PIPE,
+                                                      stderr = subprocess.PIPE,
+                                                      close_fds = True,
+                                                      shell = self.__shell)
             except OSError, e:
                 self.__error = True
                 self.__error_reason = e
@@ -839,41 +879,71 @@ class Process(object):
         return self
 
     @__synchronized
-    def kill(self, sig = signal.SIGHUP, auto_hup_timeout = True):
-        """Send a signal (default: SIGHUP) to the subprocess.
+    def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
+        """Send a signal (default: SIGTERM) to the subprocess.
 
         :Parameters:
           sig
             the signal to send
-          auto_hup_timeout
+          auto_sigterm_timeout
             whether or not execo will check that the subprocess has
             terminated after a preset timeout, when it has received a
-            SIGHUP, and automatically send SIGKILL if the subprocess
+            SIGTERM, and automatically send SIGKILL if the subprocess
             is not yet terminated
         """
         if self.__pid != None:
             logger.debug(style("kill with signal %s:" % sig, 'emph') + " %s" % self)
-            if sig == signal.SIGHUP:
-                self.__already_got_sighup = True
-                if auto_hup_timeout == True:
+            if sig == signal.SIGTERM:
+                self.__already_got_sigterm = True
+                if auto_sigterm_timeout == True:
                     self.__timeout_date = time.time() + configuration['kill_timeout']
                     _the_conductor.update_process(self)
             if sig == signal.SIGKILL:
                 self.__forced_kill = True
-            os.kill(self.__pid, sig)
+            try:
+                os.kill(self.__pid, sig)
+            except OSError, e:
+                if e.errno == errno.EPERM:
+                    char = None
+                    if self.__pty:
+                        # unable to send signal to process due to lack
+                        # of permissions. If __pty == True, then there
+                        # is a pty through which we can try to
+                        # simulate sending control characters
+                        if (sig == signal.SIGTERM
+                            or sig == signal.SIGHUP
+                            or sig == signal.SIGINT
+                            or sig == signal.SIGKILL
+                            or sig == signal.SIGPIPE):
+                            if hasattr(termios, 'VINTR'):
+                                char = termios.tcgetattr(self.__ptymaster)[6][termios.VINTR]
+                            else:
+                                char = chr(3)
+                        elif sig == signal.SIGQUIT:
+                            if hasattr(termios, 'VQUIT'):
+                                char = termios.tcgetattr(self.__ptymaster)[6][termios.VQUIT]
+                            else:
+                                char = chr(28)
+                    if char != None:
+                        logger.debug("sending %r to pty of %s" % (char, self))
+                        os.write(self.stdin_fd(), char)
+                    else:
+                        logger.debug(style("unable to send signal", 'emph') + " to %s" % self)
+                else:
+                    raise e
 
     @__synchronized
     def _timeout_kill(self):
-        """Send SIGHUP to the subprocess, due to the reaching of its timeout.
+        """Send SIGTERM to the subprocess, due to the reaching of its timeout.
 
         This method is intended to be used by the `_Conductor` thread.
         
-        If the subprocess already got a SIGHUP and is still there, it
+        If the subprocess already got a SIGTERM and is still there, it
         is directly killed with SIGKILL.
         """
         if self.__pid != None:
             self.__timeouted = True
-            if self.__already_got_sighup and self.__timeout_date >= time.time():
+            if self.__already_got_sigterm and self.__timeout_date >= time.time():
                 self.kill(signal.SIGKILL)
             else:
                 self.kill()
@@ -1068,8 +1138,8 @@ class _Conductor(object):
         logger.debug("add %s to %s" % (process, self))
         if process not in self.__processes:
             if not process.ended():
-                fileno_stdout = process.stdout_file().fileno()
-                fileno_stderr = process.stderr_file().fileno()
+                fileno_stdout = process.stdout_fd()
+                fileno_stderr = process.stderr_fd()
                 self.__processes.add(process)
                 self.__fds[fileno_stdout] = (process, process.__getattribute__('_handle_stdout'))
                 self.__fds[fileno_stderr] = (process, process.__getattribute__('_handle_stderr'))
@@ -1133,8 +1203,8 @@ class _Conductor(object):
             raise ValueError, "trying to remove a process which was not yet added to conductor"
         self.__timeline = [ x for x in self.__timeline if x[1] != process ]
         del self.__pids[process.pid()]
-        fileno_stdout = process.stdout_file().fileno()
-        fileno_stderr = process.stderr_file().fileno()
+        fileno_stdout = process.stdout_fd()
+        fileno_stderr = process.stderr_fd()
         if self.__fds.has_key(fileno_stdout):
             del self.__fds[fileno_stdout]
             self.__poller.unregister(fileno_stdout)
@@ -1696,10 +1766,11 @@ class Report(object):
           when started.
         
         - ``num_timeouts``: number of subprocesses that had to be
-          killed (HUP) after reaching their timeout.
+          killed (SIGTERM) after reaching their timeout.
         
         - ``num_forced_kills``: number of subprocesses that had to be
-          forcibly killed (KILL) after not responding for some time.
+          forcibly killed (SIGKILL) after not responding for some
+          time.
         
         - ``num_non_zero_exit_codes``: number of subprocesses that ran
           correctly but whose return code was != 0.

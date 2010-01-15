@@ -490,7 +490,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_t
         ``g5k_configuration['default_timeout']``
     """
     cmd = "oargridstat -wl %i" % oargrid_job_id
-    process = Process(cmd, timeout = timeout)
+    process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
         host_addresses = re.findall("^\s*(\S+)\s*$", process.stdout(), re.MULTILINE)
