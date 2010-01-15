@@ -8,7 +8,9 @@ build:
 install: build
 	python setup.py install --prefix=$(PREFIX)
 
-doc: cleandoc
+doc: epydoc/redirect.html
+
+epydoc/redirect.html: execo.py execo_g5k.py
 	epydoc --docformat "restructuredtext en" -v --html --output=epydoc execo.py execo_g5k.py
 
 cleandoc:
@@ -21,5 +23,5 @@ check:
 clean: cleandoc
 	rm -rf build dist *.pyc MANIFEST 
 
-dist:
+dist: doc
 	python setup.py sdist

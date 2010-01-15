@@ -3,3 +3,4 @@ include examples/g5k_iperf/g5k_iperf
 include examples/process_iperf/process_iperf
 include MANIFEST.in
 include makefile
+graft epydoc
