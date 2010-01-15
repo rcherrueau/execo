@@ -83,10 +83,6 @@ important exported functions:
 
 - `sleep`
 
-- `sleep_until`
-
-- `wait`
-
 - `set_log_level`
 
 Configuration
@@ -389,25 +385,60 @@ def format_duration(secs):
     formatted_duration += "%i%ss" % (s, _get_milliseconds_suffix(s))
     return formatted_duration
 
-def sleep(secs):
-    """Safe sleeping functions (restarted if interrupted by signals)."""
-    logger.info("sleeping %s secs" % format_duration(secs))
+def _safe_sleep(secs):
+    """Safe sleeping: restarted if interrupted by signals.
+
+    :Parameters:
+      secs
+        time to sleep in seconds (int or float)
+    """
     start = time.time()
     end = start
     while end - start < secs:
         time.sleep(secs)
         end = time.time()
-    logger.info("end sleeping")
 
-def sleep_until(date):
-    """Sleep until a given date."""
-    remaining = date - time.time()
-    if remaining > 0:
-        logger.info("sleeping %s secs until %s" % (format_duration(remaining), format_time(date)))
-        while remaining > 0:
-            time.sleep(remaining)
-            remaining = date - time.time()
+def _timedelta_to_seconds(td):
+    """Convert a ``datetime.timedelta`` to a number of seconds (float)."""
+    return td.days * 86400 + td.seconds + td.microseconds / 1e6
+
+_epoch = datetime.datetime (1970, 1, 1, 0, 0, 0, 0)
+
+def _datetime_to_unixts(dt):
+    """Convert a ``datetime.datetime`` to a unix timestamp (float)."""
+    elapsed = dt - _epoch
+    return _timedelta_to_seconds(elapsed)
+
+def sleep(delay = None, until = None):
+    """Sleep until a given delay has elapsed or until a given date.
+
+    If both present, will sleep at least for the delay and at least
+    until the date.
+
+    :Parameters:
+      delay
+        the delay to sleep as a ``datetime.timedelta`` or in seconds
+        (int or float).
+      until
+        the date until which to sleep as a ``datetime.datetime`` or as
+        a unix timestamp (int or float).
+    """
+    if delay != None and isinstance(delay, datetime.timedelta):
+        delay = _timedelta_to_seconds(delay)
+    if until != None and isinstance(until, datetime.datetime):
+        until = _datetime_to_unixts(until)
+    sleeptime = 0
+    if delay != None:
+        sleeptime = delay
+    if until != None:
+        dt = until - time.time()
+        if (sleeptime > 0 and dt > sleeptime) or (sleeptime <= 0 and dt > 0):
+            sleeptime = dt
+    if sleeptime > 0:
+        logger.info("sleeping %s secs" % format_duration(sleeptime))
+        _safe_sleep(sleeptime)
         logger.info("end sleeping")
+        return sleeptime
 
 class Timer(object):
     
@@ -432,33 +463,6 @@ class Timer(object):
     def get_elapsed(self):
         """Return this Timer's instance elapsed time since start."""
         return time.time() - self._start
-
-def _get_seconds_from_timedelta(td):
-    """Convert a ``datetime.timedelta`` to a number of seconds (float)."""
-    return td.days * 86400 + td.seconds + td.microseconds / 1000000
-
-def wait(dt = None, at = None):
-    """Sleep until a given delay has elapsed or until a given date.
-
-    :Parameters:
-      dt
-        the delay to sleep as a ``datetime.timedelta``
-      at
-        the date until which to sleep as a ``datetime.datetime``
-    """
-    now = datetime.datetime.now()
-    if at != None:
-        d = at - now
-        if d > datetime.timedelta():
-            if dt != None:
-                sleeptime = max(_get_seconds_from_timedelta(d), dt)
-            else:
-                sleeptime = _get_seconds_from_timedelta(d)
-    else:
-        sleeptime = dt
-    logging.debug("sleeping %fs" % sleeptime)
-    sleep(sleeptime)
-    return sleeptime
 
 #---------------------------------------------------------------------
 #

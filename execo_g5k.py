@@ -404,7 +404,7 @@ def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, 
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
     """
-    sleep_until(get_oar_job_start_time(oar_job_id, site, connexion_params, timeout))
+    sleep(until = get_oar_job_start_time(oar_job_id, site, connexion_params, timeout))
     
 def get_oargrid_job_start_time(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
     """Return a unix timestamp of an oargrid job start time.
@@ -436,7 +436,7 @@ def wait_oargrid_job_start(oargrid_job_id = None, timeout = g5k_configuration['d
         timeout for retrieving. default:
         ``g5k_configuration['default_timeout']``
     """
-    sleep_until(get_oargrid_job_start_time(oargrid_job_id, timeout))
+    sleep(until = get_oargrid_job_start_time(oargrid_job_id, timeout))
 
 def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
     """Return an iterable of `FrozenHost` containing the hosts of an oar job.
@@ -490,7 +490,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_t
         ``g5k_configuration['default_timeout']``
     """
     cmd = "oargridstat -wl %i" % oargrid_job_id
-    process = Process(cmd, timeout = timeout, pty = True)
+    process = Process(cmd, timeout = timeout, pty = False)
     process.run()
     if process.ok():
         host_addresses = re.findall("^\s*(\S+)\s*$", process.stdout(), re.MULTILINE)
