@@ -664,7 +664,7 @@ class Process(object):
     @__synchronized
     def __str__(self):
         with self.__lock:
-            return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, pty=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__pty, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code)
+            return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, pty=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s, ok=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__pty, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code, self.ok())
 
     @__synchronized
     def cmd(self):
