@@ -783,7 +783,7 @@ class Process(object):
     def stdin_fd(self):
         """Return the subprocess stdin filehandle or None if not
         available."""
-        if self.__process != None:
+        if self.__process != None and not self.__close_stdin:
             if self.__pty:
                 return self.__ptymaster
             else:
