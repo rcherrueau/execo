@@ -2296,7 +2296,7 @@ class Local(Action):
             kwargs['name'] = "%s %s" % (self.__class__.__name__, cmd)
         super(Local, self).__init__(**kwargs)
         self._cmd = cmd
-        self._process = Process(self._cmd, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+        self._process = Process(self._cmd, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
         return style("Local", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_error, self._ignore_timeout, self._cmd)
