@@ -1680,6 +1680,14 @@ def get_hosts_sequence(hosts):
         copy.append(host_copy)
     return copy
 
+def _sort_reports(reports):
+    def key_func(report):
+        if report.stats()['start_date'] != None:
+            return report.stats()['start_date']
+        else:
+            return sys.maxint
+    reports.sort(key = key_func)
+    
 class Report(object):
 
     """Human-readable summary of one or more `Action`.
@@ -1730,7 +1738,7 @@ class Report(object):
     def reports(self):
         """Return a sorted (by start date) copy of the list of `Report` or `Action` registered to this `Report`."""
         reports = list(self._reports)
-        reports.sort(key = lambda report: report.stats()['start_date'])
+        _sort_reports(reports)
         return reports
 
     def name(self):
@@ -2083,7 +2091,7 @@ class MultiAction(Action):
 
     def reports(self):
         reports = list(self.actions())
-        reports.sort(key = lambda report: report.stats()['start_date'])
+        _sort_reports(reports)
         return reports
 
     def stats(self):
