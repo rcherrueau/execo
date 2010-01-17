@@ -103,7 +103,9 @@ parameters. It's default values are::
       'style_log_header': ('yellow',),
       'style_log_level' : ('magenta',),
       'style_object_repr': ('blue', 'bold'),
-      'style_emph': ('red', 'bold'),
+      'style_emph': ('magenta', 'bold'),
+      'style_report_warn': ('magenta',),
+      'style_report_error': ('red', 'bold'),
       }
 
 The ``default_connexion_params`` dict contains default parameters for
@@ -162,7 +164,9 @@ configuration = {
     'style_log_header': ('yellow',),
     'style_log_level' : ('magenta',),
     'style_object_repr': ('blue', 'bold'),
-    'style_emph': ('red', 'bold'),
+    'style_emph': ('magenta', 'bold'),
+    'style_report_warn': ('magenta',),
+    'style_report_error': ('red', 'bold'),
     }
 """Global execo configuration parameters.
 
@@ -176,8 +180,8 @@ configuration = {
   sequences).
 
 - ``style_log_header``, ``style_log_level``, ``style_object_repr``,
-  ``style_emph``: iterables of ansi attributes identifiers (those
-  found in `_styles`)
+  ``style_emph``, ``style_report_warn``, ``style_report_error``:
+  iterables of ansi attributes identifiers (those found in `_styles`)
 
 """
 
@@ -1815,13 +1819,17 @@ class Report(object):
     def __repr__(self):
         return "Report(reports=%r, name=%r)" % (self._reports, self._name)
 
-    def output(self):
+    def output(self, wide = False):
         """Returns a formatted string with a human-readable summary of all `Action` results."""
         stats = self.stats()
         output = ""
-        output += "Name                                    start               end                 length         started   ended     errors    timeouts  kills     badretval ok        total     \n"
-        output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-
+        if wide:
+            output += "Name                                    start               end                 length         started   ended     errors    timeouts  kills     badretval ok        total     \n"
+            output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+        else:
+            output += "Name                                    start               end                \n"
+            output += "  length       started ended   error   timeout killed  ret!=0  ok      total   \n"
+            output += "-------------------------------------------------------------------------------\n"
         def format_line(name, stats, indent):
             result = ""
             indented_name = " " * indent + name
@@ -1830,19 +1838,41 @@ class Report(object):
                 length = format_duration(stats['end_date'] - stats['start_date'])
             else:
                 length = ""
-            result += "%-39.39s %-19.19s %-19.19s %-15.15s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s\n" % (
-                indented_name,
-                format_time(stats['start_date']),
-                format_time(stats['end_date']),
-                length,
-                stats['num_started'],
-                stats['num_ended'],
-                stats['num_errors'],
-                stats['num_timeouts'],
-                stats['num_forced_kills'],
-                stats['num_non_zero_exit_codes'],
-                stats['num_ok'],
-                stats['num_processes'])
+            if wide:
+                tmpline = "%-39.39s %-19.19s %-19.19s %-15.15s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s\n" % (
+                    indented_name,
+                    format_time(stats['start_date']),
+                    format_time(stats['end_date']),
+                    length,
+                    stats['num_started'],
+                    stats['num_ended'],
+                    stats['num_errors'],
+                    stats['num_timeouts'],
+                    stats['num_forced_kills'],
+                    stats['num_non_zero_exit_codes'],
+                    stats['num_ok'],
+                    stats['num_processes'])
+            else:
+                tmpline = "%-39.39s %-19.19s %-19.19s\n" % (
+                    indented_name,
+                    format_time(stats['start_date']),
+                    format_time(stats['end_date']),)
+                tmpline += "  %-13.13s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s\n" % (
+                    length,
+                    stats['num_started'],
+                    stats['num_ended'],
+                    stats['num_errors'],
+                    stats['num_timeouts'],
+                    stats['num_forced_kills'],
+                    stats['num_non_zero_exit_codes'],
+                    stats['num_ok'],
+                    stats['num_processes'],)
+            if stats['num_ok'] < stats['num_processes']:
+                if stats['num_ok'] == stats['num_ended']:
+                    tmpline = style(tmpline, 'report_warn')
+                else:
+                    tmpline = style(tmpline, 'report_error')
+            result += tmpline
             return result
 
         def recurse_report(report, indent):
@@ -1858,7 +1888,10 @@ class Report(object):
         if len(subreports) != 0:
             for report in subreports:
                 output += recurse_report(report, 0)
-            output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+            if wide:
+                output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+            else:
+                output += "-------------------------------------------------------------------------------\n"
 
         output += format_line(self.name(), stats, 0)
         return output

@@ -10,7 +10,9 @@
 #     'style_log_header': ('yellow',),
 #     'style_log_level' : ('magenta',),
 #     'style_object_repr': ('blue', 'bold'),
-#     'style_emph': ('red', 'bold'),
+#     'style_emph': ('magenta', 'bold'),
+#     'style_report_warn': ('magenta',),
+#     'style_report_error': ('red', 'bold'),
 #     }
 
 # default_connexion_params = {
