@@ -2126,10 +2126,10 @@ class Remote(Action):
         fhosts = list(get_frozen_hosts_set(hosts))
         for (index, host) in enumerate(fhosts):
             real_command = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + (remote_substitute(self._cmd, fhosts, index, self._caller_globals),)
-            self._processes[host] = Process(real_command, timeout = self._timeout, shell = False, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout)
+            self._processes[host] = Process(real_command, timeout = self._timeout, shell = False, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
-        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, hosts=%r, connexion_params=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._processes.keys(), self._connexion_params, self._cmd)
+        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._cmd)
 
     def processes(self):
         return self._processes.values()
@@ -2196,10 +2196,10 @@ class Put(Remote):
                 prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, fhosts, index, self._caller_globals), '&&')
             real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, fhosts, index, self._caller_globals) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, fhosts, index, self._caller_globals)),]
             real_command = ' '.join(real_command)
-            self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout)
+            self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
-        return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._processes.keys(), self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
+        return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
 
 class Get(Remote):
 
@@ -2244,10 +2244,10 @@ class Get(Remote):
                 remote_specs += ("%s:%s" % (host.address, remote_substitute(path, fhosts, index, self._caller_globals)),)
             real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, fhosts, index, self._caller_globals),)
             real_command = ' '.join(real_command)
-            self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout)
+            self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
-        return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._processes.keys(), self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
+        return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
 
 class Local(Action):
 
@@ -2263,11 +2263,10 @@ class Local(Action):
             kwargs['name'] = "%s %s" % (self.__class__.__name__, cmd)
         super(Local, self).__init__(**kwargs)
         self._cmd = cmd
-        real_command = cmd
-        self._process = Process(real_command, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout)
+        self._process = Process(self._cmd, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
-        return style("Local", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._cmd)
+        return style("Local", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_error, self._ignore_timeout, self._cmd)
 
     def processes(self):
         return [ self._process ]
