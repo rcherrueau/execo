@@ -1,6 +1,8 @@
 include test_execo.py test_execo_g5k.py .execo_conf.py
 include examples/g5k_iperf/g5k_iperf
 include examples/process_iperf/process_iperf
+include examples/report/report
 include MANIFEST.in
 include makefile
-graft epydoc
+include doc/conf.py doc/Makefile doc/*.rst
+graft doc/_build/html
