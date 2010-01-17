@@ -8,12 +8,16 @@ build:
 install: build
 	python setup.py install --prefix=$(PREFIX)
 
-doc: epydoc/redirect.html
+doc:
+	$(MAKE) -C doc html
+
+epydoc: epydoc/redirect.html
 
 epydoc/redirect.html: execo.py execo_g5k.py
 	epydoc --docformat "restructuredtext en" -v --html --output=epydoc execo.py execo_g5k.py
 
 cleandoc:
+	$(MAKE) -C doc clean
 	rm -rf epydoc
 
 check:

@@ -5,29 +5,34 @@ r"""Handles launching of several processes in parallel and controlling them asyn
 Overview
 --------
 
-This module offers a high level API oriented to parallel remote
-processes excution with the `Action` class hierarchy, and a lower
-level API with the `Process` class, for handling individual
-subprocesses.
+This module offers a high level API for parallel local or remote
+processes execution with the `Action` class hierarchy, and a
+lower level API with the `Process` class, for handling
+individual subprocesses.
 
-`Action`
---------
+Action
+------
+
+.. inheritance-diagram:: Action Remote Get Put Local
 
 An `Action` is an abstraction of a set of parallel processes. It is an
-abstract class. Child classes are: `Remote`, `Get`, `Put`, `Local`. A
-`Remote` is a remote process execution on a group of hosts. The remote
-connexion is performed by ssh or a similar tool. `Put` and `Get` are
-actions for copying to or from a group of hosts. The copy is performed
-with scp or a similar tool. A `Local` is a local process (it is a very
-lightweight `Action` on top of a single `Process` instance).
+abstract class. Child classes are: `Remote`, `Get`,
+`Put`, `Local`. A `Remote` is a remote process
+execution on a group of hosts. The remote connexion is performed by
+ssh or a similar tool. `Put` and `Get` are actions for
+copying to or from a group of hosts. The copy is performed with scp or
+a similar tool. A `Local` is a local process (it is a very
+lightweight `Action` on top of a single `Process`
+instance).
 
-`Remote`, `Get`, `Put` require a list of remote hosts to perform their
-tasks. These hosts are passed as an iterable of instances of
-`Host`. The `Host` class instances have an address, and may have a ssh
-port, a ssh keyfile, a ssh user, if needed.
+`Remote`, `Get`, `Put` require a list of remote
+hosts to perform their tasks. These hosts are passed as an iterable of
+instances of `Host`. The `Host` class instances have an
+address, and may have a ssh port, a ssh keyfile, a ssh user, if
+needed.
 
-As an example of the usage of the `Remote` class, let's launch some
-commands on a few remote hosts::
+As an example of the usage of the `Remote` class, let's launch
+some commands on a few remote hosts::
 
   a = Remote(hosts=(Host('nancy'), Host('Rennes')),
              cmd='whoami ; uname -a').start()
@@ -37,23 +42,28 @@ commands on a few remote hosts::
   # do something else....
   b.wait()
 
-`Process`
----------
+Process
+-------
 
 A `Process` is an operating system process, similar to the
-``subprocess.Popen`` class in the python standard library (actually
-execo `Process` use them internally). The main differences is that a
-specific thread (which is started when execo module is imported) takes
-care of reading asynchronously stdout and stderr, and of handling the
-lifecycle of the process. This allows writing easily code in a style
-appropriate for conducting several processes in parallel.
+`subprocess.Popen` class in the python standard library
+(actually execo `Process` use them internally). The main
+differences is that a specific thread (which is started when execo
+module is imported) takes care of reading asynchronously stdout and
+stderr, and of handling the lifecycle of the process. This allows
+writing easily code in a style appropriate for conducting several
+processes in parallel.
 
-Detailed description
---------------------
+General information
+-------------------
 
-All timestamps are passed or returned as unix timestamps, ie. number
-of seconds elapsed since the epoch (00:00 on Jan 1 1970). They may be
-integers or floats with a less than second precision.
+Internally all dates are unix timestamps, ie. number of seconds
+elapsed since the unix epoch (00:00:00 on Jan 1 1970), possibly with
+or without subsecond precision (float or integer).  In most cases (see
+detailed API documentation), timestamps can be passed as unix
+timestamps (integers or floats) or as `datetime.datetime`, and
+time lengths can be passed as seconds (integers or floats) or as
+`datetime.timedelta`
 
 important exported classes:
 
@@ -89,11 +99,11 @@ Configuration
 -------------
 
 This module may be configured at import time by defining two dicts
-``configuration`` and ``default_connexion_params`` in the file
+`configuration` and `default_connexion_params` in the file
 ``~/.execo_conf.py``
 
-The ``configuration`` dict contains global configuration
-parameters. It's default values are::
+The `configuration` dict contains global configuration parameters. Its
+default values are::
 
   configuration = {
       'log_level': logging.WARNING,
@@ -108,8 +118,8 @@ parameters. It's default values are::
       'style_report_error': ('red', 'bold'),
       }
 
-The ``default_connexion_params`` dict contains default parameters for
-remote connexions. It's default values are::
+The `default_connexion_params` dict contains default parameters for
+remote connexions. Its default values are::
 
   default_connexion_params = {
       'user':        None,
@@ -135,7 +145,7 @@ specific connexion parameters are given to the `Remote`, `Get` or
 remote host, the connexion parameters are first taken from the `Host`
 instance to which the connexion is made, then from the
 ``connexion_params`` given to the `Remote`/`Get`/`Put`, if there are
-some, then from the ``default_connexion_params``.
+some, then from the `default_connexion_params`.
 
 after import time, the configuration may be changed dynamically from
 code in the following ways:
@@ -144,17 +154,14 @@ code in the following ways:
 
 - `default_connexion_params` may be modified directly.
 
-Author
-------
-
-matthieu.imbert@inria.fr
-SED INRIA Rhone-Alpes
-December 2009
+Detailed description
+--------------------
 """
 
 from __future__ import with_statement
 import datetime, logging, os, select, time, thread, threading, subprocess
-import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty, termios
+import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty
+import termios, functools
 
 configuration = {
     'log_level': logging.WARNING,
@@ -170,7 +177,7 @@ configuration = {
     }
 """Global execo configuration parameters.
 
-- ``log_level``: the log level (see module ``logging``)
+- ``log_level``: the log level (see module :mod:`logging`)
 
 - ``kill_timeout``: number of seconds to wait after a clean SIGTERM
   kill before assuming that the process is not responsive and killing
@@ -260,11 +267,9 @@ _styles = {
 _MAXREAD = 32767
 
 def read_user_configuration_dicts(dicts_confs):
-    """Update dicts with those found in ~/.execo_conf.py
+    """Update dicts with those found in ``~/.execo_conf.py``.
 
-    :Parameters:
-      dicts_confs
-        an iterable of couples (dict, string)
+    :param dicts_confs: an iterable of couples (dict, string)
 
     Used to read configuration dicts. For each couple (dict, string),
     if a dict named string is defined in ``~/.execo_conf.py``, update
@@ -291,14 +296,12 @@ logger_handler = logging.StreamHandler(sys.stderr)
 logger.addHandler(logger_handler)
 
 def style(string, style):
-    """Enclose a string with ansi color escape codes if ``configuration['color_mode']`` is True.
+    """Enclose a string with ansi color escape codes if `configuration['color_mode']` is True.
 
-    :Parameters:
-      string
-        the string to enclose
-      style
-        an iterable of ansi attributes identifiers (those found in
-        `_styles`)
+    :param string: the string to enclose
+    
+    :param style: an iterable of ansi attributes identifiers (those
+      found in `_styles`)
     """
     style = 'style_' + style
     if (configuration.has_key('color_mode')
@@ -314,14 +317,12 @@ def style(string, style):
 def set_log_level(level, formatter = None):
     """Set execo log level.
 
-    :Parameters:
-      level
-        the level (see logging module)
-      formatter
-        an optional custom formatter
+    :param level: the level (see module :mod:`logging`)
+
+    :param formatter: an optional custom formatter
 
     By default, the formatter is changed based on the log level. In
-    level ``logging.DEBUG``, a more detailed formatter is used.
+    level `logging.DEBUG`, a more detailed formatter is used.
     """
     if formatter != None:
         logger_handler.setFormatter(formatter)
@@ -340,9 +341,7 @@ else:
 def _get_milliseconds_suffix(secs):
     """Return a formatted millisecond suffix, either empty if ms = 0, or dot with 3 digits otherwise.
 
-    :Parameters:
-      secs
-        a unix timestamp (integer or float)
+    :param secs: a unix timestamp (integer or float)
     """
     ms_suffix = ""
     msecs = int (round(secs - int(secs), 3) * 1000)
@@ -353,9 +352,7 @@ def _get_milliseconds_suffix(secs):
 def format_time(secs):
     """Return a string with the formatted time (year, month, day, hour, min, sec, ms).
 
-    :Parameters:
-      secs
-        a unix timestamp (integer or float)
+    :param secs: a unix timestamp (integer or float)
     """
     if secs == None:
         return None
@@ -369,9 +366,7 @@ def format_time(secs):
 def format_duration(secs):
     """Return a string with a formatted duration (days, hours, mins, secs, ms).
 
-    :Parameters:
-      secs
-        a duration in seconds (integer or float)
+    :param secs: a duration in seconds (integer or float)
     """
     if secs == None:
         return None
@@ -392,9 +387,7 @@ def format_duration(secs):
 def _safe_sleep(secs):
     """Safe sleeping: restarted if interrupted by signals.
 
-    :Parameters:
-      secs
-        time to sleep in seconds (int or float)
+    :param secs: time to sleep in seconds (int or float)
     """
     start = time.time()
     end = start
@@ -403,13 +396,13 @@ def _safe_sleep(secs):
         end = time.time()
 
 def timedelta_to_seconds(td):
-    """Convert a ``datetime.timedelta`` to a number of seconds (float)."""
+    """Convert a `datetime.timedelta` to a number of seconds (float)."""
     return td.days * 86400 + td.seconds + td.microseconds / 1e6
 
 _epoch = datetime.datetime (1970, 1, 1, 0, 0, 0, 0)
 
 def datetime_to_unixts(dt):
-    """Convert a ``datetime.datetime`` to a unix timestamp (float)."""
+    """Convert a `datetime.datetime` to a unix timestamp (float)."""
     elapsed = dt - _epoch
     return timedelta_to_seconds(elapsed)
 
@@ -419,13 +412,11 @@ def sleep(delay = None, until = None):
     If both present, will sleep at least for the delay and at least
     until the date.
 
-    :Parameters:
-      delay
-        the delay to sleep as a ``datetime.timedelta`` or in seconds
-        (int or float).
-      until
-        the date until which to sleep as a ``datetime.datetime`` or as
-        a unix timestamp (int or float).
+    :param delay: the delay to sleep as a `datetime.timedelta` or in
+      seconds (int or float).
+
+    :param until: the date until which to sleep as a
+      `datetime.datetime` or as a unix timestamp (int or float).
     """
     if delay != None and isinstance(delay, datetime.timedelta):
         delay = timedelta_to_seconds(delay)
@@ -511,21 +502,21 @@ class ProcessOutputHandler(object):
     def read(self, process, string, eof = False, error = False):
         """Handle string read from a `Process`'s stream.
 
-        :Parameters:
-          process
-            the process which outputs the string
-          string
-            the string read
-          eof
-            (boolean) true if the stream is now at eof.
-          error
-            (boolean) true if there was an error on the stream
+        :param process: the process which outputs the string
+
+        :param string: the string read
+
+        :param eof:(boolean) true if the stream is now at eof.
+        
+        :param error: (boolean) true if there was an error on the
+          stream
         """
         pass
 
 def line_buffered(func):
     """Decorator to use (only) on the read method of a `ProcessOutputHandler`, for the decorated method to receive data line by line."""
     # not very clean design but currently it works
+    @functools.wraps(func)
     def wrapper(self, process, string, eof = False, error = False):
         wrapper.buffer += string
         while True:
@@ -584,6 +575,7 @@ class Process(object):
         # different threads (the main thread and the _Conductor
         # thread), to ensure that the Process instance always has a
         # consistent state.
+        @functools.wraps(func)
         def wrapper(*args, **kw):
             with args[0].__lock:
                 return func(*args, **kw)
@@ -591,39 +583,41 @@ class Process(object):
 
     def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, close_stdin = None, shell = True, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, pty = False):
         """
-        :Parameters:
-          cmd
-            string or tuple containing the command and args to run.
-          timeout
-            timeout (in seconds, or None for no timeout) after which
-            the subprocess will automatically be sent a SIGTERM
-          stdout_handler
-            instance of `ProcessOutputHandler` for handling activity
-            on subprocess stdout
-          stderr_handler
-            instance of `ProcessOutputHandler` for handling activity
-            on subprocess stderr
-          close_stdin
-            boolean. whether or not to close subprocess's stdin. If
-            None (default value), automatically choose based on pty.
-          shell
-            whether or not to use a shell to run the cmd. See
-            ``subprocess.Popen``
-          ignore_exit_code
-            if True, a subprocess with a return code != 0 won't
-            generate a warning
-          ignore_timeout
-            if True, a subprocess which reaches its timeout will be
-            sent a SIGTERM, but it won't generate a warning
-          ignore_error
-            if True, a subprocess raising an OS level error won't
-            generate a warning
-          pty
-            open a pseudo tty and connect process's stdin and stdout
-            to it (stderr is still connected as a pipe). Make process
-            a session leader. If lacking permissions to signals to the
-            process, try to simulate sending control characters to its
-            pty.
+        :param cmd: string or tuple containing the command and args to
+          run.
+
+        :param timeout: timeout (in seconds, or None for no timeout)
+          after which the subprocess will automatically be sent a
+          SIGTERM
+
+        :param stdout_handler: instance of `ProcessOutputHandler` for
+          handling activity on subprocess stdout
+
+        :param stderr_handler: instance of `ProcessOutputHandler` for
+          handling activity on subprocess stderr
+
+        :param close_stdin: boolean. whether or not to close
+          subprocess's stdin. If None (default value), automatically
+          choose based on pty.
+
+        :param shell: whether or not to use a shell to run the
+          cmd. See `subprocess.Popen`
+
+        :param ignore_exit_code: if True, a subprocess with a return
+          code != 0 won't generate a warning
+
+        :param ignore_timeout: if True, a subprocess which reaches its
+          timeout will be sent a SIGTERM, but it won't generate a
+          warning
+
+        :param ignore_error: if True, a subprocess raising an OS level
+          error won't generate a warning
+
+        :param pty: open a pseudo tty and connect process's stdin and
+          stdout to it (stderr is still connected as a pipe). Make
+          process a session leader. If lacking permissions to signals
+          to the process, try to simulate sending control characters
+          to its pty.
         """
         self.__lock = threading.RLock()
         self.__cmd = cmd
@@ -677,14 +671,12 @@ class Process(object):
     
     @__synchronized
     def started(self):
-        """Return a boolean indicating if the subprocess was started
-        or not."""
+        """Return a boolean indicating if the subprocess was started or not."""
         return self.__started
     
     @__synchronized
     def start_date(self):
-        """Return the subprocess start date or None if not yet
-        started."""
+        """Return the subprocess start date or None if not yet started."""
         return self.__start_date
     
     @__synchronized
@@ -699,27 +691,29 @@ class Process(object):
     
     @__synchronized
     def pid(self):
-        """Return the subprocess's pid, if available (subprocess
-        started) or None."""
+        """Return the subprocess's pid, if available (subprocess started) or None."""
         return self.__pid
     
     @__synchronized
     def error(self):
-        """Return a boolean indicating if there was an error starting
-        the subprocess. This is *not* the subprocess's return code."""
+        """Return a boolean indicating if there was an error starting the subprocess.
+
+        This is *not* the subprocess's return code.
+        """
         return self.__error
     
     @__synchronized
     def error_reason(self):
-        """Return the operating system level errno, if there was an
-        error starting the subprocess, or None."""
+        """Return the operating system level errno, if there was an error starting the subprocess, or None."""
         return self.__error_reason
     
     @__synchronized
     def exit_code(self):
-        """Return the subprocess exit code if available (if the
-        subprocess ended correctly from the OS point of view), or
-        None."""
+        """Return the subprocess exit code.
+
+        If available (if the subprocess ended correctly from the OS
+        point of view), or None.
+        """
         return self.__exit_code
     
     @__synchronized
@@ -729,15 +723,19 @@ class Process(object):
     
     @__synchronized
     def timeout_date(self):
-        """Return the date at which the subprocess will reach its
-        timeout, or none if not available."""
+        """Return the date at which the subprocess will reach its timeout.
+
+        Or none if not available.
+        """
         return self.__timeout_date
 
     @__synchronized
     def timeouted(self):
-        """Return a boolean indicating if the subprocess has reached
-        its timeout. Or None if we don't know yet (subprocess still
-        running, timeout not reached)."""
+        """Return a boolean indicating if the subprocess has reached its timeout.
+
+        Or None if we don't know yet (subprocess still running,
+        timeout not reached).
+        """
         return self.__timeouted
     
     @__synchronized
@@ -764,8 +762,10 @@ class Process(object):
 
     @__synchronized
     def stdout_fd(self):
-        """Return the subprocess stdout filehandle or None if not
-        available."""
+        """Return the subprocess stdout filehandle.
+
+        Or None if not available.
+        """
         if self.__process != None:
             if self.__pty:
                 return self.__ptymaster
@@ -776,8 +776,10 @@ class Process(object):
 
     @__synchronized
     def stderr_fd(self):
-        """Return the subprocess stderr filehandle or None if not
-        available."""
+        """Return the subprocess stderr filehandle.
+
+        Or None if not available.
+        """
         if self.__process != None:
             return self.__process.stderr.fileno()
         else:
@@ -785,8 +787,10 @@ class Process(object):
 
     @__synchronized
     def stdin_fd(self):
-        """Return the subprocess stdin filehandle or None if not
-        available."""
+        """Return the subprocess stdin filehandle.
+
+        Or None if not available.
+        """
         if self.__process != None and not self.__close_stdin:
             if self.__pty:
                 return self.__ptymaster
@@ -808,13 +812,11 @@ class Process(object):
     def _handle_stdout(self, string, eof = False, error = False):
         """Handle stdout activity.
 
-        :Parameters:
-          string
-            available stream output in string
-          eof
-            True if end of file on stream
-          error
-            True if error on stream
+        :param string: available stream output in string
+
+        :param eof: True if end of file on stream
+
+        :param error: True if error on stream
         """
         self.__stdout += string
         if error == True:
@@ -825,13 +827,11 @@ class Process(object):
     def _handle_stderr(self, string, eof = False, error = False):
         """Handle stderr activity.
 
-        :Parameters:
-          string
-            available stream output in string
-          eof
-            True if end of file on stream
-          error
-            True if error on stream
+        :param string: available stream output in string
+
+        :param eof: True if end of file on stream
+
+        :param error: True if error on stream
         """
         self.__stderr += string
         if error == True:
@@ -890,14 +890,12 @@ class Process(object):
     def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
 
-        :Parameters:
-          sig
-            the signal to send
-          auto_sigterm_timeout
-            whether or not execo will check that the subprocess has
-            terminated after a preset timeout, when it has received a
-            SIGTERM, and automatically send SIGKILL if the subprocess
-            is not yet terminated
+        :param sig: the signal to send
+
+        :param auto_sigterm_timeout: whether or not execo will check
+          that the subprocess has terminated after a preset timeout,
+          when it has received a SIGTERM, and automatically send
+          SIGKILL if the subprocess is not yet terminated
         """
         if self.__pid != None:
             logger.debug(style("kill with signal %s:" % sig, 'emph') + " %s" % self)
@@ -1020,7 +1018,7 @@ class _Conductor(object):
 
     """Manager of the subprocesses outputs and lifecycle.
 
-    There must be *one and only one instance of this class*
+    There must be **one and only one** instance of this class
 
     Instance of _Conductor will start two threads, one for handling
     asynchronously subprocesses outputs and part of the process
@@ -1187,7 +1185,9 @@ class _Conductor(object):
 
     @staticmethod
     def __non_blocking_read(fileno, maxread):
-        """Temporary set the filehandle in non blocking reading mode,
+        """Non blocking read.
+
+        Temporary set the filehandle in non blocking reading mode,
         then try to read, then restore the filehandle in its previous
         mode, then return string read."""
         file_status_flags = fcntl.fcntl(fileno, fcntl.F_GETFL, 0)
@@ -1232,8 +1232,7 @@ class _Conductor(object):
             process._set_terminated(exit_code = exit_code)
 
     def __get_next_timeout(self):
-        """Return the remaining time until the smallest timeout date
-        of all registered `Process`."""
+        """Return the remaining time until the smallest timeout date of all registered `Process`."""
         next_timeout = None
         if len(self.__timeline) != 0:
             self.__timeline.sort(key = lambda x: x[0])
@@ -1399,23 +1398,23 @@ _the_conductor = _Conductor().start()
 def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with ssh / scp authentifications options.
 
-    :Parameters:
-      user
-        the user to connect with. If None, will try to get the user
-        from the given connexion_params, or fallback to the default
-        user in `default_connexion_params`, or no user option at all.
-      keyfile
-        the keyfile to connect with. If None, will try to get the
-        keyfile from the given connexion_params, or fallback to the
-        default keyfile in `default_connexion_params`, or no keyfile
-        option at all.
-      port
-        the port to connect to. If None, will try to get the port from
-        the given connexion_params, or fallback to the default port in
-        `default_connexion_params`, or no port option at all.
-      connexion_params
-        a dict similar to `default_connexion_params`, whose values
-        will override those in `default_connexion_params`
+    :param user: the user to connect with. If None, will try to get
+      the user from the given connexion_params, or fallback to the
+      default user in `default_connexion_params`, or no user option at
+      all.
+
+    :param keyfile: the keyfile to connect with. If None, will try to
+      get the keyfile from the given connexion_params, or fallback to
+      the default keyfile in `default_connexion_params`, or no keyfile
+      option at all.
+
+    :param port: the port to connect to. If None, will try to get the
+      port from the given connexion_params, or fallback to the default
+      port in `default_connexion_params`, or no port option at all.
+        
+    :param connexion_params: a dict similar to
+      `default_connexion_params`, whose values will override those in
+      `default_connexion_params`
     """
     ssh_scp_auth_options = ()
     
@@ -1456,15 +1455,13 @@ def get_ssh_command(user = None, keyfile = None, port = None, connexion_params =
     `default_connexion_params`, and add authentification options got
     from `get_ssh_scp_auth_options`
 
-    :Parameters:
-      user
-        see `get_ssh_scp_auth_options`
-      keyfile
-        see `get_ssh_scp_auth_options`
-      port
-        see `get_ssh_scp_auth_options`
-      connexion_params
-        see `get_ssh_scp_auth_options`
+    :param user: see `get_ssh_scp_auth_options`
+
+    :param keyfile: see `get_ssh_scp_auth_options`
+    
+    :param port: see `get_ssh_scp_auth_options`
+    
+    :param connexion_params: see `get_ssh_scp_auth_options`
     """
     ssh_command = ()
     
@@ -1499,15 +1496,13 @@ def get_scp_command(user = None, keyfile = None, port = None, connexion_params =
     `default_connexion_params`, and add authentification options got
     from `get_ssh_scp_auth_options`
 
-    :Parameters:
-      user
-        see `get_ssh_scp_auth_options`
-      keyfile
-        see `get_ssh_scp_auth_options`
-      port
-        see `get_ssh_scp_auth_options`
-      connexion_params
-        see `get_ssh_scp_auth_options`
+    :param user: see `get_ssh_scp_auth_options`
+
+    :param keyfile: see `get_ssh_scp_auth_options`
+
+    :param port: see `get_ssh_scp_auth_options`
+
+    :param connexion_params: see `get_ssh_scp_auth_options`
     """
     scp_command = ()
     
@@ -1538,11 +1533,11 @@ class Host(object):
 
     """A host to connect to.
 
-    Has an address (mandatory)
+    - Has an address (mandatory)
 
-    Can optionaly have a user, a keyfile, a port, which are used for
-    remote connexion and authentification (with a ssh like remote
-    connexion tool).
+    - Can optionaly have a user, a keyfile, a port, which are used for
+      remote connexion and authentification (with a ssh like remote
+      connexion tool).
 
     >>> h1 = Host('localhost')
     >>> h1.user = 'root'
@@ -1555,22 +1550,20 @@ class Host(object):
 
     def __init__(self, host, user = False, keyfile = False, port = False):
         """
-        :Parameters:
-          host
-            (string or `Host`) the host address or another `Host`
-            instance which will be copied into this new instance
-          user
-            (string) optional user whith which to connect. If False
-            (default value), means use the default user. If None,
-            means don't use any user.
-          keyfile
-            (string) optional keyfile whith which to connect. If False
-            (default value), means use the default keyfile. If None,
-            means don't use any keyfile.
-          port
-            (integer) optional port to which to connect. If False
-            (default value), means use the default port. If None,
-            means don't use any port.
+        :param host: (string or `Host`) the host address or another
+          `Host` instance which will be copied into this new instance
+
+        :param user: (string) optional user whith which to connect. If
+          False (default value), means use the default user. If None,
+          means don't use any user.
+
+        :param keyfile: (string) optional keyfile whith which to
+          connect. If False (default value), means use the default
+          keyfile. If None, means don't use any keyfile.
+
+        :param port: (integer) optional port to which to connect. If
+          False (default value), means use the default port. If None,
+          means don't use any port.
         """
         if isinstance(host, Host):
             self.address = host.address
@@ -1626,7 +1619,7 @@ class FrozenHost(Host):
     """
 
     def __setattr__(self, *args):
-        """Redfined to force instances of this class to be readonly."""
+        """Redefined to force instances of this class to be readonly."""
         raise TypeError("can't modify immutable instance")
 
     __delattr__ = __setattr__
@@ -1709,13 +1702,11 @@ class Report(object):
 
     def __init__(self, reports = None, name = None):
         """
-        :Parameters:
-          reports
-            a `Report`, an `Action`, or an iterable of these, which
-            will be added to this `Report`.
-          name
-            a name given to this report. If None, a default name will
-            be given.
+        :param reports: a `Report`, an `Action`, or an iterable of
+          these, which will be added to this `Report`.
+          
+        :param name a name given to this report. If None, a default
+          name will be given.
         """
         if name == None:
             self._name = "%s" % (self.__class__.__name__,)
@@ -1726,12 +1717,10 @@ class Report(object):
             self.add_reports(reports)
 
     def add_reports(self, reports):
-        """Add some sub- `Report` or `Action` to this `Report`.
+        """Add some sub-`Report` or `Action` to this `Report`.
         
-        :Parameters:
-          reports
-            an iterable of `Report` or `Action`, which will be added
-            to this `Report`.
+        :param reports: an iterable of `Report` or `Action`, which
+          will be added to this `Report`.
         """
         self._reports.update(reports)
 
@@ -1762,8 +1751,7 @@ class Report(object):
             }
 
     def stats(self):
-        """Return a dict summarizing the statistics of all `Action`
-        and sub-`Report` registered to this `Report`.
+        """Return a dict summarizing the statistics of all `Action` and sub-`Report` registered to this `Report`.
 
         This summary dict contains the following metrics:
         
@@ -1794,9 +1782,10 @@ class Report(object):
           correctly but whose return code was != 0.
         
         - ``num_ok``: number of subprocesses which did not went in
-          error, did not timeout (or were launched with flag
-          ignore_timeout), and had an exit code == 0 (or were launched
-          with flag ignore_exit_code).
+          error (or where launched with flag ignore_error) , did not
+          timeout (or where launched with flag ignore_timeout), and
+          had an exit code == 0 (or where launched with flag
+          ignore_exit_code).
         """
         stats = Report.empty_stats()
         no_start_date = False
@@ -1908,28 +1897,29 @@ class Action(object):
 
     """Abstract base class. A set of parallel processes.
 
-    An `Action` can be started, stopped. One can wait for an `Action`,
-    it means waiting for all processes in the `Action` to finish. An
-    `Action` can be run, it means start it then wait for it to
-    complete.
+    An `Action` can be started (`Action.start`), stopped
+    (`Action.stop`). One can wait (`Action.wait`) for an `Action`, it
+    means waiting for all processes in the `Action` to finish. An
+    `Action` can be run (`Action.wait`), it means start it then wait
+    for it to complete.
     """
     
     def __init__(self, name = None, timeout = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False):
         """
-        :Parameters:
-          name
-            `Action` name, one will be generated if None given
-          timeout
-            timeout for all subprocesses of this `Action`
-          ignore_exit_code
-            if True, subprocesses with return value != 0 won't
-            generate a warning and will still be counted as ok.
-          ignore_timeout
-            if True, subprocesses which timeout won't generate a
-            warning and will still be counted as ok.
-          ignore_error
-            if True, subprocesses which have an error won't generate a
-            warning and will still be counted as ok.
+        :param name: `Action` name, one will be generated if None
+          given
+
+        :param timeout: timeout for all subprocesses of this `Action`
+
+        :param ignore_exit_code: if True, subprocesses with return
+          value != 0 won't generate a warning and will still be
+          counted as ok.
+
+        :param ignore_timeout: if True, subprocesses which timeout
+          won't generate a warning and will still be counted as ok.
+
+        :param ignore_error: if True, subprocesses which have an error
+          won't generate a warning and will still be counted as ok.
         """
         if name == None:
             self._name = "%s 0x%08.8x" % (self.__class__.__name__, id(self))
@@ -1989,9 +1979,10 @@ class Action(object):
     def error(self):
         """Return a boolean indicating if one or more subprocess failed.
 
-        A subprocess failed if it went in error, if it timeouted
-        (unless ignore_timeout flag was given), if its exit_code is !=
-        0 (unless ignore_exit_code flag was given).
+        A subprocess failed if it went in error (unless ignore_error
+        flag was given), if it timeouted (unless ignore_timeout flag
+        was given), if its exit_code is != 0 (unless ignore_exit_code
+        flag was given).
         """
         error = False
         for process in self.processes():
@@ -2100,19 +2091,15 @@ class MultiAction(Action):
 def remote_substitute(string, all_hosts, index, frame_globals):
     """Perform some tag substitutions in a specific context.
 
-    :Parameters:
-      string
-        the string onto which to perfom the substitution.
-      all_hosts
-        an iterable of `Host` which is the context into which the
-        substitution will be made. all_hosts[index] is the `Host` to
-        which this string applies.
-      index
-        the index in all_hosts of the `Host` to which this string
-        applies
-      frame_globals
-        the global symbol table in the context of which this
-        substitution is made.
+    :param string: the string onto which to perfom the substitution.
+
+    :param all_hosts: an iterable of `Host` which is the context into
+      which the substitution will be made. all_hosts[index] is the
+      `Host` to which this string applies.
+
+    :param index: the index in all_hosts of the `Host` to which this
+      string applies frame_globals the global symbol table in the
+      context of which this substitution is made.
 
     - Replaces all occurences of the literal string {{{host}}} by the
       `Host` address itself.
@@ -2145,17 +2132,15 @@ class Remote(Action):
 
     def __init__(self, hosts = None, cmd = None, connexion_params = None, **kwargs):
         """
-        :Parameters:
-          hosts
-            iterable of `Host` to which to connect and run the
-            command.
-          cmd
-            the command to run remotely. substitions described in
-            `remote_substitute` will be performed.
-          connexion_params
-            a dict similar to `default_connexion_params` whose values
-            will override those in `default_connexion_params` for
-            connexion.
+        :param hosts: iterable of `Host` to which to connect and run
+          the command.
+
+        :param cmd: the command to run remotely. substitions described
+          in `remote_substitute` will be performed.
+
+        :param connexion_params: a dict similar to
+          `default_connexion_params` whose values will override those
+          in `default_connexion_params` for connexion.
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, cmd, hosts)
@@ -2203,23 +2188,22 @@ class Put(Remote):
 
     def __init__(self, hosts = None, local_files = None, remote_location = "", create_dirs = False, connexion_params = None, **kwargs):
         """
-        :Parameters:
-          hosts
-            iterable of `Host` onto which to copy the files.
-          local_files
-            an iterable of string of file paths. substitions described
-            in `remote_substitute` will be performed.
-          remote_location
-            the directory on the remote hosts were the files will be
-            copied. substitions described in `remote_substitute` will
-            be performed.
-          create_dirs
-            boolean indicating if remote_location is a directory to be
-            created
-          connexion_params
-            a dict similar to `default_connexion_params` whose values
-            will override those in `default_connexion_params` for
-            connexion.
+        :param hosts: iterable of `Host` onto which to copy the files.
+
+        :param local_files: an iterable of string of file
+          paths. substitions described in `remote_substitute` will be
+          performed.
+        
+        :param remote_location: the directory on the remote hosts were
+          the files will be copied. substitions described in
+          `remote_substitute` will be performed.
+
+        :param create_dirs: boolean indicating if remote_location is a
+          directory to be created
+
+        :param connexion_params: a dict similar to
+          `default_connexion_params` whose values will override those
+          in `default_connexion_params` for connexion.
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
@@ -2248,23 +2232,22 @@ class Get(Remote):
 
     def __init__(self, hosts = None, remote_files = None, local_location = "", create_dirs = False, connexion_params = None, **kwargs):
         """
-        :Parameters:
-          hosts
-            iterable of `Host` from which to get the files.
-          remote_files
-            an iterable of string of file paths. substitions described
-            in `remote_substitute` will be performed.
-          local_location
-            the local directory were the files will be
-            copied. substitions described in `remote_substitute` will
-            be performed.
-          create_dirs
-            boolean indicating if local_location is a directory to be
-            created
-          connexion_params
-            a dict similar to `default_connexion_params` whose values
-            will override those in `default_connexion_params` for
-            connexion.
+        :param hosts: iterable of `Host` from which to get the files.
+
+        :param remote_files: an iterable of string of file
+          paths. substitions described in `remote_substitute` will be
+          performed.
+
+        :param local_location: the local directory were the files will
+          be copied. substitions described in `remote_substitute` will
+          be performed.
+
+        :param create_dirs: boolean indicating if local_location is a
+          directory to be created
+
+        :param connexion_params: a dict similar to
+          `default_connexion_params` whose values will override those
+          in `default_connexion_params` for connexion.
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
@@ -2296,9 +2279,7 @@ class Local(Action):
 
     def __init__(self, cmd = None, **kwargs):
         """
-        :Parameters:
-          cmd
-            the command to run.
+        :param cmd: the command to run.
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s %s" % (self.__class__.__name__, cmd)

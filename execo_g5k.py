@@ -2,8 +2,8 @@
 
 r"""Tools and extensions to execo suitable for use in Grid5000
 
-Detailed description
---------------------
+General information
+-------------------
 
 important exported classes:
 
@@ -35,11 +35,11 @@ Configuration
 -------------
 
 This module may be configured at import time by defining two dicts
-``g5k_configuration`` and ``default_frontend_connexion_params`` in the
+`g5k_configuration` and `default_frontend_connexion_params` in the
 file ``~/.execo_conf.py``
 
-The ``g5k_configuration`` dict contains global g5k configuration
-parameters. It's default values are::
+The `g5k_configuration` dict contains global g5k configuration
+parameters. Its default values are::
 
   g5k_configuration = {
       'default_environment_name': None,
@@ -47,8 +47,8 @@ parameters. It's default values are::
       'default_timeout': 300,
       }
 
-The ``default_frontend_connexion_params`` dict contains default
-parameters for remote connexions to grid5000 frontends. It's default
+The `default_frontend_connexion_params` dict contains default
+parameters for remote connexions to grid5000 frontends. Its default
 values are::
 
   default_frontend_connexion_params = {
@@ -69,12 +69,8 @@ values are::
                       '-o', 'ConnectTimeout=20', '-rp'),
       }
 
-Author
-------
-
-matthieu.imbert@inria.fr
-SED INRIA Rhone-Alpes
-December 2009
+Detailed description
+--------------------
 """
 
 from execo import *
@@ -129,9 +125,8 @@ class _KadeployOutputHandler(ProcessOutputHandler):
     
     def __init__(self, kadeployer):
         """
-        :Parameters:
-          kadeployer
-            the `Kadeployer` to which this `ProcessOutputHandler` is attached.
+        :param kadeployer: the `Kadeployer` to which this
+          `ProcessOutputHandler` is attached.
         """
         self._kadeployer = kadeployer
         self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+$")
@@ -169,17 +164,18 @@ class Kadeployer(Remote):
 
     def __init__(self, hosts = None, environment_name = None, environment_file = None, connexion_params = None, **kwargs):
         """
-        :Parameters:
-          hosts
-            an iterable of `Host` to deploy
-          environment_name
-            name of the environment as registered to kadeploy3
-          environment_file
-            path of an environment description for kadeploy3
-          connexion_params
-            a dict similar to `default_frontend_connexion_params`
-            whose values will override those in
-            `default_frontend_connexion_params` for connexion.
+        :param hosts: an iterable of `Host` to deploy
+
+        :param environment_name: name of the environment as registered
+          to kadeploy3
+
+        :param environment_file: path of an environment description
+          for kadeploy3
+
+        :param connexion_params: a dict similar to
+          `default_frontend_connexion_params` whose values will
+          override those in `default_frontend_connexion_params` for
+          connexion.
 
         there must be either one of environment_name or
         environment_file parameter given. If none given, will try to
@@ -290,8 +286,7 @@ class Kadeployer(Remote):
         return error
 
 def _convert_endpoint(endpoint):
-    """Convert endpoint from ``datetime.datetime`` or
-    ``datetime.timedelta``, or deltat in seconds, to unix timestamp."""
+    """Convert endpoint from `datetime.datetime` or `datetime.timedelta`, or deltat in seconds, to unix timestamp."""
     if endpoint != None:
         if isinstance(endpoint, datetime.datetime):
             endpoint = datetime_to_unixts(endpoint)
@@ -311,34 +306,36 @@ def _date_in_range(date, range):
     return True
 
 def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
-    """Return a list of current active oar job ids. The list contains tuples (oarjob id, site), with site == None for local site.
+    """Return a list of current active oar job ids.
 
-    :Parameters:
-      sites
-        an iterable of sites to connect to.
-      local
-        boolean indicating if we retrieve from local site
-      start_between
-        a tuple (low, high) of endpoints. Filters and returns only
-        jobs whose start date is in between these endpoints. Each
-        endpoint may be given as a ``datetime.datetime`` (absolute
-        date), as a ``datetime.timedelta`` (delta from now), as an
-        absolute unix timestamp, or as a delta from now in seconds (if
-        unix timestamp before 315532800 (Jan 1 1980), then assume it
-        is a deltat (less than 10 years)).
-      end_between
-        a tuple (low, high) of endpoints. Filters and returns only
-        jobs whose end date is in between these endpoints. Each
-        endpoint may be given as a ``datetime.datetime`` (absolute
-        date), as a ``datetime.timedelta`` (delta from now), as an
-        absolute unix timestamp, or as a delta from now in seconds (if
-        unix timestamp before 315532800 (Jan 1 1980), then assume it
-        is a deltat, (less than 10 years)).
-      connexion_params
-        connexion params to connect to other site's frontend if needed
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
+    The list contains tuples (oarjob id, site), with site == None for
+    local site.
+
+    :param sites: an iterable of sites to connect to.
+
+    :param local: boolean indicating if we retrieve from local site
+
+    :param start_between: a tuple (low, high) of endpoints. Filters
+      and returns only jobs whose start date is in between these
+      endpoints. Each endpoint may be given as a `datetime.datetime`
+      (absolute date), as a `datetime.timedelta` (delta from now), as
+      an absolute unix timestamp, or as a delta from now in seconds
+      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
+      is a deltat (less than 10 years)).
+        
+    :param end_between: a tuple (low, high) of endpoints. Filters and
+      returns only jobs whose end date is in between these
+      endpoints. Each endpoint may be given as a `datetime.datetime`
+      (absolute date), as a `datetime.timedelta` (delta from now), as
+      an absolute unix timestamp, or as a delta from now in seconds
+      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
+      is a deltat, (less than 10 years)).
+        
+    :param connexion_params: connexion params to connect to other
+      site's frontend if needed
+    
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
     """
     if start_between: start_between = map(_convert_endpoint, start_between)
     if end_between: end_between = map(_convert_endpoint, end_between)
@@ -380,26 +377,24 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
 def get_current_oargrid_jobs(start_between = None, end_between = None, timeout = g5k_configuration['default_timeout']):
     """Return a list of current active oargrid job ids.
 
-    :Parameters:
-      start_between
-        a tuple (low, high) of endpoints. Filters and returns only
-        jobs whose start date is in between these endpoints. Each
-        endpoint may be given as a ``datetime.datetime`` (absolute
-        date), as a ``datetime.timedelta`` (delta from now), as an
-        absolute unix timestamp, or as a delta from now in seconds (if
-        unix timestamp before 315532800 (Jan 1 1980), then assume it
-        is a deltat (less than 10 years)).
-      end_between
-        a tuple (low, high) of endpoints. Filters and returns only
-        jobs whose end date is in between these endpoints. Each
-        endpoint may be given as a ``datetime.datetime`` (absolute
-        date), as a ``datetime.timedelta`` (delta from now), as an
-        absolute unix timestamp, or as a delta from now in seconds (if
-        unix timestamp before 315532800 (Jan 1 1980), then assume it
-        is a deltat, (less than 10 years)).
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
+    :param start_between: a tuple (low, high) of endpoints. Filters
+      and returns only jobs whose start date is in between these
+      endpoints. Each endpoint may be given as a `datetime.datetime`
+      (absolute date), as a `datetime.timedelta` (delta from now), as
+      an absolute unix timestamp, or as a delta from now in seconds
+      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
+      is a deltat (less than 10 years)).
+        
+    :param end_between: a tuple (low, high) of endpoints. Filters and
+      returns only jobs whose end date is in between these
+      endpoints. Each endpoint may be given as a `datetime.datetime`
+      (absolute date), as a `datetime.timedelta` (delta from now), as
+      an absolute unix timestamp, or as a delta from now in seconds
+      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
+      is a deltat, (less than 10 years)).
+        
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
     """
     if start_between: start_between = map(_convert_endpoint, start_between)
     if end_between: end_between = map(_convert_endpoint, end_between)
@@ -422,21 +417,19 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
 def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
     """Return a dict with informations about an oar job.
 
-    :Parameters:
-      oar_job_id
-        the oar job id. If None given, will try to get it from
-        ``OAR_JOB_ID`` environment variable.
-      site
-        the Grid5000 site of the oar job. If None given, assume local
-        oar job (only works if run on the local frontend).
-      connexion_params
-        connexion params to connect to other site's frontend in case
-        the oar job is on a remote site (default:
-        `default_frontend_connexion_params`)
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
-
+    :param oar_job_id: the oar job id. If None given, will try to get
+      it from ``OAR_JOB_ID`` environment variable.
+      
+    :param site: the Grid5000 site of the oar job. If None given,
+      assume local oar job (only works if run on the local frontend).
+        
+    :param connexion_params: connexion params to connect to other
+      site's frontend in case the oar job is on a remote site
+      (default: `default_frontend_connexion_params`)
+        
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
+    
     Hash returned contains these keys:
 
     - ``start_date``: unix timestamp of job's start date
@@ -474,32 +467,28 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
 def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
     """Sleep until an oar job's start time.
 
-    :Parameters:
-      oar_job_id
-        the oar job id. If None given, will try to get it from
-        ``OAR_JOB_ID`` environment variable.
-      site
-        the Grid5000 site of the oar job. If None given, assume local
-        oar job (only works if run on the local frontend).
-      connexion_params
-        connexion params to connect to other site's frontend in case
-        the oar job is on a remote site (default:
-        `default_frontend_connexion_params`)
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
+    :param oar_job_id: the oar job id. If None given, will try to get
+      it from ``OAR_JOB_ID`` environment variable.
+
+    :param site: the Grid5000 site of the oar job. If None given,
+      assume local oar job (only works if run on the local frontend).
+
+    :param connexion_params: connexion params to connect to other
+      site's frontend in case the oar job is on a remote site
+      (default: `default_frontend_connexion_params`)
+    
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
     """
     sleep(until = get_oar_job_info(oar_job_id, site, connexion_params, timeout)['start_date'])
     
 def get_oargrid_job_info(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
     """Return a dict with informations about an oargrid job.
 
-    :Parameters:
-      oargrid_job_id
-        the oargrid job id.
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
+    :param oargrid_job_id: the oargrid job id.
+
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
 
     Hash returned contains these keys:
 
@@ -526,32 +515,28 @@ def get_oargrid_job_info(oargrid_job_id = None, timeout = g5k_configuration['def
 def wait_oargrid_job_start(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
     """Sleep until an oargrid job's start time.
 
-    :Parameters:
-      oargrid_job_id
-        the oargrid job id.
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
+    :param oargrid_job_id: the oargrid job id.
+
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
     """
     sleep(until = get_oargrid_job_info(oargrid_job_id, timeout)['start_date'])
 
 def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
     """Return an iterable of `FrozenHost` containing the hosts of an oar job.
 
-    :Parameters:
-      oar_job_id
-        the oar job id. If None given, will try to get it from
-        ``OAR_JOB_ID`` environment variable.
-      site
-        the Grid5000 site of the oar job. If None given, assume local
-        oar job (only works if run on the local frontend).
-      connexion_params
-        connexion params to connect to other site's frontend in case
-        the oar job is on a remote site (default:
-        `default_frontend_connexion_params`)
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
+    :param oar_job_id: the oar job id. If None given, will try to get
+      it from ``OAR_JOB_ID`` environment variable.
+
+    :param site: the Grid5000 site of the oar job. If None given,
+      assume local oar job (only works if run on the local frontend).
+
+    :param connexion_params: connexion params to connect to other
+      site's frontend in case the oar job is on a remote site
+      (default: `default_frontend_connexion_params`)
+
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
     """
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
@@ -579,12 +564,10 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
 def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_timeout']):
     """Return an iterable of `FrozenHost` containing the hosts of an oargrid job.
 
-    :Parameters:
-      oargrid_job_id
-        the oargrid job id.
-      timeout
-        timeout for retrieving. default:
-        ``g5k_configuration['default_timeout']``
+    :param oargrid_job_id: the oargrid job id.
+
+    :param timeout: timeout for retrieving. default:
+      `g5k_configuration['default_timeout']`
     """
     cmd = "oargridstat -wl %i" % oargrid_job_id
     process = Process(cmd, timeout = timeout, pty = True)
@@ -600,13 +583,13 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_t
 def kadeploy(hosts = None, environment_name = None, environment_file = None):
     """Deploy hosts with kadeploy3.
 
-    :Parameters:
-      hosts
-        iterable of `Host` to deploy.
-      environment_name
-        name of an environment registered to kadeploy3.
-      environment_file
-        name of an environment file for kadeploy3.
+    :param hosts: iterable of `Host` to deploy.
+
+    :param environment_name: name of an environment registered to
+      kadeploy3
+    
+    :param environment_file: name of an environment file for
+      kadeploy3.
 
     Returns a tuple (iterable of `FrozenHost` containing the deployed
     host, iterable of `FrozenHost` containing the nodes not deployed).
@@ -636,28 +619,29 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
 
       - deploy the undeployed nodes
 
-    :Parameters:
-      oar_job_id_tuples
-        iterable of tuple (oar job id, g5k site). Put None as g5k site
-        for local site.
-      oargrid_job_ids
-        iterable of oargrid job id.
-      hosts
-        iterable of `Host`.
-      environment_name
-        name of an environment registered to kadeploy3.
-      environment_file
-        name of an environment file for kadeploy3.
-      connexion_params
-        a dict similar to `execo.default_connexion_params` whose
-        values will override those in `execo.default_connexion_params`
-        when connecting to check node deployment.
-      check_deployed_command
-        command to perform remotely to check node deployement. This
-        command should return 0 if the node is correctly deployed, or
-        another value otherwise.
-      num_deploy_retries
-        number of deploy retries
+    :param oar_job_id_tuples: iterable of tuple (oar job id, g5k
+      site). Put None as g5k site for local site.
+
+    :param oargrid_job_ids: iterable of oargrid job id.
+
+    :param hosts: iterable of `Host`.
+
+    :param environment_name: name of an environment registered to
+      kadeploy3.
+
+    :param environment_file: name of an environment file for
+      kadeploy3.
+
+    :param connexion_params: a dict similar to
+      `execo.default_connexion_params` whose values will override
+      those in `execo.default_connexion_params` when connecting to
+      check node deployment.
+
+    :param check_deployed_command: command to perform remotely to
+      check node deployement. This command should return 0 if the node
+      is correctly deployed, or another value otherwise.
+
+    :param num_deploy_retries: number of deploy retries
     """
 
     # get hosts list
