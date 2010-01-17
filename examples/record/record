@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import execo
+
+actions = [ execo.Local("ls -al ~"),
+            execo.Local("false"),
+            execo.Local("/dev/null"),
+            execo.Local("echo begin ; sleep 5 ; echo end"),
+            execo.Local("ping -c 5 localhost") ]
+
+map(execo.Local.start, actions)
+map(execo.Local.wait, actions)
+
+print execo.Report(actions).output()
