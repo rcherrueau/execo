@@ -46,13 +46,12 @@ Process
 -------
 
 A `Process` is an operating system process, similar to the
-`subprocess.Popen` class in the python standard library
-(actually execo `Process` use them internally). The main
-differences is that a specific thread (which is started when execo
-module is imported) takes care of reading asynchronously stdout and
-stderr, and of handling the lifecycle of the process. This allows
-writing easily code in a style appropriate for conducting several
-processes in parallel.
+`subprocess.Popen` class in the python standard library (actually
+execo `Process` use them internally). The main differences is that a
+background thread (which is started when execo module is imported)
+takes care of reading asynchronously stdout and stderr, and of
+handling the lifecycle of the process. This allows writing easily code
+in a style appropriate for conducting several processes in parallel.
 
 General information
 -------------------
@@ -177,7 +176,7 @@ configuration = {
     }
 """Global execo configuration parameters.
 
-- ``log_level``: the log level (see module :mod:`logging`)
+- ``log_level``: the log level (see module `logging`)
 
 - ``kill_timeout``: number of seconds to wait after a clean SIGTERM
   kill before assuming that the process is not responsive and killing
@@ -317,7 +316,7 @@ def style(string, style):
 def set_log_level(level, formatter = None):
     """Set execo log level.
 
-    :param level: the level (see module :mod:`logging`)
+    :param level: the level (see module `logging`)
 
     :param formatter: an optional custom formatter
 
