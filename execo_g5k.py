@@ -620,7 +620,7 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None):
         raise Exception, "error deploying nodes: %s" % (kadeployer,)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = 'true', num_deploy_retries = 2):
+def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2):
 
     """Wait for jobs start date, get hosts list, deploy them if needed.
 
@@ -656,11 +656,16 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     :param connexion_params: a dict similar to
       `execo.default_connexion_params` whose values will override
       those in `execo.default_connexion_params` when connecting to
-      check node deployment.
+      check node deployment with ``check_deployed_command`` (see
+      below).
 
     :param check_deployed_command: command to perform remotely to
       check node deployement. This command should return 0 if the node
-      is correctly deployed, or another value otherwise.
+      is correctly deployed, or another value otherwise. The default
+      value ``! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u
+      oar -o args | grep sshd)`` checks that there is no ssh daemon
+      running under user oar, and that the root is not on the second
+      partition of the disk.
 
     :param num_deploy_retries: number of deploy retries
     """
