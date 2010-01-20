@@ -38,6 +38,20 @@ important exported classes
 General information
 ===================
 
+Usage
+-----
+
+To use execo_g5k, your code must be run from grid5000. Passwordless,
+public-key based authentification must be used (either with
+appropriate public / private specific g5k keys shared on all your home
+directories, or with an appropriate ssh-agent forwarding
+configuration).
+
+The code can be run from a frontend or from g5k nodes (in the latter
+case, of course, you would explicitely refer to the local g5k by name,
+and the node running the code needs to be able to connect to all
+frontends)
+
 Configuration
 -------------
 

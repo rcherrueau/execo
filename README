@@ -1,9 +1,40 @@
---------------------------------------------
+============================================
 Readme / documentation for the execo package
---------------------------------------------
+============================================
+
+The execo python module offers a high level API for parallel local or
+remote processes execution with the Action class hierarchy, and a
+lower level API with the Process class, for handling individual
+subprocesses.
+
+The additional execo_g5k python module provides a set of tools and
+extensions to execo, to be used in Grid5000
 
 installation instructions
--------------------------
+=========================
+
+links
+-----
+
+execo package download: http://graal.ens-lyon.fr/~mimbert/execo/execo-1.0.tar.gz
+
+execo code repository: http://graal.ens-lyon.fr/~mimbert/execo/execo.git
+
+execo documentation: http://graal.ens-lyon.fr/~mimbert/execo/doc/index.html
+
+prerequisites
+-------------
+
+execo installation requires python (>= 2.5) and make
+
+for debian 5.x, the packages to install are: python make
+
+to be able to rebuild the documentation, sphinx is needed (a recent
+version, for example debian package python-sphinx in testing. The
+version in stable lacks some extensions)
+
+installation
+------------
 
 use the supplied makefile.
 
@@ -12,12 +43,18 @@ targets are:
 - build: to compile py files.
 
 - install: to install. Pass option PREFIX=... for installing in a
-  non-default location.
+  non-default location (default PREFIX is /usr/local).
 
 - doc: to build doc
 
 - check: to run unittests and doctests
 
-- clean: to clean
+- clean: to clean everything
 
-- dist: to package
+- dist: to create the execo package in dist/
+
+usage
+=====
+
+See html documentation for module execo and execo_g5k at
+http://graal.ens-lyon.fr/~mimbert/execo/doc/index.html

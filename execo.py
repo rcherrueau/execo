@@ -1879,7 +1879,11 @@ class Report(object):
         return "Report(reports=%r, name=%r)" % (self._reports, self._name)
 
     def output(self, wide = False):
-        """Returns a formatted string with a human-readable summary of all `Action` results."""
+        """Returns a formatted string with a human-readable summary of all `Action` results.
+
+        :param wide: if False (default), report format is designed for
+          80 columns display. If True, output a wide report.
+        """
         stats = self.stats()
         output = ""
         if wide:
