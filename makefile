@@ -1,5 +1,7 @@
 .PHONY: all build install clean doc cleandoc check dist
 
+PREFIX=/usr/local
+
 all: build
 
 build:
