@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-r"""Handles launching of several processes in parallel and controlling them asynchronously.
+r"""Handles launching of several operating system level processes in parallel and controlling them asynchronously.
 
 Overview
---------
+========
 
 This module offers a high level API for parallel local or remote
 processes execution with the `Action` class hierarchy, and a
@@ -13,7 +13,7 @@ individual subprocesses.
 Action
 ------
 
-.. inheritance-diagram:: Action Remote Get Put Local
+.. inheritance-diagram:: Action Remote Get Put Local MultiAction
 
 An `Action` is an abstraction of a set of parallel processes. It is an
 abstract class. Child classes are: `Remote`, `Get`,
@@ -53,8 +53,87 @@ takes care of reading asynchronously stdout and stderr, and of
 handling the lifecycle of the process. This allows writing easily code
 in a style appropriate for conducting several processes in parallel.
 
+important exported classes
+--------------------------
+
+- `Host`, `FrozenHost`: abstraction of a remote host.
+
+- `Action`, `MultiAction`, `Remote`, `Put`, `Get`, `Local`: all action
+  classes.
+
+- `Report`: for gathering and summarizing the results of many `Action`
+
+- `Process`: operating-system level process abstraction, on top of
+  which `Action` are implemented.
+
+- `Timer`: convenience timer class.
+
+important exported functions
+----------------------------
+
+- `sleep`: easy to use sleep function.
+
+- `set_log_level`: setting execo log level.
+
 General information
--------------------
+===================
+
+ssh configuration for Remote, Get, Put
+--------------------------------------
+
+For `Remote`, `Get`, `Put` to work correctly, ssh/scp connexions need
+to be fully automatic: No password has to be asked. The default
+configuration in execo is to force a passwordless, public key based
+authentification. As this tool is growing in a cluster/grid
+environment where servers are frequently redeployed, default
+configuration also disables strict key checking, and the recording of
+hosts keys to ``~/.ssh/know_hosts``. This may be a security hole in a
+different context.
+
+substitutions for Remote, Get, Put
+----------------------------------
+
+In the command line given for a `Remote`, as well as in pathes given
+to `Get` and `Put`, some patterns are automatically substituted:
+
+- all occurences of the literal string ``{{{host}}}`` are substituted
+  by the address of the `Host` to which execo connects to.
+
+- all occurences of ``{{<expression>}}`` are substituted in the
+  following way: ``<expression>`` must be a python expression, which
+  will be evaluated in the context of frame_globals, and which must
+  return a sequence. ``{{<expression>}}`` will be replaced by
+  ``<expression>[index % len(<expression>)]``.
+
+For example, in the following code::
+
+  execo.Remote(hosts1, 'iperf -c {{[host.address for host in hosts2]}}')
+
+When execo runs this command on all hosts of ``hosts1``, it will
+produce a different command line for each host, each command line
+connecting a host from ``hosts1`` to a host from ``hosts2``
+
+if ``hosts1`` contains six hosts ``a``, ``b``, ``c``, ``d``, ``e``,
+``f`` and hosts2 contains 3 hosts ``1``, ``2``, ``3`` the mapping
+between hosts1 and hosts2 could be:
+
+- ``a`` -> ``1``
+
+- ``b`` -> ``2``
+
+- ``c`` -> ``3``
+
+- ``d`` -> ``1``
+
+- ``e`` -> ``2``
+
+- ``f`` -> ``3``
+
+the real mapping will actually depend on the ordering of the hosts
+lists, which are stored as dicts, so it is implementation dependent.
+
+Timestamps
+----------
 
 Internally all dates are unix timestamps, ie. number of seconds
 elapsed since the unix epoch (00:00:00 on Jan 1 1970), possibly with
@@ -63,36 +142,6 @@ detailed API documentation), timestamps can be passed as unix
 timestamps (integers or floats) or as `datetime.datetime`, and
 time lengths can be passed as seconds (integers or floats) or as
 `datetime.timedelta`
-
-important exported classes:
-
-- `Host`
-
-- `FrozenHost`
-
-- `Action`
-
-- `MultiAction`
-
-- `Remote`
-
-- `Put`
-
-- `Get`
-
-- `Local`
-
-- `Report`
-
-- `Process`
-
-- `Timer`
-
-important exported functions:
-
-- `sleep`
-
-- `set_log_level`
 
 Configuration
 -------------
@@ -153,8 +202,22 @@ code in the following ways:
 
 - `default_connexion_params` may be modified directly.
 
+Logging
+-------
+
+execo uses the standard `logging` module for logging. By default, logs
+are sent to stderr, logging level is `logging.WARNING`, so no logs
+should be output when everything works correctly. Some logs will
+appear if some processes don't exit with a zero return code (unless
+they were created with flag ignore_non_zer_exit_code), or if some
+processes timeout (unless they were created with flag ignore_timeout),
+or if process instanciation resulted in a operating system error
+(unless they were created with flag ignore_error).
+
+As told before, `set_log_level` may be used to change execo log level.
+
 Detailed description
---------------------
+====================
 """
 
 from __future__ import with_statement
@@ -2100,14 +2163,14 @@ def remote_substitute(string, all_hosts, index, frame_globals):
       string applies frame_globals the global symbol table in the
       context of which this substitution is made.
 
-    - Replaces all occurences of the literal string {{{host}}} by the
-      `Host` address itself.
+    - Replaces all occurences of the literal string ``{{{host}}}`` by
+      the `Host` address itself.
 
-    - Replaces all occurences of {{<expression>}} in the following
-      way: <expression> must be a python expression, which will be
+    - Replaces all occurences of ``{{<expression>}}`` in the following
+      way: ``<expression>`` must be a python expression, which will be
       evaluated in the context of frame_globals, and which must return
-      a sequence. {{<expression>}} will be replaced by
-      <expression>[index % len(<expression>)].
+      a sequence. ``{{<expression>}}`` will be replaced by
+      ``<expression>[index % len(<expression>)]``.
     """
 
     def _subst_iterable(matchobj):

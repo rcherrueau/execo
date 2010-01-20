@@ -2,34 +2,41 @@
 
 r"""Tools and extensions to execo suitable for use in Grid5000
 
+Overview
+========
+
+important exported functions
+----------------------------
+
+- `get_current_oar_jobs`, `get_current_oargrid_jobs`: retrieve current
+  oar/oargrid jobs lists for current user. may filter on job start
+  date or job end date.
+
+- `get_oar_job_info`, `get_oargrid_job_info`: retrieve informations
+  (start date, end date) for given oar/oargrid jobs.
+
+- `wait_oar_job_start`, `wait_oargrid_job_start`: sleep until start
+  date of given oar/oargrid job.
+
+- `get_oar_job_nodes`, `get_oargrid_job_nodes`: retrieve the list of
+  nodes of given oar/oargrid job.
+
+- `kadeploy`: deploy an environment on given hosts.
+
+- `prepare_xp`: sleep until beginning of given oar/oargrid job(s),
+  retrieve their nodes, check which of these nodes are already
+  deployed (with a user-supplied command), deploy (many times if
+  needed, with a user supplied max number of tries) those which are
+  not.
+
+important exported classes
+--------------------------
+
+- `Kadeployer`: `Action`-inherited class for running a deployment
+  asynchronously.
+
 General information
--------------------
-
-important exported classes:
-
-- `Kadeployer`
-
-important exported functions:
-
-- `get_current_oar_jobs`
-
-- `get_current_oargrid_jobs`
-
-- `get_oar_job_info`
-
-- `wait_oar_job_start`
-
-- `get_oargrid_job_info`
-
-- `wait_oargrid_job_start`
-
-- `get_oar_job_nodes`
-
-- `get_oargrid_job_nodes`
-
-- `kadeploy`
-
-- `prepare_xp`
+===================
 
 Configuration
 -------------
@@ -70,7 +77,7 @@ values are::
       }
 
 Detailed description
---------------------
+====================
 """
 
 from execo import *
