@@ -2178,7 +2178,12 @@ def remote_substitute(string, all_hosts, index, frame_globals):
     """
 
     def _subst_iterable(matchobj):
-        sequence = eval(matchobj.group(1), frame_globals)
+        try:
+            sequence = eval(matchobj.group(1), frame_globals)
+        except:
+            # if any error when evaluating {{<expression>}}, just use
+            # it literally.
+            return matchobj.group(0)
         if not hasattr(sequence, '__len__') or not hasattr(sequence, '__getitem__'):
             raise ValueError, "substitution of %s: %s must evaluate to a sequence" % (matchobj.group(), sequence)
         return str(sequence[index % len(sequence)])
