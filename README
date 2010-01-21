@@ -20,25 +20,25 @@ execo package download: http://graal.ens-lyon.fr/~mimbert/execo/execo-1.0.tar.gz
 
 execo code repository: http://graal.ens-lyon.fr/~mimbert/execo/execo.git
 
-execo documentation: http://graal.ens-lyon.fr/~mimbert/execo/doc/index.html
+execo documentation:
+http://graal.ens-lyon.fr/~mimbert/execo/doc/index.html 
+http://graal.ens-lyon.fr/~mimbert/execo/doc/epydoc/index.html
 
 prerequisites
 -------------
 
-execo installation requires python (>= 2.5) and make
+execo installation requires python (>= 2.5) and make (for debian 5.x,
+packages python, make)
 
-for debian 5.x, the packages to install are: python make
-
-to be able to rebuild the documentation, sphinx is needed (a recent
-version, for example debian package python-sphinx in testing. The
-version in stable lacks some extensions)
+to build the documentation, sphinx is needed (for debian
+5.x, packages python-sphinx)
 
 installation
 ------------
 
 use the supplied makefile.
 
-targets are:
+main targets are:
 
 - build: to compile py files.
 
@@ -52,6 +52,9 @@ targets are:
 - clean: to clean everything
 
 - dist: to create the execo package in dist/
+
+- epydoc: another generated documentation (requires python-epydoc
+  package)
 
 usage
 =====

@@ -1,4 +1,4 @@
-.PHONY: all build install clean doc cleandoc check dist
+.PHONY: all build install doc cleandoc sphinxdoc cleansphinxdoc epydoc cleanepydoc check clean dist
 
 PREFIX=/usr/local
 
@@ -10,16 +10,23 @@ build:
 install: build
 	python setup.py install --prefix=$(PREFIX)
 
-doc:
+doc: sphinxdoc
+
+cleandoc: cleansphinxdoc cleanepydoc
+
+sphinxdoc:
+	mkdir -p doc/_static doc/_template
 	$(MAKE) -C doc html
+
+cleansphinxdoc:
+	$(MAKE) -C doc clean
 
 epydoc: epydoc/redirect.html
 
 epydoc/redirect.html: execo.py execo_g5k.py
 	epydoc --docformat "restructuredtext en" -v --html --output=epydoc execo.py execo_g5k.py
 
-cleandoc:
-	$(MAKE) -C doc clean
+cleanepydoc:
 	rm -rf epydoc
 
 check:

@@ -13,8 +13,6 @@ individual subprocesses.
 Action
 ------
 
-.. inheritance-diagram:: Action Remote Get Put Local MultiAction
-
 An `Action` is an abstraction of a set of parallel processes. It is an
 abstract class. Child classes are: `Remote`, `Get`,
 `Put`, `Local`. A `Remote` is a remote process
