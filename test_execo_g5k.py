@@ -4,14 +4,14 @@ import restclient # http://pypi.python.org/pypi/py-restclient/1.2.2
 
 # helpers functions
 def links_by_title(links):
-  index = {}
-  for link in links:
-    # index by title if present, else by rel attribute
-    if 'title' in link.keys():
-      index[link['title']] = link
-    else:
-      index[link['rel']] = link
-  return index
+    index = {}
+    for link in links:
+        # index by title if present, else by rel attribute
+        if 'title' in link.keys():
+            index[link['title']] = link
+        else:
+            index[link['rel']] = link
+    return index
 
 def get_g5k_sites():
     api = restclient.Resource('https://api.grid5000.fr', transport=restclient.transport.HTTPLib2Transport())
