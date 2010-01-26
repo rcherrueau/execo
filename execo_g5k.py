@@ -673,7 +673,7 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     # get hosts list
     all_hosts = set()
     if hosts:
-        all_hosts.add(hosts)
+        all_hosts.update(hosts)
     if oar_job_id_tuples != None:
         for (job_id, site) in oar_job_id_tuples:
             wait_oar_job_start(job_id, site)
