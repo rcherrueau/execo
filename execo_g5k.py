@@ -152,7 +152,7 @@ class _KadeployOutputHandler(ProcessOutputHandler):
         self._kadeployer = kadeployer
         self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+$")
         self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+$")
-        self._node_re = re.compile("^\s*(\S+)\s*$")
+        self._node_re = re.compile("^\s*(\S+)\s*(\(.*\))?$")
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
 
