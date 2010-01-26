@@ -2261,7 +2261,7 @@ class Put(Remote):
 
     """Copy local files to several remote `Host`, with ``scp`` or a similar connexion tool ."""
 
-    def __init__(self, hosts = None, local_files = None, remote_location = "", create_dirs = False, connexion_params = None, **kwargs):
+    def __init__(self, hosts = None, local_files = None, remote_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` onto which to copy the files.
 
@@ -2305,7 +2305,7 @@ class Get(Remote):
 
     """Copy remote files from several remote `Host` to a local directory, with ``scp`` or a similar connexion tool ."""
 
-    def __init__(self, hosts = None, remote_files = None, local_location = "", create_dirs = False, connexion_params = None, **kwargs):
+    def __init__(self, hosts = None, remote_files = None, local_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` from which to get the files.
 
