@@ -2,23 +2,12 @@ import execo, execo_g5k, unittest
 import simplejson # http://pypi.python.org/pypi/simplejson/
 import restclient # http://pypi.python.org/pypi/py-restclient/1.2.2
 
-# helpers functions
-def links_by_title(links):
-    index = {}
-    for link in links:
-        # index by title if present, else by rel attribute
-        if 'title' in link.keys():
-            index[link['title']] = link
-        else:
-            index[link['rel']] = link
-    return index
+def get_g5k_api():
+  return restclient.Resource('https://api.grid5000.fr', transport=restclient.transport.HTTPLib2Transport())
 
 def get_g5k_sites():
-    api = restclient.Resource('https://api.grid5000.fr', transport=restclient.transport.HTTPLib2Transport())
-    grid5000 = simplejson.loads( api.get('/sid/grid5000', headers={'Accept': 'application/json'}) )
-    sites_link = links_by_title(grid5000['links'])['sites']['href']
-    sites = simplejson.loads( api.get(sites_link, headers={'Accept': 'application/json'}, version=grid5000['version']) )
-    return [site['uid'] for site in sites['items']]
+  sites = simplejson.loads(get_g5k_api().get('/sid/grid5000/sites', headers={'Accept': 'application/json'}))
+  return [site['uid'] for site in sites['items']]
 
 g5k_sites = get_g5k_sites()
 
