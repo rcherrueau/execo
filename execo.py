@@ -1774,9 +1774,9 @@ class Report(object):
             self._name = name
         self._reports = set()
         if reports != None:
-            self.add_reports(reports)
+            self.add(reports)
 
-    def add_reports(self, reports):
+    def add(self, reports):
         """Add some sub-`Report` or `Action` to this `Report`.
         
         :param reports: an iterable of `Report` or `Action`, which
