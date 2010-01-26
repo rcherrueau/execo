@@ -2280,6 +2280,8 @@ class Put(Remote):
           `default_connexion_params` whose values will override those
           in `default_connexion_params` for connexion.
         """
+        if local_files != None and (not hasattr(local_files, '__iter__')):
+            local_files = (local_files,)
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
@@ -2324,6 +2326,8 @@ class Get(Remote):
           `default_connexion_params` whose values will override those
           in `default_connexion_params` for connexion.
         """
+        if remote_files != None and (not hasattr(remote_files, '__iter__')):
+            remote_files = (remote_files,)
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
