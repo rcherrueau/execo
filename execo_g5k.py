@@ -693,7 +693,7 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     # check deployed/undeployed hosts, and deploy those needed
     deployed_hosts = set()
     undeployed_hosts = set(all_hosts)
-    while ((check_enough_func == None and len(undeployed_hosts) != 0) or check_enough_func(deployed_hosts)) and num_deploy_retries > 0:
+    while ((check_enough_func == None and len(undeployed_hosts) != 0) or not check_enough_func(deployed_hosts)) and num_deploy_retries > 0:
         # check which of those hosts are deployed
         deployed_check = Remote(undeployed_hosts, check_deployed_command, connexion_params = connexion_params, ignore_exit_code = True)
         deployed_check.run()
