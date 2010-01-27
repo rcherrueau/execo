@@ -214,6 +214,16 @@ or if process instanciation resulted in a operating system error
 
 As told before, `set_log_level` may be used to change execo log level.
 
+Exceptions at shutdown
+----------------------
+
+Sometimes, some exceptions are triggered during python shutdown, at
+the end of a script using execo. These exceptions are reported by
+python to be ``most likely raised during interpreter shutdown``. It
+seems (i think) to be related to a bug in shutdown code's handling of
+threads termination, and thus it should be ignored. See
+http://bugs.python.org/issue1856
+
 Detailed description
 ====================
 """
