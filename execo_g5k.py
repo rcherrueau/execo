@@ -620,7 +620,7 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None):
         raise Exception, "error deploying nodes: %s" % (kadeployer,)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2):
+def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None):
 
     """Wait for jobs start date, get hosts list, deploy them if needed.
 
@@ -668,6 +668,12 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
       partition of the disk.
 
     :param num_deploy_retries: number of deploy retries
+
+    :param check_enough_func: a function taking as parameter a list of
+      hosts, which will be called at each deployment iteration end,
+      and that should return a boolean indicating if there is already
+      enough nodes (in this case, no further deployement will be
+      attempted).
     """
 
     # get hosts list
@@ -687,7 +693,7 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     # check deployed/undeployed hosts, and deploy those needed
     deployed_hosts = set()
     undeployed_hosts = set(all_hosts)
-    while len(undeployed_hosts) != 0 and num_deploy_retries > 0:
+    while ((check_enough_func == None and len(undeployed_hosts) != 0) or check_enough_func(deployed_hosts)) and num_deploy_retries > 0:
         # check which of those hosts are deployed
         deployed_check = Remote(undeployed_hosts, check_deployed_command, connexion_params = connexion_params, ignore_exit_code = True)
         deployed_check.run()
