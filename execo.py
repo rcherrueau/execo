@@ -99,8 +99,9 @@ to `Get` and `Put`, some patterns are automatically substituted:
 
 - all occurences of ``{{<expression>}}`` are substituted in the
   following way: ``<expression>`` must be a python expression, which
-  will be evaluated in the context of frame_globals, and which must
-  return a sequence. ``{{<expression>}}`` will be replaced by
+  will be evaluated in the context (globals and locals) where the
+  `Remote`, `Put`, `Get` is instanciated, and which must return a
+  sequence. ``{{<expression>}}`` will be replaced by
   ``<expression>[index % len(<expression>)]``.
 
 For example, in the following code::
@@ -231,7 +232,7 @@ Detailed description
 from __future__ import with_statement
 import datetime, logging, os, select, time, thread, threading, subprocess
 import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty
-import termios, functools
+import termios, functools, inspect
 
 configuration = {
     'log_level': logging.WARNING,
@@ -2162,7 +2163,7 @@ class MultiAction(Action):
     def stats(self):
         return Report(self.actions()).stats()
 
-def remote_substitute(string, all_hosts, index, frame_globals):
+def remote_substitute(string, all_hosts, index, frame_context):
     """Perform some tag substitutions in a specific context.
 
     :param string: the string onto which to perfom the substitution.
@@ -2172,26 +2173,23 @@ def remote_substitute(string, all_hosts, index, frame_globals):
       `Host` to which this string applies.
 
     :param index: the index in all_hosts of the `Host` to which this
-      string applies frame_globals the global symbol table in the
-      context of which this substitution is made.
+      string applies.
+
+    :param frame_context: a tuple of mappings (globals, locals) in the
+      context of which the expressions (if any) will be evaluated.
 
     - Replaces all occurences of the literal string ``{{{host}}}`` by
       the `Host` address itself.
 
     - Replaces all occurences of ``{{<expression>}}`` in the following
       way: ``<expression>`` must be a python expression, which will be
-      evaluated in the context of frame_globals, and which must return
-      a sequence. ``{{<expression>}}`` will be replaced by
-      ``<expression>[index % len(<expression>)]``.
+      evaluated in the context of frame_context (globals and locals),
+      and which must return a sequence. ``{{<expression>}}`` will be
+      replaced by ``<expression>[index % len(<expression>)]``.
     """
 
     def _subst_iterable(matchobj):
-        try:
-            sequence = eval(matchobj.group(1), frame_globals)
-        except:
-            # if any error when evaluating {{<expression>}}, just use
-            # it literally.
-            return matchobj.group(0)
+        sequence = eval(matchobj.group(1), frame_context[0], frame_context[1])
         if not hasattr(sequence, '__len__') or not hasattr(sequence, '__getitem__'):
             raise ValueError, "substitution of %s: %s must evaluate to a sequence" % (matchobj.group(), sequence)
         return str(sequence[index % len(sequence)])
@@ -2200,10 +2198,9 @@ def remote_substitute(string, all_hosts, index, frame_globals):
     string = re.sub("\{\{((?:(?!\}\}).)+)\}\}", _subst_iterable, string)
     return string
 
-def get_caller_globals():
-    """Return the global symbol table of the calling context."""
-    import inspect
-    return inspect.stack()[2][0].f_globals
+def get_caller_context():
+    """Return a tuple with (globals, locals) of the calling context."""
+    return (inspect.stack()[2][0].f_globals, inspect.stack()[2][0].f_locals)
 
 class Remote(Action):
 
@@ -2232,11 +2229,11 @@ class Remote(Action):
         super(Remote, self).__init__(**kwargs)
         self._cmd = cmd
         self._connexion_params = connexion_params
-        self._caller_globals = get_caller_globals()
+        self._caller_context = get_caller_context()
         self._processes = dict()
         fhosts = list(get_frozen_hosts_set(hosts))
         for (index, host) in enumerate(fhosts):
-            real_command = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + (remote_substitute(self._cmd, fhosts, index, self._caller_globals),)
+            real_command = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + (remote_substitute(self._cmd, fhosts, index, self._caller_context),)
             self._processes[host] = Process(real_command, timeout = self._timeout, shell = False, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
@@ -2295,7 +2292,7 @@ class Put(Remote):
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
-        self._caller_globals = get_caller_globals()
+        self._caller_context = get_caller_context()
         self._processes = dict()
         self._local_files = local_files
         self._remote_location = remote_location
@@ -2305,8 +2302,8 @@ class Put(Remote):
         for (index, host) in enumerate(fhosts):
             prepend_dir_creation = ()
             if self._create_dirs:
-                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, fhosts, index, self._caller_globals), '&&')
-            real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, fhosts, index, self._caller_globals) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, fhosts, index, self._caller_globals)),]
+                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, fhosts, index, self._caller_context), '&&')
+            real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, fhosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, fhosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
             self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
@@ -2341,7 +2338,7 @@ class Get(Remote):
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
-        self._caller_globals = get_caller_globals()
+        self._caller_context = get_caller_context()
         self._processes = dict()
         self._remote_files = remote_files
         self._local_location = local_location
@@ -2351,11 +2348,11 @@ class Get(Remote):
         for (index, host) in enumerate(fhosts):
             prepend_dir_creation = ()
             if self._create_dirs:
-                prepend_dir_creation = ('mkdir', '-p', remote_substitute(local_location, fhosts, index, self._caller_globals), '&&')
+                prepend_dir_creation = ('mkdir', '-p', remote_substitute(local_location, fhosts, index, self._caller_context), '&&')
             remote_specs = ()
             for path in self._remote_files:
-                remote_specs += ("%s:%s" % (host.address, remote_substitute(path, fhosts, index, self._caller_globals)),)
-            real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, fhosts, index, self._caller_globals),)
+                remote_specs += ("%s:%s" % (host.address, remote_substitute(path, fhosts, index, self._caller_context)),)
+            real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, fhosts, index, self._caller_context),)
             real_command = ' '.join(real_command)
             self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
