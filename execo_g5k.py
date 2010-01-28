@@ -638,6 +638,13 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
         command returns 0, the host is assumed to be deployed, else it
         is assumed to be undeployed.
 
+      - optionnaly call user-supplied ``check_enough_func``, passing
+        to it the list of deployed and undeployed hosts (according to
+        the ``check_deployed_command``), to let user code decide if
+        enough nodes deployed. Otherwise, try as long as there are
+        undeployed (according to the ``check_deployed_command``)
+        nodes.
+
       - deploy the undeployed nodes
 
     :param oar_job_id_tuples: iterable of tuple (oar job id, g5k
@@ -670,10 +677,10 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     :param num_deploy_retries: number of deploy retries
 
     :param check_enough_func: a function taking as parameter a list of
-      hosts, which will be called at each deployment iteration end,
-      and that should return a boolean indicating if there is already
-      enough nodes (in this case, no further deployement will be
-      attempted).
+      deployed hosts and a list of undeployed hosts, which will be
+      called at each deployment iteration end, and that should return
+      a boolean indicating if there is already enough nodes (in this
+      case, no further deployement will be attempted).
     """
 
     # get hosts list
@@ -691,10 +698,9 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     logger.info(style("hosts:", 'emph') + " %s" % (all_hosts,))
 
     # check deployed/undeployed hosts, and deploy those needed
-    deployed_hosts = set()
-    undeployed_hosts = set(all_hosts)
-    while ((check_enough_func == None and len(undeployed_hosts) != 0) or not check_enough_func(deployed_hosts)) and num_deploy_retries > 0:
-        # check which of those hosts are deployed
+
+    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
+        # check which hosts are deployed
         deployed_check = Remote(undeployed_hosts, check_deployed_command, connexion_params = connexion_params, ignore_exit_code = True)
         deployed_check.run()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
@@ -703,9 +709,17 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
                 deployed_hosts.add(host)
         logger.info(style("deployed hosts:", 'emph') + " %s" % (deployed_hosts,))
         logger.info(style("undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
-        if len(undeployed_hosts) != 0:
-            # deploy undeployed hosts
-            (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts, environment_name = environment_name, environment_file = environment_file)
+        
+    deployed_hosts = set()
+    undeployed_hosts = set(all_hosts)
+    check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
+    while ((check_enough_func == None and len(undeployed_hosts) != 0)
+           or not check_enough_func(deployed_hosts, undeployed_hosts)):
+        # deploy undeployed hosts
+        (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts, environment_name = environment_name, environment_file = environment_file)
         num_deploy_retries -= 1
+        if num_deploy_retries == 0:
+            break
+        check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
 
     return (deployed_hosts, undeployed_hosts, all_hosts)
