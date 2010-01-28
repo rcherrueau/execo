@@ -152,7 +152,7 @@ class _KadeployOutputHandler(ProcessOutputHandler):
         self._kadeployer = kadeployer
         self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+$")
         self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+$")
-        self._node_re = re.compile("^\s*(\S+)\s*(\(.*\))?$")
+        self._node_re = re.compile("(\S+)(\s+\(.*\))?")
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
 
@@ -575,7 +575,7 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
         process = Process(cmd, timeout = timeout)
     process.run()
     if process.ok():
-        host_addresses = re.findall("^\s*(\S+)\s*$", process.stdout(), re.MULTILINE)
+        host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         hosts = set()
         for host_address in host_addresses:
             hosts.add(FrozenHost(host_address))
@@ -594,7 +594,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_t
     process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
-        host_addresses = re.findall("\s+(\S+)\s+", process.stdout(), re.MULTILINE)
+        host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         hosts = set()
         for host_address in host_addresses:
             hosts.add(FrozenHost(host_address))
