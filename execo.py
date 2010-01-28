@@ -1771,13 +1771,13 @@ class Report(object):
     {'num_errors': 0, 'num_ok': 0, 'end_date': None, 'num_ended': 0, 'num_started': 0, 'num_processes': 0, 'num_non_zero_exit_codes': 0, 'num_forced_kills': 0, 'start_date': None, 'num_timeouts': 0}
     """
 
-    def __init__(self, reports = None, name = None):
+    def __init__(self, name = None, reports = None):
         """
-        :param reports: a `Report`, an `Action`, or an iterable of
-          these, which will be added to this `Report`.
-          
         :param name a name given to this report. If None, a default
           name will be given.
+
+        :param reports: a `Report`, an `Action`, or an iterable of
+          these, which will be added to this `Report`.
         """
         if name == None:
             self._name = "%s" % (self.__class__.__name__,)
