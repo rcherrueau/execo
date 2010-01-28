@@ -460,11 +460,9 @@ def _safe_sleep(secs):
 
     :param secs: time to sleep in seconds (int or float)
     """
-    start = time.time()
-    end = start
-    while end - start < secs:
-        time.sleep(secs)
-        end = time.time()
+    end = time.time() + secs
+    while time.time() < end:
+        time.sleep(end - time.time())
 
 def timedelta_to_seconds(td):
     """Convert a `datetime.timedelta` to a number of seconds (float)."""
