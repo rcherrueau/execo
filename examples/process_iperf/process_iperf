@@ -5,7 +5,7 @@
 # it outputs a gnuplot script to stdout.
 
 from execo import *
-import datetime
+import datetime, re
 
 num_processes_to_test = (1, 2, 4, 8, 16, 32, 64)
 iperf_length = 20
@@ -13,7 +13,6 @@ iperf_length = 20
 timer = Timer().start()
 server = Process('iperf -s', ignore_exit_code = True).start()
 experiments = dict()
-import re
 for simultaneous in num_processes_to_test:
     clients = [ Process('iperf -c localhost -t %i' % iperf_length).start() for num_try in xrange(0, simultaneous) ]
     map(Process.wait, clients)
