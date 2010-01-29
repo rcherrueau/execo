@@ -701,10 +701,17 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
         # check which hosts are deployed
-        deployed_check = Remote(undeployed_hosts, check_deployed_command, connexion_params = connexion_params, ignore_exit_code = True)
+        deployed_check = Remote(undeployed_hosts,
+                                check_deployed_command,
+                                connexion_params = connexion_params,
+                                ignore_exit_code = True,
+                                ignore_timeout = True,
+                                timeout = 30)
         deployed_check.run()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
-            if process.exit_code() == 0:
+            if (process.exit_code() == 0
+                and process.error() == False
+                and process.timeouted() == False):
                 undeployed_hosts.remove(host)
                 deployed_hosts.add(host)
         logger.info(style("deployed hosts:", 'emph') + " %s" % (deployed_hosts,))
@@ -716,7 +723,9 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     while ((check_enough_func == None and len(undeployed_hosts) != 0)
            or not check_enough_func(deployed_hosts, undeployed_hosts)):
         # deploy undeployed hosts
-        (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts, environment_name = environment_name, environment_file = environment_file)
+        (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts,
+                                                       environment_name = environment_name,
+                                                       environment_file = environment_file)
         num_deploy_retries -= 1
         if num_deploy_retries == 0:
             break
