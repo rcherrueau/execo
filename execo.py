@@ -966,7 +966,7 @@ class Process(object):
           when it has received a SIGTERM, and automatically send
           SIGKILL if the subprocess is not yet terminated
         """
-        if self.__pid != None:
+        if self.__pid != None and not self.__ended:
             logger.debug(style("kill with signal %s:" % sig, 'emph') + " %s" % self)
             if sig == signal.SIGTERM:
                 self.__already_got_sigterm = True
