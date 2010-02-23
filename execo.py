@@ -715,6 +715,8 @@ class Process(object):
         self.__stdout_handler = stdout_handler
         self.__stderr_handler = stderr_handler
         self.__pty = pty
+        self.__ptymaster = None
+        self.__ptyslave = None
         if close_stdin == None:
             if self.__pty:
                 self.__close_stdin = False
@@ -1040,6 +1042,16 @@ class Process(object):
         self.__exit_code = exit_code
         self.__end_date = time.time()
         self.__ended = True
+        if self.__ptymaster != None:
+            os.close(self.__ptymaster)
+        if self.__ptyslave != None:
+            os.close(self.__ptyslave)
+        if self.__process.stdin:
+            self.__process.stdin.close()
+        if self.__process.stdout:
+            self.__process.stdout.close()
+        if self.__process.stderr:
+            self.__process.stderr.close()
         if (self.__started
             and self.__ended
             and (not self.__error)
