@@ -41,14 +41,14 @@ print "# each process running for %i seconds" % (iperf_length,)
 print "# total time taken: %s" % (format_duration(timer.get_elapsed()),)
 print """
 set terminal png
-set output 'process-iperf.png'
+set output "process-iperf.png"
 set style data linespoints
 #set logscale x 2
 set logscale y
 set title "performances of simultaneous local iperf clients"
 set xlabel "number of simultaneous clients"
 set ylabel "bandwidth"
-plot '-' title "avg per client", '-' title "total"
+plot "-" title "avg per client", "-" title "total"
 """,
 for simultaneous in sorted(experiments.keys()):
     avg_bw = sum(experiments[simultaneous]['bandwidths_num']) / len(experiments[simultaneous]['bandwidths_num'])
