@@ -1004,6 +1004,10 @@ class Process(object):
                         os.write(self.stdin_fd(), char)
                     else:
                         logger.debug(style("unable to send signal", 'emph') + " to %s" % self)
+                elif e.errno == errno.ESRCH:
+                    # process terminated so recently that self.__ended
+                    # has not been updated yet
+                    pass
                 else:
                     raise e
 
