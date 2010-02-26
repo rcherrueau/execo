@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+
+import optparse, sys, time, os, logging, re, fileinput
+import execo, execo_g5k # http://graal.ens-lyon.fr/~mimbert/execo/doc/
+
+connect_params = {'user': 'root'}
+script_path = os.path.realpath(__file__)
+script_dir = os.path.dirname(script_path)
+
+
+def classify_hosts(hosts):
+    sources = [ host for host in hosts if host.address.find(".lyon.") > -1 ]
+    targets = [ host for host in hosts if host.address.find(".lyon.") == -1 ]
+    return (sources, targets)
+
+
+def check_enough_hosts(sources, num_sources_needed, targets, num_targets_needed, verbose = False):
+    if len(sources) < num_sources_needed or len(targets) < num_targets_needed:
+        if verbose:
+            if len(sources) < num_sources_needed:
+                print "   not enough source hosts"
+            if len(targets) < num_targets_needed:
+                print "   not enough target hosts"
+        return False
+    else:
+        return True
+        
+
+def prepare_xp_check_enough_func(deployed_hosts, undeployed_hosts, num_sources):
+    print "   intermediate check: %i deployed hosts, %i undeployed hosts" % (len(deployed_hosts), len(undeployed_hosts))
+    (sources, targets) = classify_hosts(deployed_hosts)
+    return check_enough_hosts(sources, num_sources, targets, 0)
+
+
+def pprint_sources_targets(sources, targets):
+    print "   %i source hosts: %s" % (len(sources), sources)
+    print "   %i target hosts: %s" % (len(targets), targets)
+
+
+def gen_traffic_and_capture(xp_name,
+                            log_dir,
+                            duration,
+                            sources,
+                            targets,
+                            num_sources,
+                            pktgen_packet_size):
+
+    pass_name = "%i_sources-%i_packet_size" % (num_sources, pktgen_packet_size)
+    log_dir = "%s/%s" % (log_dir, pass_name)
+    os.makedirs(log_dir)
+    pktgen_log = "/tmp/%s-%s-pktgen.log" % (xp_name, pass_name)
+    capture_file = "/storage2/capture/%s-%s-capture.pcap" % (xp_name, pass_name)
+    capture_log = "/storage2/capture/%s-%s-capture.log" % (xp_name, pass_name)
+    local_capture_log = "%s/%s-%s-capture.log" % (log_dir, xp_name, pass_name)
+    
+    sources = sources[0:num_sources]
+    targets = targets[0:num_sources]
+
+    print
+    print "-- traffic generation and capture with %i hosts, packet size %i, for %s" % (num_sources,
+                                                                                       pktgen_packet_size,
+                                                                                       execo.format_duration(duration))
+    pprint_sources_targets(sources, targets)
+
+    # prepare actions
+    print "-- prepare actions"
+    report = execo.Report(name = pass_name)
+
+    script_copy = execo.Put(sources,
+                            local_files = ("%s/config-pktgen" % (script_dir,),),
+                            connexion_params = connect_params)
+    pktgen_config = execo.Remote(sources,
+                                 "./config-pktgen -c 0 -p %i config {{[host.address for host in targets]}}" % (pktgen_packet_size,),
+                                 connexion_params = connect_params)
+    pktgen_start = execo.Remote(sources,
+                                "nohup ./config-pktgen -d 2 start %i > %s 2>&1 &" % (duration, pktgen_log),
+                                connexion_params = connect_params)
+    gargantua = execo.Host('gargantua')
+    capture_start = execo.Remote([gargantua],
+                                 "killall snf-capture ; nohup snf-capture/snf-capture -t%i -d 50 -w %s -s 52 -fnseclibpcap >%s 2>&1 &" % (int(duration / 20), capture_file, capture_log))
+    capture_stop = execo.Remote([gargantua],
+                                "killall snf-capture")
+                                
+    get_pktgen_logs = execo.Get(sources,
+                                local_location = "%s/{{{host}}}" % (log_dir,),
+                                remote_files = (pktgen_log,),
+                                create_dirs = True,
+                                connexion_params = connect_params)
+    get_capture_logs = execo.Get([gargantua],
+                                 local_location = log_dir,
+                                 remote_files = (capture_log,),
+                                 create_dirs = True)
+
+    remove_captures = execo.Remote([gargantua],
+                                   "rm -f %s %s" % (capture_file, capture_log))
+
+    report.add([script_copy,
+                get_pktgen_logs,
+                get_capture_logs,
+                pktgen_config,
+                pktgen_start,
+                capture_start,
+                capture_stop,
+                remove_captures])
+
+    # copy needed scripts to nodes
+    print "-- copy needed scripts to nodes"
+    script_copy.run()
+
+    # configure pktgen on sources
+    print "-- configure pktgen on sources"
+    pktgen_config.run()
+
+    # start network traffic capture on gargantua
+    print "-- start network traffic capture on gargantua"
+    capture_start.run()
+
+    # start pktgen on sources
+    print "-- start pktgen on sources"
+    pktgen_start.run()
+
+    # sleep for the duration of the transfer
+    sleeptime = duration + 5
+    print "-- sleep %s" % execo.format_duration(sleeptime)
+    execo.sleep(sleeptime)
+
+    # stop network traffic capture on gargantua
+    print "-- stop network traffic capture on gargantua"
+    capture_stop.run()
+
+    # retrieve logs
+    print "-- retrieve logs"
+    get_pktgen_logs.start()
+    get_capture_logs.start()
+    get_pktgen_logs.wait()
+    get_capture_logs.wait()
+
+    # remove capture files on gargantua
+    print "-- remove capture files on gargantua"
+    remove_captures.run()
+    
+    # print report
+    print "-- results"
+    print report.output()
+
+    return report
+
+def main():
+    #execo.set_log_level(logging.INFO)
+
+    # parse command line
+    parser = optparse.OptionParser(
+        usage = "usage: %prog <oargrid job id> <transfer duration in seconds> <list of num sources> <list of packet sizes>\n  (lists are comma separated)")
+    (options, args) = parser.parse_args()
+    if len(args) != 4:
+        parser.print_help()
+        sys.exit(1)
+    job = int(args[0])
+    transfer_duration = int(args[1])
+    num_sources_list = []
+    for num_sources in args[2].split(','):
+        num_sources_list.append(int(num_sources))
+    num_sources_list.sort()
+    highest_num_sources = num_sources_list[-1]
+    packet_size_list = []
+    for packet_size in args[3].split(','):
+        packet_size_list.append(int(packet_size))
+    packet_size_list.sort(reverse = True)
+
+    # wait job start and get nodes
+    print "-- wait job start"
+    execo_g5k.wait_oargrid_job_start(job)
+    print "-- get job hosts"
+    job_hosts = execo_g5k.get_oargrid_job_nodes(job)
+
+    (sources, targets) = classify_hosts(job_hosts)
+
+    pprint_sources_targets(sources, targets)
+
+    print "-- check enough hosts"
+    check_enough_hosts(sources,
+                       highest_num_sources,
+                       targets,
+                       highest_num_sources,
+                       verbose = True) or sys.exit("not enough hosts")
+
+    # deploy needed hosts
+    print "-- deploy hosts (at least %i sources and %i targets)" % (highest_num_sources, highest_num_sources)
+    (deployed_hosts, error_hosts, all_hosts) = execo_g5k.prepare_xp(
+        hosts = job_hosts,
+        connexion_params = connect_params,
+        #environment_name = 'lenny-x64-base',
+        environment_file = '/home/lyon/mimbert/images/sid-x64-damien-1.0.13_091028.dsc',
+        check_enough_func = lambda deployed_hosts, undeployed_hosts: prepare_xp_check_enough_func(deployed_hosts,
+                                                                                                  undeployed_hosts,
+                                                                                                  highest_num_sources))
+    print "   %i undeployed hosts: %s" % (len(error_hosts), error_hosts)
+    print "   %i deployed hosts: %s" % (len(deployed_hosts), deployed_hosts)
+    (sources, targets) = classify_hosts(deployed_hosts)
+    
+    pprint_sources_targets(sources, targets)
+
+    print "-- check enough hosts deployed (at least %i sources and %i targets)" % (highest_num_sources, highest_num_sources)
+    check_enough_hosts(sources,
+                       highest_num_sources,
+                       targets,
+                       0,
+                       verbose = True) or sys.exit("not enough hosts")
+
+    # run traffic generation and capture
+    print "-- run traffic generation and capture"
+    global_report = execo.Report()
+
+    t = time.localtime()
+    formatted_time = time.strftime("%Y%m%d_%H%M%S", t)
+    timezone = time.strftime("%Z", t)
+    if timezone != "": formatted_time += "_" + timezone
+    xp_name = "capture-perfs-%s" % (formatted_time,)
+    log_dir = "%s/logs_%s" % (script_dir, formatted_time)
+    os.makedirs(log_dir)
+
+    for num_sources in num_sources_list:
+        for packet_size in packet_size_list:
+            report = gen_traffic_and_capture(xp_name,
+                                             log_dir,
+                                             transfer_duration,
+                                             sources,
+                                             targets,
+                                             num_sources,
+                                             packet_size)
+            global_report.add((report,))
+    print global_report.output()
+
+    print "-- done"
+
+main()
