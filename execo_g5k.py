@@ -110,7 +110,8 @@ g5k_configuration = {
 - ``default_environment_file``: a default environment file to use for
   deployments (for kadeploy3).
 
-- ``default_timeout``: default timeout for all calls to g5k services.
+- ``default_timeout``: default timeout for all calls to g5k services
+  (except deployments).
 """
 
 default_oarsh_oarcp_params = {
@@ -326,7 +327,7 @@ def _date_in_range(date, range):
         return False
     return True
 
-def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
+def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False):
     """Return a list of current active oar job ids.
 
     The list contains tuples (oarjob id, site), with site == None for
@@ -355,9 +356,12 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
     :param connexion_params: connexion params to connect to other
       site's frontend if needed
     
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
     """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
     if start_between: start_between = map(_convert_endpoint, start_between)
     if end_between: end_between = map(_convert_endpoint, end_between)
     if connexion_params == None:
@@ -395,7 +399,7 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
         return oar_job_ids
     raise Exception, "error list of current oar jobs: %s" % (processes,)
 
-def get_current_oargrid_jobs(start_between = None, end_between = None, timeout = g5k_configuration['default_timeout']):
+def get_current_oargrid_jobs(start_between = None, end_between = None, timeout = False):
     """Return a list of current active oargrid job ids.
 
     :param start_between: a tuple (low, high) of endpoints. Filters
@@ -414,9 +418,12 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
       (if unix timestamp before 315532800 (Jan 1 1980), then assume it
       is a deltat, (less than 10 years)).
         
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
     """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
     if start_between: start_between = map(_convert_endpoint, start_between)
     if end_between: end_between = map(_convert_endpoint, end_between)
     cmd = "oargridstat"
@@ -435,7 +442,7 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
         return oargrid_job_ids
     raise Exception, "error list of current oargrid jobs: %s" % (process,)
 
-def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
+def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, timeout = False):
     """Return a dict with informations about an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -448,8 +455,9 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
       site's frontend in case the oar job is on a remote site
       (default: `default_frontend_connexion_params`)
         
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
     
     Hash returned contains these keys:
 
@@ -457,6 +465,8 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
 
     - ``duration``: unix timestamp of job's duration
     """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
@@ -485,7 +495,7 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
         return job_info
     raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
-def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
+def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, timeout = False):
     """Sleep until an oar job's start time.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -498,18 +508,22 @@ def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, 
       site's frontend in case the oar job is on a remote site
       (default: `default_frontend_connexion_params`)
     
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
     """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
     sleep(until = get_oar_job_info(oar_job_id, site, connexion_params, timeout)['start_date'])
     
-def get_oargrid_job_info(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
+def get_oargrid_job_info(oargrid_job_id = None, timeout = False):
     """Return a dict with informations about an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
 
     Hash returned contains these keys:
 
@@ -517,6 +531,8 @@ def get_oargrid_job_info(oargrid_job_id = None, timeout = g5k_configuration['def
 
     - ``duration``: unix timestamp of job's duration
     """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
     cmd = "oargridstat %i" % oargrid_job_id
     process = Process(cmd, timeout = timeout, pty = True)
     process.run()
@@ -533,17 +549,18 @@ def get_oargrid_job_info(oargrid_job_id = None, timeout = g5k_configuration['def
         return job_info
     raise Exception, "error retrieving info for oargrid job %i: %s" % (oargrid_job_id, process)
 
-def wait_oargrid_job_start(oargrid_job_id = None, timeout = g5k_configuration['default_timeout']):
+def wait_oargrid_job_start(oargrid_job_id = None, timeout = False):
     """Sleep until an oargrid job's start time.
 
     :param oargrid_job_id: the oargrid job id.
 
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
     """
     sleep(until = get_oargrid_job_info(oargrid_job_id, timeout)['start_date'])
 
-def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = g5k_configuration['default_timeout']):
+def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = False):
     """Return an iterable of `FrozenHost` containing the hosts of an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -556,9 +573,12 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
       site's frontend in case the oar job is on a remote site
       (default: `default_frontend_connexion_params`)
 
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
     """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
@@ -582,14 +602,17 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
         return hosts
     raise Exception, "error retrieving nodes list for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
-def get_oargrid_job_nodes(oargrid_job_id, timeout = g5k_configuration['default_timeout']):
+def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
     """Return an iterable of `FrozenHost` containing the hosts of an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
-    :param timeout: timeout for retrieving. default:
-      `g5k_configuration['default_timeout']`
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
     """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
     cmd = "oargridstat -wl %i" % oargrid_job_id
     process = Process(cmd, timeout = timeout, pty = True)
     process.run()

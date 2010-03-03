@@ -1998,7 +1998,8 @@ class Action(object):
         :param name: `Action` name, one will be generated if None
           given
 
-        :param timeout: timeout for all subprocesses of this `Action`
+        :param timeout: timeout for all subprocesses of this
+          `Action`. None means no timeout.
 
         :param ignore_exit_code: if True, subprocesses with return
           value != 0 won't generate a warning and will still be
