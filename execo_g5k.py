@@ -624,7 +624,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
         return hosts
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
 
-def kadeploy(hosts = None, environment_name = None, environment_file = None):
+def kadeploy(hosts = None, environment_name = None, environment_file = None, timeout = None):
     """Deploy hosts with kadeploy3.
 
     :param hosts: iterable of `Host` to deploy.
@@ -635,10 +635,13 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None):
     :param environment_file: name of an environment file for
       kadeploy3.
 
+    :param timeout: deployment timeout. None (which is the default
+      value) means no timeout.
+
     Returns a tuple (iterable of `FrozenHost` containing the deployed
     host, iterable of `FrozenHost` containing the nodes not deployed).
     """
-    kadeployer = Kadeployer(hosts = hosts, environment_name = environment_name, environment_file = environment_file).run()
+    kadeployer = Kadeployer(hosts = hosts, environment_name = environment_name, environment_file = environment_file, timeout = timeout).run()
     if kadeployer.error():
         raise Exception, "error deploying nodes: %s" % (kadeployer,)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
