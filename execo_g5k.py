@@ -646,7 +646,7 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
         raise Exception, "error deploying nodes: %s" % (kadeployer,)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None):
+def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
 
     """Wait for jobs start date, get hosts list, deploy them if needed.
 
@@ -707,7 +707,20 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
       called at each deployment iteration end, and that should return
       a boolean indicating if there is already enough nodes (in this
       case, no further deployement will be attempted).
+
+    :param timeout: timeout for g5k operations, except
+      deployment. Default is False, which means use
+      `g5k_configuration['default_timeout']`. None means no timeout.
+
+    :param deploy_timeout: timeout for deployement. Default is None,
+      which means no timeout.
+
+    :check_timeout: timeout for node deployment checks. Default is 30
+      seconds.
     """
+
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
 
     # get hosts list
     all_hosts = set()
@@ -715,12 +728,12 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
         all_hosts.update(hosts)
     if oar_job_id_tuples != None:
         for (job_id, site) in oar_job_id_tuples:
-            wait_oar_job_start(job_id, site)
-            all_hosts.update(get_oar_job_nodes(job_id, site))
+            wait_oar_job_start(job_id, site, timeout = timeout)
+            all_hosts.update(get_oar_job_nodes(job_id, site, timeout = timeout))
     if oargrid_job_ids != None:
         for job_id in oargrid_job_ids:
-            wait_oargrid_job_start(job_id)
-            all_hosts.update(get_oargrid_job_nodes(job_id))
+            wait_oargrid_job_start(job_id, timeout = timeout)
+            all_hosts.update(get_oargrid_job_nodes(job_id, timeout = timeout))
     logger.info(style("hosts:", 'emph') + " %s" % (all_hosts,))
 
     # check deployed/undeployed hosts, and deploy those needed
@@ -732,7 +745,7 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
                                 connexion_params = connexion_params,
                                 ignore_exit_code = True,
                                 ignore_timeout = True,
-                                timeout = 30)
+                                timeout = check_timeout)
         deployed_check.run()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
             if (process.exit_code() == 0
@@ -751,7 +764,8 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
         # deploy undeployed hosts
         (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts,
                                                        environment_name = environment_name,
-                                                       environment_file = environment_file)
+                                                       environment_file = environment_file,
+                                                       timeout = deploy_timeout)
         num_deploy_retries -= 1
         if num_deploy_retries == 0:
             break
