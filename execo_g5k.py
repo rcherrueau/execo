@@ -65,7 +65,7 @@ parameters. Its default values are::
   g5k_configuration = {
       'default_environment_name': None,
       'default_environment_file': None,
-      'default_timeout': 300,
+      'default_timeout': 900,
       }
 
 The `default_frontend_connexion_params` dict contains default
@@ -100,7 +100,7 @@ import operator
 g5k_configuration = {
     'default_environment_name': None,
     'default_environment_file': None,
-    'default_timeout': 300,
+    'default_timeout': 900,
     }
 """Global Grid5000 configuration parameters.
 
