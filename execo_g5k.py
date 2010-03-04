@@ -715,8 +715,8 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
     :param deploy_timeout: timeout for deployement. Default is None,
       which means no timeout.
 
-    :check_timeout: timeout for node deployment checks. Default is 30
-      seconds.
+    :param check_timeout: timeout for node deployment checks. Default
+      is 30 seconds.
     """
 
     if timeout == False:
