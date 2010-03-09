@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-import optparse, sys, time, os, logging, re, fileinput
+import optparse, sys, time, os, logging, re, fileinput, commands
 import execo, execo_g5k # http://graal.ens-lyon.fr/~mimbert/execo/doc/
 
 connect_params = {'user': 'root'}
-script_path = os.path.realpath(__file__)
+script_name = __file__
+script_path = os.path.realpath(script_name)
 script_dir = os.path.dirname(script_path)
 
 
@@ -141,12 +142,11 @@ def gen_traffic_and_capture(xp_name,
     
     # print report
     print "-- results"
-    print report.output()
+    print report.output(wide = True)
 
     return report
 
 def main():
-    #execo.set_log_level(logging.INFO)
 
     # parse command line
     parser = optparse.OptionParser(
@@ -166,6 +166,29 @@ def main():
     for packet_size in args[3].split(','):
         packet_size_list.append(int(packet_size))
     packet_size_list.sort(reverse = True)
+
+    # configure logging
+    t = time.localtime()
+    formatted_time = time.strftime("%Y%m%d_%H%M%S", t)
+    timezone = time.strftime("%Z", t)
+    if timezone != "": formatted_time += "_" + timezone
+    xp_name = "capture-perfs-%s" % (formatted_time,)
+    log_dir = "%s/logs_%s" % (script_dir, formatted_time)
+    os.makedirs(log_dir)
+    xp_log = open("%s/%s.log" % (log_dir, xp_name), 'w')
+    sys.stdout = xp_log
+    sys.stderr = xp_log
+    # execo.set_log_level(logging.INFO)
+
+    # print infos about xp
+    print "-- xp: %s" % (xp_name,)
+    print "   command line: %s" % (" ".join(sys.argv),)
+    print "   oargridjob = %s" % (job,)
+    print "   oargridsub command line = oargridsub %s" % (commands.getoutput("oargridstat %s | sed -n 's/^cmd : \\(.*\\)$/\\1/p'" % (job,)),)
+    print "   transfer duration = %s" % (transfer_duration,)
+    print "   num sources = %s" % (num_sources_list,)
+    print "   packet sizes = %s" % (packet_size_list,)
+    print
 
     # wait job start and get nodes
     print "-- wait job start"
@@ -211,14 +234,6 @@ def main():
     print "-- run traffic generation and capture"
     global_report = execo.Report()
 
-    t = time.localtime()
-    formatted_time = time.strftime("%Y%m%d_%H%M%S", t)
-    timezone = time.strftime("%Z", t)
-    if timezone != "": formatted_time += "_" + timezone
-    xp_name = "capture-perfs-%s" % (formatted_time,)
-    log_dir = "%s/logs_%s" % (script_dir, formatted_time)
-    os.makedirs(log_dir)
-
     for num_sources in num_sources_list:
         for packet_size in packet_size_list:
             report = gen_traffic_and_capture(xp_name,
@@ -229,7 +244,7 @@ def main():
                                              num_sources,
                                              packet_size)
             global_report.add((report,))
-    print global_report.output()
+    print global_report.output(wide = True)
 
     print "-- done"
 

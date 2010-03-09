@@ -1901,11 +1901,15 @@ class Report(object):
     def __repr__(self):
         return "Report(reports=%r, name=%r)" % (self._reports, self._name)
 
-    def output(self, wide = False):
+    def output(self, wide = False, brief = False):
         """Returns a formatted string with a human-readable summary of all `Action` results.
 
         :param wide: if False (default), report format is designed for
-          80 columns display. If True, output a wide report.
+          80 columns display. If True, output a (175 characters) wide
+          report.
+
+        :param brief: when True, only the Total summary is output, not
+          each `Action` or `Report` summary. Default is False.
         """
         stats = self.stats()
         output = ""
@@ -1971,7 +1975,7 @@ class Report(object):
             return result
 
         subreports = self.reports()
-        if len(subreports) != 0:
+        if not brief and len(subreports) != 0:
             for report in subreports:
                 output += recurse_report(report, 0)
             if wide:
