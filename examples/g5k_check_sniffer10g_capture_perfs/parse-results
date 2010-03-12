@@ -4,93 +4,126 @@ from __future__ import with_statement
 import optparse, glob, os, sys, re, fileinput
 
 parser = optparse.OptionParser(
-    usage = "usage: %prog <log dir> [<log dir> ...]")
+    usage = "usage: %prog <log dir>")
 (options, args) = parser.parse_args()
-if len(args) == 0:
+if len(args) != 1:
     parser.print_help()
     sys.exit(1)
 
-results = dict() # dict with key = packet size, value = dict with key
-                 # = avg_bw, value is [ dropped_total, dropped_nic,
-                 # dropped_ring, dropped_bad, num_senders ]
-for log_dir in args:
-    timestamp = re.search('logs_([^/]*)', log_dir).group(1)
-    for xp in glob.glob(os.path.join(log_dir, '*_sources-*_packet_size')):
-        num_sources = int(re.search('/(\d+)_sources', xp).group(1))
-        packet_size = int(re.search('-(\d+)_packet_size', xp).group(1))
-        log = os.path.join(xp, 'capture-perfs-%s-%i_sources-%i_packet_size-capture.log' % (timestamp, num_sources, packet_size))
+log_dir = args[0]
+results = dict() # dict with:
+                 # key = num pktgen sources
+                 # value is [
+                 #  router bandwidth,
+                 #  snf bandwidth,
+                 #  snf dropped total,
+                 #  snf dropped nic,
+                 #  snf dropped ring,
+                 #  snf dropped bad
+                 # ]
 
-        dropped_total = 0
-        dropped_nic = 0
-        dropped_ring = 0
-        dropped_bad = 0
-        bps_list = []
-        for line in fileinput.input([log]):
-            mo = re.search(' (\d+\.\d+) bps$',line)
-            if mo:
-                bps_list.append(float(mo.group(1)))
-            mo = re.search('^Dropped, total:\s+(\d+)$', line)
-            if mo:
-                dropped_total = int(mo.group(1))
-            mo = re.search('^Dropped, NIC overflow:\s+(\d+)$', line)
-            if mo:
-                dropped_nic = int(mo.group(1))
-            mo = re.search('^Dropped, ring overflow:\s+(\d+)$', line)
-            if mo:
-                dropped_ring = int(mo.group(1))
-            mo = re.search('^Dropped, bad:\s+(\d+)$', line)
-            if mo:
-                dropped_bad = int(mo.group(1))
-        # remove first and last bps measure
-        del bps_list[0]
-        del bps_list[-1]
-        avg_bps = sum(bps_list, 0.0) / len(bps_list)
+results_file = os.path.join(log_dir, "results.log")
+gnuplot_script = os.path.join(log_dir, "gen_graphs.gnuplot")
 
-        # print report
-        if not results.has_key(packet_size):
-            results[packet_size] = dict()
-        results[packet_size][avg_bps] = [ dropped_total,
-                                          dropped_nic,
-                                          dropped_ring,
-                                          dropped_bad,
-                                          num_sources ]
+for xp in glob.glob(os.path.join(log_dir, '*_sources-*_packet_size')):
+    num_sources = int(re.search('/(\d+)_sources', xp).group(1))
+    packet_size = int(re.search('-(\d+)_packet_size', xp).group(1))
+    capture_log = os.path.join(xp, 'capture.log')
+    router_log =  os.path.join(xp, 'router.log')
 
-    with open("results.dat", "w") as f:
-        for packet_size in sorted(results.keys()):
-            print >> f, '# packet size %i' % packet_size
-            print >> f, '# "bandwidth" "dropped total" "dropped nic" "dropped ring" "dropped bad" "num sources"'
-            for avg_bps in sorted(results[packet_size].keys()):
-                print >> f, '%11G %15G %13G %14G %13G %13G' % (avg_bps,
-                                                               results[packet_size][avg_bps][0],
-                                                               results[packet_size][avg_bps][1],
-                                                               results[packet_size][avg_bps][2],
-                                                               results[packet_size][avg_bps][3],
-                                                               results[packet_size][avg_bps][4])
-            print >> f
+    router_bps = 0
+    snf_dropped_total = 0
+    snf_dropped_nic = 0
+    snf_dropped_ring = 0
+    snf_dropped_bad = 0
 
+    # parse sniffer10g stats
+    bps_list = []
+    for line in fileinput.input([capture_log]):
+        mo = re.search(' (\d+\.\d+) bps$',line)
+        if mo:
+            bps_list.append(float(mo.group(1)))
+        mo = re.search('^Dropped, total:\s+(\d+)$', line)
+        if mo:
+            snf_dropped_total = int(mo.group(1))
+        mo = re.search('^Dropped, NIC overflow:\s+(\d+)$', line)
+        if mo:
+            snf_dropped_nic = int(mo.group(1))
+        mo = re.search('^Dropped, ring overflow:\s+(\d+)$', line)
+        if mo:
+            snf_dropped_ring = int(mo.group(1))
+        mo = re.search('^Dropped, bad:\s+(\d+)$', line)
+        if mo:
+            snf_dropped_bad = int(mo.group(1))
+    # remove first and last bps measure
+    del bps_list[0]
+    del bps_list[-1]
+    snf_avg_bps = sum(bps_list, 0.0) / len(bps_list)
 
-    print '# output written to results.dat'
-    print '# graph may be generated with:'
-    print
+    # parse router stats
+    for line in fileinput.input([router_log]):
+        mo = re.search('bandwidth bits/s = (\d+\.\d+)', line)
+        if mo:
+            router_bps = float(mo.group(1))
+
+    # print report
+    if not results.has_key(packet_size):
+        results[packet_size] = dict()
+    results[packet_size][num_sources] = [router_bps,
+                                         snf_avg_bps,
+                                         snf_dropped_total,
+                                         snf_dropped_nic,
+                                         snf_dropped_ring,
+                                         snf_dropped_bad ]
+
+with open(results_file, "w") as f:
+    for packet_size in sorted(results.keys()):
+        print >> f, '# packet size %i' % packet_size
+        print >> f, '# "num sources" "router bandwidth" "snf bandwidth" "snf dropped total" "snf dropped nic" "snf dropped ring" "snf dropped bad"'
+        for num_sources in sorted(results[packet_size].keys()):
+            print >> f, '  %13G %18G %15G %19G %17G %18G %16G' % (num_sources,
+                                                                  results[packet_size][num_sources][0],
+                                                                  results[packet_size][num_sources][1],
+                                                                  results[packet_size][num_sources][2],
+                                                                  results[packet_size][num_sources][3],
+                                                                  results[packet_size][num_sources][4],
+                                                                  results[packet_size][num_sources][5])
+        print >> f
+
+gnuplot_data_file = os.path.basename(results_file)
+with open(gnuplot_script, "w") as f:
+    print >> f, "# gnuplot script"
+    print >> f
+    print >> f, 'set terminal png'
+    print >> f, 'set key top left'
+    print >> f, 'set border 0'
+    print >> f, 'set grid'
+    print >> f
     for (packet_size_index, packet_size) in enumerate(sorted(results.keys())):
-        print 'set title "sniffer10g dropped packets in relation to bandwidth for packets of size %i"' % packet_size
-        print 'set terminal png'
-        print 'set output "dropped_%i.png"' % packet_size
-        # print 'set style data points'
-        print 'set xlabel "bandwidth (bps)"'
-        print 'set ylabel "num dropped"'
-        print 'set key top left'
-        print 'set border 0'
-        print 'set grid'
-        print 'plot ',
-        print '"results.dat" every :::%i::%i using 1:3 title "dropped, nic overflow" with points,' % (packet_size_index,
-                                                                                                      packet_size_index),
-        print '"results.dat" every :::%i::%i using 1:4 title "dropped, ring overflow" with points,' % (packet_size_index,
-                                                                                                       packet_size_index),
-        print '"results.dat" every :::%i::%i using 1:5 title "dropped, bad packets" with points' % (packet_size_index,
+        print >> f, 'set title "dropped packets in relation to bandwidth for packets of size %i"' % packet_size
+        print >> f, 'set output "dropped.packet_size_%i.png"' % packet_size
+        print >> f, 'set xlabel "router bandwidth (bps)"'
+        print >> f, 'set ylabel "num dropped"'
+        print >> f, 'plot ',
+        print >> f, '"%s" every :::%i::%i using 2:5 title "dropped, nic overflow" with points,' % (gnuplot_data_file,
+                                                                                                   packet_size_index,
+                                                                                                   packet_size_index),
+        print >> f, '"%s" every :::%i::%i using 2:6 title "dropped, ring overflow" with points,' % (gnuplot_data_file,
+                                                                                                    packet_size_index,
                                                                                                     packet_size_index),
-        # print '"results.dat" every :::%i::%i using 1:2 title "dropped, total" with points' % (packet_size_index,
-        #                                                                                       packet_size_index),
-        print
-        print
-
+        print >> f, '"%s" every :::%i::%i using 2:7 title "dropped, bad packets" with points' % (gnuplot_data_file,
+                                                                                                 packet_size_index,
+                                                                                                 packet_size_index)
+        print >> f
+        print >> f, 'set title "bandwidth in relation to num pktgen senders for packets of size %i"' % packet_size
+        print >> f, 'set output "bandwidth.packet_size_%i.png"' % packet_size
+        print >> f, 'set xlabel "num pktgen senders"'
+        print >> f, 'set ylabel "bandwidth"'
+        print >> f, 'plot ',
+        print >> f, '"%s" every :::%i::%i using 1:2 title "router measured bandwidth" with linespoints,' % (gnuplot_data_file,
+                                                                                                            packet_size_index,
+                                                                                                            packet_size_index),
+        print >> f, '"%s" every :::%i::%i using 1:3 title "sniffer10g handled bandwidth" with linespoints' % (gnuplot_data_file,
+                                                                                                              packet_size_index,
+                                                                                                              packet_size_index)
+        print >> f

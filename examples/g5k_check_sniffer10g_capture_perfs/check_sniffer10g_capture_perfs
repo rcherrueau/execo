@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
+from __future__ import with_statement
 import optparse, sys, time, os, logging, re, fileinput, commands
 import execo, execo_g5k # http://graal.ens-lyon.fr/~mimbert/execo/doc/
 
 connect_params = {'user': 'root'}
-script_name = __file__
+script_name = os.path.basename(__file__)
 script_path = os.path.realpath(script_name)
 script_dir = os.path.dirname(script_path)
 
@@ -37,7 +38,6 @@ def pprint_sources_targets(sources, targets):
     print "   %i source hosts: %s" % (len(sources), sources)
     print "   %i target hosts: %s" % (len(targets), targets)
 
-
 def gen_traffic_and_capture(xp_name,
                             log_dir,
                             duration,
@@ -49,10 +49,11 @@ def gen_traffic_and_capture(xp_name,
     pass_name = "%i_sources-%i_packet_size" % (num_sources, pktgen_packet_size)
     log_dir = "%s/%s" % (log_dir, pass_name)
     os.makedirs(log_dir)
-    pktgen_log = "/tmp/%s-%s-pktgen.log" % (xp_name, pass_name)
-    capture_file = "/storage2/capture/%s-%s-capture.pcap" % (xp_name, pass_name)
-    capture_log = "/storage2/capture/%s-%s-capture.log" % (xp_name, pass_name)
-    local_capture_log = "%s/%s-%s-capture.log" % (log_dir, xp_name, pass_name)
+    pktgen_log = "/tmp/%s.%s.pktgen.log" % (xp_name, pass_name)
+    capture_file = "/storage2/capture/%s.%s.pcap" % (xp_name, pass_name)
+    capture_log = "/storage2/capture/%s.%s.capture.log" % (xp_name, pass_name)
+    local_capture_log = "%s/capture.log" % (log_dir)
+    local_router_log = "%s/router.log" % (log_dir)
     
     sources = sources[0:num_sources]
     targets = targets[0:num_sources]
@@ -88,12 +89,17 @@ def gen_traffic_and_capture(xp_name,
                                 create_dirs = True,
                                 connexion_params = connect_params)
     get_capture_logs = execo.Get([gargantua],
-                                 local_location = log_dir,
+                                 local_location = local_capture_log,
                                  remote_files = (capture_log,),
-                                 create_dirs = True)
+                                 create_dirs = False)
 
     remove_captures = execo.Remote([gargantua],
                                    "rm -f %s %s" % (capture_file, capture_log))
+
+    get_mirroring_counter_1 = execo.Remote([gargantua],
+                                          "snmpget -Os -c public -v 2c little-ego 1.3.6.1.2.1.31.1.1.1.10.9001")
+    get_mirroring_counter_2 = execo.Remote([gargantua],
+                                          "snmpget -Os -c public -v 2c little-ego 1.3.6.1.2.1.31.1.1.1.10.9001")
 
     report.add([script_copy,
                 get_pktgen_logs,
@@ -102,7 +108,9 @@ def gen_traffic_and_capture(xp_name,
                 pktgen_start,
                 capture_start,
                 capture_stop,
-                remove_captures])
+                remove_captures,
+                get_mirroring_counter_1,
+                get_mirroring_counter_2])
 
     # copy needed scripts to nodes
     print "-- copy needed scripts to nodes"
@@ -120,8 +128,39 @@ def gen_traffic_and_capture(xp_name,
     print "-- start pktgen on sources"
     pktgen_start.run()
 
-    # sleep for the duration of the transfer
-    sleeptime = duration + 5
+    # sleep 1/20 of transfer time to make sure that all traffic have
+    # begun and reached a stable state
+    sleeptime = duration / 20.0
+    print "-- sleep %s" % execo.format_duration(sleeptime)
+    execo.sleep(sleeptime)
+
+    # get lyon router mirroring interface counter
+    print "-- retrieve lyon router mirroring interface counter at transfer start"
+    out = get_mirroring_counter_1.run().processes()[0].stdout()
+    mo = re.search('Counter64: (\d+)', out)
+    if mo:
+        counter1 = int(mo.group(1))
+    else:
+        counter1 = None
+        print "   ERROR retrieving lyon router mirroring interface counter at transfer start"
+
+    # sleep 9/10 of transfer time
+    bw_measure_time = duration * .9
+    print "-- sleep %s" % execo.format_duration(bw_measure_time)
+    execo.sleep(bw_measure_time)
+    
+    # get lyon router mirroring interface counter
+    print "-- retrieve lyon router mirroring interface counter at transfer end"
+    out = get_mirroring_counter_2.run().processes()[0].stdout()
+    mo = re.search('Counter64: (\d+)', out)
+    if mo:
+        counter2 = int(mo.group(1))
+    else:
+        counter2 = None
+        print "   ERROR retrieving lyon router mirroring interface counter at transfer end"
+
+    # sleep until the end of the transfers
+    sleeptime = duration / 20.0 + 5.0
     print "-- sleep %s" % execo.format_duration(sleeptime)
     execo.sleep(sleeptime)
 
@@ -139,7 +178,23 @@ def gen_traffic_and_capture(xp_name,
     # remove capture files on gargantua
     print "-- remove capture files on gargantua"
     remove_captures.run()
-    
+
+    # write router mirror link counters to log
+    with open(local_router_log, "w") as routerlog:
+        print >> routerlog, "ifOutOctets start = %s" % counter1
+        print >> routerlog, "ifOutOctets end = %s" % counter2
+        print >> routerlog, "interval = %f" % bw_measure_time
+        if counter1 == None or counter2 == None:
+            print >> routerlog, "bandwidth bits/s = 0.0 (ERROR)"
+        else:
+            if counter2 < counter1:
+                # counter has wrapped
+                delta = 0x10000000000000000 - counter1 + counter2
+            else:
+                delta = counter2 - counter1
+            bitspersec = delta * 8.0 / bw_measure_time
+            print >> routerlog, "bandwidth bits/s = %f" % bitspersec
+
     # print report
     print "-- results"
     print report.output(wide = True)
@@ -172,13 +227,16 @@ def main():
     formatted_time = time.strftime("%Y%m%d_%H%M%S", t)
     timezone = time.strftime("%Z", t)
     if timezone != "": formatted_time += "_" + timezone
-    xp_name = "capture-perfs-%s" % (formatted_time,)
-    log_dir = "%s/logs_%s" % (script_dir, formatted_time)
+    xp_name = "%s.%s" % (script_name, formatted_time,)
+    log_dir = "%s/logs.%s" % (script_dir, xp_name)
     os.makedirs(log_dir)
-    xp_log = open("%s/%s.log" % (log_dir, xp_name), 'w')
+    xp_log = open("%s/run.log" % (log_dir,), 'w')
     sys.stdout = xp_log
     sys.stderr = xp_log
-    # execo.set_log_level(logging.INFO)
+    # update execo logger to these new stdout, stderr streams
+    execo.logger_handler = logging.StreamHandler(xp_log)
+    execo.configuration['color_mode'] = False
+    execo.set_log_level(logging.WARNING)
 
     # print infos about xp
     print "-- xp: %s" % (xp_name,)
@@ -188,6 +246,7 @@ def main():
     print "   transfer duration = %s" % (transfer_duration,)
     print "   num sources = %s" % (num_sources_list,)
     print "   packet sizes = %s" % (packet_size_list,)
+    print "   log dir = %s" % (log_dir,)
     print
 
     # wait job start and get nodes
