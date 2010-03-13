@@ -31,6 +31,10 @@ for xp in glob.glob(os.path.join(log_dir, '*_sources-*_packet_size')):
     capture_log = os.path.join(xp, 'capture.log')
     router_log =  os.path.join(xp, 'router.log')
 
+    if not os.path.isfile(capture_log) or not os.path.isfile(router_log):
+        print "warning: incomplete log in %s" % xp
+        continue
+
     router_bps = 0
     snf_dropped_total = 0
     snf_dropped_nic = 0
