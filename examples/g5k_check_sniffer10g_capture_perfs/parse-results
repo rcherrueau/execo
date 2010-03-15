@@ -12,17 +12,19 @@ if len(args) != 1:
 
 log_dir = args[0]
 results = dict() # dict with:
-                 # key = num pktgen sources
-                 # value is [
-                 #  router bandwidth,
-                 #  snf bandwidth,
-                 #  snf dropped total,
-                 #  snf dropped nic,
-                 #  snf dropped ring,
-                 #  snf dropped bad
-                 # ]
+                 # key = packet_size
+                 # value = dict with
+                 #   key = num pktgen sources
+                 #   value is [
+                 #     router bandwidth,
+                 #     snf bandwidth,
+                 #     snf dropped total,
+                 #     snf dropped nic,
+                 #     snf dropped ring,
+                 #     snf dropped bad
+                 #   ]
 
-results_file = os.path.join(log_dir, "results.log")
+results_file = os.path.join(log_dir, "results.dat")
 gnuplot_script = os.path.join(log_dir, "gen_graphs.gnuplot")
 
 for xp in glob.glob(os.path.join(log_dir, '*_sources-*_packet_size')):
