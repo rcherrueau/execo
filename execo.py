@@ -1818,8 +1818,8 @@ class Report(object):
     >>> r = Report()
     >>> r
     Report(reports=set([]), name='Report')
-    >>> r.stats()
-    {'num_errors': 0, 'num_ok': 0, 'end_date': None, 'num_ended': 0, 'num_started': 0, 'num_processes': 0, 'num_non_zero_exit_codes': 0, 'num_forced_kills': 0, 'start_date': None, 'num_timeouts': 0}
+    >>> sorted(r.stats().items())
+    [('end_date', None), ('num_ended', 0), ('num_errors', 0), ('num_forced_kills', 0), ('num_non_zero_exit_codes', 0), ('num_ok', 0), ('num_processes', 0), ('num_started', 0), ('num_timeouts', 0), ('start_date', None)]
     """
 
     def __init__(self, name = None, reports = None):
