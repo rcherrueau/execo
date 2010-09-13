@@ -1,36 +1,33 @@
 # -*- coding: utf-8 -*-
 
-r"""Handles launching of several operating system level processes in parallel and controlling them asynchronously.
+r"""Handles launching of several operating system level processes in parallel and controlling them asynchronously. Handles remote executions through ssh (or similar tools).
 
 Overview
 ========
 
 This module offers a high level API for parallel local or remote
-processes execution with the `Action` class hierarchy, and a
-lower level API with the `Process` class, for handling
-individual subprocesses.
+processes execution with the `Action` class hierarchy, and a lower
+level API with the `Process` class, for handling individual local or
+remote subprocesses.
 
 Action
 ------
 
 An `Action` is an abstraction of a set of parallel processes. It is an
-abstract class. Child classes are: `Remote`, `Get`,
-`Put`, `Local`. A `Remote` is a remote process
-execution on a group of hosts. The remote connexion is performed by
-ssh or a similar tool. `Put` and `Get` are actions for
-copying to or from a group of hosts. The copy is performed with scp or
-a similar tool. A `Local` is a local process (it is a very
-lightweight `Action` on top of a single `Process`
-instance).
+abstract class. Child classes are: `Remote`, `Get`, `Put`, `Local`. A
+`Remote` is a remote process execution on a group of hosts. The remote
+connexion is performed by ssh or a similar tool. `Put` and `Get` are
+actions for copying to or from a group of hosts. The copy is performed
+with scp or a similar tool. A `Local` is a local process (it is a very
+lightweight `Action` on top of a single `Process` instance).
 
-`Remote`, `Get`, `Put` require a list of remote
-hosts to perform their tasks. These hosts are passed as an iterable of
-instances of `Host`. The `Host` class instances have an
-address, and may have a ssh port, a ssh keyfile, a ssh user, if
-needed.
+`Remote`, `Get`, `Put` require a list of remote hosts to perform their
+tasks. These hosts are passed as an iterable of instances of
+`Host`. The `Host` class instances have an address, and may have a ssh
+port, a ssh keyfile, a ssh user, if needed.
 
-As an example of the usage of the `Remote` class, let's launch
-some commands on a few remote hosts::
+As an example of the usage of the `Remote` class, let's launch some
+commands on a few remote hosts::
 
   a = Remote(hosts=(Host('nancy'), Host('Rennes')),
              cmd='whoami ; uname -a').start()
@@ -43,13 +40,14 @@ some commands on a few remote hosts::
 Process
 -------
 
-A `Process` is an operating system process, similar to the
-`subprocess.Popen` class in the python standard library (actually
-execo `Process` use them internally). The main differences is that a
-background thread (which is started when execo module is imported)
-takes care of reading asynchronously stdout and stderr, and of
-handling the lifecycle of the process. This allows writing easily code
-in a style appropriate for conducting several processes in parallel.
+A `Process` and its subclass `SshProcess` are abstractions of local or
+remote operating system process, similar to the `subprocess.Popen`
+class in the python standard library (actually execo `Process` use
+them internally). The main differences is that a background thread
+(which is started when execo module is imported) takes care of reading
+asynchronously stdout and stderr, and of handling the lifecycle of the
+process. This allows writing easily code in a style appropriate for
+conducting several processes in parallel.
 
 important exported classes
 --------------------------
@@ -63,6 +61,9 @@ important exported classes
 
 - `Process`: operating-system level process abstraction, on top of
   which `Action` are implemented.
+
+- `SshProcess`: subclass of `Process`, for remote execution through
+  ssh. Remote `Action` are implemented on top of it.
 
 - `Timer`: convenience timer class.
 
@@ -79,14 +80,14 @@ General information
 ssh configuration for Remote, Get, Put
 --------------------------------------
 
-For `Remote`, `Get`, `Put` to work correctly, ssh/scp connexions need
-to be fully automatic: No password has to be asked. The default
-configuration in execo is to force a passwordless, public key based
-authentification. As this tool is growing in a cluster/grid
-environment where servers are frequently redeployed, default
-configuration also disables strict key checking, and the recording of
-hosts keys to ``~/.ssh/know_hosts``. This may be a security hole in a
-different context.
+For `SshProcess`, `Remote`, `Get`, `Put` to work correctly, ssh/scp
+connexions need to be fully automatic: No password has to be
+asked. The default configuration in execo is to force a passwordless,
+public key based authentification. As this tool is growing in a
+cluster/grid environment where servers are frequently redeployed,
+default configuration also disables strict key checking, and the
+recording of hosts keys to ``~/.ssh/know_hosts``. This may be a
+security hole in a different context.
 
 substitutions for Remote, Get, Put
 ----------------------------------
@@ -138,8 +139,8 @@ Internally all dates are unix timestamps, ie. number of seconds
 elapsed since the unix epoch (00:00:00 on Jan 1 1970), possibly with
 or without subsecond precision (float or integer).  In most cases (see
 detailed API documentation), timestamps can be passed as unix
-timestamps (integers or floats) or as `datetime.datetime`, and
-time lengths can be passed as seconds (integers or floats) or as
+timestamps (integers or floats) or as `datetime.datetime`, and time
+lengths can be passed as seconds (integers or floats) or as
 `datetime.timedelta`
 
 Configuration
@@ -187,12 +188,12 @@ remote connexions. Its default values are::
       }
 
 These default connexion parameters are the ones used when no other
-specific connexion parameters are given to the `Remote`, `Get` or
-`Put` actions, or given to the `Host`. Actually, when connecting to a
+specific connexion parameters are given to `SshProcess`, `Remote`,
+`Get` or `Put`, or given to the `Host`. Actually, when connecting to a
 remote host, the connexion parameters are first taken from the `Host`
 instance to which the connexion is made, then from the
-``connexion_params`` given to the `Remote`/`Get`/`Put`, if there are
-some, then from the `default_connexion_params`.
+``connexion_params`` given to the `SubProcess`/`Remote`/`Get`/`Put`,
+if there are some, then from the `default_connexion_params`.
 
 after import time, the configuration may be changed dynamically from
 code in the following ways:
@@ -213,7 +214,7 @@ processes timeout (unless they were created with flag ignore_timeout),
 or if process instanciation resulted in a operating system error
 (unless they were created with flag ignore_error).
 
-As told before, `set_log_level` may be used to change execo log level.
+`set_log_level` may be used to change execo log level.
 
 Exceptions at shutdown
 ----------------------
@@ -1751,6 +1752,8 @@ def get_hosts_sequence(hosts):
 
 class SshProcess(Process):
 
+    r"""Handle a remote command execution through ssh or similar remote execution tool."""
+
     def __init__(host, remote_cmd, connexion_params = None, **kwargs):
         self.__host = host
         self.__remote_cmd = remote_cmd
@@ -1784,7 +1787,7 @@ class SshProcess(Process):
 
     @__synchronized
     def host(self):
-        """Return remote host."""
+        """Return the remote host."""
         return self.__host
 
     @synchronized
