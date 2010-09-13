@@ -603,6 +603,28 @@ def line_buffered(func):
     wrapper.buffer = ""
     return wrapper
 
+class ProcessOutputHandlerCopy(ProcessOutputHandler):
+
+    """A handler for `Process` output which copies its input to a given filehandle."""
+
+    def __init__(self, copy_handle = None, prefix = None):
+        """
+        :param copy_handle: a file handle onto which lines received
+          will be copied. Default None.
+
+        :param prefix: a string that will be prefixed to all lines
+          copied to the file handle. Default None.
+        """
+        self._copy_handle = copy_handle
+        self._prefix = prefix
+
+    @line_buffered
+    def read(self, process, string, eof = False, error = False):
+        if self._copy_handle:
+            if self._prefix:
+                string = ''.join((self._prefix, string))
+            self._copy_handle.write(string)
+
 class Process(object):
 
     r"""Handle an operating system process.

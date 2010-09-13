@@ -141,15 +141,16 @@ def _get_local_site():
         raise EnvironmentError, "unable to get local site name"
     return local_site
 
-class _KadeployOutputHandler(ProcessOutputHandler):
+class _KadeployOutputHandler(ProcessOutputHandlerCopy):
 
     """Parse kadeploy3 output."""
     
-    def __init__(self, kadeployer):
+    def __init__(self, kadeployer, **kwargs):
         """
         :param kadeployer: the `Kadeployer` to which this
           `ProcessOutputHandler` is attached.
         """
+        super(_KadeployOutputHandler, self).__init__(**kwargs)
         self._kadeployer = kadeployer
         self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+$")
         self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+$")
@@ -159,6 +160,7 @@ class _KadeployOutputHandler(ProcessOutputHandler):
 
     @line_buffered
     def read(self, process, string, eof = False, error = False):
+        super(_KadeployOutputHandler, self).read(process, string, eof, error)
         if self._good_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_GOODNODES
             return
@@ -184,7 +186,9 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple Grid5000 sites.
     """
 
-    def __init__(self, hosts = None, environment_name = None, environment_file = None, connexion_params = None, **kwargs):
+    def __init__(self, hosts = None, environment_name = None, environment_file = None,
+                 connexion_params = None, kadeploy_options = None,
+                 kadeploy_stdout = None, kadeploy_stderr = None, **kwargs):
         """
         :param hosts: an iterable of `Host` to deploy
 
@@ -198,6 +202,19 @@ class Kadeployer(Remote):
           `default_frontend_connexion_params` whose values will
           override those in `default_frontend_connexion_params` for
           connexion.
+
+        :param kadeploy_options: a string of options to pass to
+          kadeploy3. These options will be appended after the
+          generated options (hosts, environments), so they may (be
+          careful) override them. Default: None.
+
+        :param kadeploy_stdout: a filehandle for writing kadeploy
+          stdout (prefixed by the site where kadeploy is
+          executing). Default is None, kadeploy stdout is discarded.
+
+        :param kadeploy_stderr: a filehandle for writing kadeploy
+          stderr (prefixed by the site where kadeploy is
+          executing). Default is None, kadeploy stderr is discarded.
 
         there must be either one of environment_name or
         environment_file parameter given. If none given, will try to
@@ -243,18 +260,36 @@ class Kadeployer(Remote):
         self._processes = dict()
         if connexion_params == None: connexion_params = default_frontend_connexion_params
         for site in sites.keys():
-            kadeploy_command = "kadeploy3 -d"
+            kadeploy_command = "kadeploy3"
             if self._environment_name != None:
                 kadeploy_command += " -e %s" % self._environment_name
             elif self._environment_file != None:
                 kadeploy_command += " -a %s" % self._environment_file
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
+            if kadeploy_options != None:
+                kadeploy_command += " %s" % (kadeploy_options,)
             if site == _get_local_site():
-                self._processes[site] = Process(kadeploy_command, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout)
+                self._processes[site] = Process(kadeploy_command,
+                                                stdout_handler = _KadeployOutputHandler(self,
+                                                                                        copy_handle = kadeploy_stdout,
+                                                                                        prefix = "%s stdout> " % site),
+                                                stderr_handler = ProcessOutputHandlerCopy(copy_handle = kadeploy_stderr,
+                                                                                          prefix = "%s stderr >" % site),
+                                                timeout = self._timeout,
+                                                ignore_exit_code = self._ignore_exit_code,
+                                                ignore_timeout = self._ignore_timeout)
             else:
                 real_command = get_ssh_command(connexion_params = connexion_params) + (site,) + (kadeploy_command,)
-                self._processes[site] = Process(real_command, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, shell = False, ignore_exit_code = self._ignore_exit_code)
+                self._processes[site] = Process(real_command,
+                                                stdout_handler = _KadeployOutputHandler(self,
+                                                                                        copy_handle = kadeploy_stdout,
+                                                                                        prefix = "%s stdout> " % site),
+                                                stderr_handler = ProcessOutputHandlerCopy(copy_handle = kadeploy_stderr,
+                                                                                          prefix = "%s stderr >" % site),
+                                                timeout = self._timeout,
+                                                shell = False,
+                                                ignore_exit_code = self._ignore_exit_code)
 
     def __repr__(self):
         r = style("Kadeployer", 'object_repr') + "(name=%r, timeout=%r" % (self._name, self._timeout)
@@ -624,7 +659,9 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
         return hosts
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
 
-def kadeploy(hosts = None, environment_name = None, environment_file = None, timeout = None):
+def kadeploy(hosts = None, environment_name = None, environment_file = None,
+             connexion_params = None, kadeploy_options = None,
+             kadeploy_stdout = None, kadeploy_stderr = None, timeout = None):
     """Deploy hosts with kadeploy3.
 
     :param hosts: iterable of `Host` to deploy.
@@ -635,18 +672,42 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
     :param environment_file: name of an environment file for
       kadeploy3.
 
+    :param connexion_params: a dict similar to
+      `default_frontend_connexion_params` whose values will override
+      those in `default_frontend_connexion_params` for connexion.
+
+    :param kadeploy_options: a string of options to pass to
+      kadeploy3. These options will be appended after the generated
+      options (hosts, environments), so they may (be careful) override
+      them. Default: None.
+
+    :param kadeploy_stdout: a filehandle for writing kadeploy stdout
+      (prefixed by the site where kadeploy is executing). Default is
+      None, kadeploy stdout is discarded.
+
+    :param kadeploy_stderr: a filehandle for writing kadeploy stderr
+      (prefixed by the site where kadeploy is executing). Default is
+      None, kadeploy stderr is discarded.
+
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
 
     Returns a tuple (iterable of `FrozenHost` containing the deployed
     host, iterable of `FrozenHost` containing the nodes not deployed).
     """
-    kadeployer = Kadeployer(hosts = hosts, environment_name = environment_name, environment_file = environment_file, timeout = timeout).run()
+    kadeployer = Kadeployer(hosts = hosts,
+                            environment_name = environment_name,
+                            environment_file = environment_file,
+                            connexion_params = connexion_params,
+                            kadeploy_options = kadeploy_options,
+                            kadeploy_stdout = kadeploy_stdout,
+                            kadeploy_stderr = kadeploy_stderr,
+                            timeout = timeout).run()
     if kadeployer.error():
         raise Exception, "error deploying nodes: %s" % (kadeployer,)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
+def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30, kadeploy_options = None, kadeploy_stdout = None, kadeploy_stderr = None):
 
     """Wait for jobs start date, get hosts list, deploy them if needed.
 
@@ -717,6 +778,20 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
 
     :param check_timeout: timeout for node deployment checks. Default
       is 30 seconds.
+
+    :param kadeploy_options: a string of options to pass to
+      kadeploy3. These options will be appended after the generated
+      options (hosts, environments), so they may (be careful) override
+      them. Default: None.
+
+    :param kadeploy_stdout: a filehandle for writing kadeploy stdout
+      (prefixed by the site where kadeploy is executing). Default is
+      None, kadeploy stdout is discarded.
+
+    :param kadeploy_stderr: a filehandle for writing kadeploy stderr
+      (prefixed by the site where kadeploy is executing). Default is
+      None, kadeploy stderr is discarded.
+
     """
 
     if timeout == False:
@@ -765,7 +840,10 @@ def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, e
         (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts,
                                                        environment_name = environment_name,
                                                        environment_file = environment_file,
-                                                       timeout = deploy_timeout)
+                                                       timeout = deploy_timeout,
+                                                       kadeploy_options = kadeploy_options,
+                                                       kadeploy_stdout = kadeploy_stdout,
+                                                       kadeploy_stderr = kadeploy_stderr)
         num_deploy_retries -= 1
         if num_deploy_retries == 0:
             break
