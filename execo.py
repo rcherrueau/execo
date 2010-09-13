@@ -608,7 +608,7 @@ def _synchronized(func):
     # TO BE USED BY PROCESS OR SUBCLASSES OF
     @functools.wraps(func)
     def wrapper(*args, **kw):
-        with args[0].__lock:
+        with args[0]._lock:
             return func(*args, **kw)
     return wrapper
 
@@ -687,7 +687,7 @@ class Process(object):
           to the process, try to simulate sending control characters
           to its pty.
         """
-        self.__lock = threading.RLock()
+        self._lock = threading.RLock()
         self.__cmd = cmd
         self.__process = None
         self.__started = False
