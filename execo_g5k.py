@@ -8,6 +8,8 @@ Overview
 important exported functions
 ----------------------------
 
+- `submit_jobs`: submit oar jobs
+
 - `get_current_oar_jobs`, `get_current_oargrid_jobs`: retrieve current
   oar/oargrid jobs lists for current user. may filter on job start
   date or job end date.
@@ -31,6 +33,8 @@ important exported functions
 
 important exported classes
 --------------------------
+
+- `OarSubmission`: descriptor of an oar submission.
 
 - `Kadeployer`: `Action`-inherited class for running a deployment
   asynchronously.
