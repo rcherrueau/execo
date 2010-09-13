@@ -192,7 +192,7 @@ specific connexion parameters are given to `SshProcess`, `Remote`,
 `Get` or `Put`, or given to the `Host`. Actually, when connecting to a
 remote host, the connexion parameters are first taken from the `Host`
 instance to which the connexion is made, then from the
-``connexion_params`` given to the `SubProcess`/`Remote`/`Get`/`Put`,
+``connexion_params`` given to the `SshProcess`/`Remote`/`Get`/`Put`,
 if there are some, then from the `default_connexion_params`.
 
 after import time, the configuration may be changed dynamically from
@@ -1764,7 +1764,7 @@ class SshProcess(Process):
                                     connexion_params)
                     + (host.address,)
                     + (remote_cmd,))
-        super(SshProcess, self).__init__(real_cmd, **kwargs, shell = False)
+        super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
 
     def __args(self):
         return "host=%r, remote_cmd=%r, connexion_params=%r %s" % (self.__host,
@@ -1778,7 +1778,7 @@ class SshProcess(Process):
 
     @__synchronized
     def __str__(self):
-        return "<" style("SshProcess", 'object_repr') + "(%s) " % (self.__args(),) + super(SshProcess, self).__str__() + ">"
+        return "<" + style("SshProcess", 'object_repr') + "(%s) " % (self.__args(),) + super(SshProcess, self).__str__() + ">"
 
     @__synchronized
     def remote_cmd(self):
