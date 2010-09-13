@@ -1754,7 +1754,7 @@ class SshProcess(Process):
 
     r"""Handle a remote command execution through ssh or similar remote execution tool."""
 
-    def __init__(host, remote_cmd, connexion_params = None, **kwargs):
+    def __init__(self, host, remote_cmd, connexion_params = None, **kwargs):
         self.__host = host
         self.__remote_cmd = remote_cmd
         self.__connexion_params = connexion_params
