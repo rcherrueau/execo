@@ -2268,32 +2268,31 @@ class Remote(Action):
     and `Put`.
     """
 
-    def __init__(self, hosts = None, cmd = None, connexion_params = None, **kwargs):
+    def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` to which to connect and run
           the command.
 
-        :param cmd: the command to run remotely. substitions described
-          in `remote_substitute` will be performed.
+        :param remote_cmd: the command to run remotely. substitions
+          described in `remote_substitute` will be performed.
 
         :param connexion_params: a dict similar to
           `default_connexion_params` whose values will override those
           in `default_connexion_params` for connexion.
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, cmd, hosts)
+            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, remote_cmd, hosts)
         super(Remote, self).__init__(**kwargs)
-        self._cmd = cmd
+        self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._processes = dict()
         fhosts = list(get_frozen_hosts_set(hosts))
         for (index, host) in enumerate(fhosts):
-            real_command = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + (remote_substitute(self._cmd, fhosts, index, self._caller_context),)
-            self._processes[host] = Process(real_command, timeout = self._timeout, shell = False, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[host] = SshProcess(host, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
-        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._cmd)
+        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
 
     def processes(self):
         return self._processes.values()
