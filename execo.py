@@ -724,12 +724,12 @@ class Process(object):
         else:
             self.__close_stdin = close_stdin
 
-    def __args(self):
+    def _args(self):
         return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
 
     @_synchronized
     def __repr__(self):
-        return style("Process", 'object_repr') + "(%s)" % (self.__args(),)
+        return style("Process", 'object_repr') + "(%s)" % (self._args(),)
 
     @_synchronized
     def __str__(self):
@@ -1766,19 +1766,19 @@ class SshProcess(Process):
                     + (remote_cmd,))
         super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
 
-    def __args(self):
+    def _args(self):
         return "host=%r, remote_cmd=%r, connexion_params=%r %s" % (self.__host,
                                                                    self.__remote_cmd,
                                                                    self.__connexion_params,
-                                                                   super(SshProcess, self).__args())
+                                                                   super(SshProcess, self)._args())
 
     @_synchronized
     def __repr__(self):
-        return style("SshProcess", 'object_repr') + "(%s)" % (self.__args(),)
+        return style("SshProcess", 'object_repr') + "(%s)" % (self._args(),)
 
     @_synchronized
     def __str__(self):
-        return "<" + style("SshProcess", 'object_repr') + "(%s) " % (self.__args(),) + super(SshProcess, self).__str__() + ">"
+        return "<" + style("SshProcess", 'object_repr') + "(%s) " % (self._args(),) + super(SshProcess, self).__str__() + ">"
 
     @_synchronized
     def remote_cmd(self):
