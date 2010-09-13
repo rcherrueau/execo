@@ -538,7 +538,7 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
                     filtered_job_ids.append(jobsite)
             oar_job_ids = filtered_job_ids
         return oar_job_ids
-    raise Exception, "error list of current oar jobs: %s" % (processes,)
+    raise Exception, "error, list of current oar jobs: %s" % (processes,)
 
 def get_current_oargrid_jobs(start_between = None, end_between = None, timeout = False):
     """Return a list of current active oargrid job ids.
@@ -581,7 +581,7 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
                     filtered_job_ids.append(job)
             oargrid_job_ids = filtered_job_ids
         return oargrid_job_ids
-    raise Exception, "error list of current oargrid jobs: %s" % (process,)
+    raise Exception, "error, list of current oargrid jobs: %s" % (process,)
 
 def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, timeout = False):
     """Return a dict with informations about an oar job.
