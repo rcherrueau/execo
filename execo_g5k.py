@@ -326,11 +326,90 @@ def _date_in_range(date, range):
         return False
     return True
 
+def format_oar_time(secs):
+    """Return a string with the formatted time (year, month, day, hour, min, sec, ms) formatted for oar.
+
+    timezone is discarded since oar doesn't know about them.
+
+    :param secs: a unix timestamp (integer or float)
+    """
+    if secs == None:
+        return None
+    t = time.localtime(secs)
+    formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
+    return formatted_time
+
+def format_oar_duration(secs):
+    """Return a string with a formatted duration (hours, mins, secs).
+
+    :param secs: a duration in seconds (integer or float)
+    """
+    if secs == None:
+        return None
+    s = secs
+    h = (s - (s % 3600)) / 3600
+    s -= h * 3600
+    m = (s - (s % 60)) / 60
+    s -= m * 60
+    formatted_duration = ""
+    if secs >= 3600:
+        formatted_duration += "%i:" % h
+    else:
+        formatted_duration += "0:"
+    if secs >= 60:
+        formatted_duration += "%i:" % m
+    else:
+        formatted_duration += "0:"
+    formatted_duration += "%i" % s
+    return formatted_duration
+
+class OarSubmission(object):
+
+    def __init__(self,
+                 resources = "nodes=1",
+                 walltime = datetime.timedelta(hours = 1),
+                 job_type = None,
+                 sql_properties = None,
+                 queue = None,
+                 reservation_date = None,
+                 directory = None,
+                 project = None,
+                 name = None):
+        if walltime != None:
+            if isinstance(walltime, datetime.timedelta):
+                walltime = timedelta_to_seconds(walltime)
+            walltime = int(walltime)
+        if reservation_date != None:
+            if isinstance(reservation_date, datetime.datetime):
+                reservation_date = datetime_to_unixts(reservation_date)
+            reservation_date = int(reservation_date)
+        self.resources = resources
+        self.walltime = walltime
+        self.job_type = job_type
+        self.sql_properties = sql_properties
+        self.queue = queue
+        self.reservation_date = reservation_date
+        self.directory = directory
+        self.project = project
+        self.name = name
+
+    def __repr__(self):
+        s = "OarSubmission(resources=%r, walltime=%r" % (self.resources, self.walltime)
+        if self.job_type != None: s += ", job_type=%r" % (self.job_type,)
+        if self.sql_properties != None: s += ", sql_properties=%r" % (self.sql_properties,)
+        if self.queue != None: s += ", queue=%r" % (self.queue,)
+        if self.reservation_date != None: s += ", reservation_date=%r" % (self.reservation_date,)
+        if self.directory != None: s += ", directory=%r" % (self.directory,)
+        if self.project != None: s += ", project=%r" % (self.project,)
+        if self.name != None: s += ", name=%r" % (self.name,)
+        s += ")"
+        return s
+
 def submit_jobs(job_specs, connexion_params = None, timeout = False):
     """Submit jobs.
 
-    :param job_specs: list of tuples (site, oar options) with None for
-      local site
+    :param job_specs: iterable of tuples (site, OarSubmission) with None
+      for local site
 
     :param connexion_params: connexion params to connect to other
       site's frontend if needed
@@ -338,11 +417,55 @@ def submit_jobs(job_specs, connexion_params = None, timeout = False):
     :param timeout: timeout for retrieving. Default is False, which
       means use `g5k_configuration['default_timeout']`. None means no
       timeout.
+
+    Returns a list of tuples (oarjob id, site), with site == None for
+    local site. If submission error, oarjob id == None.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     if connexion_params == None:
         connexion_params = default_frontend_connexion_params
+    processes = []
+    for (site, spec) in job_specs:
+        oarsub_cmdline = "oarsub -l %s,walltime=%s" % (spec.resources, format_oar_duration(spec.walltime))
+        if spec.job_type != None:
+            oarsub_cmdline += " -t %s" % (spec.job_type,)
+        if spec.sql_properties != None:
+            oarsub_cmdline += " -p '%s'" % (spec.sql_properties,)
+        if spec.queue != None:
+            oarsub_cmdline += " -q %s" % (spec.queue,)
+        if spec.reservation_date != None:
+            oarsub_cmdline += " -r '%s'" % (format_oar_time(spec.reservation_date),)
+        if spec.directory != None:
+            oarsub_cmdline += " -d '%s'" % (spec.directory,)
+        if spec.project != None:
+            oarsub_cmdline += " --project '%s'" % (spec.project,)
+        if spec.name != None:
+            oarsub_cmdline += " -n '%s'" % (spec.name,)
+        oarsub_cmdline += " 'sleep 31536000'"
+        if site == None:
+            processes.append(Process(oarsub_cmdline, timeout = timeout))
+        else:
+            processes.append(SshProcess(site, oarsub_cmdline, connexion_params = connexion_params, timeout = timeout))
+    oar_job_ids = []
+    if len(processes) == 0:
+        return oar_job_ids
+    map(Process.start, processes)
+    map(Process.wait, processes)
+    if reduce(operator.and_, map(Process.ok, processes)):
+        for process in processes:
+            mo = re.search("^OAR_JOB_ID=(\d+)$", process.stdout(), re.MULTILINE)
+            if mo != None:
+                job_id = int(mo.group(1))
+            else:
+                job_id = None
+            if isinstance(process, SshProcess):
+                host = process.host()
+            else:
+                host = None
+            oar_job_ids.extend((job_id, host))
+        return oar_job_ids
+    raise Exception, "error, job submissions: %s" % (processes,)
 
 def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False):
     """Return a list of current active oar job ids.
