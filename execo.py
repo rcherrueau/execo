@@ -600,6 +600,18 @@ def line_buffered(func):
     wrapper.buffer = ""
     return wrapper
 
+def _synchronized(func):
+    # decorator (similar to java synchronized) to ensure mutual
+    # exclusion between some methods that may be called by different
+    # threads (the main thread and the _Conductor thread), to ensure
+    # that the Process instances always have a consistent state.
+    # TO BE USED BY PROCESS OR SUBCLASSES OF
+    @functools.wraps(func)
+    def wrapper(*args, **kw):
+        with args[0].__lock:
+            return func(*args, **kw)
+    return wrapper
+
 class Process(object):
 
     r"""Handle an operating system process.
@@ -636,18 +648,6 @@ class Process(object):
     >>> server.ended()
     True
     """
-
-    def __synchronized(func):
-        # decorator (similar to java synchronized) to ensure mutual
-        # exclusion between some methods that may be called by
-        # different threads (the main thread and the _Conductor
-        # thread), to ensure that the Process instance always has a
-        # consistent state.
-        @functools.wraps(func)
-        def wrapper(*args, **kw):
-            with args[0].__lock:
-                return func(*args, **kw)
-        return wrapper
 
     def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, close_stdin = None, shell = True, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, pty = False):
         """
@@ -727,45 +727,45 @@ class Process(object):
     def __args(self):
         return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
 
-    @__synchronized
+    @_synchronized
     def __repr__(self):
         return style("Process", 'object_repr') + "(%s)" % (self.__args(),)
 
-    @__synchronized
+    @_synchronized
     def __str__(self):
         return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, pty=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s, ok=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__pty, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code, self.ok())
 
-    @__synchronized
+    @_synchronized
     def cmd(self):
         """Return the subprocess command line."""
         return self.__cmd
     
-    @__synchronized
+    @_synchronized
     def started(self):
         """Return a boolean indicating if the subprocess was started or not."""
         return self.__started
     
-    @__synchronized
+    @_synchronized
     def start_date(self):
         """Return the subprocess start date or None if not yet started."""
         return self.__start_date
     
-    @__synchronized
+    @_synchronized
     def ended(self):
         """Return a boolean indicating if the subprocess ended or not."""
         return self.__ended
     
-    @__synchronized
+    @_synchronized
     def end_date(self):
         """Return the subprocess end date or None if not yet ended."""
         return self.__end_date
     
-    @__synchronized
+    @_synchronized
     def pid(self):
         """Return the subprocess's pid, if available (subprocess started) or None."""
         return self.__pid
     
-    @__synchronized
+    @_synchronized
     def error(self):
         """Return a boolean indicating if there was an error starting the subprocess.
 
@@ -773,12 +773,12 @@ class Process(object):
         """
         return self.__error
     
-    @__synchronized
+    @_synchronized
     def error_reason(self):
         """Return the operating system level errno, if there was an error starting the subprocess, or None."""
         return self.__error_reason
     
-    @__synchronized
+    @_synchronized
     def exit_code(self):
         """Return the subprocess exit code.
 
@@ -787,12 +787,12 @@ class Process(object):
         """
         return self.__exit_code
     
-    @__synchronized
+    @_synchronized
     def timeout(self):
         """Return the timeout in seconds after which the subprocess would be killed."""
         return self.__timeout
     
-    @__synchronized
+    @_synchronized
     def timeout_date(self):
         """Return the date at which the subprocess will reach its timeout.
 
@@ -800,7 +800,7 @@ class Process(object):
         """
         return self.__timeout_date
 
-    @__synchronized
+    @_synchronized
     def timeouted(self):
         """Return a boolean indicating if the subprocess has reached its timeout.
 
@@ -809,7 +809,7 @@ class Process(object):
         """
         return self.__timeouted
     
-    @__synchronized
+    @_synchronized
     def forced_kill(self):
         """Return a boolean indicating if the subprocess was killed forcibly.
 
@@ -821,17 +821,17 @@ class Process(object):
         """
         return self.__forced_kill
     
-    @__synchronized
+    @_synchronized
     def stdout(self):
         """Return a string containing the subprocess stdout."""
         return self.__stdout
 
-    @__synchronized
+    @_synchronized
     def stderr(self):
         """Return a string containing the subprocess stderr."""
         return self.__stderr
 
-    @__synchronized
+    @_synchronized
     def stdout_fd(self):
         """Return the subprocess stdout filehandle.
 
@@ -845,7 +845,7 @@ class Process(object):
         else:
             return None
 
-    @__synchronized
+    @_synchronized
     def stderr_fd(self):
         """Return the subprocess stderr filehandle.
 
@@ -856,7 +856,7 @@ class Process(object):
         else:
             return None
 
-    @__synchronized
+    @_synchronized
     def stdin_fd(self):
         """Return the subprocess stdin filehandle.
 
@@ -870,12 +870,12 @@ class Process(object):
         else:
             return None
 
-    @__synchronized
+    @_synchronized
     def stdout_handler(self):
         """Return this `Process` stdout `ProcessOutputHandler`."""
         return self.__stdout_handler
     
-    @__synchronized
+    @_synchronized
     def stderr_handler(self):
         """Return this `Process` stderr `ProcessOutputHandler`."""
         return self.__stderr_handler
@@ -910,7 +910,7 @@ class Process(object):
         if self.__stderr_handler != None:
             self.__stderr_handler.read(self, string, eof, error)
 
-    @__synchronized
+    @_synchronized
     def start(self):
         """Start the subprocess."""
         if self.__started:
@@ -957,7 +957,7 @@ class Process(object):
             self.__process.stdin.close()
         return self
 
-    @__synchronized
+    @_synchronized
     def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
 
@@ -1013,7 +1013,7 @@ class Process(object):
                 else:
                     raise e
 
-    @__synchronized
+    @_synchronized
     def _timeout_kill(self):
         """Send SIGTERM to the subprocess, due to the reaching of its timeout.
 
@@ -1029,7 +1029,7 @@ class Process(object):
             else:
                 self.kill()
 
-    @__synchronized
+    @_synchronized
     def _set_terminated(self, exit_code):
         """Update `Process` state: set it to terminated.
 
@@ -1079,7 +1079,7 @@ class Process(object):
         """Start subprocess then wait for its end."""
         return self.start().wait()
 
-    @__synchronized
+    @_synchronized
     def ok(self):
         """Check subprocess has correctly finished.
 
@@ -1772,25 +1772,25 @@ class SshProcess(Process):
                                                                    self.__connexion_params,
                                                                    super(SshProcess, self).__args())
 
-    @__synchronized
+    @_synchronized
     def __repr__(self):
         return style("SshProcess", 'object_repr') + "(%s)" % (self.__args(),)
 
-    @__synchronized
+    @_synchronized
     def __str__(self):
         return "<" + style("SshProcess", 'object_repr') + "(%s) " % (self.__args(),) + super(SshProcess, self).__str__() + ">"
 
-    @__synchronized
+    @_synchronized
     def remote_cmd(self):
         """Return the command line executed remotely through ssh."""
         return self.__remote_cmd
 
-    @__synchronized
+    @_synchronized
     def host(self):
         """Return the remote host."""
         return self.__host
 
-    @synchronized
+    @_synchronized
     def connexion_params(self):
         """Return ssh connexion parameters."""
         return self.__connexion_params
