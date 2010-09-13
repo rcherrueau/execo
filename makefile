@@ -34,7 +34,7 @@ check:
 	python test_execo.py
 
 clean: cleandoc
-	rm -rf build dist *.pyc MANIFEST 
+	rm -rf build dist *.pyc MANIFEST
 
 dist: doc
 	python setup.py sdist

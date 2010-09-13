@@ -253,8 +253,7 @@ class Kadeployer(Remote):
             if site == _get_local_site():
                 self._processes[site] = Process(kadeploy_command, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout)
             else:
-                real_command = get_ssh_command(connexion_params = connexion_params) + (site,) + (kadeploy_command,)
-                self._processes[site] = Process(real_command, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, shell = False, ignore_exit_code = self._ignore_exit_code)
+                self._processes[site] = SshProcess(site, kadeploy_command, connexion_params = connexion_params, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code)
 
     def __repr__(self):
         r = style("Kadeployer", 'object_repr') + "(name=%r, timeout=%r" % (self._name, self._timeout)
@@ -392,10 +391,7 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
         processes.append(process)
     if sites:
         for site in sites:
-            remote_cmd = "oarstat -u"
-            cmd = get_ssh_command(connexion_params = connexion_params) + (site,) + (remote_cmd,)
-            process = Process(cmd, timeout = timeout, shell = False)
-            process.site = site
+            process = SshProcess(site, "oarstat -u", connexion_params = connexion_params, timeout = timeout)
             processes.append(process)
     oar_job_ids = []
     if len(processes) == 0:
@@ -405,7 +401,11 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
     if reduce(operator.and_, map(Process.ok, processes)):
         for process in processes:
             jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
-            oar_job_ids.extend([ (int(jobid), process.site) for jobid in jobs ])
+            if isinstance(process, SshProcess):
+                host = process.host()
+            else:
+                host = None
+            oar_job_ids.extend([ (int(jobid), host) for jobid in jobs ])
         if start_between or end_between:
             filtered_job_ids = []
             for jobsite in oar_job_ids:
@@ -491,11 +491,9 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     if site != None:
-        remote_cmd = "oarstat -fj %i" % oar_job_id
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
-        cmd = get_ssh_command(connexion_params = connexion_params) + (site,) + (remote_cmd,)
-        process = Process(cmd, timeout = timeout, shell = False)
+        process = SshProcess(site, "oarstat -fj %i" % oar_job_id, connexion_params = connexion_params, timeout = timeout)
     else:
         cmd = "oarstat -fj %i" % oar_job_id
         process = Process(cmd, timeout = timeout)
@@ -603,11 +601,10 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     if site != None:
-        remote_cmd = "while (oarstat -sj %(oar_job_id)i | grep Waiting) > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
-        cmd = get_ssh_command(connexion_params = connexion_params) + (site,) + (remote_cmd,)
-        process = Process(cmd, timeout = timeout, shell = False)
+        remote_cmd = "while (oarstat -sj %(oar_job_id)i | grep Waiting) > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
+        process = SshProcess(site, remote_cmd, connexion_params = connexion_params, timeout = timeout)
     else:
         cmd = "while (oarstat -sj %(oar_job_id)i | grep Waiting) > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
         process = Process(cmd, timeout = timeout)

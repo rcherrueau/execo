@@ -1,36 +1,33 @@
 # -*- coding: utf-8 -*-
 
-r"""Handles launching of several operating system level processes in parallel and controlling them asynchronously.
+r"""Handles launching of several operating system level processes in parallel and controlling them asynchronously. Handles remote executions through ssh (or similar tools).
 
 Overview
 ========
 
 This module offers a high level API for parallel local or remote
-processes execution with the `Action` class hierarchy, and a
-lower level API with the `Process` class, for handling
-individual subprocesses.
+processes execution with the `Action` class hierarchy, and a lower
+level API with the `Process` class, for handling individual local or
+remote subprocesses.
 
 Action
 ------
 
 An `Action` is an abstraction of a set of parallel processes. It is an
-abstract class. Child classes are: `Remote`, `Get`,
-`Put`, `Local`. A `Remote` is a remote process
-execution on a group of hosts. The remote connexion is performed by
-ssh or a similar tool. `Put` and `Get` are actions for
-copying to or from a group of hosts. The copy is performed with scp or
-a similar tool. A `Local` is a local process (it is a very
-lightweight `Action` on top of a single `Process`
-instance).
+abstract class. Child classes are: `Remote`, `Get`, `Put`, `Local`. A
+`Remote` is a remote process execution on a group of hosts. The remote
+connexion is performed by ssh or a similar tool. `Put` and `Get` are
+actions for copying to or from a group of hosts. The copy is performed
+with scp or a similar tool. A `Local` is a local process (it is a very
+lightweight `Action` on top of a single `Process` instance).
 
-`Remote`, `Get`, `Put` require a list of remote
-hosts to perform their tasks. These hosts are passed as an iterable of
-instances of `Host`. The `Host` class instances have an
-address, and may have a ssh port, a ssh keyfile, a ssh user, if
-needed.
+`Remote`, `Get`, `Put` require a list of remote hosts to perform their
+tasks. These hosts are passed as an iterable of instances of
+`Host`. The `Host` class instances have an address, and may have a ssh
+port, a ssh keyfile, a ssh user, if needed.
 
-As an example of the usage of the `Remote` class, let's launch
-some commands on a few remote hosts::
+As an example of the usage of the `Remote` class, let's launch some
+commands on a few remote hosts::
 
   a = Remote(hosts=(Host('nancy'), Host('Rennes')),
              cmd='whoami ; uname -a').start()
@@ -43,13 +40,14 @@ some commands on a few remote hosts::
 Process
 -------
 
-A `Process` is an operating system process, similar to the
-`subprocess.Popen` class in the python standard library (actually
-execo `Process` use them internally). The main differences is that a
-background thread (which is started when execo module is imported)
-takes care of reading asynchronously stdout and stderr, and of
-handling the lifecycle of the process. This allows writing easily code
-in a style appropriate for conducting several processes in parallel.
+A `Process` and its subclass `SshProcess` are abstractions of local or
+remote operating system process, similar to the `subprocess.Popen`
+class in the python standard library (actually execo `Process` use
+them internally). The main differences is that a background thread
+(which is started when execo module is imported) takes care of reading
+asynchronously stdout and stderr, and of handling the lifecycle of the
+process. This allows writing easily code in a style appropriate for
+conducting several processes in parallel.
 
 important exported classes
 --------------------------
@@ -63,6 +61,9 @@ important exported classes
 
 - `Process`: operating-system level process abstraction, on top of
   which `Action` are implemented.
+
+- `SshProcess`: subclass of `Process`, for remote execution through
+  ssh. Remote `Action` are implemented on top of it.
 
 - `Timer`: convenience timer class.
 
@@ -79,14 +80,14 @@ General information
 ssh configuration for Remote, Get, Put
 --------------------------------------
 
-For `Remote`, `Get`, `Put` to work correctly, ssh/scp connexions need
-to be fully automatic: No password has to be asked. The default
-configuration in execo is to force a passwordless, public key based
-authentification. As this tool is growing in a cluster/grid
-environment where servers are frequently redeployed, default
-configuration also disables strict key checking, and the recording of
-hosts keys to ``~/.ssh/know_hosts``. This may be a security hole in a
-different context.
+For `SshProcess`, `Remote`, `Get`, `Put` to work correctly, ssh/scp
+connexions need to be fully automatic: No password has to be
+asked. The default configuration in execo is to force a passwordless,
+public key based authentification. As this tool is growing in a
+cluster/grid environment where servers are frequently redeployed,
+default configuration also disables strict key checking, and the
+recording of hosts keys to ``~/.ssh/know_hosts``. This may be a
+security hole in a different context.
 
 substitutions for Remote, Get, Put
 ----------------------------------
@@ -138,8 +139,8 @@ Internally all dates are unix timestamps, ie. number of seconds
 elapsed since the unix epoch (00:00:00 on Jan 1 1970), possibly with
 or without subsecond precision (float or integer).  In most cases (see
 detailed API documentation), timestamps can be passed as unix
-timestamps (integers or floats) or as `datetime.datetime`, and
-time lengths can be passed as seconds (integers or floats) or as
+timestamps (integers or floats) or as `datetime.datetime`, and time
+lengths can be passed as seconds (integers or floats) or as
 `datetime.timedelta`
 
 Configuration
@@ -187,12 +188,12 @@ remote connexions. Its default values are::
       }
 
 These default connexion parameters are the ones used when no other
-specific connexion parameters are given to the `Remote`, `Get` or
-`Put` actions, or given to the `Host`. Actually, when connecting to a
+specific connexion parameters are given to `SshProcess`, `Remote`,
+`Get` or `Put`, or given to the `Host`. Actually, when connecting to a
 remote host, the connexion parameters are first taken from the `Host`
 instance to which the connexion is made, then from the
-``connexion_params`` given to the `Remote`/`Get`/`Put`, if there are
-some, then from the `default_connexion_params`.
+``connexion_params`` given to the `SshProcess`/`Remote`/`Get`/`Put`,
+if there are some, then from the `default_connexion_params`.
 
 after import time, the configuration may be changed dynamically from
 code in the following ways:
@@ -213,7 +214,7 @@ processes timeout (unless they were created with flag ignore_timeout),
 or if process instanciation resulted in a operating system error
 (unless they were created with flag ignore_error).
 
-As told before, `set_log_level` may be used to change execo log level.
+`set_log_level` may be used to change execo log level.
 
 Exceptions at shutdown
 ----------------------
@@ -530,10 +531,6 @@ class Timer(object):
         """Return this Timer's instance elapsed time since start."""
         return time.time() - self._start
 
-#---------------------------------------------------------------------
-#
-# start of Process related stuff (low level API)
-
 def _event_desc(event):
     """For debugging: user friendly representation of the event bitmask returned by poll()."""
     desc = ""
@@ -603,6 +600,18 @@ def line_buffered(func):
     wrapper.buffer = ""
     return wrapper
 
+def _synchronized(func):
+    # decorator (similar to java synchronized) to ensure mutual
+    # exclusion between some methods that may be called by different
+    # threads (the main thread and the _Conductor thread), to ensure
+    # that the Process instances always have a consistent state.
+    # TO BE USED BY PROCESS OR SUBCLASSES OF
+    @functools.wraps(func)
+    def wrapper(*args, **kw):
+        with args[0]._lock:
+            return func(*args, **kw)
+    return wrapper
+
 class Process(object):
 
     r"""Handle an operating system process.
@@ -639,18 +648,6 @@ class Process(object):
     >>> server.ended()
     True
     """
-
-    def __synchronized(func):
-        # decorator (similar to java synchronized) to ensure mutual
-        # exclusion between some methods that may be called by
-        # different threads (the main thread and the _Conductor
-        # thread), to ensure that the Process instance always has a
-        # consistent state.
-        @functools.wraps(func)
-        def wrapper(*args, **kw):
-            with args[0].__lock:
-                return func(*args, **kw)
-        return wrapper
 
     def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, close_stdin = None, shell = True, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, pty = False):
         """
@@ -690,7 +687,7 @@ class Process(object):
           to the process, try to simulate sending control characters
           to its pty.
         """
-        self.__lock = threading.RLock()
+        self._lock = threading.RLock()
         self.__cmd = cmd
         self.__process = None
         self.__started = False
@@ -727,47 +724,48 @@ class Process(object):
         else:
             self.__close_stdin = close_stdin
 
-    @__synchronized
+    def _args(self):
+        return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
+
+    @_synchronized
     def __repr__(self):
-        with self.__lock:
-            return style("Process", 'object_repr') + "(cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r)" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
+        return style("Process", 'object_repr') + "(%s)" % (self._args(),)
 
-    @__synchronized
+    @_synchronized
     def __str__(self):
-        with self.__lock:
-            return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, pty=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s, ok=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__pty, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code, self.ok())
+        return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, pty=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s, ok=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__pty, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code, self.ok())
 
-    @__synchronized
+    @_synchronized
     def cmd(self):
         """Return the subprocess command line."""
         return self.__cmd
     
-    @__synchronized
+    @_synchronized
     def started(self):
         """Return a boolean indicating if the subprocess was started or not."""
         return self.__started
     
-    @__synchronized
+    @_synchronized
     def start_date(self):
         """Return the subprocess start date or None if not yet started."""
         return self.__start_date
     
-    @__synchronized
+    @_synchronized
     def ended(self):
         """Return a boolean indicating if the subprocess ended or not."""
         return self.__ended
     
-    @__synchronized
+    @_synchronized
     def end_date(self):
         """Return the subprocess end date or None if not yet ended."""
         return self.__end_date
     
-    @__synchronized
+    @_synchronized
     def pid(self):
         """Return the subprocess's pid, if available (subprocess started) or None."""
         return self.__pid
     
-    @__synchronized
+    @_synchronized
     def error(self):
         """Return a boolean indicating if there was an error starting the subprocess.
 
@@ -775,12 +773,12 @@ class Process(object):
         """
         return self.__error
     
-    @__synchronized
+    @_synchronized
     def error_reason(self):
         """Return the operating system level errno, if there was an error starting the subprocess, or None."""
         return self.__error_reason
     
-    @__synchronized
+    @_synchronized
     def exit_code(self):
         """Return the subprocess exit code.
 
@@ -789,12 +787,12 @@ class Process(object):
         """
         return self.__exit_code
     
-    @__synchronized
+    @_synchronized
     def timeout(self):
         """Return the timeout in seconds after which the subprocess would be killed."""
         return self.__timeout
     
-    @__synchronized
+    @_synchronized
     def timeout_date(self):
         """Return the date at which the subprocess will reach its timeout.
 
@@ -802,7 +800,7 @@ class Process(object):
         """
         return self.__timeout_date
 
-    @__synchronized
+    @_synchronized
     def timeouted(self):
         """Return a boolean indicating if the subprocess has reached its timeout.
 
@@ -811,7 +809,7 @@ class Process(object):
         """
         return self.__timeouted
     
-    @__synchronized
+    @_synchronized
     def forced_kill(self):
         """Return a boolean indicating if the subprocess was killed forcibly.
 
@@ -823,17 +821,17 @@ class Process(object):
         """
         return self.__forced_kill
     
-    @__synchronized
+    @_synchronized
     def stdout(self):
         """Return a string containing the subprocess stdout."""
         return self.__stdout
 
-    @__synchronized
+    @_synchronized
     def stderr(self):
         """Return a string containing the subprocess stderr."""
         return self.__stderr
 
-    @__synchronized
+    @_synchronized
     def stdout_fd(self):
         """Return the subprocess stdout filehandle.
 
@@ -847,7 +845,7 @@ class Process(object):
         else:
             return None
 
-    @__synchronized
+    @_synchronized
     def stderr_fd(self):
         """Return the subprocess stderr filehandle.
 
@@ -858,7 +856,7 @@ class Process(object):
         else:
             return None
 
-    @__synchronized
+    @_synchronized
     def stdin_fd(self):
         """Return the subprocess stdin filehandle.
 
@@ -872,12 +870,12 @@ class Process(object):
         else:
             return None
 
-    @__synchronized
+    @_synchronized
     def stdout_handler(self):
         """Return this `Process` stdout `ProcessOutputHandler`."""
         return self.__stdout_handler
     
-    @__synchronized
+    @_synchronized
     def stderr_handler(self):
         """Return this `Process` stderr `ProcessOutputHandler`."""
         return self.__stderr_handler
@@ -912,7 +910,7 @@ class Process(object):
         if self.__stderr_handler != None:
             self.__stderr_handler.read(self, string, eof, error)
 
-    @__synchronized
+    @_synchronized
     def start(self):
         """Start the subprocess."""
         if self.__started:
@@ -959,7 +957,7 @@ class Process(object):
             self.__process.stdin.close()
         return self
 
-    @__synchronized
+    @_synchronized
     def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
 
@@ -1015,7 +1013,7 @@ class Process(object):
                 else:
                     raise e
 
-    @__synchronized
+    @_synchronized
     def _timeout_kill(self):
         """Send SIGTERM to the subprocess, due to the reaching of its timeout.
 
@@ -1031,7 +1029,7 @@ class Process(object):
             else:
                 self.kill()
 
-    @__synchronized
+    @_synchronized
     def _set_terminated(self, exit_code):
         """Update `Process` state: set it to terminated.
 
@@ -1081,7 +1079,7 @@ class Process(object):
         """Start subprocess then wait for its end."""
         return self.start().wait()
 
-    @__synchronized
+    @_synchronized
     def ok(self):
         """Check subprocess has correctly finished.
 
@@ -1474,14 +1472,6 @@ class _Conductor(object):
 _the_conductor = _Conductor().start()
 """The **one and only** `_Conductor` instance."""
 
-
-# end of Process related stuff (low level API)
-#
-#---------------------------------------------------------------------
-#
-# start of Action related stuff (high level API)
-
-
 def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with ssh / scp authentifications options.
 
@@ -1760,6 +1750,51 @@ def get_hosts_sequence(hosts):
         copy.append(host_copy)
     return copy
 
+class SshProcess(Process):
+
+    r"""Handle a remote command execution through ssh or similar remote execution tool."""
+
+    def __init__(self, host, remote_cmd, connexion_params = None, **kwargs):
+        self.__host = host
+        self.__remote_cmd = remote_cmd
+        self.__connexion_params = connexion_params
+        real_cmd = (get_ssh_command(host.user,
+                                    host.keyfile,
+                                    host.port,
+                                    connexion_params)
+                    + (host.address,)
+                    + (remote_cmd,))
+        super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
+
+    def _args(self):
+        return "host=%r, remote_cmd=%r, connexion_params=%r %s" % (self.__host,
+                                                                   self.__remote_cmd,
+                                                                   self.__connexion_params,
+                                                                   super(SshProcess, self)._args())
+
+    @_synchronized
+    def __repr__(self):
+        return style("SshProcess", 'object_repr') + "(%s)" % (self._args(),)
+
+    @_synchronized
+    def __str__(self):
+        return "<" + style("SshProcess", 'object_repr') + "(%s) " % (self._args(),) + super(SshProcess, self).__str__() + ">"
+
+    @_synchronized
+    def remote_cmd(self):
+        """Return the command line executed remotely through ssh."""
+        return self.__remote_cmd
+
+    @_synchronized
+    def host(self):
+        """Return the remote host."""
+        return self.__host
+
+    @_synchronized
+    def connexion_params(self):
+        """Return ssh connexion parameters."""
+        return self.__connexion_params
+
 def _sort_reports(reports):
     def key_func(report):
         if report.stats()['start_date'] != None:
@@ -1783,8 +1818,8 @@ class Report(object):
     >>> r = Report()
     >>> r
     Report(reports=set([]), name='Report')
-    >>> r.stats()
-    {'num_errors': 0, 'num_ok': 0, 'end_date': None, 'num_ended': 0, 'num_started': 0, 'num_processes': 0, 'num_non_zero_exit_codes': 0, 'num_forced_kills': 0, 'start_date': None, 'num_timeouts': 0}
+    >>> sorted(r.stats().items())
+    [('end_date', None), ('num_ended', 0), ('num_errors', 0), ('num_forced_kills', 0), ('num_non_zero_exit_codes', 0), ('num_ok', 0), ('num_processes', 0), ('num_started', 0), ('num_timeouts', 0), ('start_date', None)]
     """
 
     def __init__(self, name = None, reports = None):
@@ -2233,32 +2268,31 @@ class Remote(Action):
     and `Put`.
     """
 
-    def __init__(self, hosts = None, cmd = None, connexion_params = None, **kwargs):
+    def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` to which to connect and run
           the command.
 
-        :param cmd: the command to run remotely. substitions described
-          in `remote_substitute` will be performed.
+        :param remote_cmd: the command to run remotely. substitions
+          described in `remote_substitute` will be performed.
 
         :param connexion_params: a dict similar to
           `default_connexion_params` whose values will override those
           in `default_connexion_params` for connexion.
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, cmd, hosts)
+            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, remote_cmd, hosts)
         super(Remote, self).__init__(**kwargs)
-        self._cmd = cmd
+        self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._processes = dict()
         fhosts = list(get_frozen_hosts_set(hosts))
         for (index, host) in enumerate(fhosts):
-            real_command = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + (remote_substitute(self._cmd, fhosts, index, self._caller_context),)
-            self._processes[host] = Process(real_command, timeout = self._timeout, shell = False, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[host] = SshProcess(host, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params = connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
-        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._cmd)
+        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
 
     def processes(self):
         return self._processes.values()
