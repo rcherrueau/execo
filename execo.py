@@ -530,10 +530,6 @@ class Timer(object):
         """Return this Timer's instance elapsed time since start."""
         return time.time() - self._start
 
-#---------------------------------------------------------------------
-#
-# start of Process related stuff (low level API)
-
 def _event_desc(event):
     """For debugging: user friendly representation of the event bitmask returned by poll()."""
     desc = ""
@@ -727,9 +723,12 @@ class Process(object):
         else:
             self.__close_stdin = close_stdin
 
+    def __args(self):
+        return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
+
     @__synchronized
     def __repr__(self):
-        return style("Process", 'object_repr') + "(cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r)" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
+        return style("Process", 'object_repr') + "(%s)" % (self.__args(),)
 
     @__synchronized
     def __str__(self):
@@ -1472,14 +1471,6 @@ class _Conductor(object):
 _the_conductor = _Conductor().start()
 """The **one and only** `_Conductor` instance."""
 
-
-# end of Process related stuff (low level API)
-#
-#---------------------------------------------------------------------
-#
-# start of Action related stuff (high level API)
-
-
 def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with ssh / scp authentifications options.
 
@@ -1757,6 +1748,49 @@ def get_hosts_sequence(hosts):
         host_copy = Host(host)
         copy.append(host_copy)
     return copy
+
+class SshProcess(Process):
+
+    def __init__(host, remote_cmd, connexion_params = None, **kwargs):
+        self.__host = host
+        self.__remote_cmd = remote_cmd
+        self.__connexion_params = connexion_params
+        real_cmd = (get_ssh_command(host.user,
+                                    host.keyfile,
+                                    host.port,
+                                    connexion_params)
+                    + (host.address,)
+                    + (remote_cmd,))
+        super(SshProcess, self).__init__(real_cmd, **kwargs, shell = False)
+
+    def __args(self):
+        return "host=%r, remote_cmd=%r, connexion_params=%r %s" % (self.__host,
+                                                                   self.__remote_cmd,
+                                                                   self.__connexion_params,
+                                                                   super(SshProcess, self).__args())
+
+    @__synchronized
+    def __repr__(self):
+        return style("SshProcess", 'object_repr') + "(%s)" % (self.__args(),)
+
+    @__synchronized
+    def __str__(self):
+        return "<" style("SshProcess", 'object_repr') + "(%s) " % (self.__args(),) + super(SshProcess, self).__str__() + ">"
+
+    @__synchronized
+    def remote_cmd(self):
+        """Return the command line executed remotely through ssh."""
+        return self.__remote_cmd
+
+    @__synchronized
+    def host(self):
+        """Return remote host."""
+        return self.__host
+
+    @synchronized
+    def connexion_params(self):
+        """Return ssh connexion parameters."""
+        return self.__connexion_params
 
 def _sort_reports(reports):
     def key_func(report):
