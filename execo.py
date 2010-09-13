@@ -2289,7 +2289,7 @@ class Remote(Action):
         self._processes = dict()
         fhosts = list(get_frozen_hosts_set(hosts))
         for (index, host) in enumerate(fhosts):
-            self._processes[host] = SshProcess(host, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[host] = SshProcess(host, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params = connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
         return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
