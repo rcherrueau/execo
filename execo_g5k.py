@@ -327,6 +327,24 @@ def _date_in_range(date, range):
         return False
     return True
 
+def submit_jobs(job_specs, connexion_params = None, timeout = False):
+    """Submit jobs.
+
+    :param job_specs: list of tuples (site, oar options) with None for
+      local site
+
+    :param connexion_params: connexion params to connect to other
+      site's frontend if needed
+    
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
+    """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
+    if connexion_params == None:
+        connexion_params = default_frontend_connexion_params
+
 def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False):
     """Return a list of current active oar job ids.
 
