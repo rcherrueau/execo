@@ -469,6 +469,33 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         oar_job_ids.append((job_id, host))
     return oar_job_ids
 
+def oardel(job_specs, connexion_params = None, timeout = False):
+    """Delete oar jobs.
+
+    :param job_specs: iterable of tuples (job_id, site) with None for
+      local site
+
+    :param connexion_params: connexion params to connect to other
+      site's frontend if needed
+    
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
+    """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
+    if connexion_params == None:
+        connexion_params = default_frontend_connexion_params
+    processes = []
+    for (job_id, site) in job_specs:
+        oardel_cmdline = "oardel %i" % (job_id,)
+        if site == None:
+            processes.append(Process(oardel_cmdline, timeout = timeout))
+        else:
+            processes.append(SshProcess(Host(site), oardel_cmdline, connexion_params = connexion_params, timeout = timeout))
+    map(Process.start, processes)
+    map(Process.wait, processes)
+
 def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False):
     """Return a list of current active oar job ids.
 
