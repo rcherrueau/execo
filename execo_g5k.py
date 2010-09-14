@@ -456,20 +456,18 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         return oar_job_ids
     map(Process.start, processes)
     map(Process.wait, processes)
-    if reduce(operator.and_, map(Process.ok, processes)):
-        for process in processes:
+    for process in processes:
+        if isinstance(process, SshProcess):
+            host = process.host().address
+        else:
+            host = None
+        job_id = None
+        if process.ok():
             mo = re.search("^OAR_JOB_ID=(\d+)$", process.stdout(), re.MULTILINE)
             if mo != None:
                 job_id = int(mo.group(1))
-            else:
-                job_id = None
-            if isinstance(process, SshProcess):
-                host = process.host()
-            else:
-                host = None
-            oar_job_ids.extend((job_id, host))
-        return oar_job_ids
-    raise Exception, "error, job submissions: %s" % (processes,)
+        oar_job_ids.append((job_id, host))
+    return oar_job_ids
 
 def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False):
     """Return a list of current active oar job ids.
