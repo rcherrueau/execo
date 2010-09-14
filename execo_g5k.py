@@ -412,7 +412,7 @@ class OarSubmission(object):
 def oarsub(job_specs, connexion_params = None, timeout = False):
     """Submit jobs.
 
-    :param job_specs: iterable of tuples (site, OarSubmission) with None
+    :param job_specs: iterable of tuples (OarSubmission, site) with None
       for local site
 
     :param connexion_params: connexion params to connect to other
@@ -430,7 +430,7 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
     if connexion_params == None:
         connexion_params = default_frontend_connexion_params
     processes = []
-    for (site, spec) in job_specs:
+    for (spec, site) in job_specs:
         oarsub_cmdline = "oarsub -l %s,walltime=%s" % (spec.resources, format_oar_duration(spec.walltime))
         if spec.job_type != None:
             oarsub_cmdline += " -t %s" % (spec.job_type,)
