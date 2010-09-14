@@ -8,7 +8,7 @@ Overview
 important exported functions
 ----------------------------
 
-- `submit_jobs`: submit oar jobs
+- `oarsub`: submit oar jobs
 
 - `get_current_oar_jobs`, `get_current_oargrid_jobs`: retrieve current
   oar/oargrid jobs lists for current user. may filter on job start
@@ -409,7 +409,7 @@ class OarSubmission(object):
         s += ")"
         return s
 
-def submit_jobs(job_specs, connexion_params = None, timeout = False):
+def oarsub(job_specs, connexion_params = None, timeout = False):
     """Submit jobs.
 
     :param job_specs: iterable of tuples (site, OarSubmission) with None
