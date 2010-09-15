@@ -629,11 +629,13 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
       means use `g5k_configuration['default_timeout']`. None means no
       timeout.
     
-    Hash returned contains these keys:
+    Hash returned may contain these keys:
 
     - ``start_date``: unix timestamp of job's start date
 
     - ``duration``: unix timestamp of job's duration
+
+    But no info may be available as long as the job is not scheduled.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
@@ -642,12 +644,12 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+    cmd = "oarstat -fj %i" % (oar_job_id,)
     if site != None:
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
-        process = SshProcess(Host(site), "oarstat -fj %i" % oar_job_id, connexion_params = connexion_params, timeout = timeout)
+        process = SshProcess(Host(site), cmd, connexion_params = connexion_params, timeout = timeout)
     else:
-        cmd = "oarstat -fj %i" % oar_job_id
         process = Process(cmd, timeout = timeout)
     process.run()
     if process.ok():
@@ -666,6 +668,11 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
 def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, timeout = False):
     """Sleep until an oar job's start time.
 
+    As long as the job isn't scheduled, wait_oar_job_start will sleep
+    / poll every 30 seconds until it is scheduled. Then, knowing its
+    start date, it will sleep the amount of time necessary to wait for
+    the job start.
+
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
 
@@ -682,7 +689,12 @@ def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, 
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
-    sleep(until = get_oar_job_info(oar_job_id, site, connexion_params, timeout)['start_date'])
+    while True:
+        infos = get_oar_job_info(oar_job_id, site, connexion_params, timeout)
+        if infos.has_key('start_date'):
+            break
+        sleep(30)
+    sleep(until = infos['start_date'])
     
 def get_oargrid_job_info(oargrid_job_id = None, timeout = False):
     """Return a dict with informations about an oargrid job.
