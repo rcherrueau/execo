@@ -2,13 +2,12 @@
 Readme / documentation for the execo package
 ============================================
 
-The execo python module offers a high level API for parallel local or
-remote processes execution with the Action class hierarchy, and a
-lower level API with the Process class, for handling individual
-subprocesses.
-
-The additional execo_g5k python module provides a set of tools and
-extensions to execo, to be used in Grid5000
+Execo offers a Python API for local or remote, standalone or parallel,
+processes execution. It is especially well suited for scripting
+workflows of parallel/distributed operations on local or remote hosts:
+conducting experiments, performing automated tests, etc. The core
+python module is ``execo``. The ``execo_g5k`` python module provides a
+set of tools and extensions to execo, to be used in Grid5000
 
 installation instructions
 =========================
@@ -18,11 +17,11 @@ links
 
 execo package download: http://graal.ens-lyon.fr/~mimbert/execo/execo-1.1.tar.gz
 
-execo code repository: http://graal.ens-lyon.fr/~mimbert/execo/execo.git
+execo code repository: git://scm.gforge.inria.fr/execo/execo.git
 
 execo documentation:
-http://graal.ens-lyon.fr/~mimbert/execo/doc/index.html 
-http://graal.ens-lyon.fr/~mimbert/execo/doc/epydoc/index.html
+http://execo.gforge.inria.fr/doc/
+http://execo.gforge.inria.fr/epydoc/
 
 prerequisites
 -------------
@@ -60,4 +59,4 @@ usage
 =====
 
 See html documentation for module execo and execo_g5k at
-http://graal.ens-lyon.fr/~mimbert/execo/doc/index.html
+http://execo.gforge.inria.fr/doc/
