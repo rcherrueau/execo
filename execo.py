@@ -2067,7 +2067,9 @@ class Action(object):
         return self._name
 
     def start(self):
-        """Start all subprocesses."""
+        """Start all subprocesses.
+
+        return self"""
         if self._started:
             raise ValueError, "Actions may be started only once"
         self._started = True
@@ -2075,17 +2077,23 @@ class Action(object):
         return self
 
     def stop(self):
-        """Stop all subprocesses."""
+        """Stop all subprocesses.
+
+        return self"""
         logger.info(style("stop:", 'emph') + " %s" % (self,))
         return self
     
     def wait(self):
-        """Wait for all subprocesses to complete."""
+        """Wait for all subprocesses to complete.
+
+        return self"""
         logger.info(style("wait:", 'emph') + " %s" % (self,))
         return self
 
     def run(self):
-        """Start all subprocesses then wait for them to complete."""
+        """Start all subprocesses then wait for them to complete.
+
+        return self"""
         logger.info(style("run:", 'emph') + " %s" % (self,))
         self.start()
         self.wait()
