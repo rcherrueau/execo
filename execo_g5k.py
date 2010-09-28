@@ -423,7 +423,8 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
       timeout.
 
     Returns a list of tuples (oarjob id, site), with site == None for
-    local site. If submission error, oarjob id == None.
+    local site. If submission error, oarjob id == None. The returned
+    list matches, in the same order, the job_specs parameter.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
