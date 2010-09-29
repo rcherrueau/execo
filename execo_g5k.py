@@ -433,6 +433,8 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
     processes = []
     for (spec, site) in job_specs:
         oarsub_cmdline = "oarsub -l %s,walltime=%s" % (spec.resources, format_oar_duration(spec.walltime))
+        if os.environ.has_key('OAR_JOB_KEY_FILE'):
+            oarsub_cmdline += " -k -i %s" % (os.environ['OAR_JOB_KEY_FILE'],)
         if spec.job_type != None:
             oarsub_cmdline += " -t %s" % (spec.job_type,)
         if spec.sql_properties != None:
