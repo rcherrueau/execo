@@ -493,9 +493,9 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     for (job_id, site) in job_specs:
         oardel_cmdline = "oardel %i" % (job_id,)
         if site == None:
-            processes.append(Process(oardel_cmdline, timeout = timeout))
+            processes.append(Process(oardel_cmdline, timeout = timeout, ignore_exit_code = True))
         else:
-            processes.append(SshProcess(Host(site), oardel_cmdline, connexion_params = connexion_params, timeout = timeout))
+            processes.append(SshProcess(Host(site), oardel_cmdline, connexion_params = connexion_params, timeout = timeout, ignore_exit_code = True))
     map(Process.start, processes)
     map(Process.wait, processes)
 
