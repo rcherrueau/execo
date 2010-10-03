@@ -557,7 +557,7 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
         for process in processes:
             jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
             if isinstance(process, SshProcess):
-                host = process.host()
+                host = process.host().address
             else:
                 host = None
             oar_job_ids.extend([ (int(jobid), host) for jobid in jobs ])
