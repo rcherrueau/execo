@@ -767,7 +767,7 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
-    cmd = "while (oarstat -sj %(oar_job_id)i | grep Waiting) > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
+    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
     if site != None:
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
