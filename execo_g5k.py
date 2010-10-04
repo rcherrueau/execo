@@ -10,6 +10,8 @@ important exported functions
 
 - `oarsub`: submit oar jobs
 
+- `oardel`: delete oar jobs
+
 - `get_current_oar_jobs`, `get_current_oargrid_jobs`: retrieve current
   oar/oargrid jobs lists for current user. may filter on job start
   date or job end date.
@@ -474,6 +476,10 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
 
 def oardel(job_specs, connexion_params = None, timeout = False):
     """Delete oar jobs.
+
+    Ignores any error, so you can delete inexistant jobs, already
+    delete jobs, or jobs that you don't own. Those deletions will be
+    ignored.
 
     :param job_specs: iterable of tuples (job_id, site) with None for
       local site
