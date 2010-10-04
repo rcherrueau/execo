@@ -505,7 +505,7 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     map(Process.start, processes)
     map(Process.wait, processes)
 
-def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False):
+def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False, abort_on_error = True):
     """Return a list of current active oar job ids.
 
     The list contains tuples (oarjob id, site), with site == None for
@@ -532,11 +532,15 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
       is a deltat, (less than 10 years)).
         
     :param connexion_params: connexion params to connect to other
-      site's frontend if needed
+      site's frontend if needed.
     
     :param timeout: timeout for retrieving. Default is False, which
       means use `g5k_configuration['default_timeout']`. None means no
       timeout.
+
+    :param abort_on_error: default True, raises an exception on any
+      error. If False, will returned the list of job got, even if
+      incomplete (some sites may have failed).
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
@@ -559,14 +563,15 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
         return oar_job_ids
     map(Process.start, processes)
     map(Process.wait, processes)
-    if reduce(operator.and_, map(Process.ok, processes)):
+    if reduce(operator.and_, map(Process.ok, processes)) or not abort_on_error:
         for process in processes:
-            jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
-            if isinstance(process, SshProcess):
-                host = process.host().address
-            else:
-                host = None
-            oar_job_ids.extend([ (int(jobid), host) for jobid in jobs ])
+            if process.ok():
+                jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
+                if isinstance(process, SshProcess):
+                    host = process.host().address
+                else:
+                    host = None
+                oar_job_ids.extend([ (int(jobid), host) for jobid in jobs ])
         if start_between or end_between:
             filtered_job_ids = []
             for jobsite in oar_job_ids:
