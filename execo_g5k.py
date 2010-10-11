@@ -505,7 +505,7 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     map(Process.start, processes)
     map(Process.wait, processes)
 
-def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False, abort_on_error = True):
+def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False, abort_on_error = False):
     """Return a list of current active oar job ids.
 
     The list contains tuples (oarjob id, site), with site == None for
@@ -538,9 +538,9 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
       means use `g5k_configuration['default_timeout']`. None means no
       timeout.
 
-    :param abort_on_error: default True, raises an exception on any
-      error. If False, will returned the list of job got, even if
-      incomplete (some sites may have failed).
+    :param abort_on_error: default False. If True, raises an exception
+      on any error. If False, will returned the list of job got, even
+      if incomplete (some sites may have failed to answer).
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
