@@ -268,7 +268,7 @@ def main():
 
     # deploy needed hosts
     print "-- deploy hosts (at least %i sources and %i targets)" % (highest_num_sources, highest_num_sources)
-    (deployed_hosts, error_hosts, all_hosts) = execo_g5k.prepare_xp(
+    (deployed_hosts, error_hosts, all_hosts) = execo_g5k.prepare_deployed_xp(
         hosts = job_hosts,
         connexion_params = connect_params,
         #environment_name = 'lenny-x64-base',

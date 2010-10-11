@@ -63,8 +63,8 @@ class Test_execo_g5k(unittest.TestCase):
             nodes = execo_g5k.get_oargrid_job_nodes(job)
             print "oargrid job %i has nodes: %s" % (job, nodes)
 
-    def test_prepare_xp(self):
-        (deployed_hosts, undeployed_hosts, hosts) = execo_g5k.prepare_xp(oar_job_id_tuples = self.oarjobs, oargrid_job_ids = self.oargridjobs, check_deployed_command = 'true', num_deploy_retries = 10)
+    def test_prepare_deployed_xp(self):
+        (deployed_hosts, undeployed_hosts, hosts) = execo_g5k.prepare_deployed_xp(oar_job_id_tuples = self.oarjobs, oargrid_job_ids = self.oargridjobs, check_deployed_command = 'true', num_deploy_retries = 10)
         print "%i deployed hosts:    %s" % (len(deployed_hosts), deployed_hosts)
         print "%i undeployed hosts:  %s" % (len(undeployed_hosts), undeployed_hosts)
         print "%i total hosts:       %s" % (len(hosts), hosts)

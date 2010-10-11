@@ -27,8 +27,8 @@ important exported functions
 
 - `kadeploy`: deploy an environment on given hosts.
 
-- `prepare_xp`: sleep until beginning of given oar/oargrid job(s),
-  retrieve their nodes, check which of these nodes are already
+- `prepare_deployed_xp`: sleep until beginning of given oar/oargrid
+  job(s), retrieve their nodes, check which of these nodes are already
   deployed (with a user-supplied command), deploy (many times if
   needed, with a user supplied max number of tries) those which are
   not.
@@ -838,7 +838,7 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
         raise Exception, "error deploying nodes: %s" % (kadeployer,)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def prepare_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
+def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
 
     """Wait for jobs start date, get hosts list, deploy them if needed.
 

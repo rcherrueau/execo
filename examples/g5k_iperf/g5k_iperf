@@ -14,7 +14,7 @@ execo.set_log_level(logging.INFO)
 jobs = execo_g5k.get_current_oargrid_jobs()
 
 my_connexion_params = {'user': 'root'}
-(deployed_hosts, error_hosts, all_hosts) = execo_g5k.prepare_xp(oargrid_job_ids = jobs, connexion_params = my_connexion_params)
+(deployed_hosts, error_hosts, all_hosts) = execo_g5k.prepare_deployed_xp(oargrid_job_ids = jobs, connexion_params = my_connexion_params)
 
 hosts_lyon = [ host for host in deployed_hosts if host.address.find(".lyon.") > -1 ]
 hosts_other = [ host for host in deployed_hosts if host.address.find(".lyon.") == -1 ]
