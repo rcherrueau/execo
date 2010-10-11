@@ -8,5 +8,5 @@ include examples/process_iperf/process_iperf
 include examples/report/report
 include MANIFEST.in
 include makefile
-include doc/conf.py doc/Makefile doc/*.rst
+include doc/conf.py doc/Makefile doc/*.rst doc/execo.png doc/_static/execo-icon.ico
 graft doc/_build/html
