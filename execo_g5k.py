@@ -560,7 +560,8 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
       means use `g5k_configuration['default_timeout']`. None means no
       timeout.
 
-    Returns an oargrid job id, or None if error.
+    Returns a tuple (oargrid_job_id, ssh_key), or (None, None) if
+    error.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
