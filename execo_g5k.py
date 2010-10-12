@@ -8,9 +8,8 @@ Overview
 important exported functions
 ----------------------------
 
-- `oarsub`: submit oar jobs
-
-- `oardel`: delete oar jobs
+- `oarsub`, `oargridsub`, `oardel`, `oargriddel`: submit/delete
+  oar/oargrid jobs
 
 - `get_current_oar_jobs`, `get_current_oargrid_jobs`: retrieve current
   oar/oargrid jobs lists for current user. may filter on job start
@@ -535,6 +534,101 @@ def oardel(job_specs, connexion_params = None, timeout = False):
             processes.append(Process(oardel_cmdline, timeout = timeout, ignore_exit_code = True))
         else:
             processes.append(SshProcess(Host(site), oardel_cmdline, connexion_params = connexion_params, timeout = timeout, ignore_exit_code = True))
+    map(Process.start, processes)
+    map(Process.wait, processes)
+
+def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = None, queue = None, directory = None, timeout = False):
+    """Submit oargrid jobs.
+
+    :param job_specs: iterable of tuples (OarSubmission,
+      clusteralias). Reservation date, walltime, queue, directory,
+      project of the OarSubmission are ignored.
+
+    :param reservation_date: grid job reservation date. Default: now.
+
+    :param walltime: grid job walltime.
+
+    :param job_type: type of job for all clusters: deploy, besteffort,
+      cosystem, checkpoint, timesharing.
+
+    :param queue: oar queue to use.
+
+    :param directory: directory where the reservation will be
+      launched.
+
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
+
+    Returns an oargrid job id, or None if error.
+    """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
+    if reservation_date != None:
+        if isinstance(reservation_date, datetime.datetime):
+            reservation_date = datetime_to_unixts(reservation_date)
+        reservation_date = int(reservation_date)
+    else:
+        reservation_date = datetime_to_unixts(datetime.datetime.now())
+    if walltime != None:
+        if isinstance(walltime, datetime.timedelta):
+            walltime = timedelta_to_seconds(walltime)
+        walltime = int(walltime)
+    oargridsub_cmdline = 'oargridsub -k -s "%s" '
+    if queue != None:
+        oargridsub_cmdline += '-q "%s" ' % (queue,)
+    if job_type != None:
+        oargridsub_cmdline += '-t "%s" ' % (job_type,)
+    if walltime != None:
+        oargridsub_cmdline += '-w "%s" ' % (format_oar_duration(walltime),)
+    if directory != None:
+        oargridsub_cmdline += '-d "%s" ' % (directory,)
+    firstclusteralias = True
+    for (spec, clusteralias) in job_specs):
+        if not firstclusteralias:
+            oargridsub_cmdline += ','
+        oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
+        if spec.job_type != None:
+            oargridsub_cmdline += ':type="%s"' % (spec.job_type,)
+        if spec.sql_properties != None:
+            oargridsub_cmdline += ':prop="%s"' % (spec.sql_properties,)
+        if spec.name != None:
+            oargridsub_cmdline += ':name="%s"' % (spec.name,)
+    process = Process(oargridsub_cmdline, timeout = timeout)
+    process.run()
+    job_id = None
+    ssh_key = None
+    if process.ok():
+        mo = re.search("^[OAR_GRIDSUB] Grid reservation id = (\d+)$", process.stdout(), re.MULTILINE)
+        if mo != None:
+            job_id = int(mo.group(1))
+        mo = re.search("^[OAR_GRIDSUB] SSH KEY : (.*)$", process.stdout(), re.MULTILINE)
+        if mo != None:
+            ssh_key = int(mo.group(1))
+    if job_id != None:
+        return (job_id, ssh_key)
+    else:
+        return (None, None)
+
+def oargriddel(job_ids, timeout = False):
+    """Delete oargrid jobs.
+
+    Ignores any error, so you can delete inexistant jobs, already
+    deleted jobs, or jobs that you don't own. Those deletions will be
+    ignored.
+
+    :param job_ids: iterable of oar grid job ids.
+
+    :param timeout: timeout for retrieving. Default is False, which
+      means use `g5k_configuration['default_timeout']`. None means no
+      timeout.
+    """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
+    processes = []
+    for job_id in job_ids:
+        oargriddel_cmdline = "oargriddel %i" % (job_id,)
+        processes.append(Process(oargriddel_cmdline, timeout = timeout, ignore_exit_code = True))
     map(Process.start, processes)
     map(Process.wait, processes)
 
