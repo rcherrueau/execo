@@ -370,6 +370,36 @@ def format_oar_duration(secs):
     return formatted_duration
 
 class OarSubmission(object):
+    """An oar submission.
+
+    POD style class.
+
+    members are:
+
+    - resources: Set the requested resources for the job. Oar option
+      -l, without the walltime.
+
+    - walltime: Job walltime. Walltime part of oar -l option.
+
+    - job_type: Job type, oar option -t: deploy, besteffort, cosystem,
+      checkpoint, timesharing.
+
+    - sql_properties: constraints to properties for the job, oar
+      option -p.
+
+    - queue: the queue to submit the job to. Oar option -q.
+
+    - reservation_date: Request that the job starts at a specified
+      time. Oar option -r.
+
+    - directory: Specify the directory where to launch the command
+      (default is current directory). Oar option -d.
+
+    - project: pecify a name of a project the job belongs to. Oar
+      option --project.
+
+    - name: Specify an arbitrary name for the job. Oar option -n.
+    """
 
     def __init__(self,
                  resources = "nodes=1",
