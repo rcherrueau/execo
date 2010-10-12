@@ -584,7 +584,7 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
     if directory != None:
         oargridsub_cmdline += '-d "%s" ' % (directory,)
     firstclusteralias = True
-    for (spec, clusteralias) in job_specs):
+    for (spec, clusteralias) in job_specs:
         if not firstclusteralias:
             oargridsub_cmdline += ','
         oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
