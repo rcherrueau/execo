@@ -511,7 +511,7 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     """Delete oar jobs.
 
     Ignores any error, so you can delete inexistant jobs, already
-    delete jobs, or jobs that you don't own. Those deletions will be
+    deleted jobs, or jobs that you don't own. Those deletions will be
     ignored.
 
     :param job_specs: iterable of tuples (job_id, site) with None for
