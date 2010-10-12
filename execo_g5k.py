@@ -403,7 +403,7 @@ class OarSubmission(object):
 
     def __init__(self,
                  resources = "nodes=1",
-                 walltime = datetime.timedelta(hours = 1),
+                 walltime = None,
                  job_type = None,
                  sql_properties = None,
                  queue = None,
@@ -430,7 +430,8 @@ class OarSubmission(object):
         self.name = name
 
     def __repr__(self):
-        s = "OarSubmission(resources=%r, walltime=%r" % (self.resources, self.walltime)
+        s = "OarSubmission(resources=%r" % (self.resources,)
+        if self.walltime != None: s += ", walltime=%r" % (self.walltime,)
         if self.job_type != None: s += ", job_type=%r" % (self.job_type,)
         if self.sql_properties != None: s += ", sql_properties=%r" % (self.sql_properties,)
         if self.queue != None: s += ", queue=%r" % (self.queue,)
@@ -464,24 +465,26 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         connexion_params = default_frontend_connexion_params
     processes = []
     for (spec, site) in job_specs:
-        oarsub_cmdline = "oarsub -l %s,walltime=%s" % (spec.resources, format_oar_duration(spec.walltime))
+        oarsub_cmdline = 'oarsub -l %s' % (spec.resources,)
+        if spec.walltime != None:
+            oarsub_cmdline += ',walltime=%s' % (format_oar_duration(spec.walltime),)
         if os.environ.has_key('OAR_JOB_KEY_FILE'):
-            oarsub_cmdline += " -k -i %s" % (os.environ['OAR_JOB_KEY_FILE'],)
+            oarsub_cmdline += ' -k -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
         if spec.job_type != None:
-            oarsub_cmdline += " -t %s" % (spec.job_type,)
+            oarsub_cmdline += ' -t "%s"' % (spec.job_type,)
         if spec.sql_properties != None:
-            oarsub_cmdline += " -p '%s'" % (spec.sql_properties,)
+            oarsub_cmdline += ' -p "%s"' % (spec.sql_properties,)
         if spec.queue != None:
-            oarsub_cmdline += " -q %s" % (spec.queue,)
+            oarsub_cmdline += ' -q "%s"' % (spec.queue,)
         if spec.reservation_date != None:
-            oarsub_cmdline += " -r '%s'" % (format_oar_time(spec.reservation_date),)
+            oarsub_cmdline += ' -r "%s"' % (format_oar_time(spec.reservation_date),)
         if spec.directory != None:
-            oarsub_cmdline += " -d '%s'" % (spec.directory,)
+            oarsub_cmdline += ' -d "%s"' % (spec.directory,)
         if spec.project != None:
-            oarsub_cmdline += " --project '%s'" % (spec.project,)
+            oarsub_cmdline += ' --project "%s"' % (spec.project,)
         if spec.name != None:
-            oarsub_cmdline += " -n '%s'" % (spec.name,)
-        oarsub_cmdline += " 'sleep 31536000'"
+            oarsub_cmdline += ' -n "%s"' % (spec.name,)
+        oarsub_cmdline += ' "sleep 31536000"'
         if site == None:
             processes.append(Process(oarsub_cmdline, timeout = timeout))
         else:
