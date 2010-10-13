@@ -1767,10 +1767,10 @@ class SshProcess(Process):
         super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
 
     def _args(self):
-        return "host=%r, remote_cmd=%r, connexion_params=%r %s" % (self.__host,
-                                                                   self.__remote_cmd,
-                                                                   self.__connexion_params,
-                                                                   super(SshProcess, self)._args())
+        return "host=%r, remote_cmd=%r, %s, connexion_params=%r" % (self.__host,
+                                                                    self.__remote_cmd,
+                                                                    super(SshProcess, self)._args(),
+                                                                    self.__connexion_params)
 
     @_synchronized
     def __repr__(self):
