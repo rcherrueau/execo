@@ -125,15 +125,17 @@ default_oarsh_oarcp_params = {
     'port':        None,
     'ssh':         ('oarsh',),
     'scp':         ('oarcp',),
+    'taktuk':      ('taktuk',),
     'ssh_options': ('-o', 'BatchMode=yes', '-o', 'PasswordAuthentication=no', '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=20'),
     'scp_options': ('-o', 'BatchMode=yes', '-o', 'PasswordAuthentication=no', '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=20', '-rp'),
+    'taktuk_options': ('-s', '-n'),
 }
 """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
 
 See `execo.default_connexion_params`
 """
 
-default_frontend_connexion_params = default_ssh_scp_params.copy()
+default_frontend_connexion_params = default_default_connexion_params.copy()
 """Default connexion params when connecting to a Grid5000 frontend."""
 
 read_user_configuration_dicts(((g5k_configuration, 'g5k_configuration'), (default_frontend_connexion_params, 'default_frontend_connexion_params')))

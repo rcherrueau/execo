@@ -21,6 +21,7 @@
 #     'port':        None,
 #     'ssh':         ('ssh',),
 #     'scp':         ('scp',),
+#     'taktuk':      ('taktuk',),
 #     'ssh_options': ('-o', 'BatchMode=yes',
 #                     '-o', 'PasswordAuthentication=no',
 #                     '-o', 'StrictHostKeyChecking=no',
@@ -31,6 +32,7 @@
 #                     '-o', 'StrictHostKeyChecking=no',
 #                     '-o', 'UserKnownHostsFile=/dev/null',
 #                     '-o', 'ConnectTimeout=20', '-rp'),
+#     'taktuk_options': ('-s', '-n'),
 #     }
 
 # default_frontend_connexion_params = {
@@ -39,6 +41,7 @@
 #     'port':        None,
 #     'ssh':         ('ssh',),
 #     'scp':         ('scp',),
+#     'taktuk':      ('taktuk',),
 #     'ssh_options': ('-o', 'BatchMode=yes',
 #                     '-o', 'PasswordAuthentication=no',
 #                     '-o', 'StrictHostKeyChecking=no',
@@ -49,6 +52,7 @@
 #                     '-o', 'StrictHostKeyChecking=no',
 #                     '-o', 'UserKnownHostsFile=/dev/null',
 #                     '-o', 'ConnectTimeout=20', '-rp'),
+#     'taktuk_options': ('-s', '-n'),
 # }
 
 # g5k_configuration = {

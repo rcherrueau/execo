@@ -264,12 +264,13 @@ configuration = {
 
 """
 
-default_ssh_scp_params = {
+default_default_connexion_params = {
     'user':        None,
     'keyfile':     None,
     'port':        None,
     'ssh':         ('ssh',),
     'scp':         ('scp',),
+    'taktuk':      ('taktuk',),
     'ssh_options': ('-o', 'BatchMode=yes',
                     '-o', 'PasswordAuthentication=no',
                     '-o', 'StrictHostKeyChecking=no',
@@ -280,6 +281,7 @@ default_ssh_scp_params = {
                     '-o', 'StrictHostKeyChecking=no',
                     '-o', 'UserKnownHostsFile=/dev/null',
                     '-o', 'ConnectTimeout=20', '-rp'),
+    'taktuk_options': ('-s', '-n'),
     }
 """Default connexion params for ``ssh``/``scp`` connexions.
 
@@ -293,16 +295,20 @@ default_ssh_scp_params = {
 
 - ``scp``: the scp command.
 
-- ``ssh_options``: options passed to ssh.
+- ``taktuk``: the taktuk command.
 
-- ``scp_options``: options passed to scp.
+- ``ssh_options``: global options passed to ssh.
+
+- ``scp_options``: global options passed to scp.
+
+- ``taktuk_options``: global options passed to taktuk.
 """
 
-default_connexion_params = default_ssh_scp_params.copy()
+default_connexion_params = default_default_connexion_params.copy()
 """The global default connexion params.
 
 If needed, after modifying default_connexion_params, the ssh/scp
-defaults are still available in default_ssh_scp_params.
+defaults are still available in default_default_connexion_params.
 """
 
 _styles = {
