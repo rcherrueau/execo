@@ -2301,10 +2301,8 @@ class Remote(Action):
 
     """Launch a command remotely on several `Host`, with ``ssh`` or a similar remote connexion tool.
 
-    Currently, one ssh process is launched for each connexion, so this
-    may not be scalable to a huge number of hosts. In the future we
-    could try using taktuk for remote executions, and also for `Get`
-    and `Put`.
+    One ssh process is launched for each connexion. For lots of
+    connexion, TaktukRemote may be more scalable.
     """
 
     def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
