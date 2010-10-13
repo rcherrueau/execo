@@ -618,7 +618,203 @@ def _synchronized(func):
             return func(*args, **kw)
     return wrapper
 
-class Process(object):
+class ProcessBase(object):
+
+    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False):
+        """
+        :param cmd: string or tuple containing the command and args to
+          run.
+
+        :param timeout: timeout (in seconds, or None for no timeout)
+          after which the subprocess will automatically be sent a
+          SIGTERM
+
+        :param stdout_handler: instance of `ProcessOutputHandler` for
+          handling activity on subprocess stdout
+
+        :param stderr_handler: instance of `ProcessOutputHandler` for
+          handling activity on subprocess stderr
+
+        :param ignore_exit_code: if True, a subprocess with a return
+          code != 0 won't generate a warning
+
+        :param ignore_timeout: if True, a subprocess which reaches its
+          timeout will be sent a SIGTERM, but it won't generate a
+          warning
+
+        :param ignore_error: if True, a subprocess raising an OS level
+          error won't generate a warning
+        """
+        self._lock = threading.RLock()
+        self.__cmd = cmd
+        self.__started = False
+        self.__start_date = None
+        self.__ended = False
+        self.__end_date = None
+        self.__error = False
+        self.__error_reason = None
+        self.__exit_code = None
+        self.__timeout = timeout
+        self.__timeout_date = None
+        self.__timeouted = False
+        self.__forced_kill = False
+        self.__stdout = ""
+        self.__stderr = ""
+        self.__stdout_ioerror = False
+        self.__stderr_ioerror = False
+        self.__ignore_exit_code = ignore_exit_code
+        self.__ignore_timeout = ignore_timeout
+        self.__ignore_error = ignore_error
+        self.__stdout_handler = stdout_handler
+        self.__stderr_handler = stderr_handler
+
+    def _args(self):
+        return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, ignore_exit_code=%r, ignore_timeout=%r" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__ignore_exit_code, self.__ignore_timeout)
+
+    @_synchronized
+    def __repr__(self):
+        return style("ProcessBase", 'object_repr') + "(%s)" % (self._args(),)
+
+    @_synchronized
+    def __str__(self):
+        return "<" + style("ProcessBase", 'object_repr') + "(cmd=%r, timeout=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, error=%s, error_reason=%s, timeouted=%s, exit_code=%s, ok=%s)>" % (self.__cmd, self.__timeout, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__error, self.__error_reason, self.__timeouted, self.__exit_code, self.ok())
+
+    def cmd(self):
+        """Return the subprocess command line."""
+        return self.__cmd
+    
+    def started(self):
+        """Return a boolean indicating if the subprocess was started or not."""
+        return self.__started
+    
+    def start_date(self):
+        """Return the subprocess start date or None if not yet started."""
+        return self.__start_date
+    
+    def ended(self):
+        """Return a boolean indicating if the subprocess ended or not."""
+        return self.__ended
+    
+    def end_date(self):
+        """Return the subprocess end date or None if not yet ended."""
+        return self.__end_date
+    
+    def error(self):
+        """Return a boolean indicating if there was an error starting the subprocess.
+
+        This is *not* the subprocess's return code.
+        """
+        return self.__error
+    
+    def error_reason(self):
+        """Return the operating system level errno, if there was an error starting the subprocess, or None."""
+        return self.__error_reason
+    
+    def exit_code(self):
+        """Return the subprocess exit code.
+
+        If available (if the subprocess ended correctly from the OS
+        point of view), or None.
+        """
+        return self.__exit_code
+    
+    def timeout(self):
+        """Return the timeout in seconds after which the subprocess would be killed."""
+        return self.__timeout
+    
+    def timeout_date(self):
+        """Return the date at which the subprocess will reach its timeout.
+
+        Or none if not available.
+        """
+        return self.__timeout_date
+
+    def timeouted(self):
+        """Return a boolean indicating if the subprocess has reached its timeout.
+
+        Or None if we don't know yet (subprocess still running,
+        timeout not reached).
+        """
+        return self.__timeouted
+    
+    def forced_kill(self):
+        """Return a boolean indicating if the subprocess was killed forcibly.
+
+        When a subprocess is killed with SIGTERM (either manually or
+        automatically, due to reaching a timeout), execo will wait
+        some time (constant set in execo source) and if after this
+        timeout the subprocess is still running, it will be killed
+        forcibly with a SIGKILL.
+        """
+        return self.__forced_kill
+    
+    def stdout(self):
+        """Return a string containing the subprocess stdout."""
+        return self.__stdout
+
+    def stderr(self):
+        """Return a string containing the subprocess stderr."""
+        return self.__stderr
+
+    def stdout_handler(self):
+        """Return this `ProcessBase` stdout `ProcessOutputHandler`."""
+        return self.__stdout_handler
+    
+    def stderr_handler(self):
+        """Return this `ProcessBase` stderr `ProcessOutputHandler`."""
+        return self.__stderr_handler
+
+    def _handle_stdout(self, string, eof = False, error = False):
+        """Handle stdout activity.
+
+        :param string: available stream output in string
+
+        :param eof: True if end of file on stream
+
+        :param error: True if error on stream
+        """
+        self.__stdout += string
+        if error == True:
+            self.__stdout_ioerror = True
+        if self.__stdout_handler != None:
+            self.__stdout_handler.read(self, string, eof, error)
+        
+    def _handle_stderr(self, string, eof = False, error = False):
+        """Handle stderr activity.
+
+        :param string: available stream output in string
+
+        :param eof: True if end of file on stream
+
+        :param error: True if error on stream
+        """
+        self.__stderr += string
+        if error == True:
+            self.__stderr_ioerror = True
+        if self.__stderr_handler != None:
+            self.__stderr_handler.read(self, string, eof, error)
+
+    @_synchronized
+    def ok(self):
+        """Check subprocess has correctly finished.
+
+        A `ProcessBase` is ok, if its has:
+
+        - started and ended
+
+        - has no error (or was instructed to ignore them)
+
+        - did not timeout (or was instructed to ignore it)
+
+        - returned 0 (or was instructed to ignore a non zero exit
+          code)
+        """
+        return (self.__started and self.__ended
+                and (not self.__error or self.__ignore_error)
+                and (not self.__timeouted or self.__ignore_timeout)
+                and (self.__exit_code == 0 or self.__ignore_exit_code))
+
+class Process(ProcessBase):
 
     r"""Handle an operating system process.
 
@@ -655,20 +851,10 @@ class Process(object):
     True
     """
 
-    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, close_stdin = None, shell = True, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, pty = False):
+    def __init__(self, cmd, close_stdin = None, shell = True, pty = False, **kwargs):
         """
         :param cmd: string or tuple containing the command and args to
           run.
-
-        :param timeout: timeout (in seconds, or None for no timeout)
-          after which the subprocess will automatically be sent a
-          SIGTERM
-
-        :param stdout_handler: instance of `ProcessOutputHandler` for
-          handling activity on subprocess stdout
-
-        :param stderr_handler: instance of `ProcessOutputHandler` for
-          handling activity on subprocess stderr
 
         :param close_stdin: boolean. whether or not to close
           subprocess's stdin. If None (default value), automatically
@@ -677,48 +863,17 @@ class Process(object):
         :param shell: whether or not to use a shell to run the
           cmd. See `subprocess.Popen`
 
-        :param ignore_exit_code: if True, a subprocess with a return
-          code != 0 won't generate a warning
-
-        :param ignore_timeout: if True, a subprocess which reaches its
-          timeout will be sent a SIGTERM, but it won't generate a
-          warning
-
-        :param ignore_error: if True, a subprocess raising an OS level
-          error won't generate a warning
-
         :param pty: open a pseudo tty and connect process's stdin and
           stdout to it (stderr is still connected as a pipe). Make
           process a session leader. If lacking permissions to signals
           to the process, try to simulate sending control characters
           to its pty.
         """
-        self._lock = threading.RLock()
-        self.__cmd = cmd
+        super(Process, self).__init__(cmd, **kwargs)
         self.__process = None
-        self.__started = False
-        self.__start_date = None
-        self.__ended = False
-        self.__end_date = None
         self.__pid = None
-        self.__error = False
-        self.__error_reason = None
-        self.__exit_code = None
-        self.__timeout = timeout
-        self.__timeout_date = None
-        self.__timeouted = False
         self.__already_got_sigterm = False
-        self.__forced_kill = False
-        self.__stdout = ""
-        self.__stderr = ""
-        self.__stdout_ioerror = False
-        self.__stderr_ioerror = False
         self.__shell = shell
-        self.__ignore_exit_code = ignore_exit_code
-        self.__ignore_timeout = ignore_timeout
-        self.__ignore_error = ignore_error
-        self.__stdout_handler = stdout_handler
-        self.__stderr_handler = stderr_handler
         self.__pty = pty
         self.__ptymaster = None
         self.__ptyslave = None
@@ -731,7 +886,8 @@ class Process(object):
             self.__close_stdin = close_stdin
 
     def _args(self):
-        return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, close_stdin=%r, shell=%r, ignore_exit_code=%r, ignore_timeout=%r, pty=%r" % (self.__cmd, self.__timeout, self.__stdout_handler, self.__stderr_handler, self.__close_stdin, self.__shell, self.__ignore_exit_code, self.__ignore_timeout, self.__pty)
+        return "%s, close_stdin=%r, shell=%r, pty=%r" % (super(Process, self)._args(),
+                                                         self.__close_stdin, self.__shell, self.__pty)
 
     @_synchronized
     def __repr__(self):
@@ -739,104 +895,12 @@ class Process(object):
 
     @_synchronized
     def __str__(self):
-        return "<" + style("Process", 'object_repr') + "(cmd=%r, timeout=%s, shell=%s, pty=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, pid=%s, error=%s, error_reason=%s, timeouted=%s, forced_kill=%s, exit_code=%s, ok=%s)>" % (self.__cmd, self.__timeout, self.__shell, self.__pty, self.__ignore_exit_code, self.__ignore_timeout, self.__ignore_error, self.__started, format_time(self.__start_date), self.__ended, format_time(self.__end_date), self.__pid, self.__error, self.__error_reason, self.__timeouted, self.__forced_kill, self.__exit_code, self.ok())
+        return "<" + style("Process", 'object_repr') + "(shell=%s, pty=%s, pid=%s, forced_kill=%s) " % (self.__shell, self.__pty, self.__pid, self.__forced_kill) + super(Process, self).__str__() + ">"
 
-    @_synchronized
-    def cmd(self):
-        """Return the subprocess command line."""
-        return self.__cmd
-    
-    @_synchronized
-    def started(self):
-        """Return a boolean indicating if the subprocess was started or not."""
-        return self.__started
-    
-    @_synchronized
-    def start_date(self):
-        """Return the subprocess start date or None if not yet started."""
-        return self.__start_date
-    
-    @_synchronized
-    def ended(self):
-        """Return a boolean indicating if the subprocess ended or not."""
-        return self.__ended
-    
-    @_synchronized
-    def end_date(self):
-        """Return the subprocess end date or None if not yet ended."""
-        return self.__end_date
-    
-    @_synchronized
     def pid(self):
         """Return the subprocess's pid, if available (subprocess started) or None."""
         return self.__pid
     
-    @_synchronized
-    def error(self):
-        """Return a boolean indicating if there was an error starting the subprocess.
-
-        This is *not* the subprocess's return code.
-        """
-        return self.__error
-    
-    @_synchronized
-    def error_reason(self):
-        """Return the operating system level errno, if there was an error starting the subprocess, or None."""
-        return self.__error_reason
-    
-    @_synchronized
-    def exit_code(self):
-        """Return the subprocess exit code.
-
-        If available (if the subprocess ended correctly from the OS
-        point of view), or None.
-        """
-        return self.__exit_code
-    
-    @_synchronized
-    def timeout(self):
-        """Return the timeout in seconds after which the subprocess would be killed."""
-        return self.__timeout
-    
-    @_synchronized
-    def timeout_date(self):
-        """Return the date at which the subprocess will reach its timeout.
-
-        Or none if not available.
-        """
-        return self.__timeout_date
-
-    @_synchronized
-    def timeouted(self):
-        """Return a boolean indicating if the subprocess has reached its timeout.
-
-        Or None if we don't know yet (subprocess still running,
-        timeout not reached).
-        """
-        return self.__timeouted
-    
-    @_synchronized
-    def forced_kill(self):
-        """Return a boolean indicating if the subprocess was killed forcibly.
-
-        When a subprocess is killed with SIGTERM (either manually or
-        automatically, due to reaching a timeout), execo will wait
-        some time (constant set in execo source) and if after this
-        timeout the subprocess is still running, it will be killed
-        forcibly with a SIGKILL.
-        """
-        return self.__forced_kill
-    
-    @_synchronized
-    def stdout(self):
-        """Return a string containing the subprocess stdout."""
-        return self.__stdout
-
-    @_synchronized
-    def stderr(self):
-        """Return a string containing the subprocess stderr."""
-        return self.__stderr
-
     @_synchronized
     def stdout_fd(self):
         """Return the subprocess stdout filehandle.
@@ -875,46 +939,6 @@ class Process(object):
                 return self.__process.stdin.fileno()
         else:
             return None
-
-    @_synchronized
-    def stdout_handler(self):
-        """Return this `Process` stdout `ProcessOutputHandler`."""
-        return self.__stdout_handler
-    
-    @_synchronized
-    def stderr_handler(self):
-        """Return this `Process` stderr `ProcessOutputHandler`."""
-        return self.__stderr_handler
-
-    def _handle_stdout(self, string, eof = False, error = False):
-        """Handle stdout activity.
-
-        :param string: available stream output in string
-
-        :param eof: True if end of file on stream
-
-        :param error: True if error on stream
-        """
-        self.__stdout += string
-        if error == True:
-            self.__stdout_ioerror = True
-        if self.__stdout_handler != None:
-            self.__stdout_handler.read(self, string, eof, error)
-        
-    def _handle_stderr(self, string, eof = False, error = False):
-        """Handle stderr activity.
-
-        :param string: available stream output in string
-
-        :param eof: True if end of file on stream
-
-        :param error: True if error on stream
-        """
-        self.__stderr += string
-        if error == True:
-            self.__stderr_ioerror = True
-        if self.__stderr_handler != None:
-            self.__stderr_handler.read(self, string, eof, error)
 
     @_synchronized
     def start(self):
@@ -1084,26 +1108,6 @@ class Process(object):
     def run(self):
         """Start subprocess then wait for its end."""
         return self.start().wait()
-
-    @_synchronized
-    def ok(self):
-        """Check subprocess has correctly finished.
-
-        A `Process` is ok, if its has:
-
-        - started and ended
-
-        - has no error (or was instructed to ignore them)
-
-        - did not timeout (or was instructed to ignore it)
-
-        - returned 0 (or was instructed to ignore a non zero exit
-          code)
-        """
-        return (self.__started and self.__ended
-                and (not self.__error or self.__ignore_error)
-                and (not self.__timeouted or self.__ignore_timeout)
-                and (self.__exit_code == 0 or self.__ignore_exit_code))
 
 class _Conductor(object):
 
@@ -1477,6 +1481,27 @@ class _Conductor(object):
         
 _the_conductor = _Conductor().start()
 """The **one and only** `_Conductor` instance."""
+
+class TaktukProcess(ProcessBase):
+
+    @_synchronized
+    def __repr__(self):
+        return style("TakTukProcess", 'object_repr') + "(%s)" % (self._args(),)
+
+    @_synchronized
+    def __str__(self):
+        return "<" + style("TaktukProcess", 'object_repr') + + super(TaktukProcess, self).__str__() + ">"
+
+    @_synchronized
+    def start(self):
+        if self.__started:
+            raise StandardError, "unable to start an already started process"
+        logger.debug(style("start:", 'emph') + " %s" % self)
+        self.__started = True
+        self.__start_date = time.time()
+        if self.__timeout != None:
+            self.__timeout_date = self.__start_date + self.__timeout
+        return self
 
 def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with ssh / scp authentifications options.
