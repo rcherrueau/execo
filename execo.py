@@ -2356,6 +2356,137 @@ class Remote(Action):
             process.wait()
         return retval
 
+class TaktukRemote(Action):
+
+    """Launch a command remotely on several `Host`, with ``taktuk``.
+
+    One taktuk instance is ran, which itself connects to hosts through
+    an ``ssh`` tree.
+    """
+
+    def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
+        """
+        :param hosts: iterable of `Host` to which to connect and run
+          the command.
+
+        :param remote_cmd: the command to run remotely. substitions
+          described in `remote_substitute` will be performed.
+
+        :param connexion_params: a dict similar to
+          `default_connexion_params` whose values will override those
+          in `default_connexion_params` for connexion.
+        """
+        if not kwargs.has_key('name') or kwargs['name'] == None:
+            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, remote_cmd, hosts)
+        super(Remote, self).__init__(**kwargs)
+        self._remote_cmd = remote_cmd
+        self._connexion_params = connexion_params
+        self._caller_context = get_caller_context()
+        self._processes = dict()
+        fhosts = list(get_frozen_hosts_set(hosts))
+        # we can provide per-host user with taktuk, but we cannot
+        # provide per-host port or keyfile, so check that all hosts
+        # and connexion_params have the same port / keyfile (or None)
+        check_default_keyfile = None
+        check_default_port = None
+        if connexion_params != None and connexion_params.has_key('keyfile'):
+            check_default_keyfile = connexion_params['keyfile']
+        elif default_connexion_params != None and default_connexion_params.has_key('keyfile'):
+            check_default_keyfile = default_connexion_params['keyfile']
+        if connexion_params != None and connexion_params.has_key('port'):
+            check_default_port = connexion_params['port']
+        elif default_connexion_params != None and default_connexion_params.has_key('port'):
+            check_default_port = default_connexion_params['port']
+        check_keyfiles = set()
+        check_ports = set()
+        hosts_with_explicit_user = set()
+        for host in fhosts:
+            if host.user != None:
+                hosts_with_explicit_user.add(host)
+            if host.keyfile != None:
+                check_keyfiles.add(host.keyfile)
+            else:
+                check_keyfiles.add(check_default_keyfile)
+            if host.port != None:
+                check_ports.add(host.port)
+            else:
+                check_ports.add(check_default_port)
+        if len(check_keyfiles) > 1 or len(check_ports) > 1:
+            raise ValueError, "unable to provide more than one keyfile / port for taktuk remote connexion"
+        global_keyfile = None
+        global_port = None
+        if len(check_keyfiles) == 1:
+            global_keyfile = check_keyfiles[0]
+        if len(check_ports) == 1:
+            global_port = check_ports[0]
+        for (index, host) in enumerate(fhosts):
+            self._processes[host] = TaktukProcess(remote_substitute(remote_cmd, fhosts, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+        self._taktuk_cmdline = ()
+        if connexion_params != None and connexion_params.has_key('taktuk'):
+            if connexion_params['taktuk'] != None:
+                self._taktuk_cmdline += connexion_params['taktuk']
+            else:
+                raise ValueError, "invalid taktuk command in connexion_params %s" % (connexion_params,)
+        elif default_connexion_params != None and default_connexion_params.has_key('taktuk'):
+            if default_connexion_params['taktuk'] != None:
+                self._taktuk_cmdline += default_connexion_params['taktuk']
+            else:
+                raise ValueError, "invalid taktuk command in default_connexion_params %s" % (default_connexion_params,)
+        else:
+            raise ValueError, "no taktuk command in default_connexion_params %s" % (default_connexion_params,)
+        if connexion_params != None and connexion_params.has_key('taktuk_options'):
+            if connexion_params['taktuk_options'] != None:
+                self._taktuk_cmdline += connexion_params['taktuk_options']
+        elif default_connexion_params != None and default_connexion_params.has_key('taktuk_options'):
+            if default_connexion_params['taktuk_options'] != None:
+                self._taktuk_cmdline += default_connexion_params['taktuk_options']
+        self._taktuk_cmdline += "-c" + get_ssh_command(keyfile = global_keyfile, port = global_port,connexion_params = connexion_params)
+        index = 0
+        for host in fhosts.difference(hosts_with_explicit_user):
+            self._taktuk_cmdline += ("-m", host.address, "-[", remote_substitute(remote_cmd, fhosts, index, self._caller_context), "-]")
+            index += 1
+        for host in hosts_with_explicit_user:
+            self._taktuk_cmdline += ("-l", host.user, "-m", host.address, "-[", remote_substitute(remote_cmd, fhosts, index, self._caller_context), "-]")
+            index += 1
+        self._taktuk = Process(self._taktuk_cmdline, timeout = self._timeout)
+        
+        # taktuk -n -s -m sophia -[ exec [ hostname ] -] -m rennes -[ exec [ id ] -] quit
+        # lors du start:
+        # - lancer taktuk
+        # - notifier chaque ProcessBase qu'il est started
+        # - sur son stdin envoyer à chaque host sa ligne de commande spécifique (avec les substitutions)
+        # - avoir un handler io qui parse les sorties de taktuk et met à jour les process correspondants.
+        # rappel: exemple appel ssh avec les substitutions: self._processes[host] = SshProcess(host, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params = connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+
+    def __repr__(self):
+        return style("TaktukRemote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
+
+    def processes(self):
+        return self._processes.values()
+
+    def get_hosts_processes(self):
+        """Return a dict whose keys are `Host` and values are `Process` run on those hosts."""
+        return self._processes.copy()
+
+    def start(self):
+        retval = super(Remote, self).start()
+        self._taktuk.start()
+        for process in self._processes.values():
+            process.start()
+        return retval
+
+    def stop(self):
+        retval = super(Remote, self).stop()
+        for process in self._processes.values():
+            process.kill()
+        return retval
+
+    def wait(self):
+        retval = super(Remote, self).wait()
+        for process in self._processes.values():
+            process.wait()
+        return retval
+
 class Put(Remote):
 
     """Copy local files to several remote `Host`, with ``scp`` or a similar connexion tool ."""
