@@ -2392,6 +2392,90 @@ class Remote(Action):
             process.wait()
         return retval
 
+class _TaktukRemoteOutputHandler(ProcessOutputHandler):
+
+    """Parse taktuk output."""
+    
+    def __init__(self, taktukremote):
+        super(_TaktukRemoteOutputHandler, self).__init__()
+        self._taktukremote = taktukremote
+        self._line_parser = re.compile("^(\S+) # (\S+) # (.*)$")
+
+    def read_line(self, process, string, eof = False, error = False):
+        # taktuk output protocol:
+        #  stream    format                                 header normal?
+        #  output    "A $position # $line"                  65     YES
+        #  error     "B $position # $line"                  66     YES
+        #  status    "C $position # $line"                  67     YES
+        #  connector "D $position # $peer_position # $line" 68     YES
+        #  state     "E $position # $peer_position # $line" 69     YES
+        #  info      "F $position # $line"                  70     NO
+        #  taktuk    "G $position # $line"                  71     NO
+        #  message   "H $position # $line"                  72     NO
+        #  default   "I $position # $type # $line"          73     NO
+        if len(string) > 0:
+            header = ord(string[0])
+            (position, sep, line) = string[2:].partition(" # ")
+            position = int(position)
+            if header >= 65 and header <= 67: # stdout, stderr, status
+                if position == 0:
+                    logger.error("taktuk output parsing: unexpected header = %i, position = %i, line = %s" % (header, position, line[:-1]))
+                    return
+                else:
+                    host = self._taktukremote._taktuk_fhost_order[position-1]
+                    process = self._taktukremote._processes[host]
+                    if header == 65: # stdout
+                        process._handle_stdout(line, eof = eof, error = error)
+                        print "stdout on %s : %s" % (host, line[:-1])
+                    elif header == 66: # stderr
+                        process._handle_stderr(line, eof = eof, error = error)
+                        print "stderr on %s : %s" % (host, line[:-1])
+                    elif header == 67: # status
+                        process._set_terminated(exit_code = int(line))
+                        print "exit status on %s : %i" % (host, int(line[:-1]))
+            elif header in (68, 69): # connector, state
+                (peer_position, sep, line) = line.partition(" # ")
+                if position == 0:
+                    if header == 68: # connector
+                        peer_position = int(peer_position)
+                        host = self._taktukremote._taktuk_fhost_order[peer_position-1]
+                        process = self._taktukremote._processes[host]
+                        process._handle_stderr(line)
+                        print "stderr on %s : %s" % (host, line[:-1])
+                    elif header == 69: # state
+                        state_code = int(line[:-1])
+                        if state_code == 3 or state_code == 5:
+                            peer_position = int(peer_position)
+                            host = self._taktukremote._taktuk_fhost_order[peer_position-1]
+                            process = self._taktukremote._processes[host]
+                            if state_code == 3:
+                                process._set_terminated(error = True, error_reason = "taktuk connexion failed")
+                                print "taktuk connexion failed on %s" % (host.address,)
+                            elif state_code == 5:
+                                process._set_terminated(error = True, error_reason = "taktuk connexion lost")
+                                print "taktuk connexion lost on %s" % (host.address,)
+                        elif state_code in (0, 1, 4, 2):
+                            pass
+                        else:
+                            logger.error("taktuk output parsing: unexpected header = %i, position = %i, peer_position = %s, line = %s" % (header, position, peer_position, line[:-1]))
+                else:
+                    host = self._taktukremote._taktuk_fhost_order[position-1]
+                    process = self._taktukremote._processes[host]
+                    if header == 69: # state
+                        state_code = int(line[:-1])
+                        if state_code == 7:
+                            process._set_terminated(error = True, error_reason = "taktuk remote command execution failed")
+                            print "taktuk remote command execution failed on %s" % (host.address,)
+                    else:
+                        logger.error("taktuk output parsing: unexpected header = %i position = %i peer_position = <%s>, line = %s" % (header, position, peer_position, line[:-1]))
+            else:
+                logger.error("taktuk output parsing: unexpected header = %i string = %s" % (header, string[:-1]))
+        else:
+            logger.error("taktuk output parsing: unexpected empty line %s" % (string[:-1]),)
+
+    def __repr__(self):
+        return "<_TaktukRemoteOutputHandler(...)>"
+
 class TaktukRemote(Action):
 
     """Launch a command remotely on several `Host`, with ``taktuk``.
@@ -2476,23 +2560,29 @@ class TaktukRemote(Action):
         elif default_connexion_params != None and default_connexion_params.has_key('taktuk_options'):
             if default_connexion_params['taktuk_options'] != None:
                 self._taktuk_cmdline += default_connexion_params['taktuk_options']
-        self._taktuk_cmdline += "-c" + get_ssh_command(keyfile = global_keyfile, port = global_port,connexion_params = connexion_params)
-        index = 0
-        for host in fhosts.difference(hosts_with_explicit_user):
-            self._taktuk_cmdline += ("-m", host.address, "-[", remote_substitute(remote_cmd, fhosts, index, self._caller_context), "-]")
-            index += 1
-        for host in hosts_with_explicit_user:
-            self._taktuk_cmdline += ("-l", host.user, "-m", host.address, "-[", remote_substitute(remote_cmd, fhosts, index, self._caller_context), "-]")
-            index += 1
-        self._taktuk = Process(self._taktuk_cmdline, timeout = self._timeout)
-        
-        # taktuk -n -s -m sophia -[ exec [ hostname ] -] -m rennes -[ exec [ id ] -] quit
-        # lors du start:
-        # - lancer taktuk
-        # - notifier chaque ProcessBase qu'il est started
-        # - sur son stdin envoyer à chaque host sa ligne de commande spécifique (avec les substitutions)
-        # - avoir un handler io qui parse les sorties de taktuk et met à jour les process correspondants.
-        # rappel: exemple appel ssh avec les substitutions: self._processes[host] = SshProcess(host, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params = connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+        self._taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
+                                 "-o", 'error="B $position # $line\\n"',
+                                 "-o", 'status="C $position # $line\\n"',
+                                 "-o", 'connector="D $position # $peer_position # $line\\n"',
+                                 "-o", 'state="E $position # $peer_position # $line\\n"',
+                                 "-o", 'info="F $position # $line\\n"',
+                                 "-o", 'taktuk="G $position # $line\\n"',
+                                 "-o", 'message="H $position # $line\\n"',
+                                 "-o", 'default="I $position # $type > $line\\n"')
+        self._taktuk_cmdline += ("-c", " ".join(get_ssh_command(keyfile = global_keyfile, port = global_port,connexion_params = connexion_params)))
+        self._taktuk_fhost_order = []
+        for fhost in [ h for h in fhosts if h not in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-m", fhost.address, "-[", "exec", "[", self._processes[fhost].cmd(), "]", "-]")
+            self._taktuk_fhost_order.append(fhost)
+        for fhost in hosts_with_explicit_user:
+            self._taktuk_cmdline += ("-l", fhost.user, "-m", fhost.address, "-[", "exec", "[", self._processes[fhost].cmd(), "]", "-]")
+            self._taktuk_fhost_order.append(fhost)
+        self._taktuk_cmdline += ("quit",)
+        self._taktuk = Process(self._taktuk_cmdline,
+                               timeout = self._timeout,
+                               shell = False,
+                               stdout_handler = _TaktukRemoteOutputHandler(self),
+                               default_stdout_handler = False)
 
     def __repr__(self):
         return style("TaktukRemote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
@@ -2512,15 +2602,13 @@ class TaktukRemote(Action):
         return retval
 
     def stop(self):
-        for process in self._processes.values():
-            process.kill()
         retval = super(TaktukRemote, self).stop()
+        self._taktuk.kill()
         return retval
 
     def wait(self):
-        for process in self._processes.values():
-            process.wait()
         retval = super(TaktukRemote, self).wait()
+        self._taktuk.wait()
         return retval
 
 class Put(Remote):
