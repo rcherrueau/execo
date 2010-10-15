@@ -157,6 +157,7 @@ class _KadeployOutputHandler(ProcessOutputHandler):
         :param kadeployer: the `Kadeployer` to which this
           `ProcessOutputHandler` is attached.
         """
+        super(_KadeployOutputHandler, self).__init__()
         self._kadeployer = kadeployer
         self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+$")
         self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+$")
@@ -164,8 +165,7 @@ class _KadeployOutputHandler(ProcessOutputHandler):
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
 
-    @line_buffered
-    def read(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof = False, error = False):
         if self._good_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_GOODNODES
             return

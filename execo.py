@@ -570,6 +570,9 @@ class ProcessOutputHandler(object):
     
     """Abstract handler for `Process` output."""
 
+    def __init__(self):
+        self.__buffer = ""
+
     def read(self, process, string, eof = False, error = False):
         """Handle string read from a `Process`'s stream.
 
@@ -582,26 +585,20 @@ class ProcessOutputHandler(object):
         :param error: (boolean) true if there was an error on the
           stream
         """
-        pass
-
-def line_buffered(func):
-    """Decorator to use (only) on the read method of a `ProcessOutputHandler`, for the decorated method to receive data line by line."""
-    # not very clean design but currently it works
-    @functools.wraps(func)
-    def wrapper(self, process, string, eof = False, error = False):
-        wrapper.buffer += string
+        self.__buffer += string
         while True:
-            (line, sep, remaining) = wrapper.buffer.partition('\n')
+            (line, sep, remaining) = self.__buffer.partition('\n')
             if remaining != '':
-                func(self, process, line + sep)
-                wrapper.buffer = remaining
+                self.read_line(process, line + sep)
+                self.__buffer = remaining
             else:
                 break
         if eof or error:
-            func(self, process, wrapper.buffer, eof, error)
-            wrapper.buffer = ""
-    wrapper.buffer = ""
-    return wrapper
+            self.read_line(process, self.__buffer, eof, error)
+            self.__buffer = ""
+
+    def read_line(self, process, string, eof = False, error = False):
+        pass
 
 def _synchronized(func):
     # decorator (similar to java synchronized) to ensure mutual
