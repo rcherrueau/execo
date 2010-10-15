@@ -2377,7 +2377,7 @@ class TaktukRemote(Action):
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, remote_cmd, hosts)
-        super(Remote, self).__init__(**kwargs)
+        super(TaktukRemote, self).__init__(**kwargs)
         self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
@@ -2415,9 +2415,9 @@ class TaktukRemote(Action):
         global_keyfile = None
         global_port = None
         if len(check_keyfiles) == 1:
-            global_keyfile = check_keyfiles[0]
+            global_keyfile = list(check_keyfiles)[0]
         if len(check_ports) == 1:
-            global_port = check_ports[0]
+            global_port = list(check_ports)[0]
         for (index, fhost) in enumerate(fhosts):
             self._processes[fhost] = TaktukProcess(remote_substitute(remote_cmd, fhosts, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
         self._taktuk_cmdline = ()
@@ -2468,22 +2468,22 @@ class TaktukRemote(Action):
         return self._processes.copy()
 
     def start(self):
-        retval = super(Remote, self).start()
+        retval = super(TaktukRemote, self).start()
         self._taktuk.start()
         for process in self._processes.values():
             process.start()
         return retval
 
     def stop(self):
-        retval = super(Remote, self).stop()
         for process in self._processes.values():
             process.kill()
+        retval = super(TaktukRemote, self).stop()
         return retval
 
     def wait(self):
-        retval = super(Remote, self).wait()
         for process in self._processes.values():
             process.wait()
+        retval = super(TaktukRemote, self).wait()
         return retval
 
 class Put(Remote):
