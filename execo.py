@@ -129,9 +129,6 @@ between hosts1 and hosts2 could be:
 
 - ``f`` -> ``3``
 
-the real mapping will actually depend on the ordering of the hosts
-lists, which are stored as dicts, so it is implementation dependent.
-
 Timestamps
 ----------
 
@@ -1052,9 +1049,9 @@ class Process(ProcessBase):
         If the subprocess already got a SIGTERM and is still there, it
         is directly killed with SIGKILL.
         """
-        if self.__pid != None:
-            self.__timeouted = True
-            if self.__already_got_sigterm and self.__timeout_date >= time.time():
+        if self._pid != None:
+            self._timeouted = True
+            if self._already_got_sigterm and self._timeout_date >= time.time():
                 self.kill(signal.SIGKILL)
             else:
                 self.kill()
@@ -1242,8 +1239,8 @@ class _Conductor(object):
                 fileno_stdout = process.stdout_fd()
                 fileno_stderr = process.stderr_fd()
                 self.__processes.add(process)
-                self.__fds[fileno_stdout] = (process, process.__getattribute__('_handle_stdout'))
-                self.__fds[fileno_stderr] = (process, process.__getattribute__('_handle_stderr'))
+                self.__fds[fileno_stdout] = (process, process._handle_stdout)
+                self.__fds[fileno_stderr] = (process, process._handle_stderr)
                 self.__poller.register(fileno_stdout,
                                        select.POLLIN
                                        | select.POLLERR
@@ -1772,6 +1769,11 @@ def get_frozen_hosts_set(hosts):
         fhost = FrozenHost(host)
         copy.add(fhost)
     return copy
+
+def get_frozen_hosts_list(hosts):
+    """Deep copy an iterable of `Host` to an iterable of `FrozenHost`, removing duplicates and keeping order."""
+    fhosts = get_frozen_hosts_set(hosts)
+    return [host for host in hosts if FrozenHost(host) in fhosts]
 
 def get_hosts_sequence(hosts):
     """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a sequence of `Host`."""
@@ -2324,9 +2326,9 @@ class Remote(Action):
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._processes = dict()
-        fhosts = list(get_frozen_hosts_set(hosts))
-        for (index, host) in enumerate(fhosts):
-            self._processes[host] = SshProcess(host, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params = connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+        fhosts = get_frozen_hosts_list(hosts)
+        for (index, fhost) in enumerate(fhosts):
+            self._processes[fhost] = SshProcess(fhost, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params = connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
         return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
@@ -2383,7 +2385,7 @@ class TaktukRemote(Action):
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._processes = dict()
-        fhosts = list(get_frozen_hosts_set(hosts))
+        fhosts = get_frozen_hosts_list(hosts)
         # we can provide per-host user with taktuk, but we cannot
         # provide per-host port or keyfile, so check that all hosts
         # and connexion_params have the same port / keyfile (or None)
@@ -2419,8 +2421,8 @@ class TaktukRemote(Action):
             global_keyfile = check_keyfiles[0]
         if len(check_ports) == 1:
             global_port = check_ports[0]
-        for (index, host) in enumerate(fhosts):
-            self._processes[host] = TaktukProcess(remote_substitute(remote_cmd, fhosts, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+        for (index, fhost) in enumerate(fhosts):
+            self._processes[fhost] = TaktukProcess(remote_substitute(remote_cmd, fhosts, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
         self._taktuk_cmdline = ()
         if connexion_params != None and connexion_params.has_key('taktuk'):
             if connexion_params['taktuk'] != None:
@@ -2521,14 +2523,14 @@ class Put(Remote):
         self._remote_location = remote_location
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
-        fhosts = list(get_frozen_hosts_set(hosts))
-        for (index, host) in enumerate(fhosts):
+        fhosts = get_frozen_hosts_list(hosts)
+        for (index, fhost) in enumerate(fhosts):
             prepend_dir_creation = ()
             if self._create_dirs:
-                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, fhosts, index, self._caller_context), '&&')
-            real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, fhosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, fhosts, index, self._caller_context)),]
+                prepend_dir_creation = get_ssh_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params) + (fhost.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, fhosts, index, self._caller_context), '&&')
+            real_command = list(prepend_dir_creation) + list(get_scp_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params)) + [ remote_substitute(local_file, fhosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (fhost.address, remote_substitute(self._remote_location, fhosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
-            self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
         return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
@@ -2567,17 +2569,17 @@ class Get(Remote):
         self._local_location = local_location
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
-        fhosts = list(get_frozen_hosts_set(hosts))
-        for (index, host) in enumerate(fhosts):
+        fhosts = get_frozen_hosts_list(hosts)
+        for (index, fhost) in enumerate(fhosts):
             prepend_dir_creation = ()
             if self._create_dirs:
                 prepend_dir_creation = ('mkdir', '-p', remote_substitute(local_location, fhosts, index, self._caller_context), '&&')
             remote_specs = ()
             for path in self._remote_files:
-                remote_specs += ("%s:%s" % (host.address, remote_substitute(path, fhosts, index, self._caller_context)),)
-            real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, fhosts, index, self._caller_context),)
+                remote_specs += ("%s:%s" % (fhost.address, remote_substitute(path, fhosts, index, self._caller_context)),)
+            real_command = prepend_dir_creation + get_scp_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, fhosts, index, self._caller_context),)
             real_command = ' '.join(real_command)
-            self._processes[host] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
 
     def __repr__(self):
         return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
