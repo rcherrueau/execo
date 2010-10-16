@@ -2437,7 +2437,6 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
     def __init__(self, taktukremote):
         super(_TaktukRemoteOutputHandler, self).__init__()
         self._taktukremote = taktukremote
-        self._line_parser = re.compile("^(\S+) # (\S+) # (.*)$")
 
     def __log_unexpected_output(self, string):
         logger.error("Taktuk unexpected output parsing. Please report this message:")
