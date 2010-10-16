@@ -2416,18 +2416,12 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
             else:
                 host_address = self._taktukremote._taktuk_fhost_order[position-1].address
             if header in (65, 66, 67, 70, 71, 72):
-                if header == 65:
-                    t = "stdout"
-                elif header == 66:
-                    t = "stderr"
-                elif header == 67:
-                    t = "status"
-                elif header == 70:
-                    t = "info"
-                elif header == 71:
-                    t = "taktuk"
-                elif header == 72:
-                    t = "message"
+                if header == 65: t = "stdout"
+                elif header == 66: t = "stderr"
+                elif header == 67: t = "status"
+                elif header == 70: t = "info"
+                elif header == 71: t = "taktuk"
+                elif header == 72: t = "message"
                 s += "%s - host = %s - line = %s" % (t, host_address, line[:-1])
             elif header in (68, 69):
                 (peer_position, sep, line) = line.partition(" # ")
