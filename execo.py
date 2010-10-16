@@ -2563,6 +2563,33 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
     def __repr__(self):
         return "<_TaktukRemoteOutputHandler(...)>"
 
+class _TaktukLifecycleHandler(ProcessLifecycleHandler):
+
+    """Notify `TaktukProcess` of their real taktuk `Process` lifecyle."""
+    
+    def __init__(self, taktukremote):
+        self._taktukremote = taktukremote
+
+    def end(self, process):
+        error = None
+        error_reason = None
+        timeouted = None
+        forced_kill = None
+        if process.error() == True:
+            error = True
+        if process.error_reason() != None:
+            error_reason = "error of taktuk process: %s" % process.error_reason()
+        if process.timeouted() == True:
+            timeouted = True
+        if process.forced_kill() == True:
+            forced_kill = True
+        for taktukprocess in self._taktukremote.processes():
+            if not taktukprocess.ended():
+                taktukprocess._set_terminated(error = error,
+                                              error_reason = error_reason,
+                                              timeouted = timeouted,
+                                              forced_kill = forced_kill)
+
 class TaktukRemote(Action):
 
     """Launch a command remotely on several `Host`, with ``taktuk``.
@@ -2669,7 +2696,8 @@ class TaktukRemote(Action):
                                timeout = self._timeout,
                                shell = False,
                                stdout_handler = _TaktukRemoteOutputHandler(self),
-                               default_stdout_handler = False)
+                               default_stdout_handler = False,
+                               process_lifecycle_handler = _TaktukLifecycleHandler(self))
 
     def __repr__(self):
         return style("TaktukRemote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
