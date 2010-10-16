@@ -566,6 +566,17 @@ def _checked_waitpid(pid, options):
             else:
                 raise
 
+class ProcessLifecycleHandler(object):
+
+    """Abstract handler for `Process` lifecycle."""
+
+    def start(self, process):
+        """Handle `Process` start."""
+        pass
+
+    def end(self, process):
+        """Handle `Process` end."""
+
 class ProcessOutputHandler(object):
     
     """Abstract handler for `Process` output."""
@@ -614,7 +625,7 @@ def _synchronized(func):
 
 class ProcessBase(object):
 
-    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, default_stdout_handler = True, default_stderr_handler = True):
+    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, default_stdout_handler = True, default_stderr_handler = True, process_lifecycle_handler = None):
         """
         :param cmd: string or tuple containing the command and args to
           run.
@@ -646,6 +657,10 @@ class ProcessBase(object):
         :param default_stderr_handler: if True, a default handler
           sends stderr stream output to the member string accessed
           with self.stderr(). Default: True.
+
+        :param process_lifecycle_handler: instance of
+          `ProcessLifeCycleHandler` for being notified of Process's
+          lifecycle events.
         """
         self._lock = threading.RLock()
         self._cmd = cmd
@@ -671,6 +686,7 @@ class ProcessBase(object):
         self._stderr_handler = stderr_handler
         self._default_stdout_handler = default_stdout_handler
         self._default_stderr_handler = default_stderr_handler
+        self._process_lifecycle_handler = process_lifecycle_handler
 
     def _args(self):
         return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, ignore_exit_code=%r, ignore_timeout=%r" % (self._cmd, self._timeout, self._stdout_handler, self._stderr_handler, self._ignore_exit_code, self._ignore_timeout)
@@ -968,6 +984,8 @@ class Process(ProcessBase):
         self._start_date = time.time()
         if self._timeout != None:
             self._timeout_date = self._start_date + self._timeout
+        if self._process_lifecycle_handler != None:
+            self._process_lifecycle_handler.start(self)
         with _the_conductor.get_lock():
         # this lock is needed to ensure that
         # Conductor.__update_terminated_processes() won't be called
@@ -998,6 +1016,8 @@ class Process(ProcessBase):
                     logger.info(style("error:", 'emph') + " %s on %s" % (e, self,))
                 else:
                     logger.warning(style("error:", 'emph') + " %s on %s" % (e, self,))
+                if self._process_lifecycle_handler != None:
+                    self._process_lifecycle_handler.end(self)
                 return self
             self._pid = self._process.pid
             _the_conductor.add_process(self)
@@ -1101,6 +1121,8 @@ class Process(ProcessBase):
         if self._process.stderr:
             self._process.stderr.close()
         self._log_terminated()
+        if self._process_lifecycle_handler != None:
+            self._process_lifecycle_handler.end(self)
 
     def wait(self):
         """Wait for the subprocess end."""
@@ -1848,10 +1870,12 @@ class TaktukProcess(ProcessBase):
         self._start_date = time.time()
         if self._timeout != None:
             self._timeout_date = self._start_date + self._timeout
+        if self._process_lifecycle_handler != None:
+            self._process_lifecycle_handler.start(self)
         return self
 
     @_synchronized
-    def _set_terminated(self, exit_code = None, error = False, error_reason = None):
+    def _set_terminated(self, exit_code = None, error = False, error_reason = None, timeouted = None, forced_kill = None):
         """Update `TaktukProcess` state: set it to terminated.
 
         This method is intended to be used by `TaktukRemote`.
@@ -1866,9 +1890,15 @@ class TaktukProcess(ProcessBase):
             self._error_reason = error_reason
         if exit_code != None:
             self._exit_code = exit_code
+        if timeouted == True:
+            self._timeouted = True
+        if forced_kill == True:
+            self._forced_kill = True
         self._end_date = time.time()
         self._ended = True
         self._log_terminated()
+        if self._process_lifecycle_handler != None:
+            self._process_lifecycle_handler.end(self)
 
 def _sort_reports(reports):
     def key_func(report):
