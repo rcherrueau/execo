@@ -2401,38 +2401,92 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         self._taktukremote = taktukremote
         self._line_parser = re.compile("^(\S+) # (\S+) # (.*)$")
 
+    def __log_unexpected_output(self, string):
+        logger.error("Taktuk unexpected output parsing. Please report this message:")
+        logger.error(self.__describe_taktuk_output(string))
+
+    def __describe_taktuk_output(self, string):
+        s = ""
+        if len(string) > 0:
+            header = ord(string[0])
+            (position, sep, line) = string[2:].partition(" # ")
+            position = int(position)
+            if position == 0:
+                host_address = "localhost"
+            else:
+                host_address = self._taktukremote._taktuk_fhost_order[position-1].address
+            if header in (65, 66, 67, 70, 71, 72):
+                if header == 65:
+                    t = "stdout"
+                elif header == 66:
+                    t = "stderr"
+                elif header == 67:
+                    t = "status"
+                elif header == 70:
+                    t = "info"
+                elif header == 71:
+                    t = "taktuk"
+                elif header == 72:
+                    t = "message"
+                s += "%s - host = %s - line = %s" % (t, host_address, line[:-1])
+            elif header in (68, 69):
+                (peer_position, sep, line) = line.partition(" # ")
+                peer_position = None
+                peer_host_address = None
+                try:
+                    peer_position = int(peer_position)
+                    if peer_position == 0:
+                        peer_host_address = "localhost"
+                    else:
+                        peer_host_address = self._taktukremote._taktuk_fhost_order[peer_position-1].address
+                except:
+                    pass
+                if header == 68:
+                    s += "connector - host = %s - peer = %s - line = %s" % (host_address, peer_host_address, line[:-1])
+                elif header == 69:
+                    (state_code, sep, state_msg) = line.partition(" # ")
+                    s += "state - host = %s - peer = %s - state = %s" % (host_address, peer_host_address, state_msg[:-1])
+            elif header == 73:
+                (taktuktype, sep, line) = line.partition(" # ")
+                s += "message type = %s - host = %s - line = %s" % (taktuktype, host_address, line[:-1])
+            else:
+                s += "unexpected string = %s" % (string[:-1])
+        else:
+            s += "empty string"
+        return s
+        
+
     def read_line(self, process, string, eof = False, error = False):
-        # taktuk output protocol:
-        #  stream    format                                 header normal?
-        #  output    "A $position # $line"                  65     YES
-        #  error     "B $position # $line"                  66     YES
-        #  status    "C $position # $line"                  67     YES
-        #  connector "D $position # $peer_position # $line" 68     YES
-        #  state     "E $position # $peer_position # $line" 69     YES
-        #  info      "F $position # $line"                  70     NO
-        #  taktuk    "G $position # $line"                  71     NO
-        #  message   "H $position # $line"                  72     NO
-        #  default   "I $position # $type # $line"          73     NO
+        # my taktuk output protocol:
+        #  stream    format                                                    header normal?
+        #  output    "A $position # $line"                                     65     YES
+        #  error     "B $position # $line"                                     66     YES
+        #  status    "C $position # $line"                                     67     YES
+        #  connector "D $position # $peer_position # $line"                    68     YES
+        #  state     "E $position # $peer_position # $line # event_msg($line)" 69     YES
+        #  info      "F $position # $line"                                     70     NO
+        #  taktuk    "G $position # $line"                                     71     NO
+        #  message   "H $position # $line"                                     72     NO
+        #  default   "I $position # $type # $line"                             73     NO
+        #logger.debug("TAKTUK: " + self.__describe_taktuk_output(string))
+        #print "TAKTUK: " + self.__describe_taktuk_output(string)
         if len(string) > 0:
             header = ord(string[0])
             (position, sep, line) = string[2:].partition(" # ")
             position = int(position)
             if header >= 65 and header <= 67: # stdout, stderr, status
                 if position == 0:
-                    logger.error("taktuk output parsing: unexpected header = %i, position = %i, line = %s" % (header, position, line[:-1]))
+                    self.__log_unexpected_output(string)
                     return
                 else:
                     host = self._taktukremote._taktuk_fhost_order[position-1]
                     process = self._taktukremote._processes[host]
                     if header == 65: # stdout
                         process._handle_stdout(line, eof = eof, error = error)
-                        print "stdout on %s : %s" % (host, line[:-1])
                     elif header == 66: # stderr
                         process._handle_stderr(line, eof = eof, error = error)
-                        print "stderr on %s : %s" % (host, line[:-1])
                     elif header == 67: # status
                         process._set_terminated(exit_code = int(line))
-                        print "exit status on %s : %i" % (host, int(line[:-1]))
             elif header in (68, 69): # connector, state
                 (peer_position, sep, line) = line.partition(" # ")
                 if position == 0:
@@ -2441,37 +2495,39 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                         host = self._taktukremote._taktuk_fhost_order[peer_position-1]
                         process = self._taktukremote._processes[host]
                         process._handle_stderr(line)
-                        print "stderr on %s : %s" % (host, line[:-1])
                     elif header == 69: # state
-                        state_code = int(line[:-1])
+                        (state_code, sep, state_msg) = line.partition(" # ")
+                        state_code = int(state_code)
                         if state_code == 3 or state_code == 5:
                             peer_position = int(peer_position)
                             host = self._taktukremote._taktuk_fhost_order[peer_position-1]
                             process = self._taktukremote._processes[host]
                             if state_code == 3:
                                 process._set_terminated(error = True, error_reason = "taktuk connexion failed")
-                                print "taktuk connexion failed on %s" % (host.address,)
                             elif state_code == 5:
                                 process._set_terminated(error = True, error_reason = "taktuk connexion lost")
-                                print "taktuk connexion lost on %s" % (host.address,)
                         elif state_code in (0, 1, 4, 2):
                             pass
                         else:
-                            logger.error("taktuk output parsing: unexpected header = %i, position = %i, peer_position = %s, line = %s" % (header, position, peer_position, line[:-1]))
+                            self.__log_unexpected_output(string)
                 else:
                     host = self._taktukremote._taktuk_fhost_order[position-1]
                     process = self._taktukremote._processes[host]
                     if header == 69: # state
-                        state_code = int(line[:-1])
-                        if state_code == 7:
+                        (state_code, sep, state_msg) = line.partition(" # ")
+                        state_code = int(state_code)
+                        if state_code == 6:
+                            process.start()
+                        elif state_code == 7:
                             process._set_terminated(error = True, error_reason = "taktuk remote command execution failed")
-                            print "taktuk remote command execution failed on %s" % (host.address,)
+                        else:
+                            pass
                     else:
-                        logger.error("taktuk output parsing: unexpected header = %i position = %i peer_position = <%s>, line = %s" % (header, position, peer_position, line[:-1]))
+                        self.__log_unexpected_output(string)
             else:
-                logger.error("taktuk output parsing: unexpected header = %i string = %s" % (header, string[:-1]))
+                self.__log_unexpected_output(string)
         else:
-            logger.error("taktuk output parsing: unexpected empty line %s" % (string[:-1]),)
+            self.__log_unexpected_output(string)
 
     def __repr__(self):
         return "<_TaktukRemoteOutputHandler(...)>"
@@ -2564,7 +2620,7 @@ class TaktukRemote(Action):
                                  "-o", 'error="B $position # $line\\n"',
                                  "-o", 'status="C $position # $line\\n"',
                                  "-o", 'connector="D $position # $peer_position # $line\\n"',
-                                 "-o", 'state="E $position # $peer_position # $line\\n"',
+                                 "-o", 'state="E $position # $peer_position # $line # ".event_msg($line)."\\n"',
                                  "-o", 'info="F $position # $line\\n"',
                                  "-o", 'taktuk="G $position # $line\\n"',
                                  "-o", 'message="H $position # $line\\n"',
@@ -2597,8 +2653,6 @@ class TaktukRemote(Action):
     def start(self):
         retval = super(TaktukRemote, self).start()
         self._taktuk.start()
-        for process in self._processes.values():
-            process.start()
         return retval
 
     def stop(self):
