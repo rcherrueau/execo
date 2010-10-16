@@ -1493,47 +1493,6 @@ class _Conductor(object):
 _the_conductor = _Conductor().start()
 """The **one and only** `_Conductor` instance."""
 
-class TaktukProcess(ProcessBase):
-
-    @_synchronized
-    def __repr__(self):
-        return style("TakTukProcess", 'object_repr') + "(%s)" % (self._args(),)
-
-    @_synchronized
-    def __str__(self):
-        return "<" + style("TaktukProcess", 'object_repr') + super(TaktukProcess, self).__str__() + ">"
-
-    @_synchronized
-    def start(self):
-        if self._started:
-            raise StandardError, "unable to start an already started process"
-        logger.debug(style("start:", 'emph') + " %s" % self)
-        self._started = True
-        self._start_date = time.time()
-        if self._timeout != None:
-            self._timeout_date = self._start_date + self._timeout
-        return self
-
-    @_synchronized
-    def _set_terminated(self, exit_code = None, error = False, error_reason = None):
-        """Update `TaktukProcess` state: set it to terminated.
-
-        This method is intended to be used by `TaktukRemote`.
-
-        Update its exit_code, end_date, ended flag, and log its
-        termination (INFO or WARNING depending on how it ended).
-        """
-        logger.debug("set terminated %s" % self)
-        if error != None:
-            self._error = error
-        if error_reason != None:
-            self._error_reason = error_reason
-        if exit_code != None:
-            self._exit_code = exit_code
-        self._end_date = time.time()
-        self._ended = True
-        self._log_terminated()
-
 def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with ssh / scp authentifications options.
 
@@ -1822,9 +1781,9 @@ class SshProcess(Process):
     r"""Handle a remote command execution through ssh or similar remote execution tool."""
 
     def __init__(self, host, remote_cmd, connexion_params = None, **kwargs):
-        self.__host = host
-        self.__remote_cmd = remote_cmd
-        self.__connexion_params = connexion_params
+        self._host = host
+        self._remote_cmd = remote_cmd
+        self._connexion_params = connexion_params
         real_cmd = (get_ssh_command(host.user,
                                     host.keyfile,
                                     host.port,
@@ -1834,10 +1793,10 @@ class SshProcess(Process):
         super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
 
     def _args(self):
-        return "host=%r, remote_cmd=%r, %s, connexion_params=%r" % (self.__host,
-                                                                    self.__remote_cmd,
+        return "host=%r, remote_cmd=%r, %s, connexion_params=%r" % (self._host,
+                                                                    self._remote_cmd,
                                                                     super(SshProcess, self)._args(),
-                                                                    self.__connexion_params)
+                                                                    self._connexion_params)
 
     @_synchronized
     def __repr__(self):
@@ -1847,20 +1806,69 @@ class SshProcess(Process):
     def __str__(self):
         return "<" + style("SshProcess", 'object_repr') + "(%s) " % (self._args(),) + super(SshProcess, self).__str__() + ">"
 
-    @_synchronized
     def remote_cmd(self):
         """Return the command line executed remotely through ssh."""
-        return self.__remote_cmd
+        return self._remote_cmd
 
-    @_synchronized
     def host(self):
         """Return the remote host."""
-        return self.__host
+        return self._host
 
-    @_synchronized
     def connexion_params(self):
         """Return ssh connexion parameters."""
-        return self.__connexion_params
+        return self._connexion_params
+
+class TaktukProcess(ProcessBase):
+
+    def __init__(self, host, remote_cmd, **kwargs):
+        self._host = host
+        super(TaktukProcess, self).__init__(remote_cmd, **kwargs)
+
+    def _args(self):
+        return "host=%r, %s" % (self._host, super(TaktukProcess, self)._args(),)
+
+    @_synchronized
+    def __repr__(self):
+        return style("TakTukProcess", 'object_repr') + "(%s)" % (self._args(),)
+
+    @_synchronized
+    def __str__(self):
+        return "<" + style("TaktukProcess", 'object_repr') + super(TaktukProcess, self).__str__() + ">"
+
+    def host(self):
+        """Return the remote host."""
+        return self._host
+
+    @_synchronized
+    def start(self):
+        if self._started:
+            raise StandardError, "unable to start an already started process"
+        logger.debug(style("start:", 'emph') + " %s" % self)
+        self._started = True
+        self._start_date = time.time()
+        if self._timeout != None:
+            self._timeout_date = self._start_date + self._timeout
+        return self
+
+    @_synchronized
+    def _set_terminated(self, exit_code = None, error = False, error_reason = None):
+        """Update `TaktukProcess` state: set it to terminated.
+
+        This method is intended to be used by `TaktukRemote`.
+
+        Update its exit_code, end_date, ended flag, and log its
+        termination (INFO or WARNING depending on how it ended).
+        """
+        logger.debug("set terminated %s" % self)
+        if error != None:
+            self._error = error
+        if error_reason != None:
+            self._error_reason = error_reason
+        if exit_code != None:
+            self._exit_code = exit_code
+        self._end_date = time.time()
+        self._ended = True
+        self._log_terminated()
 
 def _sort_reports(reports):
     def key_func(report):
@@ -2463,7 +2471,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         #  message   "H $position # $line"                                     72     NO
         #  default   "I $position # $type # $line"                             73     NO
         #logger.debug("TAKTUK: " + self.__describe_taktuk_output(string))
-        #print "TAKTUK: " + self.__describe_taktuk_output(string)
+        print "TAKTUK: " + self.__describe_taktuk_output(string)
         if len(string) > 0:
             header = ord(string[0])
             (position, sep, line) = string[2:].partition(" # ")
@@ -2590,7 +2598,7 @@ class TaktukRemote(Action):
         if len(check_ports) == 1:
             global_port = list(check_ports)[0]
         for (index, fhost) in enumerate(fhosts):
-            self._processes[fhost] = TaktukProcess(remote_substitute(remote_cmd, fhosts, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = TaktukProcess(fhost, remote_substitute(remote_cmd, fhosts, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
         self._taktuk_cmdline = ()
         if connexion_params != None and connexion_params.has_key('taktuk'):
             if connexion_params['taktuk'] != None:
