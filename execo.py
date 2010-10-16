@@ -2471,7 +2471,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         #  message   "H $position # $line"                                     72     NO
         #  default   "I $position # $type # $line"                             73     NO
         #logger.debug("TAKTUK: " + self.__describe_taktuk_output(string))
-        print "TAKTUK: " + self.__describe_taktuk_output(string)
+        #print "TAKTUK: " + self.__describe_taktuk_output(string)
         if len(string) > 0:
             header = ord(string[0])
             (position, sep, line) = string[2:].partition(" # ")
