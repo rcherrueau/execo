@@ -1855,7 +1855,7 @@ class TaktukProcess(ProcessBase):
 
     @_synchronized
     def __str__(self):
-        return "<" + style("TaktukProcess", 'object_repr') + super(TaktukProcess, self).__str__() + ">"
+        return "<" + style("TaktukProcess", 'object_repr') + "(%s) " % (self._args(),) + super(TaktukProcess, self).__str__() + ">"
 
     def host(self):
         """Return the remote host."""
