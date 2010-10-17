@@ -2439,8 +2439,8 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         self._taktukremote = taktukremote
 
     def __log_unexpected_output(self, string):
-        logger.error("Taktuk unexpected output parsing. Please report this message")
-        logger.error(self.__describe_taktuk_output(string))
+        logger.critical("Taktuk unexpected output parsing. Please report this message")
+        logger.critical(self.__describe_taktuk_output(string))
 
     def __describe_taktuk_output(self, string):
         s = ""
@@ -2561,8 +2561,8 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
             else:
                 self.__log_unexpected_output(string)
         except Exception, e:
-            logger.error("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
-            logger.error("line received = %s" % string.rstrip('\n'))
+            logger.critical("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
+            logger.critical("line received = %s" % string.rstrip('\n'))
 
     def __repr__(self):
         return "<_TaktukRemoteOutputHandler(...)>"
