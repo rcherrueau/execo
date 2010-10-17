@@ -2439,53 +2439,56 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         self._taktukremote = taktukremote
 
     def __log_unexpected_output(self, string):
-        logger.critical("Taktuk unexpected output parsing. Please report this message")
+        logger.critical("Taktuk unexpected output parsing. Please report this message. Line received:")
         logger.critical(self.__describe_taktuk_output(string))
 
     def __describe_taktuk_output(self, string):
         s = ""
-        if len(string) > 0:
-            header = ord(string[0])
-            (position, sep, line) = string[2:].partition(" # ")
-            position = int(position)
-            if position == 0:
-                host_address = "localhost"
+        try:
+            if len(string) > 0:
+                header = ord(string[0])
+                (position, sep, line) = string[2:].partition(" # ")
+                position = int(position)
+                if position == 0:
+                    host_address = "localhost"
+                else:
+                    host_address = self._taktukremote._taktuk_fhost_order[position-1].address
+                if header in (65, 66, 67, 70, 71, 72):
+                    if header == 65: t = "stdout"
+                    elif header == 66: t = "stderr"
+                    elif header == 67: t = "status"
+                    elif header == 70: t = "info"
+                    elif header == 71: t = "taktuk"
+                    elif header == 72: t = "message"
+                    s += "%s - host = %s - line = %s" % (t, host_address, line[:-1])
+                elif header in (68, 69):
+                    (peer_position, sep, line) = line.partition(" # ")
+                    peer_host_address = None
+                    try:
+                        peer_position = int(peer_position)
+                        if peer_position == 0:
+                            peer_host_address = "localhost"
+                        else:
+                            peer_host_address = self._taktukremote._taktuk_fhost_order[peer_position-1].address
+                    except:
+                        pass
+                    if header == 68:
+                        s += "connector - host = %s - peer = %s - line = %s" % (host_address, peer_host_address, line[:-1])
+                    elif header == 69:
+                        (state_code, sep, state_msg) = line.partition(" # ")
+                        s += "state - host = %s - peer = %s - state = %s" % (host_address, peer_host_address, state_msg[:-1])
+                elif header == 73:
+                    (taktuktype, sep, line) = line.partition(" # ")
+                    s += "message type = %s - host = %s - line = %s" % (taktuktype, host_address, line[:-1])
+                else:
+                    s += "unexpected string = %s" % (string[:-1])
             else:
-                host_address = self._taktukremote._taktuk_fhost_order[position-1].address
-            if header in (65, 66, 67, 70, 71, 72):
-                if header == 65: t = "stdout"
-                elif header == 66: t = "stderr"
-                elif header == 67: t = "status"
-                elif header == 70: t = "info"
-                elif header == 71: t = "taktuk"
-                elif header == 72: t = "message"
-                s += "%s - host = %s - line = %s" % (t, host_address, line[:-1])
-            elif header in (68, 69):
-                (peer_position, sep, line) = line.partition(" # ")
-                peer_position = None
-                peer_host_address = None
-                try:
-                    peer_position = int(peer_position)
-                    if peer_position == 0:
-                        peer_host_address = "localhost"
-                    else:
-                        peer_host_address = self._taktukremote._taktuk_fhost_order[peer_position-1].address
-                except:
-                    pass
-                if header == 68:
-                    s += "connector - host = %s - peer = %s - line = %s" % (host_address, peer_host_address, line[:-1])
-                elif header == 69:
-                    (state_code, sep, state_msg) = line.partition(" # ")
-                    s += "state - host = %s - peer = %s - state = %s" % (host_address, peer_host_address, state_msg[:-1])
-            elif header == 73:
-                (taktuktype, sep, line) = line.partition(" # ")
-                s += "message type = %s - host = %s - line = %s" % (taktuktype, host_address, line[:-1])
-            else:
-                s += "unexpected string = %s" % (string[:-1])
-        else:
-            s += "empty string"
-        return s
-        
+                s += "empty string"
+            return s
+        except Exception, e:
+            logger.critical("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
+            logger.critical("line received = %s" % string.rstrip('\n'))
+            return s
 
     def read_line(self, process, string, eof = False, error = False):
         # my taktuk output protocol:
@@ -2517,43 +2520,35 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                             process._handle_stdout(line, eof = eof, error = error)
                         elif header == 66: # stderr
                             process._handle_stderr(line, eof = eof, error = error)
-                        elif header == 67: # status
+                        else: # 67: status
                             process._set_terminated(exit_code = int(line))
                 elif header in (68, 69): # connector, state
                     (peer_position, sep, line) = line.partition(" # ")
-                    if position == 0:
-                        if header == 68: # connector
+                    if header == 68: # connector
+                        peer_position = int(peer_position)
+                        host = self._taktukremote._taktuk_fhost_order[peer_position-1]
+                        process = self._taktukremote._processes[host]
+                        process._handle_stderr(line)
+                    else: # state
+                        (state_code, sep, state_msg) = line.partition(" # ")
+                        state_code = int(state_code)
+                        if state_code == 6 or state_code == 7: # command started or remote command exec failed
+                            host = self._taktukremote._taktuk_fhost_order[position-1]
+                            process = self._taktukremote._processes[host]
+                            if state_code == 6: # command started
+                                process.start()
+                            else: # 7: remote command exec failed
+                                process._set_terminated(error = True, error_reason = "taktuk remote command execution failed")
+                        elif state_code == 3 or state_code == 5: # connexion failed or lost
                             peer_position = int(peer_position)
                             host = self._taktukremote._taktuk_fhost_order[peer_position-1]
                             process = self._taktukremote._processes[host]
-                            process._handle_stderr(line)
-                        elif header == 69: # state
-                            (state_code, sep, state_msg) = line.partition(" # ")
-                            state_code = int(state_code)
-                            if state_code == 3 or state_code == 5:
-                                peer_position = int(peer_position)
-                                host = self._taktukremote._taktuk_fhost_order[peer_position-1]
-                                process = self._taktukremote._processes[host]
-                                if state_code == 3:
-                                    process._set_terminated(error = True, error_reason = "taktuk connexion failed")
-                                elif state_code == 5:
-                                    process._set_terminated(error = True, error_reason = "taktuk connexion lost")
-                            elif state_code in (0, 1, 4, 2):
-                                pass
-                            else:
-                                self.__log_unexpected_output(string)
-                    else:
-                        host = self._taktukremote._taktuk_fhost_order[position-1]
-                        process = self._taktukremote._processes[host]
-                        if header == 69: # state
-                            (state_code, sep, state_msg) = line.partition(" # ")
-                            state_code = int(state_code)
-                            if state_code == 6:
-                                process.start()
-                            elif state_code == 7:
-                                process._set_terminated(error = True, error_reason = "taktuk remote command execution failed")
-                            else:
-                                pass
+                            if state_code == 3: # connexion failed
+                                process._set_terminated(error = True, error_reason = "taktuk connexion failed")
+                            else: # 5: connexion lost
+                                process._set_terminated(error = True, error_reason = "taktuk connexion lost")
+                        elif state_code in (0, 1, 2, 4, 8):
+                            pass
                         else:
                             self.__log_unexpected_output(string)
                 else:
