@@ -62,7 +62,7 @@ important exported classes
 
 - `Host`, `FrozenHost`: abstraction of a remote host.
 
-- `Action`, `MultiAction`, `Remote`, `TaktukRemote`,`Put`, `Get`,
+- `Action`, `MultiAction`, `Remote`, `TaktukRemote`, `Put`, `Get`,
   `Local`: all action classes.
 
 - `Report`: for gathering and summarizing the results of many `Action`
