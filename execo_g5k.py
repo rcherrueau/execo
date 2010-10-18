@@ -83,6 +83,7 @@ values are::
       'port':        None,
       'ssh':         ('ssh',),
       'scp':         ('scp',),
+      'taktuk':      ('taktuk',),
       'ssh_options': ('-o', 'BatchMode=yes',
                       '-o', 'PasswordAuthentication=no',
                       '-o', 'StrictHostKeyChecking=no',
@@ -93,6 +94,7 @@ values are::
                       '-o', 'StrictHostKeyChecking=no',
                       '-o', 'UserKnownHostsFile=/dev/null',
                       '-o', 'ConnectTimeout=20', '-rp'),
+      'taktuk_options': ('-s', '-n'),
       }
 
 Detailed description
