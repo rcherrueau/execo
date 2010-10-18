@@ -179,9 +179,9 @@ remote connexions. Its default values are::
       'user':        None,
       'keyfile':     None,
       'port':        None,
-      'ssh':         ('ssh',),
-      'scp':         ('scp',),
-      'taktuk':      ('taktuk',),
+      'ssh':         'ssh',
+      'scp':         'scp',
+      'taktuk':      'taktuk',
       'ssh_options': ('-o', 'BatchMode=yes',
                       '-o', 'PasswordAuthentication=no',
                       '-o', 'StrictHostKeyChecking=no',
@@ -277,9 +277,9 @@ default_default_connexion_params = {
     'user':        None,
     'keyfile':     None,
     'port':        None,
-    'ssh':         ('ssh',),
-    'scp':         ('scp',),
-    'taktuk':      ('taktuk',),
+    'ssh':         'ssh',
+    'scp':         'scp',
+    'taktuk':      'taktuk',
     'ssh_options': ('-o', 'BatchMode=yes',
                     '-o', 'PasswordAuthentication=no',
                     '-o', 'StrictHostKeyChecking=no',
@@ -1647,12 +1647,12 @@ def get_ssh_command(user = None, keyfile = None, port = None, connexion_params =
     
     if connexion_params != None and connexion_params.has_key('ssh'):
         if connexion_params['ssh'] != None:
-            ssh_command += connexion_params['ssh']
+            ssh_command += (connexion_params['ssh'],)
         else:
             raise ValueError, "invalid ssh command in connexion_params %s" % (connexion_params,)
     elif default_connexion_params != None and default_connexion_params.has_key('ssh'):
         if default_connexion_params['ssh'] != None:
-            ssh_command += default_connexion_params['ssh']
+            ssh_command += (default_connexion_params['ssh'],)
         else:
             raise ValueError, "invalid ssh command in default_connexion_params %s" % (default_connexion_params,)
     else:
@@ -1688,12 +1688,12 @@ def get_scp_command(user = None, keyfile = None, port = None, connexion_params =
     
     if connexion_params != None and connexion_params.has_key('scp'):
         if connexion_params['scp'] != None:
-            scp_command += connexion_params['scp']
+            scp_command += (connexion_params['scp'],)
         else:
             raise ValueError, "invalid scp command in connexion_params %s" % (connexion_params,)
     elif default_connexion_params != None and default_connexion_params.has_key('scp'):
         if default_connexion_params['scp'] != None:
-            scp_command += default_connexion_params['scp']
+            scp_command += (default_connexion_params['scp'],)
         else:
             raise ValueError, "invalid scp command in default_connexion_params %s" % (default_connexion_params,)
     else:
@@ -2718,12 +2718,12 @@ class TaktukRemote(Action):
         self._taktuk_cmdline = ()
         if connexion_params != None and connexion_params.has_key('taktuk'):
             if connexion_params['taktuk'] != None:
-                self._taktuk_cmdline += connexion_params['taktuk']
+                self._taktuk_cmdline += (connexion_params['taktuk'],)
             else:
                 raise ValueError, "invalid taktuk command in connexion_params %s" % (connexion_params,)
         elif default_connexion_params != None and default_connexion_params.has_key('taktuk'):
             if default_connexion_params['taktuk'] != None:
-                self._taktuk_cmdline += default_connexion_params['taktuk']
+                self._taktuk_cmdline += (default_connexion_params['taktuk'],)
             else:
                 raise ValueError, "invalid taktuk command in default_connexion_params %s" % (default_connexion_params,)
         else:
