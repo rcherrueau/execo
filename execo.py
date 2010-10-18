@@ -1177,6 +1177,11 @@ class _Conductor(object):
                                                # the conductor thread
                                                # from the main thread
                                                # when needed
+        self.__set_fd_nonblocking(self.__rpipe) # the reading function
+                                                # __read_asmuch()
+                                                # relies on file
+                                                # descriptors to be
+                                                # non blocking
         self.__poller = select.poll() # asynchronous I/O with all
                                       # subprocesses filehandles
         self.__poller.register(self.__rpipe,
@@ -1275,6 +1280,8 @@ class _Conductor(object):
                 fileno_stdout = process.stdout_fd()
                 fileno_stderr = process.stderr_fd()
                 self.__processes.add(process)
+                self.__set_fd_nonblocking(fileno_stdout)
+                self.__set_fd_nonblocking(fileno_stderr)
                 self.__fds[fileno_stdout] = (process, process._handle_stdout)
                 self.__fds[fileno_stderr] = (process, process._handle_stderr)
                 self.__poller.register(fileno_stdout,
@@ -1312,24 +1319,40 @@ class _Conductor(object):
             self.__timeline.append((process.timeout_date(), process))
 
     @staticmethod
-    def __non_blocking_read(fileno, maxread):
-        """Non blocking read.
+    def __read_asmuch(fileno):
+        """Read as much as possible from a file descriptor withour blocking.
 
-        Temporary set the filehandle in non blocking reading mode,
-        then try to read, then restore the filehandle in its previous
-        mode, then return string read."""
-        file_status_flags = fcntl.fcntl(fileno, fcntl.F_GETFL, 0)
-        fcntl.fcntl(fileno, fcntl.F_SETFL, file_status_flags | os.O_NONBLOCK)
-        try:
-            string = os.read(fileno, maxread)
-        except OSError, err:
-            if err.errno == errno.EAGAIN:
-                string = ""
+        Relies on the file descriptor to have been set non blocking.
+
+        Returns a tuple (string, eof). string is the data read, eof is
+        a boolean flag.
+        """
+        eof = False
+        string = ""
+        while True:
+            try:
+                tmpstring = os.read(fileno, _MAXREAD)
+            except OSError, err:
+                if err.errno == errno.EAGAIN:
+                    break
+                else:
+                    raise
+            if tmpstring == "":
+                eof == True
+                break
             else:
-                raise
-        finally:
-            fcntl.fcntl(fileno, fcntl.F_SETFL, file_status_flags)
-        return string
+                string += tmpstring
+        return (string, eof)
+
+    @staticmethod
+    def __set_fd_nonblocking(fileno):
+        """Sets a file descriptor in non blocking mode.
+
+        Returns the previous state flags.
+        """
+        status_flags = fcntl.fcntl(fileno, fcntl.F_GETFL, 0)
+        fcntl.fcntl(fileno, fcntl.F_SETFL, status_flags | os.O_NONBLOCK)
+        return status_flags
 
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
@@ -1346,14 +1369,14 @@ class _Conductor(object):
             self.__poller.unregister(fileno_stdout)
             # read the last data that may be available on stdout of
             # this process
-            last_bytes = self.__non_blocking_read(fileno_stdout, _MAXREAD)
+            (last_bytes, eof) = self.__read_asmuch(fileno_stdout)
             process._handle_stdout(last_bytes, eof = True)
         if self.__fds.has_key(fileno_stderr):
             del self.__fds[fileno_stderr]
             self.__poller.unregister(fileno_stderr)
             # read the last data that may be available on stderr of
             # this process
-            last_bytes = self.__non_blocking_read(fileno_stderr, _MAXREAD)
+            (last_bytes, eof) = self.__read_asmuch(fileno_stderr)
             process._handle_stderr(last_bytes, eof = True)
         self.__processes.remove(process)
         if exit_code != None:
@@ -1452,14 +1475,10 @@ class _Conductor(object):
                         process, stream_handler_func = self.__fds[fd]
                         logger.debug("event %s on fd %s, process %s" % (_event_desc(event), fd, process))
                         if event & select.POLLIN:
-                            string = os.read(fd, _MAXREAD)
-                            if string == '':
-                                # see os.read() doc for semantics of
-                                # reading empty string
-                                stream_handler_func('', eof = True)
+                            (string, eof) = self.__read_asmuch(fd)
+                            stream_handler_func(string, eof = eof)
+                            if eof:
                                 self.__remove_handle(fd)
-                            else:
-                                stream_handler_func(string)
                         if event & select.POLLHUP:
                             stream_handler_func('', eof = True)
                             self.__remove_handle(fd)
@@ -1470,8 +1489,8 @@ class _Conductor(object):
             if event_on_rpipe != None:
                 logger.debug("event %s on inter-thread pipe" % _event_desc(event_on_rpipe))
                 if event_on_rpipe & select.POLLIN:
-                    string = os.read(self.__rpipe, _MAXREAD)
-                    if string == '':
+                    (string, eof) = self.__read_asmuch(self.__rpipe)
+                    if eof:
                         # pipe closed -> auto stop the thread
                         finished = True
                 if event_on_rpipe & select.POLLHUP:
