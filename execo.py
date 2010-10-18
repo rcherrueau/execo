@@ -14,12 +14,16 @@ Action
 ------
 
 An `Action` is an abstraction of a set of parallel processes. It is an
-abstract class. Child classes are: `Remote`, `Get`, `Put`, `Local`. A
-`Remote` is a remote process execution on a group of hosts. The remote
-connexion is performed by ssh or a similar tool. `Put` and `Get` are
-actions for copying to or from a group of hosts. The copy is performed
-with scp or a similar tool. A `Local` is a local process (it is a very
-lightweight `Action` on top of a single `Process` instance).
+abstract class. Child classes are: `Remote`, `TaktukRemote`, `Get`,
+`Put`, `Local`. A `Remote` or `TaktukRemote` is a remote process
+execution on a group of hosts. The remote connexion is performed by
+ssh or a similar tool. `Remote` uses as many ssh connexions as remote
+hosts, whereas `TaktukRemote` uses taktuk internally
+(http://taktuk.gforge.inria.fr/) to build a communication tree, thus
+is more scalable. `Put` and `Get` are actions for copying to or from a
+group of hosts. The copy is performed with scp or a similar tool. A
+`Local` is a local process (it is a very lightweight `Action` on top
+of a single `Process` instance).
 
 `Remote`, `Get`, `Put` require a list of remote hosts to perform their
 tasks. These hosts are passed as an iterable of instances of
@@ -49,13 +53,17 @@ asynchronously stdout and stderr, and of handling the lifecycle of the
 process. This allows writing easily code in a style appropriate for
 conducting several processes in parallel.
 
+`ProcessBase` and `TaktukProcess` are used internally and should
+probably not be used, unless for developing code similar to
+`TaktukRemote`.
+
 important exported classes
 --------------------------
 
 - `Host`, `FrozenHost`: abstraction of a remote host.
 
-- `Action`, `MultiAction`, `Remote`, `Put`, `Get`, `Local`: all action
-  classes.
+- `Action`, `MultiAction`, `Remote`, `TaktukRemote`,`Put`, `Get`,
+  `Local`: all action classes.
 
 - `Report`: for gathering and summarizing the results of many `Action`
 
@@ -80,20 +88,21 @@ General information
 ssh configuration for Remote, Get, Put
 --------------------------------------
 
-For `SshProcess`, `Remote`, `Get`, `Put` to work correctly, ssh/scp
-connexions need to be fully automatic: No password has to be
-asked. The default configuration in execo is to force a passwordless,
-public key based authentification. As this tool is growing in a
-cluster/grid environment where servers are frequently redeployed,
-default configuration also disables strict key checking, and the
-recording of hosts keys to ``~/.ssh/know_hosts``. This may be a
-security hole in a different context.
+For `SshProcess`, `Remote`, `TaktukRemote`, `Get`, `Put` to work
+correctly, ssh/scp connexions need to be fully automatic: No password
+has to be asked. The default configuration in execo is to force a
+passwordless, public key based authentification. As this tool is
+growing in a cluster/grid environment where servers are frequently
+redeployed, default configuration also disables strict key checking,
+and the recording of hosts keys to ``~/.ssh/know_hosts``. This may be
+a security hole in a different context.
 
-substitutions for Remote, Get, Put
-----------------------------------
+substitutions for Remote, TaktukRemote, Get, Put
+------------------------------------------------
 
-In the command line given for a `Remote`, as well as in pathes given
-to `Get` and `Put`, some patterns are automatically substituted:
+In the command line given for a `Remote`, `TaktukRemote`, , as well as
+in pathes given to `Get` and `Put`, some patterns are automatically
+substituted:
 
 - all occurences of the literal string ``{{{host}}}`` are substituted
   by the address of the `Host` to which execo connects to.
@@ -172,6 +181,7 @@ remote connexions. Its default values are::
       'port':        None,
       'ssh':         ('ssh',),
       'scp':         ('scp',),
+      'taktuk':      ('taktuk',),
       'ssh_options': ('-o', 'BatchMode=yes',
                       '-o', 'PasswordAuthentication=no',
                       '-o', 'StrictHostKeyChecking=no',
@@ -182,15 +192,17 @@ remote connexions. Its default values are::
                       '-o', 'StrictHostKeyChecking=no',
                       '-o', 'UserKnownHostsFile=/dev/null',
                       '-o', 'ConnectTimeout=20', '-rp'),
+      'taktuk_options': ('-s', '-n'),
       }
 
 These default connexion parameters are the ones used when no other
 specific connexion parameters are given to `SshProcess`, `Remote`,
-`Get` or `Put`, or given to the `Host`. Actually, when connecting to a
-remote host, the connexion parameters are first taken from the `Host`
-instance to which the connexion is made, then from the
-``connexion_params`` given to the `SshProcess`/`Remote`/`Get`/`Put`,
-if there are some, then from the `default_connexion_params`.
+`TaktukRemote`, `Get` or `Put`, or given to the `Host`. Actually, when
+connecting to a remote host, the connexion parameters are first taken
+from the `Host` instance to which the connexion is made, then from the
+``connexion_params`` given to the `SshProcess` / `TaktukRemote` /
+`Remote` / `Get` / `Put`, if there are some, then from the
+`default_connexion_params`.
 
 after import time, the configuration may be changed dynamically from
 code in the following ways:
@@ -603,26 +615,34 @@ def _set_fd_nonblocking(fileno):
 
 class ProcessLifecycleHandler(object):
 
-    """Abstract handler for `Process` lifecycle."""
+    """Abstract handler for `ProcessBase` lifecycle."""
 
     def start(self, process):
-        """Handle `Process` start."""
+        """Handle `ProcessBase`'s start.
+
+        :param process: The `ProcessBase` which starts.
+        """
         pass
 
     def end(self, process):
-        """Handle `Process` end."""
+        """Handle `ProcessBase`'s end.
+
+        :param process: The `ProcessBase` which ends.
+        """
+        pass
 
 class ProcessOutputHandler(object):
     
-    """Abstract handler for `Process` output."""
+    """Abstract handler for `ProcessBase` output."""
 
     def __init__(self):
+        """ProcessOutputHandler constructor. Call it in inherited classes."""
         self.__buffer = ""
 
     def read(self, process, string, eof = False, error = False):
-        """Handle string read from a `Process`'s stream.
+        """Handle string read from a `ProcessBase`'s stream.
 
-        :param process: the process which outputs the string
+        :param process: the `ProcessBase` which outputs the string
 
         :param string: the string read
 
@@ -644,6 +664,17 @@ class ProcessOutputHandler(object):
             self.__buffer = ""
 
     def read_line(self, process, string, eof = False, error = False):
+        """Handle string read line by line from a `ProcessBase`'s stream.
+
+        :param process: the `ProcessBase` which outputs the line
+
+        :param string: the line read
+
+        :param eof:(boolean) true if the stream is now at eof.
+        
+        :param error: (boolean) true if there was an error on the
+          stream
+        """
         pass
 
 def _synchronized(func):
@@ -651,7 +682,7 @@ def _synchronized(func):
     # exclusion between some methods that may be called by different
     # threads (the main thread and the _Conductor thread), to ensure
     # that the Process instances always have a consistent state.
-    # TO BE USED BY PROCESS OR SUBCLASSES OF
+    # TO BE USED ONLY BY PROCESSBASE OR SUBCLASSES OF
     @functools.wraps(func)
     def wrapper(*args, **kw):
         with args[0]._lock:
@@ -660,29 +691,40 @@ def _synchronized(func):
 
 class ProcessBase(object):
 
+    """An almost abstract base class for all kinds of processes.
+
+    There are no abstract methods, but a `ProcessBase` by itself is
+    almost useless, it only provides accessors to data shared with all
+    subclasses, but no way to start it or stop it. These methods have
+    to be implemented in concrete subclasses.
+
+    It is possible to register custom lifecycle and output handlers to
+    the `Process`, in order to provide specific actions or
+    stdout/stderr parsing when needed.
+    """
+
     def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, default_stdout_handler = True, default_stderr_handler = True, process_lifecycle_handler = None):
         """
         :param cmd: string or tuple containing the command and args to
           run.
 
         :param timeout: timeout (in seconds, or None for no timeout)
-          after which the subprocess will automatically be sent a
-          SIGTERM
+          after which the process will automatically be sent a SIGTERM
 
         :param stdout_handler: instance of `ProcessOutputHandler` for
-          handling activity on subprocess stdout
+          handling activity on process stdout
 
         :param stderr_handler: instance of `ProcessOutputHandler` for
-          handling activity on subprocess stderr
+          handling activity on process stderr
 
-        :param ignore_exit_code: if True, a subprocess with a return
-          code != 0 won't generate a warning
+        :param ignore_exit_code: if True, a process with a return code
+          != 0 won't generate a warning
 
-        :param ignore_timeout: if True, a subprocess which reaches its
+        :param ignore_timeout: if True, a process which reaches its
           timeout will be sent a SIGTERM, but it won't generate a
           warning
 
-        :param ignore_error: if True, a subprocess raising an OS level
+        :param ignore_error: if True, a process raising an OS level
           error won't generate a warning
 
         :param default_stdout_handler: if True, a default handler
@@ -694,7 +736,7 @@ class ProcessBase(object):
           with self.stderr(). Default: True.
 
         :param process_lifecycle_handler: instance of
-          `ProcessLifeCycleHandler` for being notified of Process's
+          `ProcessLifeCycleHandler` for being notified of process
           lifecycle events.
         """
         self._lock = threading.RLock()
@@ -735,80 +777,80 @@ class ProcessBase(object):
         return "<" + style("ProcessBase", 'object_repr') + "(cmd=%r, timeout=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, error=%s, error_reason=%s, timeouted=%s, exit_code=%s, ok=%s)>" % (self._cmd, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._started, format_time(self._start_date), self._ended, format_time(self._end_date), self._error, self._error_reason, self._timeouted, self._exit_code, self.ok())
 
     def cmd(self):
-        """Return the subprocess command line."""
+        """Return the process command line."""
         return self._cmd
     
     def started(self):
-        """Return a boolean indicating if the subprocess was started or not."""
+        """Return a boolean indicating if the process was started or not."""
         return self._started
     
     def start_date(self):
-        """Return the subprocess start date or None if not yet started."""
+        """Return the process start date or None if not yet started."""
         return self._start_date
     
     def ended(self):
-        """Return a boolean indicating if the subprocess ended or not."""
+        """Return a boolean indicating if the process ended or not."""
         return self._ended
     
     def end_date(self):
-        """Return the subprocess end date or None if not yet ended."""
+        """Return the process end date or None if not yet ended."""
         return self._end_date
     
     def error(self):
-        """Return a boolean indicating if there was an error starting the subprocess.
+        """Return a boolean indicating if there was an error starting the process.
 
-        This is *not* the subprocess's return code.
+        This is *not* the process's return code.
         """
         return self._error
     
     def error_reason(self):
-        """Return the operating system level errno, if there was an error starting the subprocess, or None."""
+        """Return the operating system level errno, if there was an error starting the process, or None."""
         return self._error_reason
     
     def exit_code(self):
-        """Return the subprocess exit code.
+        """Return the process exit code.
 
-        If available (if the subprocess ended correctly from the OS
-        point of view), or None.
+        If available (if the process ended correctly from the OS point
+        of view), or None.
         """
         return self._exit_code
     
     def timeout(self):
-        """Return the timeout in seconds after which the subprocess would be killed."""
+        """Return the timeout in seconds after which the process would be killed."""
         return self._timeout
     
     def timeout_date(self):
-        """Return the date at which the subprocess will reach its timeout.
+        """Return the date at which the process will reach its timeout.
 
         Or none if not available.
         """
         return self._timeout_date
 
     def timeouted(self):
-        """Return a boolean indicating if the subprocess has reached its timeout.
+        """Return a boolean indicating if the process has reached its timeout.
 
-        Or None if we don't know yet (subprocess still running,
-        timeout not reached).
+        Or None if we don't know yet (process still running, timeout
+        not reached).
         """
         return self._timeouted
     
     def forced_kill(self):
-        """Return a boolean indicating if the subprocess was killed forcibly.
+        """Return a boolean indicating if the process was killed forcibly.
 
-        When a subprocess is killed with SIGTERM (either manually or
+        When a process is killed with SIGTERM (either manually or
         automatically, due to reaching a timeout), execo will wait
         some time (constant set in execo source) and if after this
-        timeout the subprocess is still running, it will be killed
+        timeout the process is still running, it will be killed
         forcibly with a SIGKILL.
         """
         return self._forced_kill
     
     def stdout(self):
-        """Return a string containing the subprocess stdout."""
+        """Return a string containing the process stdout."""
         return self._stdout
 
     def stderr(self):
-        """Return a string containing the subprocess stderr."""
+        """Return a string containing the process stderr."""
         return self._stderr
 
     def stdout_handler(self):
@@ -853,7 +895,7 @@ class ProcessBase(object):
 
     @_synchronized
     def ok(self):
-        """Check subprocess has correctly finished.
+        """Check process has correctly finished.
 
         A `ProcessBase` is ok, if its has:
 
@@ -873,6 +915,10 @@ class ProcessBase(object):
 
     @_synchronized
     def _log_terminated(self):
+        """To be called (in subclasses) when a process terminates.
+
+        This method will log process termination as needed.
+        """
         if (self._started
             and self._ended
             and (not self._error)
@@ -887,16 +933,13 @@ class Process(ProcessBase):
 
     r"""Handle an operating system process.
 
-    In coordination with an I/O and process lifecycle management
-    thread which is started when execo is imported, this class allows
-    creation, start, interruption (kill), and waiting (for the
-    termination) of an operating system process. The subprocess output
-    streams (stdout, stderr), as well as various informations about
-    the subprocess and its state can be accessed asynchronously.
-
-    It is possible to register custom output handlers to the
-    `Process`, in order to provide specific stdout/stderr parsing when
-    needed.
+    In coordination with the internal _Conductor I/O and process
+    lifecycle management thread which is started when execo is
+    imported, this class allows creation, start, interruption (kill),
+    and waiting (for the termination) of an operating system
+    process. The subprocess output streams (stdout, stderr), as well
+    as various informations about the subprocess and its state can be
+    accessed asynchronously.
 
     Example usage of the `Process` class: run an iperf server, and
     connect to it with an iperf client:
@@ -1880,6 +1923,10 @@ class TaktukProcess(ProcessBase):
 
     @_synchronized
     def start(self):
+        """Notify `TaktukProcess` of actual remote process start.
+
+        This method is intended to be used by `TaktukRemote`.
+        """
         if self._started:
             raise StandardError, "unable to start an already started process"
         logger.debug(style("start:", 'emph') + " %s" % self)
@@ -2392,8 +2439,7 @@ class Remote(Action):
 
     """Launch a command remotely on several `Host`, with ``ssh`` or a similar remote connexion tool.
 
-    One ssh process is launched for each connexion. For lots of
-    connexion, TaktukRemote may be more scalable.
+    One ssh process is launched for each connexion.
     """
 
     def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
@@ -2519,8 +2565,6 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         #  taktuk    "G $position # $line"                                     71     NO
         #  message   "H $position # $line"                                     72     NO
         #  default   "I $position # $type # $line"                             73     NO
-        #logger.debug("TAKTUK: " + self.__describe_taktuk_output(string))
-        #print "TAKTUK: " + self.__describe_taktuk_output(string)
         try:
             if len(string) > 0:
                 header = ord(string[0])
