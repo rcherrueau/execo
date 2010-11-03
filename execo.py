@@ -2769,8 +2769,8 @@ class TaktukRemote(Action):
                                shell = False,
                                stdout_handler = self._taktuk_stdout_output_handler,
                                stderr_handler = self._taktuk_stderr_output_handler,
-                               default_stdout_handler = False,
-                               default_stderr_handler = False,
+                               #default_stdout_handler = False,
+                               #default_stderr_handler = False,
                                process_lifecycle_handler = _TaktukLifecycleHandler(self))
 
     def __repr__(self):
