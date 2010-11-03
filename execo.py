@@ -2497,15 +2497,15 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
 
     """Parse taktuk output."""
     
-    def __init__(self, taktukremote):
+    def __init__(self, taktukaction):
         super(_TaktukRemoteOutputHandler, self).__init__()
-        self._taktukremote = taktukremote
+        self._taktukaction = taktukaction
 
-    def __log_unexpected_output(self, string):
+    def _log_unexpected_output(self, string):
         logger.critical("Taktuk unexpected output parsing. Please report this message. Line received:")
-        logger.critical(self.__describe_taktuk_output(string))
+        logger.critical(self._describe_taktuk_output(string))
 
-    def __describe_taktuk_output(self, string):
+    def _describe_taktuk_output(self, string):
         s = ""
         try:
             if len(string) > 0:
@@ -2515,7 +2515,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                 if position == 0:
                     host_address = "localhost"
                 else:
-                    host_address = self._taktukremote._taktuk_fhost_order[position-1].address
+                    host_address = self._taktukaction._taktuk_fhost_order[position-1].address
                 if header in (65, 66, 67, 70, 71, 72):
                     if header == 65: t = "stdout"
                     elif header == 66: t = "stderr"
@@ -2532,7 +2532,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                         if peer_position == 0:
                             peer_host_address = "localhost"
                         else:
-                            peer_host_address = self._taktukremote._taktuk_fhost_order[peer_position-1].address
+                            peer_host_address = self._taktukaction._taktuk_fhost_order[peer_position-1].address
                     except:
                         pass
                     if header == 68:
@@ -2572,11 +2572,11 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                 position = int(position)
                 if header >= 65 and header <= 67: # stdout, stderr, status
                     if position == 0:
-                        self.__log_unexpected_output(string)
+                        self._log_unexpected_output(string)
                         return
                     else:
-                        host = self._taktukremote._taktuk_fhost_order[position-1]
-                        process = self._taktukremote._processes[host]
+                        host = self._taktukaction._taktuk_fhost_order[position-1]
+                        process = self._taktukaction._processes[host]
                         if header == 65: # stdout
                             process._handle_stdout(line, eof = eof, error = error)
                         elif header == 66: # stderr
@@ -2587,23 +2587,23 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                     (peer_position, sep, line) = line.partition(" # ")
                     if header == 68: # connector
                         peer_position = int(peer_position)
-                        host = self._taktukremote._taktuk_fhost_order[peer_position-1]
-                        process = self._taktukremote._processes[host]
+                        host = self._taktukaction._taktuk_fhost_order[peer_position-1]
+                        process = self._taktukaction._processes[host]
                         process._handle_stderr(line)
                     else: # state
                         (state_code, sep, state_msg) = line.partition(" # ")
                         state_code = int(state_code)
                         if state_code == 6 or state_code == 7: # command started or remote command exec failed
-                            host = self._taktukremote._taktuk_fhost_order[position-1]
-                            process = self._taktukremote._processes[host]
+                            host = self._taktukaction._taktuk_fhost_order[position-1]
+                            process = self._taktukaction._processes[host]
                             if state_code == 6: # command started
                                 process.start()
                             else: # 7: remote command exec failed
                                 process._set_terminated(error = True, error_reason = "taktuk remote command execution failed")
                         elif state_code == 3 or state_code == 5: # connexion failed or lost
                             peer_position = int(peer_position)
-                            host = self._taktukremote._taktuk_fhost_order[peer_position-1]
-                            process = self._taktukremote._processes[host]
+                            host = self._taktukaction._taktuk_fhost_order[peer_position-1]
+                            process = self._taktukaction._processes[host]
                             if state_code == 3: # connexion failed
                                 process._set_terminated(error = True, error_reason = "taktuk connexion failed")
                             else: # 5: connexion lost
@@ -2611,17 +2611,15 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                         elif state_code in (0, 1, 2, 4, 8):
                             pass
                         else:
-                            self.__log_unexpected_output(string)
+                            self._log_unexpected_output(string)
                 else:
-                    self.__log_unexpected_output(string)
-            else:
-                self.__log_unexpected_output(string)
+                    self._log_unexpected_output(string)
         except Exception, e:
             logger.critical("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
             logger.critical("line received = %s" % string.rstrip('\n'))
 
     def __repr__(self):
-        return "<_TaktukRemoteOutputHandler(...)>"
+        return "<" + self.__class__.__name__ + "(...)>"
 
 class _TaktukLifecycleHandler(ProcessLifecycleHandler):
 
@@ -2677,18 +2675,38 @@ class TaktukRemote(Action):
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._processes = dict()
+        self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
+        self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
+        self._taktuk_common_init(hosts)
+
+    def _gen_taktukprocesses(self, fhosts_list):
+        for (index, fhost) in enumerate(fhosts_list):
+            self._processes[fhost] = TaktukProcess(fhost, remote_substitute(self._remote_cmd, fhosts_list, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+
+    def _gen_taktuk_commands(self, fhosts_list, hosts_with_explicit_user):
+        self._taktuk_fhost_order = []
+        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h not in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-m", fhost.address, "-[", "exec", "[", self._processes[fhosts_list[index]].cmd(), "]", "-]",)
+            self._taktuk_fhost_order.append(fhost)
+        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-l", fhost.user, "-m", fhost.address, "-[", "exec", "[", self._processes[fhosts_list[index]].cmd(), "]", "-]",)
+            self._taktuk_fhost_order.append(fhost)
+
+    def _taktuk_common_init(self, hosts):
+        # taktuk code common to TaktukRemote and subclasses TaktukGet
+        # TaktukPut
         fhosts = get_frozen_hosts_list(hosts)
         # we can provide per-host user with taktuk, but we cannot
         # provide per-host port or keyfile, so check that all hosts
         # and connexion_params have the same port / keyfile (or None)
         check_default_keyfile = None
         check_default_port = None
-        if connexion_params != None and connexion_params.has_key('keyfile'):
-            check_default_keyfile = connexion_params['keyfile']
+        if self._connexion_params != None and self._connexion_params.has_key('keyfile'):
+            check_default_keyfile = self._connexion_params['keyfile']
         elif default_connexion_params != None and default_connexion_params.has_key('keyfile'):
             check_default_keyfile = default_connexion_params['keyfile']
-        if connexion_params != None and connexion_params.has_key('port'):
-            check_default_port = connexion_params['port']
+        if self._connexion_params != None and self._connexion_params.has_key('port'):
+            check_default_port = self._connexion_params['port']
         elif default_connexion_params != None and default_connexion_params.has_key('port'):
             check_default_port = default_connexion_params['port']
         check_keyfiles = set()
@@ -2713,14 +2731,13 @@ class TaktukRemote(Action):
             global_keyfile = list(check_keyfiles)[0]
         if len(check_ports) == 1:
             global_port = list(check_ports)[0]
-        for (index, fhost) in enumerate(fhosts):
-            self._processes[fhost] = TaktukProcess(fhost, remote_substitute(remote_cmd, fhosts, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+        self._gen_taktukprocesses(fhosts)
         self._taktuk_cmdline = ()
-        if connexion_params != None and connexion_params.has_key('taktuk'):
-            if connexion_params['taktuk'] != None:
-                self._taktuk_cmdline += (connexion_params['taktuk'],)
+        if self._connexion_params != None and self._connexion_params.has_key('taktuk'):
+            if self._connexion_params['taktuk'] != None:
+                self._taktuk_cmdline += (self._connexion_params['taktuk'],)
             else:
-                raise ValueError, "invalid taktuk command in connexion_params %s" % (connexion_params,)
+                raise ValueError, "invalid taktuk command in connexion_params %s" % (self._connexion_params,)
         elif default_connexion_params != None and default_connexion_params.has_key('taktuk'):
             if default_connexion_params['taktuk'] != None:
                 self._taktuk_cmdline += (default_connexion_params['taktuk'],)
@@ -2728,9 +2745,9 @@ class TaktukRemote(Action):
                 raise ValueError, "invalid taktuk command in default_connexion_params %s" % (default_connexion_params,)
         else:
             raise ValueError, "no taktuk command in default_connexion_params %s" % (default_connexion_params,)
-        if connexion_params != None and connexion_params.has_key('taktuk_options'):
-            if connexion_params['taktuk_options'] != None:
-                self._taktuk_cmdline += connexion_params['taktuk_options']
+        if self._connexion_params != None and self._connexion_params.has_key('taktuk_options'):
+            if self._connexion_params['taktuk_options'] != None:
+                self._taktuk_cmdline += self._connexion_params['taktuk_options']
         elif default_connexion_params != None and default_connexion_params.has_key('taktuk_options'):
             if default_connexion_params['taktuk_options'] != None:
                 self._taktuk_cmdline += default_connexion_params['taktuk_options']
@@ -2743,20 +2760,17 @@ class TaktukRemote(Action):
                                  "-o", 'taktuk="G $position # $line\\n"',
                                  "-o", 'message="H $position # $line\\n"',
                                  "-o", 'default="I $position # $type > $line\\n"')
-        self._taktuk_cmdline += ("-c", " ".join(get_ssh_command(keyfile = global_keyfile, port = global_port,connexion_params = connexion_params)))
-        self._taktuk_fhost_order = []
-        for fhost in [ h for h in fhosts if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", fhost.address, "-[", "exec", "[", self._processes[fhost].cmd(), "]", "-]")
-            self._taktuk_fhost_order.append(fhost)
-        for fhost in hosts_with_explicit_user:
-            self._taktuk_cmdline += ("-l", fhost.user, "-m", fhost.address, "-[", "exec", "[", self._processes[fhost].cmd(), "]", "-]")
-            self._taktuk_fhost_order.append(fhost)
+        self._taktuk_cmdline += ("-c", " ".join(get_ssh_command(keyfile = global_keyfile, port = global_port,connexion_params = self._connexion_params)))
+        self._gen_taktuk_commands(fhosts, hosts_with_explicit_user)
         self._taktuk_cmdline += ("quit",)
+        handler = _TaktukRemoteOutputHandler(self)
         self._taktuk = Process(self._taktuk_cmdline,
                                timeout = self._timeout,
                                shell = False,
-                               stdout_handler = _TaktukRemoteOutputHandler(self),
+                               stdout_handler = self._taktuk_stdout_output_handler,
+                               stderr_handler = self._taktuk_stderr_output_handler,
                                default_stdout_handler = False,
+                               default_stderr_handler = False,
                                process_lifecycle_handler = _TaktukLifecycleHandler(self))
 
     def __repr__(self):
@@ -2878,6 +2892,121 @@ class Get(Remote):
 
     def __repr__(self):
         return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
+
+class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
+
+    """Parse taktuk output."""
+
+    def _update_taktukprocess_end_state(self, process):
+        if process._num_transfers_started > 0 and not process.started():
+            process.start()
+        if process._num_transfers_failed + process._num_transfers_terminated >= len(self._taktukaction._local_files):
+            if process._num_transfers_failed > 0:
+                process._set_terminated(error = True, error_reason = "taktuk file reception failed")
+            else:
+                process._set_terminated(exit_code = 0)
+    
+    def read_line(self, process, string, eof = False, error = False):
+        try:
+            if len(string) > 0:
+                header = ord(string[0])
+                (position, sep, line) = string[2:].partition(" # ")
+                position = int(position)
+                if header in (68, 69): # connector, state
+                    (peer_position, sep, line) = line.partition(" # ")
+                    if header == 68: # connector
+                        peer_position = int(peer_position)
+                        host = self._taktukaction._taktuk_fhost_order[peer_position-1]
+                        process = self._taktukaction._processes[host]
+                        process._handle_stderr(line)
+                    else: # state
+                        (state_code, sep, state_msg) = line.partition(" # ")
+                        state_code = int(state_code)
+                        if state_code in (13, 14, 15): # file reception started, failed, terminated
+                            host = self._taktukaction._taktuk_fhost_order[position-1]
+                            process = self._taktukaction._processes[host]
+                            if state_code == 13: # file reception started
+                                process._num_transfers_started += 1
+                            elif state_code == 14: # file reception failed
+                                process._num_transfers_failed += 1
+                            else: # 15: file reception terminated
+                                process._num_transfers_terminated += 1
+                            self._update_taktukprocess_end_state(process)
+                        elif state_code == 3 or state_code == 5: # connexion failed or lost
+                            peer_position = int(peer_position)
+                            host = self._taktukaction._taktuk_fhost_order[peer_position-1]
+                            process = self._taktukaction._processes[host]
+                            if state_code == 3: # connexion failed
+                                process._set_terminated(error = True, error_reason = "taktuk connexion failed")
+                            else: # 5: connexion lost
+                                process._set_terminated(error = True, error_reason = "taktuk connexion lost")
+                        elif state_code in (0, 1, 2, 4):
+                            pass
+                        else:
+                            self._log_unexpected_output(string)
+                else:
+                    self._log_unexpected_output(string)
+        except Exception, e:
+            logger.critical("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
+            logger.critical("line received = %s" % string.rstrip('\n'))
+
+class TaktukPut(TaktukRemote):
+
+    """Copy local files to several remote `Host`, with ``taktuk``."""
+
+    def __init__(self, hosts = None, local_files = None, remote_location = ".", connexion_params = None, **kwargs):
+        """
+        :param hosts: iterable of `Host` onto which to copy the files.
+
+        :param local_files: an iterable of string of file
+          paths. substitions described in `remote_substitute` will not
+          be performed, but taktuk substitutions can be used (see
+          http://taktuk.gforge.inria.fr/taktuk.html#item_put__2a_src__2a__2a_dest__2a)
+        
+        :param remote_location: the directory on the remote hosts were
+          the files will be copied. substitions described in
+          `remote_substitute` will not be performed, but taktuk
+          substitutions can be used (see
+          http://taktuk.gforge.inria.fr/taktuk.html#item_put__2a_src__2a__2a_dest__2a)
+
+        :param connexion_params: a dict similar to
+          `default_connexion_params` whose values will override those
+          in `default_connexion_params` for connexion.
+        """
+        if local_files != None and (not hasattr(local_files, '__iter__')):
+            local_files = (local_files,)
+        if not kwargs.has_key('name') or kwargs['name'] == None:
+            kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
+        super(TaktukRemote, self).__init__(**kwargs)
+        self._caller_context = get_caller_context()
+        self._processes = dict()
+        self._local_files = local_files
+        self._remote_location = remote_location
+        self._connexion_params = connexion_params
+        self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
+        self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
+        self._taktuk_common_init(hosts)
+
+    def _gen_taktukprocesses(self, fhosts_list):
+        for (index, fhost) in enumerate(fhosts_list):
+            self._processes[fhost] = TaktukProcess(fhost, "", timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost]._num_transfers_started = 0
+            self._processes[fhost]._num_transfers_terminated = 0
+            self._processes[fhost]._num_transfers_failed = 0
+
+    def _gen_taktuk_commands(self, fhosts_list, hosts_with_explicit_user):
+        self._taktuk_fhost_order = []
+        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h not in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-m", fhost.address)
+            self._taktuk_fhost_order.append(fhost)
+        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-l", fhost.user, "-m", fhost.address)
+            self._taktuk_fhost_order.append(fhost)
+        for src in self._local_files:
+            self._taktuk_cmdline += ("broadcast", "put", "[", src, "]", "[", self._remote_location, "]", ";")
+
+    def __repr__(self):
+        return style("TaktukPut", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._local_files, self._remote_location, self._connexion_params)
 
 class Local(Action):
 
