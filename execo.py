@@ -2502,11 +2502,11 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         self._taktukaction = taktukaction
 
     def _log_unexpected_output(self, string):
-        logger.critical("Taktuk unexpected output parsing. Please report this message. Line received:")
+        logger.critical("%s: Taktuk unexpected output parsing. Please report this message. Line received:" % (self.__class__.__name__,))
         logger.critical(self._describe_taktuk_output(string))
 
     def _describe_taktuk_output(self, string):
-        s = ""
+        s = "%s: " % (self.__class__.__name__,)
         try:
             if len(string) > 0:
                 header = ord(string[0])
@@ -2549,7 +2549,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                 s += "empty string"
             return s
         except Exception, e:
-            logger.critical("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
+            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message." % (self.__class__.__name__, e))
             logger.critical("line received = %s" % string.rstrip('\n'))
             return s
 
@@ -2615,7 +2615,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                 else:
                     self._log_unexpected_output(string)
         except Exception, e:
-            logger.critical("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
+            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message." % (self.__class__.__name__, e))
             logger.critical("line received = %s" % string.rstrip('\n'))
 
     def __repr__(self):
@@ -2947,7 +2947,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                 else:
                     self._log_unexpected_output(string)
         except Exception, e:
-            logger.critical("Unexpected exception %s while parsing taktuk output. Please report this message." % (e,))
+            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message." % (self.__class__.__name__, e))
             logger.critical("line received = %s" % string.rstrip('\n'))
 
 class TaktukPut(TaktukRemote):
