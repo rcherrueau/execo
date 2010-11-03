@@ -2786,7 +2786,7 @@ class TaktukRemote(Action):
 
 class Put(Remote):
 
-    """Copy local files to several remote `Host`, with ``scp`` or a similar connexion tool ."""
+    """Copy local files to several remote `Host`, with ``scp`` or a similar connexion tool."""
 
     def __init__(self, hosts = None, local_files = None, remote_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
@@ -2832,7 +2832,7 @@ class Put(Remote):
 
 class Get(Remote):
 
-    """Copy remote files from several remote `Host` to a local directory, with ``scp`` or a similar connexion tool ."""
+    """Copy remote files from several remote `Host` to a local directory, with ``scp`` or a similar connexion tool."""
 
     def __init__(self, hosts = None, remote_files = None, local_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
