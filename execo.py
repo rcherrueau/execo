@@ -15,20 +15,23 @@ Action
 
 An `Action` is an abstraction of a set of parallel processes. It is an
 abstract class. Child classes are: `Remote`, `TaktukRemote`, `Get`,
-`Put`, `Local`. A `Remote` or `TaktukRemote` is a remote process
-execution on a group of hosts. The remote connexion is performed by
-ssh or a similar tool. `Remote` uses as many ssh connexions as remote
-hosts, whereas `TaktukRemote` uses taktuk internally
-(http://taktuk.gforge.inria.fr/) to build a communication tree, thus
-is more scalable. `Put` and `Get` are actions for copying to or from a
-group of hosts. The copy is performed with scp or a similar tool. A
+`Put`, `TaktukGet`, `TaktukPut`, `Local`. A `Remote` or `TaktukRemote`
+is a remote process execution on a group of hosts. The remote
+connexion is performed by ssh or a similar tool. `Remote` uses as many
+ssh connexions as remote hosts, whereas `TaktukRemote` uses taktuk
+internally (http://taktuk.gforge.inria.fr/) to build a communication
+tree, thus is more scalable. `Put` and `Get` are actions for copying
+files or directories to or from groups of hosts. The copy is performed
+with scp or a similar tool. `TaktukPut` and `TaktukGet` also copy
+files or directories to or from groups of hosts, using taktuk. A
 `Local` is a local process (it is a very lightweight `Action` on top
 of a single `Process` instance).
 
-`Remote`, `Get`, `Put` require a list of remote hosts to perform their
-tasks. These hosts are passed as an iterable of instances of
-`Host`. The `Host` class instances have an address, and may have a ssh
-port, a ssh keyfile, a ssh user, if needed.
+`Remote`, `TaktukRemote`, `Get`, `TaktukGet`, `Put`, `TaktukPut`
+require a list of remote hosts to perform their tasks. These hosts are
+passed as an iterable of instances of `Host`. The `Host` class
+instances have an address, and may have a ssh port, a ssh keyfile, a
+ssh user, if needed.
 
 As an example of the usage of the `Remote` class, let's launch some
 commands on a few remote hosts::
@@ -62,8 +65,8 @@ important exported classes
 
 - `Host`, `FrozenHost`: abstraction of a remote host.
 
-- `Action`, `MultiAction`, `Remote`, `TaktukRemote`, `Put`, `Get`,
-  `Local`: all action classes.
+- `Action`, `MultiAction`, `Remote`, `TaktukRemote`, `Put`,
+  `TaktukPut`, `Get`, `TaktukGet`, `Local`: all action classes.
 
 - `Report`: for gathering and summarizing the results of many `Action`
 
@@ -85,17 +88,18 @@ important exported functions
 General information
 ===================
 
-ssh configuration for Remote, Get, Put
---------------------------------------
+ssh/scp configuration for SshProcess, Remote, TaktukRemote, Get, TaktukGet, Put, TaktukPut
+------------------------------------------------------------------------------------------
 
-For `SshProcess`, `Remote`, `TaktukRemote`, `Get`, `Put` to work
-correctly, ssh/scp connexions need to be fully automatic: No password
-has to be asked. The default configuration in execo is to force a
-passwordless, public key based authentification. As this tool is
-growing in a cluster/grid environment where servers are frequently
-redeployed, default configuration also disables strict key checking,
-and the recording of hosts keys to ``~/.ssh/know_hosts``. This may be
-a security hole in a different context.
+For `SshProcess`, `Remote`, `TaktukRemote`, `Get`, `TaktukGet`, `Put`,
+`TaktukPut` to work correctly, ssh/scp connexions need to be fully
+automatic: No password has to be asked. The default configuration in
+execo is to force a passwordless, public key based
+authentification. As this tool is growing in a cluster/grid
+environment where servers are frequently redeployed, default
+configuration also disables strict key checking, and the recording of
+hosts keys to ``~/.ssh/know_hosts``. This may be a security hole in a
+different context.
 
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
@@ -192,16 +196,17 @@ remote connexions. Its default values are::
                       '-o', 'StrictHostKeyChecking=no',
                       '-o', 'UserKnownHostsFile=/dev/null',
                       '-o', 'ConnectTimeout=20', '-rp'),
-      'taktuk_options': ('-s', '-n'),
+      'taktuk_options': ('-s'),
       }
 
 These default connexion parameters are the ones used when no other
 specific connexion parameters are given to `SshProcess`, `Remote`,
-`TaktukRemote`, `Get` or `Put`, or given to the `Host`. Actually, when
-connecting to a remote host, the connexion parameters are first taken
-from the `Host` instance to which the connexion is made, then from the
-``connexion_params`` given to the `SshProcess` / `TaktukRemote` /
-`Remote` / `Get` / `Put`, if there are some, then from the
+`TaktukRemote`, `Get`, `TaktukGet`, `Put`, `TaktukPut`, or given to
+the `Host`. Actually, when connecting to a remote host, the connexion
+parameters are first taken from the `Host` instance to which the
+connexion is made, then from the ``connexion_params`` given to the
+`SshProcess` / `TaktukRemote` / `Remote` / `Get` / `TaktukGet` / `Put`
+/ `TaktukPut`, if there are some, then from the
 `default_connexion_params`.
 
 after import time, the configuration may be changed dynamically from
