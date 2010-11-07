@@ -1,4 +1,4 @@
-.PHONY: all build install doc cleandoc sphinxdoc cleansphinxdoc epydoc cleanepydoc check clean dist
+.PHONY: all build install doc cleandoc sphinxdochtml cleansphinxdoc epydoc cleanepydoc check clean dist
 
 PREFIX=/usr/local
 
@@ -10,13 +10,18 @@ build:
 install: build
 	python setup.py install --prefix=$(PREFIX)
 
-doc: sphinxdoc
+doc: sphinxdochtml
 
 cleandoc: cleansphinxdoc cleanepydoc
 
-sphinxdoc:
+sphinxdochtml:
 	mkdir -p doc/_static doc/_template
 	$(MAKE) -C doc html
+
+sphinxdoclatex:
+	mkdir -p doc/_static doc/_template
+	$(MAKE) -C doc latex
+	$(MAKE) -C doc/_build/latex all-pdf
 
 cleansphinxdoc:
 	$(MAKE) -C doc clean
