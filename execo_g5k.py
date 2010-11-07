@@ -1,105 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r"""Tools and extensions to execo suitable for use in Grid5000
-
-Overview
-========
-
-important exported functions
-----------------------------
-
-- `oarsub`, `oargridsub`, `oardel`, `oargriddel`: submit/delete
-  oar/oargrid jobs
-
-- `get_current_oar_jobs`, `get_current_oargrid_jobs`: retrieve current
-  oar/oargrid jobs lists for current user. may filter on job start
-  date or job end date.
-
-- `get_oar_job_info`, `get_oargrid_job_info`: retrieve informations
-  (start date, end date) for given oar/oargrid jobs.
-
-- `wait_oar_job_start`, `wait_oargrid_job_start`: sleep until start
-  date of given oar/oargrid job.
-
-- `get_oar_job_nodes`, `get_oargrid_job_nodes`: retrieve the list of
-  nodes of given oar/oargrid job.
-
-- `kadeploy`: deploy an environment on given hosts.
-
-- `prepare_deployed_xp`: sleep until beginning of given oar/oargrid
-  job(s), retrieve their nodes, check which of these nodes are already
-  deployed (with a user-supplied command), deploy (many times if
-  needed, with a user supplied max number of tries) those which are
-  not.
-
-important exported classes
---------------------------
-
-- `OarSubmission`: descriptor of an oar submission.
-
-- `Kadeployer`: `Action`-inherited class for running a deployment
-  asynchronously.
-
-General information
-===================
-
-Usage
------
-
-To use execo_g5k, your code must be run from grid5000. Passwordless,
-public-key based authentification must be used (either with
-appropriate public / private specific g5k keys shared on all your home
-directories, or with an appropriate ssh-agent forwarding
-configuration).
-
-The code can be run from a frontend or from g5k nodes (in the latter
-case, of course, you would explicitely refer to the local g5k by name,
-and the node running the code needs to be able to connect to all
-frontends)
-
-Configuration
--------------
-
-This module may be configured at import time by defining two dicts
-`g5k_configuration` and `default_frontend_connexion_params` in the
-file ``~/.execo_conf.py``
-
-The `g5k_configuration` dict contains global g5k configuration
-parameters. Its default values are::
-
-  g5k_configuration = {
-      'default_environment_name': None,
-      'default_environment_file': None,
-      'default_timeout': 900,
-      }
-
-The `default_frontend_connexion_params` dict contains default
-parameters for remote connexions to grid5000 frontends. Its default
-values are::
-
-  default_frontend_connexion_params = {
-      'user':        None,
-      'keyfile':     None,
-      'port':        None,
-      'ssh':         'ssh',
-      'scp':         'scp',
-      'taktuk':      'taktuk',
-      'ssh_options': ('-o', 'BatchMode=yes',
-                      '-o', 'PasswordAuthentication=no',
-                      '-o', 'StrictHostKeyChecking=no',
-                      '-o', 'UserKnownHostsFile=/dev/null',
-                      '-o', 'ConnectTimeout=20'),
-      'scp_options': ('-o', 'BatchMode=yes',
-                      '-o', 'PasswordAuthentication=no',
-                      '-o', 'StrictHostKeyChecking=no',
-                      '-o', 'UserKnownHostsFile=/dev/null',
-                      '-o', 'ConnectTimeout=20', '-rp'),
-      'taktuk_options': ('-s', '-n'),
-      }
-
-Detailed description
-====================
-"""
+r"""Tools and extensions to execo suitable for use in Grid5000."""
 
 from execo import *
 import operator
@@ -123,6 +24,7 @@ g5k_configuration = {
   (except deployments).
 """
 
+# _STARTOF_ default_oarsh_oarcp_params
 default_oarsh_oarcp_params = {
     'user':        None,
     'keyfile':     None,
@@ -134,12 +36,13 @@ default_oarsh_oarcp_params = {
     'scp_options': ('-o', 'BatchMode=yes', '-o', 'PasswordAuthentication=no', '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=20', '-rp'),
     'taktuk_options': ('-s', '-n'),
 }
+# _ENDOF_ default_oarsh_oarcp_params
 """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
 
 See `execo.default_connexion_params`
 """
 
-default_frontend_connexion_params = default_default_connexion_params.copy()
+default_frontend_connexion_params = default_connexion_params.copy()
 """Default connexion params when connecting to a Grid5000 frontend."""
 
 read_user_configuration_dicts(((g5k_configuration, 'g5k_configuration'), (default_frontend_connexion_params, 'default_frontend_connexion_params')))
@@ -974,7 +877,10 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
 
 def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
 
-    """Wait for jobs start date, get hosts list, deploy them if needed.
+    """Sleep until beginning of given oar/oargrid job(s), retrieve
+       their nodes, check which of these nodes are already deployed
+       (with a user-supplied command), deploy (many times if needed,
+       with a user supplied max number of tries) those which are not.
 
     - Given a list of oar/oargrid job ids, will wait until all these
       jobs have started, then retrieves the list of Hosts of all these
