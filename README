@@ -1,6 +1,6 @@
-============================================
+********************************************
 Readme / documentation for the execo package
-============================================
+********************************************
 
 Execo offers a Python API for local or remote, standalone or parallel,
 processes execution. It is especially well suited for scripting
