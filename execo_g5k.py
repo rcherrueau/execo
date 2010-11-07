@@ -104,11 +104,13 @@ Detailed description
 from execo import *
 import operator
 
+# _STARTOF_ g5k_configuration
 g5k_configuration = {
     'default_environment_name': None,
     'default_environment_file': None,
     'default_timeout': 900,
     }
+# _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
 
 - ``default_environment_name``: a default environment name to use for

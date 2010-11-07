@@ -8,7 +8,7 @@ import datetime, logging, os, select, time, thread, threading, subprocess
 import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty
 import termios, functools, inspect
 
-# start of configuration
+# _STARTOF_ configuration
 configuration = {
     'log_level': logging.WARNING,
     'kill_timeout': 5,
@@ -21,7 +21,7 @@ configuration = {
     'style_report_warn': ('magenta',),
     'style_report_error': ('red', 'bold'),
     }
-# end of configuration
+# _ENDOF_ configuration
 """Global execo configuration parameters.
 
 - ``log_level``: the log level (see module `logging`)
@@ -39,7 +39,7 @@ configuration = {
 
 """
 
-# start of default_connexion_params
+# _STARTOF_ default_connexion_params
 default_connexion_params = {
     'user':        None,
     'keyfile':     None,
@@ -59,7 +59,7 @@ default_connexion_params = {
                     '-o', 'ConnectTimeout=20', '-rp'),
     'taktuk_options': ('-s', ),
     }
-# end of default_connexion_params
+# _ENDOF_ default_connexion_params
 """Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
 
 - ``user``: the user to connect with.

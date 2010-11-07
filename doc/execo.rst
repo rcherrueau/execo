@@ -278,8 +278,8 @@ The `configuration` dict contains global configuration parameters.
 Its default values are:
 
 .. literalinclude:: ../execo.py
-   :start-after: # start of configuration
-   :end-before: # end of configuration
+   :start-after: # _STARTOF_ configuration
+   :end-before: # _ENDOF_ configuration
    :language: python
 
 The `default_connexion_params` dict contains default parameters for
@@ -290,8 +290,8 @@ remote connexions.
 Its default values are:
 
 .. literalinclude:: ../execo.py
-   :start-after: # start of default_connexion_params
-   :end-before: # end of default_connexion_params
+   :start-after: # _STARTOF_ default_connexion_params
+   :end-before: # _ENDOF_ default_connexion_params
    :language: python
 
 These default connexion parameters are the ones used when no other

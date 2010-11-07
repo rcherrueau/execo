@@ -1,4 +1,4 @@
-include test_execo.py test_execo_g5k.py .execo_conf.py
+include test_execo.py test_execo_g5k.py execo.conf.py.sample.in
 include examples/g5k_check_sniffer10g_capture_perfs/check_sniffer10g_capture_perfs
 include examples/g5k_check_sniffer10g_capture_perfs/config-pktgen
 include examples/g5k_check_sniffer10g_capture_perfs/parse-results
