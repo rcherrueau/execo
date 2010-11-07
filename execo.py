@@ -1,247 +1,6 @@
 # -*- coding: utf-8 -*-
 
-r"""Handles launching of several operating system level processes in parallel and controlling them asynchronously. Handles remote executions through ssh (or similar tools).
-
-Overview
-========
-
-This module offers a high level API for parallel local or remote
-processes execution with the `Action` class hierarchy, and a lower
-level API with the `Process` class, for handling individual local or
-remote subprocesses.
-
-Action
-------
-
-An `Action` is an abstraction of a set of parallel processes. It is an
-abstract class. Child classes are: `Remote`, `TaktukRemote`, `Get`,
-`Put`, `TaktukGet`, `TaktukPut`, `Local`. A `Remote` or `TaktukRemote`
-is a remote process execution on a group of hosts. The remote
-connexion is performed by ssh or a similar tool. `Remote` uses as many
-ssh connexions as remote hosts, whereas `TaktukRemote` uses taktuk
-internally (http://taktuk.gforge.inria.fr/) to build a communication
-tree, thus is more scalable. `Put` and `Get` are actions for copying
-files or directories to or from groups of hosts. The copy is performed
-with scp or a similar tool. `TaktukPut` and `TaktukGet` also copy
-files or directories to or from groups of hosts, using taktuk. A
-`Local` is a local process (it is a very lightweight `Action` on top
-of a single `Process` instance).
-
-`Remote`, `TaktukRemote`, `Get`, `TaktukGet`, `Put`, `TaktukPut`
-require a list of remote hosts to perform their tasks. These hosts are
-passed as an iterable of instances of `Host`. The `Host` class
-instances have an address, and may have a ssh port, a ssh keyfile, a
-ssh user, if needed.
-
-As an example of the usage of the `Remote` class, let's launch some
-commands on a few remote hosts::
-
-  a = Remote(hosts=(Host('nancy'), Host('Rennes')),
-             cmd='whoami ; uname -a').start()
-  b = Remote(hosts=(Host('lille'), Host('sophia')),
-             cmd='cd ~/project ; make clean ; make').start()
-  a.wait()
-  # do something else....
-  b.wait()
-
-Process
--------
-
-A `Process` and its subclass `SshProcess` are abstractions of local or
-remote operating system process, similar to the `subprocess.Popen`
-class in the python standard library (actually execo `Process` use
-them internally). The main differences is that a background thread
-(which is started when execo module is imported) takes care of reading
-asynchronously stdout and stderr, and of handling the lifecycle of the
-process. This allows writing easily code in a style appropriate for
-conducting several processes in parallel.
-
-`ProcessBase` and `TaktukProcess` are used internally and should
-probably not be used, unless for developing code similar to
-`TaktukRemote`.
-
-important exported classes
---------------------------
-
-- `Host`, `FrozenHost`: abstraction of a remote host.
-
-- `Action`, `MultiAction`, `Remote`, `TaktukRemote`, `Put`,
-  `TaktukPut`, `Get`, `TaktukGet`, `Local`: all action classes.
-
-- `Report`: for gathering and summarizing the results of many `Action`
-
-- `Process`: operating-system level process abstraction, on top of
-  which `Action` are implemented.
-
-- `SshProcess`: subclass of `Process`, for remote execution through
-  ssh. Remote `Action` are implemented on top of it.
-
-- `Timer`: convenience timer class.
-
-important exported functions
-----------------------------
-
-- `sleep`: easy to use sleep function.
-
-- `set_log_level`: setting execo log level.
-
-General information
-===================
-
-ssh/scp configuration for SshProcess, Remote, TaktukRemote, Get, TaktukGet, Put, TaktukPut
-------------------------------------------------------------------------------------------
-
-For `SshProcess`, `Remote`, `TaktukRemote`, `Get`, `TaktukGet`, `Put`,
-`TaktukPut` to work correctly, ssh/scp connexions need to be fully
-automatic: No password has to be asked. The default configuration in
-execo is to force a passwordless, public key based
-authentification. As this tool is growing in a cluster/grid
-environment where servers are frequently redeployed, default
-configuration also disables strict key checking, and the recording of
-hosts keys to ``~/.ssh/know_hosts``. This may be a security hole in a
-different context.
-
-substitutions for Remote, TaktukRemote, Get, Put
-------------------------------------------------
-
-In the command line given for a `Remote`, `TaktukRemote`, , as well as
-in pathes given to `Get` and `Put`, some patterns are automatically
-substituted:
-
-- all occurences of the literal string ``{{{host}}}`` are substituted
-  by the address of the `Host` to which execo connects to.
-
-- all occurences of ``{{<expression>}}`` are substituted in the
-  following way: ``<expression>`` must be a python expression, which
-  will be evaluated in the context (globals and locals) where the
-  `Remote`, `Put`, `Get` is instanciated, and which must return a
-  sequence. ``{{<expression>}}`` will be replaced by
-  ``<expression>[index % len(<expression>)]``.
-
-For example, in the following code::
-
-  execo.Remote(hosts1, 'iperf -c {{[host.address for host in hosts2]}}')
-
-When execo runs this command on all hosts of ``hosts1``, it will
-produce a different command line for each host, each command line
-connecting a host from ``hosts1`` to a host from ``hosts2``
-
-if ``hosts1`` contains six hosts ``a``, ``b``, ``c``, ``d``, ``e``,
-``f`` and hosts2 contains 3 hosts ``1``, ``2``, ``3`` the mapping
-between hosts1 and hosts2 could be:
-
-- ``a`` -> ``1``
-
-- ``b`` -> ``2``
-
-- ``c`` -> ``3``
-
-- ``d`` -> ``1``
-
-- ``e`` -> ``2``
-
-- ``f`` -> ``3``
-
-Timestamps
-----------
-
-Internally all dates are unix timestamps, ie. number of seconds
-elapsed since the unix epoch (00:00:00 on Jan 1 1970), possibly with
-or without subsecond precision (float or integer).  In most cases (see
-detailed API documentation), timestamps can be passed as unix
-timestamps (integers or floats) or as `datetime.datetime`, and time
-lengths can be passed as seconds (integers or floats) or as
-`datetime.timedelta`
-
-Configuration
--------------
-
-This module may be configured at import time by defining two dicts
-`configuration` and `default_connexion_params` in the file
-``~/.execo_conf.py``
-
-The `configuration` dict contains global configuration parameters. Its
-default values are::
-
-  configuration = {
-      'log_level': logging.WARNING,
-      'kill_timeout': 5,
-      'color_mode': os.isatty(sys.stdout.fileno())
-                    and os.isatty(sys.stderr.fileno()),
-      'style_log_header': ('yellow',),
-      'style_log_level' : ('magenta',),
-      'style_object_repr': ('blue', 'bold'),
-      'style_emph': ('magenta', 'bold'),
-      'style_report_warn': ('magenta',),
-      'style_report_error': ('red', 'bold'),
-      }
-
-The `default_connexion_params` dict contains default parameters for
-remote connexions. Its default values are::
-
-  default_connexion_params = {
-      'user':        None,
-      'keyfile':     None,
-      'port':        None,
-      'ssh':         'ssh',
-      'scp':         'scp',
-      'taktuk':      'taktuk',
-      'ssh_options': ('-o', 'BatchMode=yes',
-                      '-o', 'PasswordAuthentication=no',
-                      '-o', 'StrictHostKeyChecking=no',
-                      '-o', 'UserKnownHostsFile=/dev/null',
-                      '-o', 'ConnectTimeout=20'),
-      'scp_options': ('-o', 'BatchMode=yes',
-                      '-o', 'PasswordAuthentication=no',
-                      '-o', 'StrictHostKeyChecking=no',
-                      '-o', 'UserKnownHostsFile=/dev/null',
-                      '-o', 'ConnectTimeout=20', '-rp'),
-      'taktuk_options': ('-s'),
-      }
-
-These default connexion parameters are the ones used when no other
-specific connexion parameters are given to `SshProcess`, `Remote`,
-`TaktukRemote`, `Get`, `TaktukGet`, `Put`, `TaktukPut`, or given to
-the `Host`. Actually, when connecting to a remote host, the connexion
-parameters are first taken from the `Host` instance to which the
-connexion is made, then from the ``connexion_params`` given to the
-`SshProcess` / `TaktukRemote` / `Remote` / `Get` / `TaktukGet` / `Put`
-/ `TaktukPut`, if there are some, then from the
-`default_connexion_params`.
-
-after import time, the configuration may be changed dynamically from
-code in the following ways:
-
-- the log level may be adjusted from code with `set_log_level`
-
-- `default_connexion_params` may be modified directly.
-
-Logging
--------
-
-execo uses the standard `logging` module for logging. By default, logs
-are sent to stderr, logging level is `logging.WARNING`, so no logs
-should be output when everything works correctly. Some logs will
-appear if some processes don't exit with a zero return code (unless
-they were created with flag ignore_non_zer_exit_code), or if some
-processes timeout (unless they were created with flag ignore_timeout),
-or if process instanciation resulted in a operating system error
-(unless they were created with flag ignore_error).
-
-`set_log_level` may be used to change execo log level.
-
-Exceptions at shutdown
-----------------------
-
-Sometimes, some exceptions are triggered during python shutdown, at
-the end of a script using execo. These exceptions are reported by
-python to be ``most likely raised during interpreter shutdown``. It
-seems (i think) to be related to a bug in shutdown code's handling of
-threads termination, and thus it should be ignored. See
-http://bugs.python.org/issue1856
-
-Detailed description
-====================
+r"""Handles launching of several operating system level processes in parallel and controlling them asynchronously. Handles remote executions and file copies with  ssh (or similar tools) and taktuk.
 """
 
 from __future__ import with_statement
@@ -249,6 +8,7 @@ import datetime, logging, os, select, time, thread, threading, subprocess
 import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty
 import termios, functools, inspect
 
+# start of configuration
 configuration = {
     'log_level': logging.WARNING,
     'kill_timeout': 5,
@@ -261,6 +21,7 @@ configuration = {
     'style_report_warn': ('magenta',),
     'style_report_error': ('red', 'bold'),
     }
+# end of configuration
 """Global execo configuration parameters.
 
 - ``log_level``: the log level (see module `logging`)
@@ -278,7 +39,8 @@ configuration = {
 
 """
 
-default_default_connexion_params = {
+# start of default_connexion_params
+default_connexion_params = {
     'user':        None,
     'keyfile':     None,
     'port':        None,
@@ -297,7 +59,8 @@ default_default_connexion_params = {
                     '-o', 'ConnectTimeout=20', '-rp'),
     'taktuk_options': ('-s', ),
     }
-"""Default connexion params for ``ssh``/``scp`` connexions.
+# end of default_connexion_params
+"""Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
 
 - ``user``: the user to connect with.
 
@@ -318,8 +81,8 @@ default_default_connexion_params = {
 - ``taktuk_options``: global options passed to taktuk.
 """
 
-default_connexion_params = default_default_connexion_params.copy()
-"""The global default connexion params.
+default_default_connexion_params = default_connexion_params.copy()
+"""An initial backup copy of `default_default_connexion_params`
 
 If needed, after modifying default_connexion_params, the ssh/scp
 defaults are still available in default_default_connexion_params.
@@ -384,6 +147,7 @@ read_user_configuration_dicts(((configuration, 'configuration'), (default_connex
 
 # logger is the execo logging object
 logger = logging.getLogger("execo")
+"""The execo logger."""
 logger_handler = logging.StreamHandler(sys.stderr)
 logger.addHandler(logger_handler)
 
