@@ -1,4 +1,4 @@
-.PHONY: all build install doc cleandoc sphinxdochtml cleansphinxdoc epydoc cleanepydoc check clean dist
+.PHONY: all build install doc cleandoc sphinxdochtml sphinxdoclatex cleansphinxdoc epydoc cleanepydoc check clean dist
 
 PREFIX=/usr/local
 
