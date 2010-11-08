@@ -33,8 +33,10 @@ prerequisites
 execo installation requires python (>= 2.5) and make (for debian 5.x,
 packages python, make)
 
-to build the documentation, sphinx is needed (for debian
-5.x, packages python-sphinx)
+to build the documentation, sphinx and graphviz are needed (for debian
+5.x, packages python-sphinx). Additionnaly, latex is needed for
+building latex documentation, and epydoc for building epydoc
+documentation.
 
 to connect to remote hosts, ssh, scp or similar connexion tools are
 needed. taktuk (http://taktuk.gforge.inria.fr/) is also needed if
@@ -52,7 +54,8 @@ main targets are:
 - install: to install. Pass option PREFIX=... for installing in a
   non-default location (default PREFIX is /usr/local).
 
-- doc: to build doc
+- doc: to build doc. This target is an alias for sphinxdochtml. Other
+  documentation targets are sphinxdoclatex and epydoc
 
 - check: to run unittests and doctests
 
