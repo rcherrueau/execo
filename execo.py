@@ -47,17 +47,18 @@ default_connexion_params = {
     'ssh':         'ssh',
     'scp':         'scp',
     'taktuk':      'taktuk',
-    'ssh_options': ('-o', 'BatchMode=yes',
-                    '-o', 'PasswordAuthentication=no',
-                    '-o', 'StrictHostKeyChecking=no',
-                    '-o', 'UserKnownHostsFile=/dev/null',
-                    '-o', 'ConnectTimeout=20'),
-    'scp_options': ('-o', 'BatchMode=yes',
-                    '-o', 'PasswordAuthentication=no',
-                    '-o', 'StrictHostKeyChecking=no',
-                    '-o', 'UserKnownHostsFile=/dev/null',
-                    '-o', 'ConnectTimeout=20', '-rp'),
-    'taktuk_options': ('-s', ),
+    'ssh_options': ( '-o', 'BatchMode=yes',
+                     '-o', 'PasswordAuthentication=no',
+                     '-o', 'StrictHostKeyChecking=no',
+                     '-o', 'UserKnownHostsFile=/dev/null',
+                     '-o', 'ConnectTimeout=20' ),
+    'scp_options': ( '-o', 'BatchMode=yes',
+                     '-o', 'PasswordAuthentication=no',
+                     '-o', 'StrictHostKeyChecking=no',
+                     '-o', 'UserKnownHostsFile=/dev/null',
+                     '-o', 'ConnectTimeout=20',
+                     '-rp' ),
+    'taktuk_options': ( '-s', ),
     }
 # _ENDOF_ default_connexion_params
 """Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
@@ -469,7 +470,8 @@ class ProcessBase(object):
 
     It is possible to register custom lifecycle and output handlers to
     the `Process`, in order to provide specific actions or
-    stdout/stderr parsing when needed.
+    stdout/stderr parsing when needed. See `ProcessLifecycleHandler`
+    and `ProcessOutputHandler`.
     """
 
     def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, default_stdout_handler = True, default_stderr_handler = True, process_lifecycle_handler = None):

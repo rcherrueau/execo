@@ -168,7 +168,7 @@ MultiAction
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
 
-In the command line given for a `Remote`, `TaktukRemote`, , as well as
+In the command line given for a `Remote`, `TaktukRemote`, as well as
 in pathes given to `Get` and `Put`, some patterns are automatically
 substituted:
 
@@ -205,6 +205,11 @@ between hosts1 and hosts2 could be:
 - ``e`` -> ``2``
 
 - ``f`` -> ``3``
+
+`remote_substitute` is the function used internally by execo to
+perform these substitutions:
+
+.. autofunction:: remote_substitute
 
 Miscellaneous classes
 =====================

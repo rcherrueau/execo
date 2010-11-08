@@ -32,9 +32,18 @@ default_oarsh_oarcp_params = {
     'ssh':         'oarsh',
     'scp':         'oarcp',
     'taktuk':      'taktuk',
-    'ssh_options': ('-o', 'BatchMode=yes', '-o', 'PasswordAuthentication=no', '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=20'),
-    'scp_options': ('-o', 'BatchMode=yes', '-o', 'PasswordAuthentication=no', '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=20', '-rp'),
-    'taktuk_options': ('-s', '-n'),
+    'ssh_options': ( '-o', 'BatchMode=yes',
+                     '-o', 'PasswordAuthentication=no',
+                     '-o', 'StrictHostKeyChecking=no',
+                     '-o', 'UserKnownHostsFile=/dev/null',
+                     '-o', 'ConnectTimeout=20' ),
+    'scp_options': ( '-o', 'BatchMode=yes',
+                     '-o', 'PasswordAuthentication=no',
+                     '-o', 'StrictHostKeyChecking=no',
+                     '-o', 'UserKnownHostsFile=/dev/null',
+                     '-o', 'ConnectTimeout=20',
+                     '-rp' ),
+    'taktuk_options': ( '-s', ),
 }
 # _ENDOF_ default_oarsh_oarcp_params
 """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
@@ -45,7 +54,7 @@ See `execo.default_connexion_params`
 default_frontend_connexion_params = default_connexion_params.copy()
 """Default connexion params when connecting to a Grid5000 frontend."""
 
-read_user_configuration_dicts(((g5k_configuration, 'g5k_configuration'), (default_frontend_connexion_params, 'default_frontend_connexion_params')))
+read_user_configuration_dicts(((g5k_configuration, 'g5k_configuration'), (default_frontend_connexion_params, 'default_frontend_connexion_params'), (default_oarsh_oarcp_params, 'default_oarsh_oarcp_params')))
 
 def _get_local_site():
     """Return the name of the local site."""

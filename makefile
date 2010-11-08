@@ -52,3 +52,4 @@ execo.conf.py.sample: execo.conf.py.sample.in execo.py execo_g5k.py
 	$(call extract,execo.py,configuration) >> $@
 	$(call extract,execo.py,default_connexion_params) >> $@
 	$(call extract,execo_g5k.py,g5k_configuration) >> $@
+	$(call extract,execo_g5k.py,default_oarsh_oarcp_params) >> $@
