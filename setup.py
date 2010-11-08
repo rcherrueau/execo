@@ -4,7 +4,7 @@ from distutils.core import setup
 import sys
 
 setup(name = 'execo',
-      version = '1.1',
+      version = '1.2',
       description = 'API for parallel local or remote processes execution',
       long_description = 'This module offers a high level API for parallel'
       'local or remote processes execution with the `Action` class hierarchy,'
