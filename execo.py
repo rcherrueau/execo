@@ -722,14 +722,14 @@ class Process(ProcessBase):
     >>> client.ended()
     False
     >>> client.wait()
-    Process(cmd='iperf -c localhost -t 2', timeout=None, stdout_handler=None, stderr_handler=None, close_stdin=True, shell=True, ignore_exit_code=False, ignore_timeout=False, pty=False)
+    Process(cmd='iperf -c localhost -t 2', timeout=None, stdout_handler=None, stderr_handler=None, ignore_exit_code=False, ignore_timeout=False, close_stdin=True, shell=True, pty=False)
     >>> client.ended()
     True
     >>> server.ended()
     False
     >>> server.kill()
     >>> server.wait()
-    Process(cmd='iperf -s', timeout=None, stdout_handler=None, stderr_handler=None, close_stdin=True, shell=True, ignore_exit_code=True, ignore_timeout=False, pty=False)
+    Process(cmd='iperf -s', timeout=None, stdout_handler=None, stderr_handler=None, ignore_exit_code=True, ignore_timeout=False, close_stdin=True, shell=True, pty=False)
     >>> server.ended()
     True
     """
