@@ -88,12 +88,9 @@ kadeploy
 --------
 .. autofunction:: kadeploy
 
-Experiment preparation
-======================
-
-prepare_deployed_xp
+deploy
 -------------------
-.. autofunction:: prepare_deployed_xp
+.. autofunction:: deploy
 
 Configuration
 =============

@@ -903,6 +903,9 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
 
       - deploy the undeployed nodes
 
+    returns a tuple with the list of deployed hosts and the list of
+    undeployed hosts.
+
     :param hosts: iterable of `Host`.
 
     :param environment_name: name of an environment registered to
@@ -955,6 +958,7 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
                                       connexion_params = connexion_params,
                                       ignore_exit_code = True,
                                       ignore_timeout = True,
+                                      ignore_error = True,
                                       timeout = check_timeout)
         deployed_check.run()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
@@ -986,4 +990,4 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
         if num_deploy_retries == 0:
             break
 
-    return (deployed_hosts, undeployed_hosts, all_hosts)
+    return (deployed_hosts, undeployed_hosts)
