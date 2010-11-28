@@ -884,40 +884,24 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
         raise Exception, "error deploying nodes: %s" % (kadeployer,)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts = None, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
+def deploy(hosts, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
 
-    """Sleep until beginning of given oar/oargrid job(s), retrieve
-       their nodes, check which of these nodes are already deployed
-       (with a user-supplied command), deploy (many times if needed,
-       with a user supplied max number of tries) those which are not.
-
-    - Given a list of oar/oargrid job ids, will wait until all these
-      jobs have started, then retrieves the list of Hosts of all these
-      jobs.
-
-    - also takes explicit nodes list
+    """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
     - loop `num_deploy_retries` times:
 
-      - try to connect to these hosts using the supplied
-        `connexion_params` (or the default ones), and to execute the
-        given `check_deployed_command`. If connexion succeeds and the
-        command returns 0, the host is assumed to be deployed, else it
-        is assumed to be undeployed.
+      - if `check_deploy_command` given, try to connect to these hosts
+        using the supplied `connexion_params` (or the default ones),
+        and to execute `check_deployed_command`. If connexion succeeds
+        and the command returns 0, the host is assumed to be deployed,
+        else it is assumed to be undeployed.
 
       - optionnaly call user-supplied ``check_enough_func``, passing
-        to it the list of deployed and undeployed hosts (according to
-        the ``check_deployed_command``), to let user code decide if
-        enough nodes deployed. Otherwise, try as long as there are
-        undeployed (according to the ``check_deployed_command``)
-        nodes.
+        to it the list of deployed and undeployed hosts, to let user
+        code decide if enough nodes deployed. Otherwise, try as long
+        as there are undeployed nodes.
 
       - deploy the undeployed nodes
-
-    :param oar_job_id_tuples: iterable of tuple (oar job id, g5k
-      site). Put None as g5k site for local site.
-
-    :param oargrid_job_ids: iterable of oargrid job id.
 
     :param hosts: iterable of `Host`.
 
@@ -939,7 +923,8 @@ def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts 
       value ``! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u
       oar -o args | grep sshd)`` checks that there is no ssh daemon
       running under user oar, and that the root is not on the second
-      partition of the disk.
+      partition of the disk. If check_deployed_command == None,
+      deployed/undeployed status will be taken from kadeploy's output.
 
     :param num_deploy_retries: number of deploy retries
 
@@ -949,8 +934,8 @@ def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts 
       a boolean indicating if there is already enough nodes (in this
       case, no further deployement will be attempted).
 
-    :param timeout: timeout for g5k operations, except
-      deployment. Default is False, which means use
+    :param timeout: timeout for g5k operations, except deployment.
+      Default is False, which means use
       `g5k_configuration['default_timeout']`. None means no timeout.
 
     :param deploy_timeout: timeout for deployement. Default is None,
@@ -963,30 +948,14 @@ def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts 
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
 
-    # get hosts list
-    all_hosts = set()
-    if hosts:
-        all_hosts.update(hosts)
-    if oar_job_id_tuples != None:
-        for (job_id, site) in oar_job_id_tuples:
-            wait_oar_job_start(job_id, site, timeout = timeout)
-            all_hosts.update(get_oar_job_nodes(job_id, site, timeout = timeout))
-    if oargrid_job_ids != None:
-        for job_id in oargrid_job_ids:
-            wait_oargrid_job_start(job_id, timeout = timeout)
-            all_hosts.update(get_oargrid_job_nodes(job_id, timeout = timeout))
-    logger.info(style("hosts:", 'emph') + " %s" % (all_hosts,))
-
-    # check deployed/undeployed hosts, and deploy those needed
-
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
         # check which hosts are deployed
-        deployed_check = Remote(undeployed_hosts,
-                                check_deployed_command,
-                                connexion_params = connexion_params,
-                                ignore_exit_code = True,
-                                ignore_timeout = True,
-                                timeout = check_timeout)
+        deployed_check = TaktukRemote(undeployed_hosts,
+                                      check_deployed_command,
+                                      connexion_params = connexion_params,
+                                      ignore_exit_code = True,
+                                      ignore_timeout = True,
+                                      timeout = check_timeout)
         deployed_check.run()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
             if (process.exit_code() == 0
@@ -998,8 +967,9 @@ def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts 
         logger.info(style("undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
         
     deployed_hosts = set()
-    undeployed_hosts = set(all_hosts)
-    check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
+    undeployed_hosts = set(hosts)
+    if check_deployed_command != None:
+        check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
     while ((check_enough_func == None and len(undeployed_hosts) != 0)
            or not check_enough_func(deployed_hosts, undeployed_hosts)):
         # deploy undeployed hosts
@@ -1007,9 +977,13 @@ def prepare_deployed_xp(oar_job_id_tuples = None, oargrid_job_ids = None, hosts 
                                                        environment_name = environment_name,
                                                        environment_file = environment_file,
                                                        timeout = deploy_timeout)
+        if check_deployed_command != None:
+            check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
+        else:
+            deployed_hosts.update(newly_deployed_hosts)
+            undeployed_hosts.difference_update(newly_deployed_hosts)
         num_deploy_retries -= 1
         if num_deploy_retries == 0:
             break
-        check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
 
     return (deployed_hosts, undeployed_hosts, all_hosts)
