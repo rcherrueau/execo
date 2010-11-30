@@ -146,12 +146,6 @@ def read_user_configuration_dicts(dicts_confs):
 # update configuration and default_connexion_params dicts from config file
 read_user_configuration_dicts(((configuration, 'configuration'), (default_connexion_params, 'default_connexion_params')))
 
-# logger is the execo logging object
-logger = logging.getLogger("execo")
-"""The execo logger."""
-logger_handler = logging.StreamHandler(sys.stderr)
-logger.addHandler(logger_handler)
-
 def style(string, style):
     """Enclose a string with ansi color escape codes if `configuration['color_mode']` is True.
 
@@ -171,29 +165,19 @@ def style(string, style):
     else:
         return string
 
-def set_log_level(level, formatter = None):
-    """Set execo log level.
-
-    :param level: the level (see module `logging`)
-
-    :param formatter: an optional custom formatter
-
-    By default, the formatter is changed based on the log level. In
-    level `logging.DEBUG`, a more detailed formatter is used.
-    """
-    if formatter != None:
-        logger_handler.setFormatter(formatter)
-    else:
-        if level < 20:
-            logger_handler.setFormatter(logging.Formatter(style("%(asctime)s | ", 'log_header') + style("%(levelname)-5.5s ", 'log_level') + style("| %(threadName)-10.10s |", 'log_header') + " %(message)s"))
-        else:
-            logger_handler.setFormatter(logging.Formatter(style("%(asctime)s", 'log_header') + style(" %(levelname)s", 'log_level') + " %(message)s"))
-    logger.setLevel(level)
-
+# logger is the execo logging object
+logger = logging.getLogger("execo")
+"""The execo logger."""
+logger_handler = logging.StreamHandler(sys.stderr)
+logger_handler.setFormatter(logging.Formatter(style("%(asctime)s", 'log_header') + style(" %(levelname)s", 'log_level') + " %(message)s"))
+logger.addHandler(logger_handler)
 if configuration.has_key('log_level'):
-    set_log_level(configuration['log_level'])
+    logger.setLevel(configuration['log_level'])
 else:
-    set_log_level(logging.WARNING)
+    logger.setLevel(logging.WARNING)
+
+def _set_internal_debug_formatter():
+    logger_handler.setFormatter(logging.Formatter(style("%(asctime)s | ", 'log_header') + style("%(levelname)-5.5s ", 'log_level') + style("| %(threadName)-10.10s |", 'log_header') + " %(message)s"))
 
 def _get_milliseconds_suffix(secs):
     """Return a formatted millisecond suffix, either empty if ms = 0, or dot with 3 digits otherwise.
