@@ -951,6 +951,9 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
 
+    if check_enough_func == None:
+        check_enough_func = lambda deployed, undeployed: len(undeployed) == 0
+
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
         # check which hosts are deployed
         deployed_check = TaktukRemote(undeployed_hosts,
@@ -974,8 +977,7 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
     undeployed_hosts = set(hosts)
     if check_deployed_command != None:
         check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
-    while ((check_enough_func == None and len(undeployed_hosts) != 0)
-           or not check_enough_func(deployed_hosts, undeployed_hosts)):
+    while not check_enough_func(deployed_hosts, undeployed_hosts):
         # deploy undeployed hosts
         (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts,
                                                        environment_name = environment_name,
