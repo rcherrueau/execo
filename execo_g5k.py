@@ -960,7 +960,7 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
         check_enough_func = lambda deployed, undeployed: len(undeployed) == 0
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
-        # check which hosts are deployed
+        logger.info(style("check which hosts are already deployed among:", 'emph') + " %s" % (undeployed_hosts,))
         deployed_check = TaktukRemote(undeployed_hosts,
                                       check_deployed_command,
                                       connexion_params = connexion_params,
@@ -969,21 +969,31 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
                                       ignore_error = True,
                                       timeout = check_timeout)
         deployed_check.run()
+        newly_deployed = list()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
+            logger.info(style("check on %s:" % (host,), 'emph')
+                        + " %s\n" % (process,)
+                        + style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
+                        + style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
             if (process.exit_code() == 0
                 and process.error() == False
                 and process.timeouted() == False):
                 undeployed_hosts.remove(host)
                 deployed_hosts.add(host)
-        logger.info(style("deployed hosts:", 'emph') + " %s" % (deployed_hosts,))
-        logger.info(style("undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
+                newly_deployed.append(host)
+        logger.info(style("newly deployed hosts:", 'emph') + " %s" % (newly_deployed,))
+        logger.info(style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
         
     deployed_hosts = set()
     undeployed_hosts = set(hosts)
     if check_deployed_command != None:
         check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
+    num_tries = 0
     while not check_enough_func(deployed_hosts, undeployed_hosts):
-        # deploy undeployed hosts
+        num_tries += 1
+        if num_tries > num_deploy_retries:
+            break
+        logger.info(style("try %i deploying on:" % (num_tries,), 'emph') + " %s" % (undeployed_hosts,))
         (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts,
                                                        environment_name = environment_name,
                                                        environment_file = environment_file,
@@ -993,8 +1003,10 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
         else:
             deployed_hosts.update(newly_deployed_hosts)
             undeployed_hosts.difference_update(newly_deployed_hosts)
-        num_deploy_retries -= 1
-        if num_deploy_retries == 0:
-            break
+            logger.info(style("newly deployed hosts:", 'emph') + " %s" % (newly_deployed_hosts,))
+            logger.info(style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
 
+    logger.info(style("deploy finished", 'emph'))
+    logger.info(style("deployed hosts:", 'emph') + " %s" % (deployed_hosts,))
+    logger.info(style("undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
     return (deployed_hosts, undeployed_hosts)
