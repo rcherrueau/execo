@@ -881,7 +881,12 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
     """
     kadeployer = Kadeployer(hosts = hosts, environment_name = environment_name, environment_file = environment_file, timeout = timeout).run()
     if kadeployer.error():
-        raise Exception, "error deploying nodes: %s" % (kadeployer,)
+        logoutput = style("deployment failed:", 'emph') + " %s\n" % (kadeployer,) + style("kadeploy processes:\n", 'emph')
+        for p in kadeployer.processes():
+            logoutput += "%s\n" % (p,)
+            logoutput += style("stdout:", 'emph') + "\n%s\n" % (p.stdout())
+            logoutput += style("stderr:", 'emph') + "\n%s\n" % (p.stderr())
+        logger.error(logoutput)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
 def deploy(hosts, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
