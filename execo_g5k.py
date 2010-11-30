@@ -971,16 +971,19 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
         deployed_check.run()
         newly_deployed = list()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
-            logger.info(style("check on %s:" % (host,), 'emph')
-                        + " %s\n" % (process,)
-                        + style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
-                        + style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
+            logger.debug(style("check on %s:" % (host,), 'emph')
+                         + " %s\n" % (process,)
+                         + style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
+                         + style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
             if (process.exit_code() == 0
                 and process.error() == False
                 and process.timeouted() == False):
                 undeployed_hosts.remove(host)
                 deployed_hosts.add(host)
                 newly_deployed.append(host)
+                logger.info("OK %s" % host)
+            else:
+                logger.info("KO %s" % host)
         logger.info(style("newly deployed hosts:", 'emph') + " %s" % (newly_deployed,))
         logger.info(style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
         

@@ -679,7 +679,7 @@ class ProcessBase(object):
             and (not self._error or self._ignore_error)
             and (not self._timeouted or self._ignore_timeout)
             and (self._exit_code == 0 or self._ignore_exit_code)):
-            logger.info(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (self._stdout,) + style("stderr:", 'emph') + "\n%s" % (self._stderr,))
+            logger.debug(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (self._stdout,) + style("stderr:", 'emph') + "\n%s" % (self._stderr,))
         else:
             logger.warning(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (self._stdout,) + style("stderr:", 'emph') + "\n%s" % (self._stderr,))
 
@@ -1106,7 +1106,7 @@ class _Conductor(object):
     def __handle_add_process(self, process):
         # intended to be called from conductor thread
         # register a process to conductor
-        logger.debug("add %s to %s" % (process, self))
+        #logger.debug("add %s to %s" % (process, self))
         if process not in self.__processes:
             if not process.ended():
                 fileno_stdout = process.stdout_fd()
@@ -1141,7 +1141,7 @@ class _Conductor(object):
         # Currently: only update the timeout. This is related to the
         # way the system for forcing SIGKILL on processes not killing
         # cleanly is implemented.
-        logger.debug("update timeouts of %s in %s" % (process, self))
+        #logger.debug("update timeouts of %s in %s" % (process, self))
         if process not in self.__processes:
             return # this will frequently occur if the process kills
                    # quickly because the process will already be
@@ -1153,7 +1153,7 @@ class _Conductor(object):
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
         # unregister a Process from conductor
-        logger.debug("removing %s from %s" % (process, self))
+        #logger.debug("removing %s from %s" % (process, self))
         if process not in self.__processes:
             raise ValueError, "trying to remove a process which was not yet added to conductor"
         self.__timeline = [ x for x in self.__timeline if x[1] != process ]
@@ -1253,11 +1253,11 @@ class _Conductor(object):
                                               # first of our
                                               # registered processes
                                               # reaches its timeout
-            logger.debug("polling %i descriptors (+ rpipe) with timeout %s" % (len(self.__fds), "%.3fs" % delay if delay != None else "None"))
+            #logger.debug("polling %i descriptors (+ rpipe) with timeout %s" % (len(self.__fds), "%.3fs" % delay if delay != None else "None"))
             if delay == None or delay > 0: # don't even poll if poll timeout is <= 0
                 if delay != None: delay *= 1000 # poll needs delay in millisecond
                 descriptors_events = self.__poller.poll(delay)
-            logger.debug("len(descriptors_events) = %i" % len(descriptors_events))
+            #logger.debug("len(descriptors_events) = %i" % len(descriptors_events))
             event_on_rpipe = None # we want to handle any event on
                                   # rpipe after all other file
                                   # descriptors, hence this flag
@@ -1269,7 +1269,7 @@ class _Conductor(object):
                 else:
                     if self.__fds.has_key(fd):
                         process, stream_handler_func = self.__fds[fd]
-                        logger.debug("event %s on fd %s, process %s" % (_event_desc(event), fd, process))
+                        #logger.debug("event %s on fd %s, process %s" % (_event_desc(event), fd, process))
                         if event & select.POLLIN:
                             (string, eof) = _read_asmuch(fd)
                             stream_handler_func(string, eof = eof)
@@ -1283,7 +1283,7 @@ class _Conductor(object):
                             self.__remove_handle(fd)
             self.__check_timeouts()
             if event_on_rpipe != None:
-                logger.debug("event %s on inter-thread pipe" % _event_desc(event_on_rpipe))
+                #logger.debug("event %s on inter-thread pipe" % _event_desc(event_on_rpipe))
                 if event_on_rpipe & select.POLLIN:
                     (string, eof) = _read_asmuch(self.__rpipe)
                     if eof:
@@ -1999,28 +1999,28 @@ class Action(object):
         if self._started:
             raise ValueError, "Actions may be started only once"
         self._started = True
-        logger.info(style("start:", 'emph') + " %s" % (self,))
+        logger.debug(style("start:", 'emph') + " %s" % (self,))
         return self
 
     def stop(self):
         """Stop all subprocesses.
 
         return self"""
-        logger.info(style("stop:", 'emph') + " %s" % (self,))
+        logger.debug(style("stop:", 'emph') + " %s" % (self,))
         return self
     
     def wait(self):
         """Wait for all subprocesses to complete.
 
         return self"""
-        logger.info(style("wait:", 'emph') + " %s" % (self,))
+        logger.debug(style("wait:", 'emph') + " %s" % (self,))
         return self
 
     def run(self):
         """Start all subprocesses then wait for them to complete.
 
         return self"""
-        logger.info(style("run:", 'emph') + " %s" % (self,))
+        logger.debug(style("run:", 'emph') + " %s" % (self,))
         self.start()
         self.wait()
         return self
