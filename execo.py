@@ -692,7 +692,7 @@ class ProcessBase(object):
         """
         if (self._started
             and self._ended
-            and (not self._error)
+            and (not self._error or self._ignore_error)
             and (not self._timeouted or self._ignore_timeout)
             and (self._exit_code == 0 or self._ignore_exit_code)):
             logger.info(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (self._stdout,) + style("stderr:", 'emph') + "\n%s" % (self._stderr,))
@@ -1718,6 +1718,8 @@ class TaktukProcess(ProcessBase):
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
         """
+        if not self._started:
+            self.start()
         logger.debug("set terminated %s" % self)
         if error != None:
             self._error = error
