@@ -3,21 +3,27 @@
 r"""Tools and extensions to execo suitable for use in Grid5000."""
 
 from execo import *
-import operator
+import operator, copy
 
 # _STARTOF_ g5k_configuration
 g5k_configuration = {
-    'default_environment_name': None,
-    'default_environment_file': None,
+    'kadeploy3': 'kadeploy3',
+    'kadeploy3_options': '-d',
+    'default_env_name': None,
+    'default_env_file': None,
     'default_timeout': 900,
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
 
-- ``default_environment_name``: a default environment name to use for
+- ``kadeploy3``: kadeploy3 command.
+
+- ``kadeploy3_options``: common kadeploy3 command line options.
+
+- ``default_env_name``: a default environment name to use for
   deployments (as registered to kadeploy3).
 
-- ``default_environment_file``: a default environment file to use for
+- ``default_env_file``: a default environment file to use for
   deployments (for kadeploy3).
 
 - ``default_timeout``: default timeout for all calls to g5k services
@@ -44,7 +50,7 @@ default_oarsh_oarcp_params = {
                      '-o', 'ConnectTimeout=20',
                      '-rp' ),
     'taktuk_options': ( '-s', ),
-}
+    }
 # _ENDOF_ default_oarsh_oarcp_params
 """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
 
@@ -63,6 +69,73 @@ def _get_local_site():
     except:
         raise EnvironmentError, "unable to get local site name"
     return local_site
+
+class Deployment(object):
+    """A kadeploy3 deployment.
+
+    POD style class.
+
+    members are:
+
+    - hosts: iterable of hosts on which to deploy.
+
+    - env_file:
+
+    - env_name:
+
+    - user:
+
+    - other_options:
+
+    there must be either one of env_name or env_file parameter
+    given. If none given, will try to use the default environement
+    from `g5k_configuration`.
+    """
+
+    def __init__(self,
+                 hosts = None,
+                 env_file = None,
+                 env_name = None,
+                 user = None,
+                 other_options = None):
+        self.hosts = hosts
+        self.env_file = env_file
+        self.env_name = env_name
+        self.user = user
+        self.other_options = other_options
+
+    def _get_common_kadeploy_command_line(self):
+        cmd_line = g5k_configuration['kadeploy3']
+        cmd_line += " " + g5k_configuration['kadeploy3_options']
+        if self.env_file and self.env_name:
+            raise ValueError, "Deployment cannot have both env_file and env_name"
+        if (not self.env_file) and (not self.env_name):
+            if g5k_configuration.has_key('default_environment_name') and g5k_configuration.has_key('default_environment_file'):
+                raise Exception, "g5k_configuration cannot have both default_environment_name and default_environment_file"
+            if (not g5k_configuration.has_key('default_environment_name')) and (not g5k_configuration.has_key('default_environment_file')):
+                raise Exception, "no environment name or file found"
+            if g5k_configuration.has_key('default_environment_name'):
+                cmd_line += " -e %s" % (g5k_configuration['default_environment_name'],)
+            elif g5k_configuration.has_key('default_environment_file'):
+                cmd_line += " -a %s" % (g5k_configuration['default_environment_file'],)
+        elif self.env_name:
+            cmd_line += " -e %s" % (self.env_name,)
+        elif self.env_file:
+            cmd_line += " -a %s" % (self.env_file,)
+        if self.user != None:
+            cmd_line += " -u %s" % (self.user,)
+        if self.other_options:
+            cmd_line += " %s" % (self.other_options,)
+        return cmd_line
+
+    def __repr__(self):
+        s = "Deployment(hosts=%r" % (self.hosts,)
+        if self.env_file != None: s += ", env_file=%r" % (self.env_file,)
+        if self.env_name != None: s += ", env_name=%r" % (self.env_name,)
+        if self.user != None: s += ", user=%r" % (self.user,)
+        if self.other_options: s += ", other_options=%r" % (self.other_options,)
+        s += ")"
+        return s
 
 class _KadeployOutputHandler(ProcessOutputHandler):
 
@@ -107,42 +180,27 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple Grid5000 sites.
     """
 
-    def __init__(self, hosts = None, environment_name = None, environment_file = None, connexion_params = None, **kwargs):
+    def __init__(self, deployment, connexion_params = None, **kwargs):
         """
-        :param hosts: an iterable of `Host` to deploy
-
-        :param environment_name: name of the environment as registered
-          to kadeploy3
-
-        :param environment_file: path of an environment description
-          for kadeploy3
+        :param deployment: instance of Deployment class describing the
+          intended kadeployment.
 
         :param connexion_params: a dict similar to
           `default_frontend_connexion_params` whose values will
           override those in `default_frontend_connexion_params` for
           connexion.
-
-        there must be either one of environment_name or
-        environment_file parameter given. If none given, will try to
-        use the default environement from `g5k_configuration`.
         """
-        if (environment_name == None and environment_file == None):
-            environment_name = g5k_configuration['default_environment_name']
-            environment_file = g5k_configuration['default_environment_file']
-        if (environment_name != None and environment_file != None):
-            raise ValueError, "must provide either an environment_name or an environment_file"
         if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, environment_name or environment_file, hosts)
+            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, deployment.env_name or deployment.env_file, deployment.hosts)
         super(Remote, self).__init__(**kwargs)
         self._connexion_params = connexion_params
-        self._fhosts = get_frozen_hosts_set(hosts)
+        self._deployment = deployment
+        self._fhosts = get_frozen_hosts_set(deployment.hosts)
         self._good_hosts = set()
         self._bad_hosts = set()
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
         searchre3 = re.compile("^[^ \t\n\r\f\v\.]+$")
-        self._environment_name = environment_name
-        self._environment_file = environment_file
         sites = dict()
         for host in self._fhosts:
             site = None
@@ -164,13 +222,10 @@ class Kadeployer(Remote):
             else:
                 sites[site] = [host]
         self._processes = dict()
-        if connexion_params == None: connexion_params = default_frontend_connexion_params
+        if connexion_params == None:
+            connexion_params = default_frontend_connexion_params
         for site in sites.keys():
-            kadeploy_command = "kadeploy3 -d"
-            if self._environment_name != None:
-                kadeploy_command += " -e %s" % self._environment_name
-            elif self._environment_file != None:
-                kadeploy_command += " -a %s" % self._environment_file
+            kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
             if site == _get_local_site():
@@ -179,17 +234,23 @@ class Kadeployer(Remote):
                 self._processes[site] = SshProcess(Host(site), kadeploy_command, connexion_params = connexion_params, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code)
 
     def __repr__(self):
-        r = style("Kadeployer", 'object_repr') + "(name=%r, timeout=%r" % (self._name, self._timeout)
-        if self._environment_name: r += ", environment_name=%r" % (self._environment_name,)
-        if self._environment_file: r += ", environment_file=%r" % (self._environment_file,)
-        r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r)" % (self._connexion_params, self._ignore_exit_code, self._ignore_timeout)
+        r = style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
+                                                                                          self._deployment,
+                                                                                          self._timeout)
+        r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r)" % (self._connexion_params,
+                                                                                 self._ignore_exit_code,
+                                                                                 self._ignore_timeout)
         return r
 
     def __str__(self):
-        r = "<" + style("Kadeployer", 'object_repr') + "(name=%r, timeout=%r" % (self._name, self._timeout)
-        if self._environment_name: r += ", environment_name=%r" % (self._environment_name,)
-        if self._environment_file: r += ", environment_file=%r" % (self._environment_file,)
-        r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r, cmds=%r, deployed_hosts=%r error_hosts=%r)>" % (self._connexion_params, self._ignore_exit_code, self._ignore_timeout, [ process.cmd() for process in self._processes.values()], self._good_hosts, self._bad_hosts)
+        r = "<" + style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
+                                                                                                self._deployment,
+                                                                                                self._timeout)
+        r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r" % (self._connexion_params,
+                                                                                self._ignore_exit_code,
+                                                                                self._ignore_timeout)
+        r += ", cmds=%r, deployed_hosts=%r error_hosts=%r)>" % ([ process.cmd() for process in self._processes.values()],
+                                                                self._good_hosts, self._bad_hosts)
         return r
 
     def _add_good_host_address(self, host_address):
@@ -199,10 +260,6 @@ class Kadeployer(Remote):
     def _add_bad_host_address(self, host_address):
         """Add a host to the hosts not deployed list. Intended to be called from the `ProcessOutputHandler`."""
         self._bad_hosts.add(FrozenHost(host_address))
-
-    def get_deploy_hosts(self):
-        """Return an iterable of `FrozenHost` containing the hosts that have to be deployed."""
-        return list(self._fhosts)
 
     def get_deployed_hosts(self):
         """Return an iterable of `FrozenHost` containing the deployed hosts.
@@ -862,16 +919,11 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
         return hosts
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
 
-def kadeploy(hosts = None, environment_name = None, environment_file = None, timeout = None):
+def kadeploy(deployment, connexion_params = None, timeout = None):
     """Deploy hosts with kadeploy3.
 
-    :param hosts: iterable of `Host` to deploy.
-
-    :param environment_name: name of an environment registered to
-      kadeploy3
-    
-    :param environment_file: name of an environment file for
-      kadeploy3.
+    :param deployment: instance of Deployment class describing the
+      intended kadeployment.
 
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
@@ -879,7 +931,8 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
     Returns a tuple (iterable of `FrozenHost` containing the deployed
     host, iterable of `FrozenHost` containing the nodes not deployed).
     """
-    kadeployer = Kadeployer(hosts = hosts, environment_name = environment_name, environment_file = environment_file, timeout = timeout).run()
+    kadeployer = Kadeployer(deployment,
+                            timeout = timeout).run()
     if kadeployer.error():
         logoutput = style("deployment failed:", 'emph') + " %s\n" % (kadeployer,) + style("kadeploy processes:\n", 'emph')
         for p in kadeployer.processes():
@@ -889,7 +942,10 @@ def kadeploy(hosts = None, environment_name = None, environment_file = None, tim
         logger.error(logoutput)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def deploy(hosts, environment_name = None, environment_file = None, connexion_params = None, check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)", num_deploy_retries = 2, check_enough_func = None, timeout = False, deploy_timeout = None, check_timeout = 30):
+def deploy(deployment, connexion_params = None,
+           check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)",
+           num_deploy_retries = 2, check_enough_func = None,
+           timeout = False, deploy_timeout = None, check_timeout = 30):
 
     """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
@@ -911,13 +967,8 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
     returns a tuple with the list of deployed hosts and the list of
     undeployed hosts.
 
-    :param hosts: iterable of `Host`.
-
-    :param environment_name: name of an environment registered to
-      kadeploy3.
-
-    :param environment_file: name of an environment file for
-      kadeploy3.
+    :param deployment: instance of Deployment class describing the
+      intended kadeployment.
 
     :param connexion_params: a dict similar to
       `execo.default_connexion_params` whose values will override
@@ -988,7 +1039,7 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
         logger.info(style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
         
     deployed_hosts = set()
-    undeployed_hosts = set(hosts)
+    undeployed_hosts = set(deployment.hosts)
     if check_deployed_command != None:
         check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
     num_tries = 0
@@ -997,9 +1048,9 @@ def deploy(hosts, environment_name = None, environment_file = None, connexion_pa
         if num_tries > num_deploy_retries:
             break
         logger.info(style("try %i deploying on:" % (num_tries,), 'emph') + " %s" % (undeployed_hosts,))
-        (newly_deployed_hosts, error_hosts) = kadeploy(undeployed_hosts,
-                                                       environment_name = environment_name,
-                                                       environment_file = environment_file,
+        tmp_deployment = copy.copy(deployment)
+        tmp_deployment.hosts = undeployed_hosts
+        (newly_deployed_hosts, error_hosts) = kadeploy(tmp_deployment,
                                                        timeout = deploy_timeout)
         if check_deployed_command != None:
             check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)

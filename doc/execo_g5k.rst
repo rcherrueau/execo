@@ -77,6 +77,11 @@ get_oargrid_job_nodes
 kadeploy3
 =========
 
+Deployment
+----------
+.. autoclass:: Deployment
+   :members:
+
 Kadeployer
 ----------
 .. inheritance-diagram:: Kadeployer
