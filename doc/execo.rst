@@ -264,10 +264,6 @@ logger
 
   The execo logger.
 
-set_log_level
--------------
-.. autofunction:: set_log_level
-
 Configuration
 =============
 
