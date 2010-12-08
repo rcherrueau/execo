@@ -1050,7 +1050,7 @@ def deploy(deployment, connexion_params = None,
         logger.info(style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
         
     deployed_hosts = set()
-    undeployed_hosts = set(deployment.hosts)
+    undeployed_hosts = get_frozen_hosts_set(deployment.hosts)
     if check_deployed_command:
         check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
     num_tries = 0
