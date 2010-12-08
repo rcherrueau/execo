@@ -12,6 +12,7 @@ g5k_configuration = {
     'default_env_name': None,
     'default_env_file': None,
     'default_timeout': 900,
+    'check_deployed_command': "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)",
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
@@ -28,6 +29,13 @@ g5k_configuration = {
 
 - ``default_timeout``: default timeout for all calls to g5k services
   (except deployments).
+
+- ``check_deployed_command``: default shell command used by `deploy`
+  to check that the nodes are correctly deployed. This command should
+  return 0 if the node is correctly deployed, or another value
+  otherwise. This default value checks that there is no ssh daemon
+  running under user oar, and that the root is not on the second
+  partition of the disk.
 """
 
 # _STARTOF_ default_oarsh_oarcp_params
@@ -943,7 +951,7 @@ def kadeploy(deployment, connexion_params = None, timeout = None):
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
 def deploy(deployment, connexion_params = None,
-           check_deployed_command = "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)",
+           check_deployed_command = True,
            num_deploy_retries = 2, check_enough_func = None,
            timeout = False, deploy_timeout = None, check_timeout = 30):
 
@@ -977,13 +985,13 @@ def deploy(deployment, connexion_params = None,
       below).
 
     :param check_deployed_command: command to perform remotely to
-      check node deployement. This command should return 0 if the node
-      is correctly deployed, or another value otherwise. The default
-      value ``! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u
-      oar -o args | grep sshd)`` checks that there is no ssh daemon
-      running under user oar, and that the root is not on the second
-      partition of the disk. If check_deployed_command == None,
-      deployed/undeployed status will be taken from kadeploy's output.
+      check node deployement. May be a String, True, False or None. If
+      String: the actual command to be used (This command should
+      return 0 if the node is correctly deployed, or another value
+      otherwise). If True, the default command value will be used
+      (from `g5k_configuration`). If None or False, no check is made
+      and deployed/undeployed status will be taken from kadeploy's
+      output.
 
     :param num_deploy_retries: number of deploy retries
 
@@ -1009,6 +1017,9 @@ def deploy(deployment, connexion_params = None,
 
     if check_enough_func == None:
         check_enough_func = lambda deployed, undeployed: len(undeployed) == 0
+
+    if check_deployed_command == True:
+        check_deployed_command = g5k_configuration['check_deployed_command']
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
         logger.info(style("check which hosts are already deployed among:", 'emph') + " %s" % (undeployed_hosts,))
@@ -1040,7 +1051,7 @@ def deploy(deployment, connexion_params = None,
         
     deployed_hosts = set()
     undeployed_hosts = set(deployment.hosts)
-    if check_deployed_command != None:
+    if check_deployed_command:
         check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
     num_tries = 0
     while not check_enough_func(deployed_hosts, undeployed_hosts):
@@ -1052,7 +1063,7 @@ def deploy(deployment, connexion_params = None,
         tmp_deployment.hosts = undeployed_hosts
         (newly_deployed_hosts, error_hosts) = kadeploy(tmp_deployment,
                                                        timeout = deploy_timeout)
-        if check_deployed_command != None:
+        if check_deployed_command:
             check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
         else:
             deployed_hosts.update(newly_deployed_hosts)
