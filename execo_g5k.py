@@ -1058,7 +1058,7 @@ def deploy(deployment, connexion_params = None,
         num_tries += 1
         if num_tries > num_deploy_retries:
             break
-        logger.info(style("try %i deploying on:" % (num_tries,), 'emph') + " %s" % (undeployed_hosts,))
+        logger.info(style("try %i, deploying on:" % (num_tries,), 'emph') + " %s" % (undeployed_hosts,))
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         (newly_deployed_hosts, error_hosts) = kadeploy(tmp_deployment,
