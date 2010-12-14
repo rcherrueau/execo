@@ -158,10 +158,10 @@ Local
    :members:
    :show-inheritance:
 
-MultiAction
------------
-.. inheritance-diagram:: MultiAction
-.. autoclass:: MultiAction
+ParallelActions
+---------------
+.. inheritance-diagram:: ParallelActions
+.. autoclass:: ParallelActions
    :members:
    :show-inheritance:
 
