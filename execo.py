@@ -2095,64 +2095,6 @@ class Action(object):
         """See `Report.reports`."""
         return ()
 
-class ParallelActions(Action):
-
-    """An `Action` running several sub-`Action`s in parallel.
-
-    Will start, stop, wait, run every `Action` in parallel.
-    """
-
-    def __init__(self, actions = None, **kwargs):
-        if kwargs.has_key('timeout'):
-            raise AttributeError, "ParallelActions doesn't support timeouts. The timeouts are those of each contained Actions"
-        if kwargs.has_key('ignore_exit_code'):
-            raise AttributeError, "ParallelActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
-        if kwargs.has_key('ignore_timeout'):
-            raise AttributeError, "ParallelActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s" % (self.__class__.__name__,)
-        super(ParallelActions, self).__init__(**kwargs)
-        self._actions = actions
-
-    def __repr__(self):
-        return style("ParallelActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
-
-    def actions(self):
-        """Return an iterable of `Action` that this `ParallelActions` gathers."""
-        return self._actions
-
-    def start(self):
-        retval = super(ParallelActions, self).start()
-        for action in self._actions:
-            action.start()
-        return retval
-
-    def stop(self):
-        retval = super(ParallelActions, self).stop()
-        for action in self._actions:
-            action.stop()
-        return retval
-
-    def wait(self):
-        retval = super(ParallelActions, self).wait()
-        for action in self._actions:
-            action.wait()
-        return retval
-
-    def processes(self):
-        p = []
-        for action in self._actions:
-            p.extend(action.processes())
-        return p
-
-    def reports(self):
-        reports = list(self.actions())
-        _sort_reports(reports)
-        return reports
-
-    def stats(self):
-        return Report(self.actions()).stats()
-
 def remote_substitute(string, all_hosts, index, frame_context):
     """Perform some tag substitutions in a specific context.
 
@@ -2919,3 +2861,62 @@ if __name__ == "__main__":
     import doctest
     configuration['color_mode'] = False
     doctest.testmod()
+
+class ParallelActions(Action):
+
+    """An `Action` running several sub-`Action`s in parallel.
+
+    Will start, stop, wait, run every `Action` in parallel.
+    """
+
+    def __init__(self, actions = None, **kwargs):
+        if kwargs.has_key('timeout'):
+            raise AttributeError, "ParallelActions doesn't support timeouts. The timeouts are those of each contained Actions"
+        if kwargs.has_key('ignore_exit_code'):
+            raise AttributeError, "ParallelActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
+        if kwargs.has_key('ignore_timeout'):
+            raise AttributeError, "ParallelActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
+        if not kwargs.has_key('name') or kwargs['name'] == None:
+            kwargs['name'] = "%s" % (self.__class__.__name__,)
+        super(ParallelActions, self).__init__(**kwargs)
+        self._actions = actions
+
+    def __repr__(self):
+        return style("ParallelActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
+
+    def actions(self):
+        """Return an iterable of `Action` that this `ParallelActions` gathers."""
+        return self._actions
+
+    def start(self):
+        retval = super(ParallelActions, self).start()
+        for action in self._actions:
+            action.start()
+        return retval
+
+    def stop(self):
+        retval = super(ParallelActions, self).stop()
+        for action in self._actions:
+            action.stop()
+        return retval
+
+    def wait(self):
+        retval = super(ParallelActions, self).wait()
+        for action in self._actions:
+            action.wait()
+        return retval
+
+    def processes(self):
+        p = []
+        for action in self._actions:
+            p.extend(action.processes())
+        return p
+
+    def reports(self):
+        reports = list(self.actions())
+        _sort_reports(reports)
+        return reports
+
+    def stats(self):
+        return Report(self.actions()).stats()
+
