@@ -2920,3 +2920,61 @@ class ParallelActions(Action):
     def stats(self):
         return Report(self.actions()).stats()
 
+class SequentialActions(Action):
+
+    """An `Action` running several sub-`Action`s sequentially.
+
+    Will start, stop, wait, run every `Action` sequentially.
+    """
+
+    def __init__(self, actions = None, **kwargs):
+        if kwargs.has_key('timeout'):
+            raise AttributeError, "SequentialActions doesn't support timeouts. The timeouts are those of each contained Actions"
+        if kwargs.has_key('ignore_exit_code'):
+            raise AttributeError, "SequentialActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
+        if kwargs.has_key('ignore_timeout'):
+            raise AttributeError, "SequentialActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
+        if not kwargs.has_key('name') or kwargs['name'] == None:
+            kwargs['name'] = "%s" % (self.__class__.__name__,)
+        super(SequentialActions, self).__init__(**kwargs)
+        self._actions = actions
+
+    def __repr__(self):
+        return style("SequentialActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
+
+    def actions(self):
+        """Return an iterable of `Action` that this `SequentialActions` gathers."""
+        return self._actions
+
+    def start(self):
+        retval = super(SequentialActions, self).start()
+        for action in self._actions:
+            action.start()
+        return retval
+# need some action notifications to register the start of successive actions
+    def stop(self):
+        retval = super(SequentialActions, self).stop()
+        for action in self._actions:
+            action.stop()
+        return retval
+
+    def wait(self):
+        retval = super(SequentialActions, self).wait()
+        for action in self._actions:
+            action.wait()
+        return retval
+
+    def processes(self):
+        p = []
+        for action in self._actions:
+            p.extend(action.processes())
+        return p
+
+    def reports(self):
+        reports = list(self.actions())
+        _sort_reports(reports)
+        return reports
+
+    def stats(self):
+        return Report(self.actions()).stats()
+
