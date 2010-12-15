@@ -2014,7 +2014,7 @@ class Action(object):
         """Return the `Report` name."""
         return self._name
 
-    def add_lifecycle_handler(handler):
+    def add_lifecycle_handler(self, handler):
         """Add a lifecycle handler.
 
         An instance of `ActionLifeCycleHandler` for being notified of
@@ -2905,7 +2905,7 @@ class Local(Action):
                                 ignore_exit_code = self._ignore_exit_code,
                                 ignore_timeout = self._ignore_timeout,
                                 ignore_error = self._ignore_error,
-                                ActionNotificationProcessLifecycleHandler(self, 1)
+                                process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1))
 
     def __repr__(self):
         return style("Local", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_error, self._ignore_timeout, self._cmd)
@@ -3035,7 +3035,7 @@ class SequentialActions(Action):
 
     def start(self):
         retval = super(SequentialActions, self).start()
-        if self._actions[0].start()
+        self._actions[0].start()
         return retval
 
     def stop(self):
