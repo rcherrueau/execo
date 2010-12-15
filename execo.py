@@ -2961,8 +2961,9 @@ class ParallelActions(Action):
             kwargs['name'] = "%s" % (self.__class__.__name__,)
         super(ParallelActions, self).__init__(**kwargs)
         self._actions = list(actions)
+        subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self._actions))
         for action in self._actions:
-            action.add_lifecycle_handler(ParallelSubActionLifecycleHandler(self, len(self._actions)))
+            action.add_lifecycle_handler(subactions_lifecycle_handler)
 
     def __repr__(self):
         return style("ParallelActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
