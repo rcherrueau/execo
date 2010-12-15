@@ -232,14 +232,26 @@ class Kadeployer(Remote):
         self._processes = dict()
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(sites))
         for site in sites.keys():
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
             if site == _get_local_site():
-                self._processes[site] = Process(kadeploy_command, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout)
+                self._processes[site] = Process(kadeploy_command,
+                                                stdout_handler = _KadeployOutputHandler(self),
+                                                timeout = self._timeout,
+                                                ignore_exit_code = self._ignore_exit_code,
+                                                ignore_timeout = self._ignore_timeout,
+                                                process_lifecycle_handler = lifecycle_handler)
             else:
-                self._processes[site] = SshProcess(Host(site), kadeploy_command, connexion_params = connexion_params, stdout_handler = _KadeployOutputHandler(self), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code)
+                self._processes[site] = SshProcess(Host(site),
+                                                   kadeploy_command,
+                                                   connexion_params = connexion_params,
+                                                   stdout_handler = _KadeployOutputHandler(self),
+                                                   timeout = self._timeout,
+                                                   ignore_exit_code = self._ignore_exit_code,
+                                                   process_lifecycle_handler = lifecycle_handler)
 
     def __repr__(self):
         r = style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
