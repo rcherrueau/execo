@@ -2023,6 +2023,7 @@ class Action(object):
         self._lifecycle_handler.append(handler)
 
     def _notify_terminated(self):
+        logger.debug(style("got termination notification for:", 'emph') + " %s" % (self,))
         for handler in self._lifecycle_handler:
             handler.end(self)
         self._ended = True
@@ -2051,8 +2052,9 @@ class Action(object):
         """Wait for all subprocesses to complete.
 
         return self"""
-        logger.debug(style("wait:", 'emph') + " %s" % (self,))
+        logger.debug(style("start waiting:", 'emph') + " %s" % (self,))
         self._end_event.wait()
+        logger.debug(style("end waiting:", 'emph') + " %s" % (self,))
         return self
 
     def run(self):
@@ -2178,6 +2180,9 @@ class ActionNotificationProcessLifecycleHandler(ProcessLifecycleHandler):
 
     def end(self, process):
         self._terminated_processes += 1
+        logger.debug("%i/%i processes terminated in %s" % (self._terminated_processes,
+                                                           self._total_processes,
+                                                           self._action))
         if self._terminated_processes == self._total_processes:
             self._action._notify_terminated()
 
@@ -2932,6 +2937,9 @@ class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
 
     def end(self, action):
         self._terminated_subactions += 1
+        logger.debug("%i/%i subactions terminated in %s" % (self._terminated_subactions,
+                                                            self._total_parallel_subactions,
+                                                            self._parallelaction))
         if self._terminated_subactions == self._total_parallel_subactions:
             self._parallelaction._notify_terminated()
 
@@ -2991,11 +2999,16 @@ class ParallelActions(Action):
 
 class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
 
-    def __init__(self, sequentialaction, next_subaction):
+    def __init__(self, sequentialaction, index, total, next_subaction):
         self._sequentialaction = sequentialaction
+        self._index = index
+        self._total = total
         self._next_subaction = next_subaction
 
     def end(self, action):
+        logger.debug("%i/%i subactions terminated in %s" % (self._index,
+                                                            self._total,
+                                                            self._sequentialaction))
         if self._next_subaction:
             self._next_subaction.start()
         else:
@@ -3024,7 +3037,10 @@ class SequentialActions(Action):
                 next_action = self._actions[index + 1]
             else:
                 next_action = None
-            action.add_lifecycle_handler(SequentialSubActionLifecycleHandler(self, next_action))
+            action.add_lifecycle_handler(SequentialSubActionLifecycleHandler(self,
+                                                                             index,
+                                                                             len(self._actions),
+                                                                             next_action))
 
     def __repr__(self):
         return style("SequentialActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
