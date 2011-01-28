@@ -2945,7 +2945,7 @@ class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
 
 class ParallelActions(Action):
 
-    """An `Action` running several sub-`Action`s in parallel.
+    """An `Action` running several sub-`Action` in parallel.
 
     Will start, stop, wait, run every `Action` in parallel.
     """
@@ -3017,7 +3017,7 @@ class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
 
 class SequentialActions(Action):
 
-    """An `Action` running several sub-`Action`s sequentially.
+    """An `Action` running several sub-`Action` sequentially.
 
     Will start, stop, wait, run every `Action` sequentially.
     """

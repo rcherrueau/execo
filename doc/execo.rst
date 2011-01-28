@@ -165,6 +165,13 @@ ParallelActions
    :members:
    :show-inheritance:
 
+SequentialActions
+-----------------
+.. inheritance-diagram:: SequentialActions
+.. autoclass:: SequentialActions
+   :members:
+   :show-inheritance:
+
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
 
