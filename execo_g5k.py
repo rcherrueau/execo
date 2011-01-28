@@ -467,7 +467,7 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         if spec.job_type != None:
             oarsub_cmdline += " -t '%s'" % (spec.job_type,)
         if spec.sql_properties != None:
-            oarsub_cmdline += " -p '%s'" % (spec.sql_properties,)
+            oarsub_cmdline += " -p \"%s\"" % (spec.sql_properties,)
         if spec.queue != None:
             oarsub_cmdline += " -q '%s'" % (spec.queue,)
         if spec.reservation_date != None:
@@ -588,7 +588,7 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
         if spec.job_type != None:
             oargridsub_cmdline += ":type='%s'" % (spec.job_type,)
         if spec.sql_properties != None:
-            oargridsub_cmdline += ":prop='%s'" % (spec.sql_properties,)
+            oargridsub_cmdline += ":prop=\"%s\"" % (spec.sql_properties,)
         if spec.name != None:
             oargridsub_cmdline += ":name='%s'" % (spec.name,)
     process = Process(oargridsub_cmdline, timeout = timeout)
