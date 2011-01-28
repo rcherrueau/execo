@@ -1949,6 +1949,24 @@ class Report(object):
         output += format_line(self.name(), stats, 0)
         return output
 
+class ActionLifecycleHandler(object):
+
+    """Abstract handler for `Action` lifecycle."""
+
+    def start(self, action):
+        """Handle `Action`'s start.
+
+        :param action: The `Action` which starts.
+        """
+        pass
+
+    def end(self, action):
+        """Handle `Action`'s end.
+
+        :param action: The `Action` which ends.
+        """
+        pass
+
 class Action(object):
 
     """Abstract base class. A set of parallel processes.
@@ -1960,7 +1978,8 @@ class Action(object):
     for it to complete.
     """
     
-    def __init__(self, name = None, timeout = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False):
+    def __init__(self, name = None, timeout = None, ignore_exit_code = False,
+                 ignore_timeout = False, ignore_error = False):
         """
         :param name: `Action` name, one will be generated if None
           given
@@ -1984,13 +2003,31 @@ class Action(object):
             self._name = name
         self._timeout = timeout
         self._started = False
+        self._ended = False
         self._ignore_exit_code = ignore_exit_code
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
+        self._lifecycle_handler = list()
+        self._end_event = threading.Event()
 
     def name(self):
         """Return the `Report` name."""
         return self._name
+
+    def add_lifecycle_handler(self, handler):
+        """Add a lifecycle handler.
+
+        An instance of `ActionLifeCycleHandler` for being notified of
+        action lifecycle events.
+        """
+        self._lifecycle_handler.append(handler)
+
+    def _notify_terminated(self):
+        logger.debug(style("got termination notification for:", 'emph') + " %s" % (self,))
+        for handler in self._lifecycle_handler:
+            handler.end(self)
+        self._ended = True
+        self._end_event.set()
 
     def start(self):
         """Start all subprocesses.
@@ -2000,6 +2037,8 @@ class Action(object):
             raise ValueError, "Actions may be started only once"
         self._started = True
         logger.debug(style("start:", 'emph') + " %s" % (self,))
+        for handler in self._lifecycle_handler:
+            handler.start(self)
         return self
 
     def stop(self):
@@ -2013,7 +2052,9 @@ class Action(object):
         """Wait for all subprocesses to complete.
 
         return self"""
-        logger.debug(style("wait:", 'emph') + " %s" % (self,))
+        logger.debug(style("start waiting:", 'emph') + " %s" % (self,))
+        self._end_event.wait()
+        logger.debug(style("end waiting:", 'emph') + " %s" % (self,))
         return self
 
     def run(self):
@@ -2035,11 +2076,7 @@ class Action(object):
 
     def ended(self):
         """Return whether all subprocesses of this `Action` have ended (boolean)."""
-        ended = True
-        for process in self.processes():
-            if not process.ended():
-                ended = False
-        return ended
+        return self._ended
 
     def error(self):
         """Return a boolean indicating if one or more subprocess failed.
@@ -2095,64 +2132,6 @@ class Action(object):
         """See `Report.reports`."""
         return ()
 
-class MultiAction(Action):
-
-    """An `Action` gathering several `Action`.
-
-    Will start, stop, wait, run every `Action` in parallel.
-    """
-
-    def __init__(self, actions = None, **kwargs):
-        if kwargs.has_key('timeout'):
-            raise AttributeError, "MultiAction don't support timeouts. The timeouts are those of each contained Actions"
-        if kwargs.has_key('ignore_exit_code'):
-            raise AttributeError, "MultiAction don't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
-        if kwargs.has_key('ignore_timeout'):
-            raise AttributeError, "MultiAction don't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s" % (self.__class__.__name__,)
-        super(MultiAction, self).__init__(**kwargs)
-        self._actions = actions
-
-    def __repr__(self):
-        return style("MultiAction", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
-
-    def actions(self):
-        """Return an iterable of `Action` that this `MultiAction` gathers."""
-        return self._actions
-
-    def start(self):
-        retval = super(MultiAction, self).start()
-        for action in self._actions:
-            action.start()
-        return retval
-
-    def stop(self):
-        retval = super(MultiAction, self).stop()
-        for action in self._actions:
-            action.stop()
-        return retval
-
-    def wait(self):
-        retval = super(MultiAction, self).wait()
-        for action in self._actions:
-            action.wait()
-        return retval
-
-    def processes(self):
-        p = []
-        for action in self._actions:
-            p.extend(action.processes())
-        return p
-
-    def reports(self):
-        reports = list(self.actions())
-        _sort_reports(reports)
-        return reports
-
-    def stats(self):
-        return Report(self.actions()).stats()
-
 def remote_substitute(string, all_hosts, index, frame_context):
     """Perform some tag substitutions in a specific context.
 
@@ -2192,6 +2171,21 @@ def get_caller_context():
     """Return a tuple with (globals, locals) of the calling context."""
     return (inspect.stack()[2][0].f_globals, inspect.stack()[2][0].f_locals)
 
+class ActionNotificationProcessLifecycleHandler(ProcessLifecycleHandler):
+
+    def __init__(self, action, total_processes):
+        self._action = action
+        self._total_processes = total_processes
+        self._terminated_processes = 0
+
+    def end(self, process):
+        self._terminated_processes += 1
+        logger.debug("%i/%i processes terminated in %s" % (self._terminated_processes,
+                                                           self._total_processes,
+                                                           self._action))
+        if self._terminated_processes == self._total_processes:
+            self._action._notify_terminated()
+
 class Remote(Action):
 
     """Launch a command remotely on several `Host`, with ``ssh`` or a similar remote connexion tool.
@@ -2219,8 +2213,16 @@ class Remote(Action):
         self._caller_context = get_caller_context()
         self._processes = dict()
         fhosts = get_frozen_hosts_list(hosts)
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts))
         for (index, fhost) in enumerate(fhosts):
-            self._processes[fhost] = SshProcess(fhost, remote_substitute(remote_cmd, fhosts, index, self._caller_context), connexion_params = connexion_params, timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = SshProcess(fhost,
+                                                remote_substitute(remote_cmd, fhosts, index, self._caller_context),
+                                                connexion_params = connexion_params,
+                                                timeout = self._timeout,
+                                                ignore_exit_code = self._ignore_exit_code,
+                                                ignore_timeout = self._ignore_timeout,
+                                                ignore_error = self._ignore_error,
+                                                process_lifecycle_handler = lifecycle_handler)
 
     def __repr__(self):
         return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
@@ -2242,12 +2244,6 @@ class Remote(Action):
         retval = super(Remote, self).stop()
         for process in self._processes.values():
             process.kill()
-        return retval
-
-    def wait(self):
-        retval = super(Remote, self).wait()
-        for process in self._processes.values():
-            process.wait()
         return retval
 
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
@@ -2437,8 +2433,15 @@ class TaktukRemote(Action):
         self._taktuk_common_init(hosts)
 
     def _gen_taktukprocesses(self, fhosts_list):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts_list))
         for (index, fhost) in enumerate(fhosts_list):
-            self._processes[fhost] = TaktukProcess(fhost, remote_substitute(self._remote_cmd, fhosts_list, index, self._caller_context), timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = TaktukProcess(fhost,
+                                                   remote_substitute(self._remote_cmd, fhosts_list, index, self._caller_context),
+                                                   timeout = self._timeout,
+                                                   ignore_exit_code = self._ignore_exit_code,
+                                                   ignore_timeout = self._ignore_timeout,
+                                                   ignore_error = self._ignore_error,
+                                                   process_lifecycle_handler = lifecycle_handler)
 
     def _gen_taktuk_commands(self, fhosts_list, hosts_with_explicit_user):
         self._taktuk_fhost_order = []
@@ -2548,11 +2551,6 @@ class TaktukRemote(Action):
     def stop(self):
         retval = super(TaktukRemote, self).stop()
         self._taktuk.kill()
-        return retval
-
-    def wait(self):
-        retval = super(TaktukRemote, self).wait()
-        self._taktuk.wait()
         return retval
 
 class Put(Remote):
@@ -2745,8 +2743,15 @@ class TaktukPut(TaktukRemote):
         self._taktuk_common_init(hosts)
 
     def _gen_taktukprocesses(self, fhosts_list):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts_list))
         for (index, fhost) in enumerate(fhosts_list):
-            self._processes[fhost] = TaktukProcess(fhost, "", timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = TaktukProcess(fhost,
+                                                   "",
+                                                   timeout = self._timeout,
+                                                   ignore_exit_code = self._ignore_exit_code,
+                                                   ignore_timeout = self._ignore_timeout,
+                                                   ignore_error = self._ignore_error,
+                                                   process_lifecycle_handler = lifecycle_handler)
             self._processes[fhost]._num_transfers_started = 0
             self._processes[fhost]._num_transfers_terminated = 0
             self._processes[fhost]._num_transfers_failed = 0
@@ -2860,8 +2865,15 @@ class TaktukGet(TaktukRemote):
         self._taktuk_common_init(hosts)
 
     def _gen_taktukprocesses(self, fhosts_list):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts_list))
         for (index, fhost) in enumerate(fhosts_list):
-            self._processes[fhost] = TaktukProcess(fhost, "", timeout = self._timeout, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = TaktukProcess(fhost,
+                                                   "",
+                                                   timeout = self._timeout,
+                                                   ignore_exit_code = self._ignore_exit_code,
+                                                   ignore_timeout = self._ignore_timeout,
+                                                   ignore_error = self._ignore_error,
+                                                   process_lifecycle_handler = lifecycle_handler)
             self._processes[fhost]._num_transfers_started = 0
             self._processes[fhost]._num_transfers_terminated = 0
             self._processes[fhost]._num_transfers_failed = 0
@@ -2892,7 +2904,13 @@ class Local(Action):
             kwargs['name'] = "%s %s" % (self.__class__.__name__, cmd)
         super(Local, self).__init__(**kwargs)
         self._cmd = cmd
-        self._process = Process(self._cmd, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+        self._process = Process(self._cmd,
+                                timeout = self._timeout,
+                                shell = True,
+                                ignore_exit_code = self._ignore_exit_code,
+                                ignore_timeout = self._ignore_timeout,
+                                ignore_error = self._ignore_error,
+                                process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1))
 
     def __repr__(self):
         return style("Local", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_error, self._ignore_timeout, self._cmd)
@@ -2910,12 +2928,155 @@ class Local(Action):
         self._process.kill()
         return retval
 
-    def wait(self):
-        retval = super(Local, self).wait()
-        self._process.wait()
+class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
+
+    def __init__(self, parallelaction, total_parallel_subactions):
+        self._parallelaction = parallelaction
+        self._total_parallel_subactions = total_parallel_subactions
+        self._terminated_subactions = 0
+
+    def end(self, action):
+        self._terminated_subactions += 1
+        logger.debug("%i/%i subactions terminated in %s" % (self._terminated_subactions,
+                                                            self._total_parallel_subactions,
+                                                            self._parallelaction))
+        if self._terminated_subactions == self._total_parallel_subactions:
+            self._parallelaction._notify_terminated()
+
+class ParallelActions(Action):
+
+    """An `Action` running several sub-`Action`s in parallel.
+
+    Will start, stop, wait, run every `Action` in parallel.
+    """
+
+    def __init__(self, actions = None, **kwargs):
+        if kwargs.has_key('timeout'):
+            raise AttributeError, "ParallelActions doesn't support timeouts. The timeouts are those of each contained Actions"
+        if kwargs.has_key('ignore_exit_code'):
+            raise AttributeError, "ParallelActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
+        if kwargs.has_key('ignore_timeout'):
+            raise AttributeError, "ParallelActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
+        if not kwargs.has_key('name') or kwargs['name'] == None:
+            kwargs['name'] = "%s" % (self.__class__.__name__,)
+        super(ParallelActions, self).__init__(**kwargs)
+        self._actions = list(actions)
+        subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self._actions))
+        for action in self._actions:
+            action.add_lifecycle_handler(subactions_lifecycle_handler)
+
+    def __repr__(self):
+        return style("ParallelActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
+
+    def actions(self):
+        """Return an iterable of `Action` that this `ParallelActions` gathers."""
+        return self._actions
+
+    def start(self):
+        retval = super(ParallelActions, self).start()
+        for action in self._actions:
+            action.start()
         return retval
+
+    def stop(self):
+        retval = super(ParallelActions, self).stop()
+        for action in self._actions:
+            action.stop()
+        return retval
+
+    def processes(self):
+        p = []
+        for action in self._actions:
+            p.extend(action.processes())
+        return p
+
+    def reports(self):
+        reports = list(self.actions())
+        _sort_reports(reports)
+        return reports
+
+    def stats(self):
+        return Report(self.actions()).stats()
+
+class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
+
+    def __init__(self, sequentialaction, index, total, next_subaction):
+        self._sequentialaction = sequentialaction
+        self._index = index
+        self._total = total
+        self._next_subaction = next_subaction
+
+    def end(self, action):
+        logger.debug("%i/%i subactions terminated in %s" % (self._index,
+                                                            self._total,
+                                                            self._sequentialaction))
+        if self._next_subaction:
+            self._next_subaction.start()
+        else:
+            self._sequentialaction._notify_terminated()
+
+class SequentialActions(Action):
+
+    """An `Action` running several sub-`Action`s sequentially.
+
+    Will start, stop, wait, run every `Action` sequentially.
+    """
+
+    def __init__(self, actions = None, **kwargs):
+        if kwargs.has_key('timeout'):
+            raise AttributeError, "SequentialActions doesn't support timeouts. The timeouts are those of each contained Actions"
+        if kwargs.has_key('ignore_exit_code'):
+            raise AttributeError, "SequentialActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
+        if kwargs.has_key('ignore_timeout'):
+            raise AttributeError, "SequentialActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
+        if not kwargs.has_key('name') or kwargs['name'] == None:
+            kwargs['name'] = "%s" % (self.__class__.__name__,)
+        super(SequentialActions, self).__init__(**kwargs)
+        self._actions = list(actions)
+        for (index, action) in enumerate(self._actions):
+            if index + 1 < len(self._actions):
+                next_action = self._actions[index + 1]
+            else:
+                next_action = None
+            action.add_lifecycle_handler(SequentialSubActionLifecycleHandler(self,
+                                                                             index,
+                                                                             len(self._actions),
+                                                                             next_action))
+
+    def __repr__(self):
+        return style("SequentialActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
+
+    def actions(self):
+        """Return an iterable of `Action` that this `SequentialActions` gathers."""
+        return self._actions
+
+    def start(self):
+        retval = super(SequentialActions, self).start()
+        self._actions[0].start()
+        return retval
+
+    def stop(self):
+        retval = super(SequentialActions, self).stop()
+        for action in self._actions:
+            action.stop()
+        return retval
+
+    def processes(self):
+        p = []
+        for action in self._actions:
+            p.extend(action.processes())
+        return p
+
+    def reports(self):
+        reports = list(self.actions())
+        _sort_reports(reports)
+        return reports
+
+    def stats(self):
+        return Report(self.actions()).stats()
 
 if __name__ == "__main__":
     import doctest
     configuration['color_mode'] = False
     doctest.testmod()
+
