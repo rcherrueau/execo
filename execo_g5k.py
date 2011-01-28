@@ -563,14 +563,13 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
     if reservation_date != None:
         if isinstance(reservation_date, datetime.datetime):
             reservation_date = datetime_to_unixts(reservation_date)
-        reservation_date = int(reservation_date)
     else:
         reservation_date = datetime_to_unixts(datetime.datetime.now())
     if walltime != None:
         if isinstance(walltime, datetime.timedelta):
             walltime = timedelta_to_seconds(walltime)
         walltime = int(walltime)
-    oargridsub_cmdline = "oargridsub -s '%s' "
+    oargridsub_cmdline = "oargridsub -s '%s' " % (format_oar_time(reservation_date),)
     if queue != None:
         oargridsub_cmdline += "-q '%s' " % (queue,)
     if job_type != None:
@@ -581,7 +580,9 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
         oargridsub_cmdline += "-d '%s' " % (directory,)
     firstclusteralias = True
     for (spec, clusteralias) in job_specs:
-        if not firstclusteralias:
+        if firstclusteralias:
+            firstclusteralias = False
+        else:
             oargridsub_cmdline += ','
         oargridsub_cmdline += "%s:rdef='%s'" % (clusteralias, spec.resources)
         if spec.job_type != None:
@@ -595,12 +596,12 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
     job_id = None
     ssh_key = None
     if process.ok():
-        mo = re.search("^[OAR_GRIDSUB] Grid reservation id = (\d+)$", process.stdout(), re.MULTILINE)
+        mo = re.search("^\[OAR_GRIDSUB\] Grid reservation id = (\d+)$", process.stdout(), re.MULTILINE)
         if mo != None:
             job_id = int(mo.group(1))
-        mo = re.search("^[OAR_GRIDSUB] SSH KEY : (.*)$", process.stdout(), re.MULTILINE)
+        mo = re.search("^\[OAR_GRIDSUB\] SSH KEY : (.*)$", process.stdout(), re.MULTILINE)
         if mo != None:
-            ssh_key = int(mo.group(1))
+            ssh_key = mo.group(1)
     if job_id != None:
         return (job_id, ssh_key)
     else:
