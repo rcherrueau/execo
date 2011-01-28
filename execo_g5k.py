@@ -564,7 +564,7 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
         if isinstance(reservation_date, datetime.datetime):
             reservation_date = datetime_to_unixts(reservation_date)
     else:
-        reservation_date = datetime_to_unixts(datetime.datetime.now())
+        reservation_date = datetime_to_unixts(datetime.datetime.utcnow())
     if walltime != None:
         if isinstance(walltime, datetime.timedelta):
             walltime = timedelta_to_seconds(walltime)
