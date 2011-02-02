@@ -1363,13 +1363,13 @@ def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion
             ssh_scp_auth_options += ("-o", "User=%s" % (default_connexion_params['user'],))
             
     if keyfile != None:
-        ssh_scp_auth_options += ("-o", "IdentityFile=%s" % (keyfile,))
+        ssh_scp_auth_options += ("-i", str(keyfile))
     elif connexion_params != None and connexion_params.has_key('keyfile'):
         if connexion_params['keyfile'] != None:
-            ssh_scp_auth_options += ("-o", "IdentityFile=%s" % connexion_params['keyfile'])
+            ssh_scp_auth_options += ("-i", str(connexion_params['keyfile']))
     elif default_connexion_params != None and default_connexion_params.has_key('keyfile'):
         if default_connexion_params['keyfile'] != None:
-            ssh_scp_auth_options += ("-o", "IdentityFile=%s" % default_connexion_params['keyfile'])
+            ssh_scp_auth_options += ("-i", str(default_connexion_params['keyfile']))
             
     if port != None:
         ssh_scp_auth_options += ("-o", "Port=%i" % port)
