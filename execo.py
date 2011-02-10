@@ -2236,8 +2236,12 @@ class Remote(Action):
 
     def start(self):
         retval = super(Remote, self).start()
-        for process in self._processes.values():
-            process.start()
+        if len(self._processes) == 0:
+            logger.debug("%s contains 0 processes -> immediately terminated" % (self,))
+            self._notify_terminated()
+        else:
+            for process in self._processes.values():
+                process.start()
         return retval
 
     def stop(self):
@@ -2545,7 +2549,11 @@ class TaktukRemote(Action):
 
     def start(self):
         retval = super(TaktukRemote, self).start()
-        self._taktuk.start()
+        if len(self._processes) == 0:
+            logger.debug("%s contains 0 processes -> immediately terminated" % (self,))
+            self._notify_terminated()
+        else:
+            self._taktuk.start()
         return retval
 
     def stop(self):
