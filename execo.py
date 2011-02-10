@@ -147,7 +147,7 @@ def read_user_configuration_dicts(dicts_confs):
 read_user_configuration_dicts(((configuration, 'configuration'), (default_connexion_params, 'default_connexion_params')))
 
 def style(string, style):
-    """Enclose a string with ansi color escape codes if `configuration['color_mode']` is True.
+    """Enclose a string with ansi color escape codes if ``configuration['color_mode']`` is True.
 
     :param string: the string to enclose
     
@@ -491,7 +491,7 @@ class ProcessBase(object):
           with self.stderr(). Default: True.
 
         :param process_lifecycle_handler: instance of
-          `ProcessLifeCycleHandler` for being notified of process
+          `ProcessLifecycleHandler` for being notified of process
           lifecycle events.
         """
         self._lock = threading.RLock()
@@ -2017,7 +2017,7 @@ class Action(object):
     def add_lifecycle_handler(self, handler):
         """Add a lifecycle handler.
 
-        An instance of `ActionLifeCycleHandler` for being notified of
+        An instance of `ActionLifecycleHandler` for being notified of
         action lifecycle events.
         """
         self._lifecycle_handler.append(handler)

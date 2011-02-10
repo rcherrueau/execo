@@ -446,7 +446,7 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
       site's frontend if needed
     
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
 
     Returns a list of tuples (oarjob id, site), with site == None for
@@ -515,7 +515,7 @@ def oardel(job_specs, connexion_params = None, timeout = False):
       site's frontend if needed
     
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
     if timeout == False:
@@ -552,7 +552,7 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
       launched.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
 
     Returns a tuple (oargrid_job_id, ssh_key), or (None, None) if
@@ -617,7 +617,7 @@ def oargriddel(job_ids, timeout = False):
     :param job_ids: iterable of oar grid job ids.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
     if timeout == False:
@@ -659,7 +659,7 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
       site's frontend if needed.
     
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
 
     :param abort_on_error: default False. If True, raises an exception
@@ -727,7 +727,7 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
       is a deltat, (less than 10 years)).
         
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
     if timeout == False:
@@ -764,7 +764,7 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
       (default: `default_frontend_connexion_params`)
         
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     
     Hash returned may contain these keys:
@@ -822,7 +822,7 @@ def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, 
       (default: `default_frontend_connexion_params`)
     
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
     if timeout == False:
@@ -840,7 +840,7 @@ def get_oargrid_job_info(oargrid_job_id = None, timeout = False):
     :param oargrid_job_id: the oargrid job id.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
 
     Hash returned contains these keys:
@@ -873,7 +873,7 @@ def wait_oargrid_job_start(oargrid_job_id = None, timeout = False):
     :param oargrid_job_id: the oargrid job id.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
     sleep(until = get_oargrid_job_info(oargrid_job_id, timeout)['start_date'])
@@ -892,7 +892,7 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
       (default: `default_frontend_connexion_params`)
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
     if timeout == False:
@@ -924,7 +924,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
     :param oargrid_job_id: the oargrid job id.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use `g5k_configuration['default_timeout']`. None means no
+      means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
     if timeout == False:
@@ -972,11 +972,11 @@ def deploy(deployment, connexion_params = None,
 
     - loop `num_deploy_retries` times:
 
-      - if `check_deploy_command` given, try to connect to these hosts
-        using the supplied `connexion_params` (or the default ones),
-        and to execute `check_deployed_command`. If connexion succeeds
-        and the command returns 0, the host is assumed to be deployed,
-        else it is assumed to be undeployed.
+      - if `check_deployed_command` given, try to connect to these
+        hosts using the supplied `connexion_params` (or the default
+        ones), and to execute `check_deployed_command`. If connexion
+        succeeds and the command returns 0, the host is assumed to be
+        deployed, else it is assumed to be undeployed.
 
       - optionnaly call user-supplied ``check_enough_func``, passing
         to it the list of deployed and undeployed hosts, to let user
@@ -1016,7 +1016,7 @@ def deploy(deployment, connexion_params = None,
 
     :param timeout: timeout for g5k operations, except deployment.
       Default is False, which means use
-      `g5k_configuration['default_timeout']`. None means no timeout.
+      ``g5k_configuration['default_timeout']``. None means no timeout.
 
     :param deploy_timeout: timeout for deployement. Default is None,
       which means no timeout.
