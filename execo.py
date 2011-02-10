@@ -1483,9 +1483,9 @@ class Host(object):
     True
     """
 
-    def __init__(self, host, user = False, keyfile = False, port = False):
+    def __init__(self, address, user = False, keyfile = False, port = False):
         """
-        :param host: (string or `Host`) the host address or another
+        :param address: (string or `Host`) the host address or another
           `Host` instance which will be copied into this new instance
 
         :param user: (string) optional user whith which to connect. If
@@ -1500,13 +1500,13 @@ class Host(object):
           False (default value), means use the default port. If None,
           means don't use any port.
         """
-        if isinstance(host, Host):
-            self.address = host.address
-            self.user = host.user
-            self.keyfile = host.keyfile
-            self.port = host.port
+        if isinstance(address, Host):
+            self.address = address.address
+            self.user = address.user
+            self.keyfile = address.keyfile
+            self.port = address.port
         else:
-            self.address = host
+            self.address = address
             self.user = None
             self.keyfile = None
             self.port = None
@@ -1559,15 +1559,15 @@ class FrozenHost(Host):
 
     __delattr__ = __setattr__
 
-    def __init__(self, host, user = False, keyfile = False, port = False):
+    def __init__(self, address, user = False, keyfile = False, port = False):
         """See `Host.__init__`."""
-        if isinstance(host, Host):
-            super(FrozenHost, self).__setattr__('address', host.address)
-            super(FrozenHost, self).__setattr__('user', host.user)
-            super(FrozenHost, self).__setattr__('keyfile', host.keyfile)
-            super(FrozenHost, self).__setattr__('port', host.port)
+        if isinstance(address, Host):
+            super(FrozenHost, self).__setattr__('address', address.address)
+            super(FrozenHost, self).__setattr__('user', address.user)
+            super(FrozenHost, self).__setattr__('keyfile', address.keyfile)
+            super(FrozenHost, self).__setattr__('port', address.port)
         else:
-            super(FrozenHost, self).__setattr__('address', host)
+            super(FrozenHost, self).__setattr__('address', address)
             super(FrozenHost, self).__setattr__('user', None)
             super(FrozenHost, self).__setattr__('keyfile', None)
             super(FrozenHost, self).__setattr__('port', None)
