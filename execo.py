@@ -2588,13 +2588,20 @@ class Put(Remote):
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
         fhosts = get_frozen_hosts_list(hosts)
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts))
         for (index, fhost) in enumerate(fhosts):
             prepend_dir_creation = ()
             if self._create_dirs:
                 prepend_dir_creation = get_ssh_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params) + (fhost.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, fhosts, index, self._caller_context), '&&')
             real_command = list(prepend_dir_creation) + list(get_scp_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params)) + [ remote_substitute(local_file, fhosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (fhost.address, remote_substitute(self._remote_location, fhosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
-            self._processes[fhost] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = Process(real_command,
+                                             timeout = self._timeout,
+                                             shell = True,
+                                             ignore_exit_code = self._ignore_exit_code,
+                                             ignore_timeout = self._ignore_timeout,
+                                             ignore_error = self._ignore_error,
+                                             process_lifecycle_handler = lifecycle_handler)
 
     def __repr__(self):
         return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
@@ -2634,6 +2641,7 @@ class Get(Remote):
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
         fhosts = get_frozen_hosts_list(hosts)
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts))
         for (index, fhost) in enumerate(fhosts):
             prepend_dir_creation = ()
             if self._create_dirs:
@@ -2643,7 +2651,13 @@ class Get(Remote):
                 remote_specs += ("%s:%s" % (fhost.address, remote_substitute(path, fhosts, index, self._caller_context)),)
             real_command = prepend_dir_creation + get_scp_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, fhosts, index, self._caller_context),)
             real_command = ' '.join(real_command)
-            self._processes[fhost] = Process(real_command, timeout = self._timeout, shell = True, ignore_exit_code = self._ignore_exit_code, ignore_timeout = self._ignore_timeout, ignore_error = self._ignore_error)
+            self._processes[fhost] = Process(real_command,
+                                             timeout = self._timeout,
+                                             shell = True,
+                                             ignore_exit_code = self._ignore_exit_code,
+                                             ignore_timeout = self._ignore_timeout,
+                                             ignore_error = self._ignore_error,
+                                             process_lifecycle_handler = lifecycle_handler)
 
     def __repr__(self):
         return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
