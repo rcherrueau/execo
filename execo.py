@@ -732,9 +732,9 @@ class Process(ProcessBase):
 
         :param pty: open a pseudo tty and connect process's stdin and
           stdout to it (stderr is still connected as a pipe). Make
-          process a session leader. If lacking permissions to signals
-          to the process, try to simulate sending control characters
-          to its pty.
+          process a session leader. If lacking permissions to send
+          signals to the process, try to simulate sending control
+          characters to its pty.
         """
         super(Process, self).__init__(cmd, **kwargs)
         self._process = None
@@ -906,7 +906,7 @@ class Process(ProcessBase):
                         logger.debug("sending %r to pty of %s" % (char, self))
                         os.write(self.stdin_fd(), char)
                     else:
-                        logger.debug(style("unable to send signal", 'emph') + " to %s" % self)
+                        logger.debug(style("EPERM: unable to send signal", 'emph') + " to %s" % self)
                 elif e.errno == errno.ESRCH:
                     # process terminated so recently that self._ended
                     # has not been updated yet
