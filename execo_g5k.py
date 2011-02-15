@@ -244,7 +244,8 @@ class Kadeployer(Remote):
                                                 timeout = self._timeout,
                                                 ignore_exit_code = self._ignore_exit_code,
                                                 ignore_timeout = self._ignore_timeout,
-                                                process_lifecycle_handler = lifecycle_handler)
+                                                process_lifecycle_handler = lifecycle_handler,
+                                                pty = True)
             else:
                 self._processes[site] = SshProcess(Host(site),
                                                    kadeploy_command,
@@ -252,7 +253,8 @@ class Kadeployer(Remote):
                                                    stdout_handler = _KadeployOutputHandler(self),
                                                    timeout = self._timeout,
                                                    ignore_exit_code = self._ignore_exit_code,
-                                                   process_lifecycle_handler = lifecycle_handler)
+                                                   process_lifecycle_handler = lifecycle_handler,
+                                                   pty = True)
 
     def __repr__(self):
         r = style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
@@ -481,9 +483,15 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
             oarsub_cmdline += " -n '%s'" % (spec.name,)
         oarsub_cmdline += " 'sleep 31536000'"
         if site == None:
-            processes.append(Process(oarsub_cmdline, timeout = timeout))
+            processes.append(Process(oarsub_cmdline,
+                                     timeout = timeout,
+                                     pty = True))
         else:
-            processes.append(SshProcess(Host(site), oarsub_cmdline, connexion_params = connexion_params, timeout = timeout))
+            processes.append(SshProcess(Host(site),
+                                        oarsub_cmdline,
+                                        connexion_params = connexion_params,
+                                        timeout = timeout,
+                                        pty = True))
     oar_job_ids = []
     if len(processes) == 0:
         return oar_job_ids
@@ -527,9 +535,17 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     for (job_id, site) in job_specs:
         oardel_cmdline = "oardel %i" % (job_id,)
         if site == None:
-            processes.append(Process(oardel_cmdline, timeout = timeout, ignore_exit_code = True))
+            processes.append(Process(oardel_cmdline,
+                                     timeout = timeout,
+                                     ignore_exit_code = True,
+                                     pty = True))
         else:
-            processes.append(SshProcess(Host(site), oardel_cmdline, connexion_params = connexion_params, timeout = timeout, ignore_exit_code = True))
+            processes.append(SshProcess(Host(site),
+                                        oardel_cmdline,
+                                        connexion_params = connexion_params,
+                                        timeout = timeout,
+                                        ignore_exit_code = True,
+                                        pty = True))
     map(Process.start, processes)
     map(Process.wait, processes)
 
@@ -592,7 +608,9 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
             oargridsub_cmdline += ":prop=\"%s\"" % (spec.sql_properties,)
         if spec.name != None:
             oargridsub_cmdline += ":name='%s'" % (spec.name,)
-    process = Process(oargridsub_cmdline, timeout = timeout)
+    process = Process(oargridsub_cmdline,
+                      timeout = timeout,
+                      pty = True)
     process.run()
     job_id = None
     ssh_key = None
@@ -626,7 +644,10 @@ def oargriddel(job_ids, timeout = False):
     processes = []
     for job_id in job_ids:
         oargriddel_cmdline = "oargriddel %i" % (job_id,)
-        processes.append(Process(oargriddel_cmdline, timeout = timeout, ignore_exit_code = True))
+        processes.append(Process(oargriddel_cmdline,
+                                 timeout = timeout,
+                                 ignore_exit_code = True,
+                                 pty = True))
     map(Process.start, processes)
     map(Process.wait, processes)
 
@@ -676,12 +697,18 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
     processes = []
     if local:
         cmd = "oarstat -u"
-        process = Process(cmd, timeout = timeout)
+        process = Process(cmd,
+                          timeout = timeout,
+                          pty = True)
         process.site = None
         processes.append(process)
     if sites:
         for site in sites:
-            process = SshProcess(Host(site), "oarstat -u", connexion_params = connexion_params, timeout = timeout)
+            process = SshProcess(Host(site),
+                                 "oarstat -u",
+                                 connexion_params = connexion_params,
+                                 timeout = timeout,
+                                 pty = True)
             processes.append(process)
     oar_job_ids = []
     if len(processes) == 0:
@@ -787,9 +814,13 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
     if site != None:
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
-        process = SshProcess(Host(site), cmd, connexion_params = connexion_params, timeout = timeout)
+        process = SshProcess(Host(site),
+                             cmd,
+                             connexion_params = connexion_params,
+                             timeout = timeout,
+                             pty = True)
     else:
-        process = Process(cmd, timeout = timeout)
+        process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
         job_info = dict()
@@ -907,9 +938,13 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
     if site != None:
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
-        process = SshProcess(Host(site), cmd, connexion_params = connexion_params, timeout = timeout)
+        process = SshProcess(Host(site),
+                             cmd,
+                             connexion_params = connexion_params,
+                             timeout = timeout,
+                             pty = True)
     else:
-        process = Process(cmd, timeout = timeout)
+        process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
