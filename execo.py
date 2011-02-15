@@ -59,6 +59,7 @@ default_connexion_params = {
                      '-o', 'ConnectTimeout=20',
                      '-rp' ),
     'taktuk_options': ( '-s', ),
+    'ssh_scp_pty': False,
     }
 # _ENDOF_ default_connexion_params
 """Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
@@ -80,6 +81,8 @@ default_connexion_params = {
 - ``scp_options``: global options passed to scp.
 
 - ``taktuk_options``: global options passed to taktuk.
+
+- ``ssh_scp_pty``: allocate a pty for ssh/scp.
 """
 
 default_default_connexion_params = default_connexion_params.copy()
@@ -1464,6 +1467,15 @@ def get_scp_command(user = None, keyfile = None, port = None, connexion_params =
     scp_command += get_ssh_scp_auth_options(user, keyfile, port, connexion_params)
     return scp_command
 
+def get_ssh_scp_pty_option(connexion_params):
+    """Based on given connexion_params or default_connexion_params, return a boolean suitable for pty option for Process creation."""
+    if connexion_params != None and connexion_params.has_key('ssh_scp_pty'):
+        return connexion_params['ssh_scp_pty']
+    elif default_connexion_params != None and default_connexion_params.has_key('ssh_scp_pty'):
+        return ssh_scp_pty
+    else:
+        return False
+
 class Host(object):
 
     """A host to connect to.
@@ -2222,7 +2234,8 @@ class Remote(Action):
                                                 ignore_exit_code = self._ignore_exit_code,
                                                 ignore_timeout = self._ignore_timeout,
                                                 ignore_error = self._ignore_error,
-                                                process_lifecycle_handler = lifecycle_handler)
+                                                process_lifecycle_handler = lifecycle_handler,
+                                                pty = get_ssh_scp_pty_option(connexion_params))
 
     def __repr__(self):
         return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
@@ -2609,7 +2622,8 @@ class Put(Remote):
                                              ignore_exit_code = self._ignore_exit_code,
                                              ignore_timeout = self._ignore_timeout,
                                              ignore_error = self._ignore_error,
-                                             process_lifecycle_handler = lifecycle_handler)
+                                             process_lifecycle_handler = lifecycle_handler,
+                                             pty = get_ssh_scp_pty_option(connexion_params))
 
     def __repr__(self):
         return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
@@ -2665,7 +2679,8 @@ class Get(Remote):
                                              ignore_exit_code = self._ignore_exit_code,
                                              ignore_timeout = self._ignore_timeout,
                                              ignore_error = self._ignore_error,
-                                             process_lifecycle_handler = lifecycle_handler)
+                                             process_lifecycle_handler = lifecycle_handler,
+                                             pty = get_ssh_scp_pty_option(connexion_params))
 
     def __repr__(self):
         return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._remote_files, self._local_location, self._create_dirs, self._connexion_params)

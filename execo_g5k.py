@@ -58,6 +58,7 @@ default_oarsh_oarcp_params = {
                      '-o', 'ConnectTimeout=20',
                      '-rp' ),
     'taktuk_options': ( '-s', ),
+    'ssh_scp_pty': True,
     }
 # _ENDOF_ default_oarsh_oarcp_params
 """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
