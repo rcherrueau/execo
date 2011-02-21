@@ -74,7 +74,7 @@ read_user_configuration_dicts(((g5k_configuration, 'g5k_configuration'), (defaul
 def _get_local_site():
     """Return the name of the local site."""
     try:
-        local_site = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", socket.getfqdn()).group(1)
+        local_site = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", socket.gethostname()).group(1)
     except:
         raise EnvironmentError, "unable to get local site name"
     return local_site
