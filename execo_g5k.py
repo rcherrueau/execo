@@ -587,6 +587,8 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
             walltime = timedelta_to_seconds(walltime)
         walltime = int(walltime)
     oargridsub_cmdline = "oargridsub -v -s '%s' " % (format_oar_time(reservation_date),)
+    if os.environ.has_key('OAR_JOB_KEY_FILE'):
+        oargridsub_cmdline += " -i %s" % (os.environ['OAR_JOB_KEY_FILE'],)
     if queue != None:
         oargridsub_cmdline += "-q '%s' " % (queue,)
     if job_type != None:
