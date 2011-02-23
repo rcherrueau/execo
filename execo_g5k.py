@@ -146,41 +146,67 @@ class Deployment(object):
         s += ")"
         return s
 
-class _KadeployOutputHandler(ProcessOutputHandler):
+class _KadeployStdoutHandler(ProcessOutputHandler):
 
-    """Parse kadeploy3 output."""
+    """Parse kadeploy3 stdout."""
     
-    def __init__(self, kadeployer):
+    def __init__(self, kadeployer, out = False):
         """
         :param kadeployer: the `Kadeployer` to which this
           `ProcessOutputHandler` is attached.
         """
-        super(_KadeployOutputHandler, self).__init__()
+        super(_KadeployStdoutHandler, self).__init__()
         self._kadeployer = kadeployer
-        self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+$")
-        self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+$")
-        self._node_re = re.compile("(\S+)(\s+\(.*\))?")
+        self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
+        self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
+        self._good_node_re = re.compile("^(\S+)\s*$")
+        self._bad_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
+        self._out = out
 
     def read_line(self, process, string, eof = False, error = False):
+        if self._out:
+            print string,
         if self._good_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_GOODNODES
             return
         if self._bad_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_BADNODES
             return
-        if self._current_section == self._SECTION_GOODNODES or self._current_section == self._SECTION_BADNODES:
-            so = self._node_re.search(string)
+        if self._current_section == self._SECTION_GOODNODES:
+            so = self._good_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                if self._current_section == self._SECTION_GOODNODES:
-                    self._kadeployer._add_good_host_address(host_address)
-                if self._current_section == self._SECTION_BADNODES:
-                    self._kadeployer._add_bad_host_address(host_address)
+                self._kadeployer._add_good_host_address(host_address)
+        elif self._current_section == self._SECTION_BADNODES:
+            so = self._bad_node_re.search(string)
+            if so != None:
+                host_address = so.group(1)
+                self._kadeployer._add_bad_host_address(host_address)
 
     def __repr__(self):
-        return "<_KadeployOutputHandler(...)>"
+        return "<_KadeployStdoutHandler(...)>"
+
+class _KadeployStderrHandler(ProcessOutputHandler):
+
+    """Parse kadeploy3 stderr."""
+    
+    def __init__(self, kadeployer, out = False):
+        """
+        :param kadeployer: the `Kadeployer` to which this
+          `ProcessOutputHandler` is attached.
+        """
+        super(_KadeployStderrHandler, self).__init__()
+        self._kadeployer = kadeployer
+        self._out = out
+
+    def read_line(self, process, string, eof = False, error = False):
+        if self._out:
+            print string,
+
+    def __repr__(self):
+        return "<_KadeployStderrHandler(...)>"
 
 class Kadeployer(Remote):
 
@@ -189,7 +215,7 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple Grid5000 sites.
     """
 
-    def __init__(self, deployment, connexion_params = None, **kwargs):
+    def __init__(self, deployment, connexion_params = None, out = False, **kwargs):
         """
         :param deployment: instance of Deployment class describing the
           intended kadeployment.
@@ -198,6 +224,9 @@ class Kadeployer(Remote):
           `default_frontend_connexion_params` whose values will
           override those in `default_frontend_connexion_params` for
           connexion.
+
+        :param out: if True, output kadeploy stdout / stderr to
+          stdout.
         """
         if not kwargs.has_key('name') or kwargs['name'] == None:
             kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, deployment.env_name or deployment.env_file, deployment.hosts)
@@ -240,7 +269,8 @@ class Kadeployer(Remote):
                 kadeploy_command += " -m %s" % host.address
             if site == _get_local_site():
                 self._processes[site] = Process(kadeploy_command,
-                                                stdout_handler = _KadeployOutputHandler(self),
+                                                stdout_handler = _KadeployStdoutHandler(self, out = out),
+                                                stderr_handler = _KadeployStderrHandler(self, out = out),
                                                 timeout = self._timeout,
                                                 ignore_exit_code = self._ignore_exit_code,
                                                 ignore_timeout = self._ignore_timeout,
@@ -250,7 +280,8 @@ class Kadeployer(Remote):
                 self._processes[site] = SshProcess(Host(site),
                                                    kadeploy_command,
                                                    connexion_params = connexion_params,
-                                                   stdout_handler = _KadeployOutputHandler(self),
+                                                   stdout_handler = _KadeployStdoutHandler(self, out = out),
+                                                   stderr_handler = _KadeployStderrHandler(self, out = out),
                                                    timeout = self._timeout,
                                                    ignore_exit_code = self._ignore_exit_code,
                                                    process_lifecycle_handler = lifecycle_handler,
@@ -978,11 +1009,13 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
         return hosts
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
 
-def kadeploy(deployment, connexion_params = None, timeout = None):
+def kadeploy(deployment, connexion_params = None, out = False, timeout = None):
     """Deploy hosts with kadeploy3.
 
     :param deployment: instance of Deployment class describing the
       intended kadeployment.
+
+    :param out: if True, output kadeploy stdout / stderr to stdout.
 
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
@@ -990,7 +1023,7 @@ def kadeploy(deployment, connexion_params = None, timeout = None):
     Returns a tuple (iterable of `FrozenHost` containing the deployed
     host, iterable of `FrozenHost` containing the nodes not deployed).
     """
-    kadeployer = Kadeployer(deployment,
+    kadeployer = Kadeployer(deployment, out = out,
                             timeout = timeout).run()
     if kadeployer.error():
         logoutput = style("deployment failed:", 'emph') + " %s\n" % (kadeployer,) + style("kadeploy processes:\n", 'emph')
@@ -1004,7 +1037,8 @@ def kadeploy(deployment, connexion_params = None, timeout = None):
 def deploy(deployment, connexion_params = None,
            check_deployed_command = True,
            num_deploy_retries = 2, check_enough_func = None,
-           timeout = False, deploy_timeout = None, check_timeout = 30):
+           timeout = False, deploy_timeout = None, check_timeout = 30,
+           out = False):
 
     """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
@@ -1061,6 +1095,8 @@ def deploy(deployment, connexion_params = None,
 
     :param check_timeout: timeout for node deployment checks. Default
       is 30 seconds.
+
+    :param out: if True, output kadeploy stdout / stderr to stdout.
     """
 
     if timeout == False:
@@ -1097,7 +1133,8 @@ def deploy(deployment, connexion_params = None,
                 logger.info("OK %s" % host)
             else:
                 logger.info("KO %s" % host)
-        logger.info(style("newly deployed hosts:", 'emph') + " %s" % (newly_deployed,))
+        logger.info(style("newly deployed hosts:", 'emph') + "   %s" % (newly_deployed,))
+        logger.info(style("all deployed hosts:", 'emph') + "     %s" % (deployed_hosts,))
         logger.info(style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
         
     deployed_hosts = set()
@@ -1105,6 +1142,8 @@ def deploy(deployment, connexion_params = None,
     if check_deployed_command:
         check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
     num_tries = 0
+    deploy_stats = list()
+    deploy_stats.append((len(deployed_hosts), len(undeployed_hosts)))
     while not check_enough_func(deployed_hosts, undeployed_hosts):
         num_tries += 1
         if num_tries > num_deploy_retries:
@@ -1113,16 +1152,23 @@ def deploy(deployment, connexion_params = None,
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         (newly_deployed_hosts, error_hosts) = kadeploy(tmp_deployment,
-                                                       timeout = deploy_timeout)
+                                                       timeout = deploy_timeout,
+                                                       out = out)
         if check_deployed_command:
             check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
         else:
             deployed_hosts.update(newly_deployed_hosts)
             undeployed_hosts.difference_update(newly_deployed_hosts)
-            logger.info(style("newly deployed hosts:", 'emph') + " %s" % (newly_deployed_hosts,))
+            logger.info(style("newly deployed hosts:", 'emph') + "   %s" % (newly_deployed_hosts,))
+            logger.info(style("all deployed hosts:", 'emph') + "     %s" % (deployed_hosts,))
             logger.info(style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
+        deploy_stats.append((len(deployed_hosts), len(undeployed_hosts)))
 
-    logger.info(style("deploy finished", 'emph'))
+    logger.info(style("deploy finished", 'emph') + " in %i tries" % (num_tries,))
     logger.info(style("deployed hosts:", 'emph') + " %s" % (deployed_hosts,))
     logger.info(style("undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
+    logger.info("details of deployments:")
+    for i in xrange(0, num_tries):
+        logger.info("  deployment #%i - num deployed = %i / num undeployed = %i" % (i, deploy_stats[i][0], deploy_stats[i][1]))
+
     return (deployed_hosts, undeployed_hosts)
