@@ -1074,13 +1074,13 @@ def deploy(deployment, connexion_params = None,
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
         logger.info(style("check which hosts are already deployed among:", 'emph') + " %s" % (undeployed_hosts,))
-        deployed_check = TaktukRemote(undeployed_hosts,
-                                      check_deployed_command,
-                                      connexion_params = connexion_params,
-                                      ignore_exit_code = True,
-                                      ignore_timeout = True,
-                                      ignore_error = True,
-                                      timeout = check_timeout)
+        deployed_check = Remote(undeployed_hosts,
+                                check_deployed_command,
+                                connexion_params = connexion_params,
+                                ignore_exit_code = True,
+                                ignore_timeout = True,
+                                ignore_error = True,
+                                timeout = check_timeout)
         deployed_check.run()
         newly_deployed = list()
         for (host, process) in deployed_check.get_hosts_processes().iteritems():
