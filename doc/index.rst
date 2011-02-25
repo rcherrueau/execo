@@ -14,6 +14,7 @@ Contents:
    readme
    execo
    execo_g5k
+   g5k_api_tools
    g5k_deploy
 
 Indices and tables

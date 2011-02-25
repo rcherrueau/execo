@@ -1,7 +1,3 @@
-import re, socket
-import restclient # http://pypi.python.org/pypi/py-restclient/1.3.3
-import simplejson # http://pypi.python.org/pypi/simplejson/
-
 """Tools for using grid5000.
 
 - Functions for wrapping the grid5000 rest api. The functions which
@@ -12,6 +8,10 @@ import simplejson # http://pypi.python.org/pypi/simplejson/
 
 This module is currently not thread-safe.
 """
+
+import re, socket
+import restclient # http://pypi.python.org/pypi/py-restclient/1.3.3
+import simplejson # http://pypi.python.org/pypi/simplejson/
 
 # following module globals may be modified by client *before* calling any function:
 _g5k_api_server = "https://api.grid5000.fr"
