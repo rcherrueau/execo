@@ -19,9 +19,6 @@ except:
     pass
 
 logger = logging.getLogger("execo.g5k_deploy")
-#logger_handler = logging.StreamHandler(sys.stderr)
-#logger_handler.setFormatter(logging.Formatter(execo.style("%(asctime)s", 'log_header') + execo.style(" %(levelname)s", 'log_level') + " %(message)s"))
-#logger.addHandler(logger_handler)
 
 usage = "usage: %prog <-e env_name>|<-a env_file> <space separated list of fqdn nodes or clusters to deploy>"
 description = """Deploy an environment, with kadeploy3, to Grid5000 nodes.  The nodes
@@ -91,12 +88,9 @@ parser.add_option("-d",
 
 if options.verbose:
     execo.logger.setLevel(logging.INFO)
-    #logger.setLevel(logging.INFO)
 if options.debug:
     options.verbose = True
     execo.logger.setLevel(logging.DEBUG)
-    #execo._set_internal_debug_formatter()
-    #logger.setLevel(logging.DEBUG)
 
 connexion_params = execo.default_connexion_params.copy()
 if options.connexion_params:
