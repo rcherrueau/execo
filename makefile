@@ -1,4 +1,4 @@
-.PHONY: all build install doc cleandoc sphinxdochtml sphinxdoclatex cleansphinxdoc epydoc cleanepydoc check clean dist
+.PHONY: all build install doc cleandoc sphinxdoccommon sphinxdochtml sphinxdoclatex cleansphinxdoc epydoc cleanepydoc check clean dist
 
 PREFIX=/usr/local
 
@@ -14,17 +14,21 @@ doc: sphinxdochtml
 
 cleandoc: cleansphinxdoc cleanepydoc
 
-sphinxdochtml:
+sphinxdoccommon:
+	./g5k_deploy --help > doc/g5k_deploy.txt
+
+sphinxdochtml: sphinxdoccommon
 	mkdir -p doc/_static doc/_template
 	$(MAKE) -C doc html
 
-sphinxdoclatex:
+sphinxdoclatex: sphinxdoccommon
 	mkdir -p doc/_static doc/_template
 	$(MAKE) -C doc latex
 	$(MAKE) -C doc/_build/latex all-pdf
 
 cleansphinxdoc:
 	$(MAKE) -C doc clean
+	rm -f doc/g5k_deploy.txt
 
 epydoc: epydoc/redirect.html
 
