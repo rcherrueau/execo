@@ -34,7 +34,7 @@ clusters, whose values are hosts.
 def get_local_site():
     """Get the name of the local site."""
     try:
-        local_site = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", socket.getfqdn()).group(1)
+        local_site = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", socket.gethostname()).group(1)
     except:
         raise EnvironmentError, "unable to get local site name"
     return local_site
