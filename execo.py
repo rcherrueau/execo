@@ -193,24 +193,29 @@ def _get_milliseconds_suffix(secs):
         ms_suffix = ".%03i" % msecs
     return ms_suffix
 
-def format_time(secs):
+def format_time(secs, showms = False):
     """Return a string with the formatted time (year, month, day, hour, min, sec, ms).
 
     :param secs: a unix timestamp (integer or float)
+
+    :param showms: whether to show ms or not. Default False.
     """
     if secs == None:
         return None
     t = time.localtime(secs)
     formatted_time = time.strftime("%Y-%m-%d_%H:%M:%S", t)
-    formatted_time += _get_milliseconds_suffix(secs)
+    if showms:
+        formatted_time += _get_milliseconds_suffix(secs)
     timezone = time.strftime("%Z", t)
     if timezone != "": formatted_time += "_" + timezone
     return formatted_time
 
-def format_duration(secs):
+def format_duration(secs, showms = False):
     """Return a string with a formatted duration (days, hours, mins, secs, ms).
 
     :param secs: a duration in seconds (integer or float)
+
+    :param showms: whether to show ms or not. Default False.
     """
     if secs == None:
         return None
@@ -225,7 +230,10 @@ def format_duration(secs):
     if secs >= 86400: formatted_duration += "%id" % d
     if secs >= 3600: formatted_duration += "%ih" % h
     if secs >= 60: formatted_duration += "%im" % m
-    formatted_duration += "%i%ss" % (s, _get_milliseconds_suffix(s))
+    if showms:
+        formatted_duration += "%i%ss" % (s, _get_milliseconds_suffix(s))
+    else:
+        formatted_duration += "%is" % (s,)
     return formatted_duration
 
 def _safe_sleep(secs):
