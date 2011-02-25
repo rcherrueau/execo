@@ -35,6 +35,10 @@ prerequisites
 execo installation requires python (>= 2.5) and make (for debian 5.x,
 packages python, make)
 
+to use g5k_api_tools, python-simplejson
+(http://pypi.python.org/pypi/simplejson/) and python-restclient
+(http://pypi.python.org/pypi/py-restclient/1.3.3) are needed.
+
 to build the documentation, sphinx and graphviz are needed (for debian
 5.x, packages python-sphinx). Additionnaly, latex is needed for
 building latex documentation, and epydoc for building epydoc
