@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# abort on any error
+set -e
+RSYNC="rsync -rl --delete --delete-excluded --ignore-errors --force"
+G5KLOCATION=g5k
+FORGELOCATION=scm.gforge.inria.fr
+
+usage() {
+    echo "`basename $0` [options]"
+    echo "  options:"
+    echo "    -w : update gforge web"
+    echo "    -g : update execo install on grid5000"
+    echo "    -h : this help"
+}
+
+UPDATEWEB=0
+UPDATEG5K=0
+while getopts "wgh" OPT; do
+    case $OPT in
+        w)  UPDATEWEB=1 ;;
+        g)  UPDATEG5K=1 ;;
+        h)  usage ; exit 0 ;;
+        *)  usage ; exit 1 ;;
+    esac
+done
+
+# build everything needed
+make epydoc dist
+
+# update web site on gforge
+if [ $UPDATEWEB == 1 ] ; then
+    echo "### sync $FORGELOCATION"
+    $RSYNC dist/*.tar.gz $FORGELOCATION:/home/groups/execo/htdocs/downloads/
+    ssh $FORGELOCATION 'mkdir -p /home/groups/execo/htdocs/doc /home/groups/execo/htdocs/epydoc'
+    $RSYNC doc/_build/html/* $FORGELOCATION:/home/groups/execo/htdocs/doc
+    $RSYNC epydoc/* $FORGELOCATION:/home/groups/execo/htdocs/epydoc
+fi
+
+# update version in grid5000
+if [ $UPDATEG5K == 1 ] ; then
+    echo "### sync $G5KLOCATION"
+    $RSYNC dist/execo-1.2.tar.gz $G5KLOCATION:
+    ssh $G5KLOCATION 'rm -rf execo-1.2 ; tar xzf execo-1.2.tar.gz ; cd execo-1.2 ; make install PREFIX=/home/mimbert/.local'
+fi
