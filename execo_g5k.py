@@ -5,6 +5,9 @@ r"""Tools and extensions to execo suitable for use in Grid5000."""
 from execo import *
 import operator, copy
 
+logger = logging.getLogger("execo.g5k")
+"""The execo_g5k logger."""
+
 # _STARTOF_ g5k_configuration
 g5k_configuration = {
     'kadeploy3': 'kadeploy3',

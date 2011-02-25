@@ -172,7 +172,7 @@ def style(string, style):
 logger = logging.getLogger("execo")
 """The execo logger."""
 logger_handler = logging.StreamHandler(sys.stderr)
-logger_handler.setFormatter(logging.Formatter(style("%(asctime)s", 'log_header') + style(" %(levelname)s", 'log_level') + " %(message)s"))
+logger_handler.setFormatter(logging.Formatter(style("%(asctime)s", 'log_header') + style(" %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
 logger.addHandler(logger_handler)
 if configuration.has_key('log_level'):
     logger.setLevel(configuration['log_level'])
