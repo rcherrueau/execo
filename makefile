@@ -32,8 +32,8 @@ cleansphinxdoc:
 
 epydoc: epydoc/redirect.html
 
-epydoc/redirect.html: execo.py execo_g5k.py
-	epydoc --docformat "restructuredtext en" -v --html --output=epydoc execo.py execo_g5k.py
+epydoc/redirect.html: execo.py execo_g5k.py g5k_api_tools.py
+	epydoc --docformat "restructuredtext en" -v --html --output=epydoc execo.py execo_g5k.py g5k_api_tools.py
 
 cleanepydoc:
 	rm -rf epydoc
