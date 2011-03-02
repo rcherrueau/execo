@@ -496,26 +496,26 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         connexion_params = default_frontend_connexion_params
     processes = []
     for (spec, site) in job_specs:
-        oarsub_cmdline = "oarsub -l %s" % (spec.resources,)
+        oarsub_cmdline = 'oarsub -l %s' % (spec.resources,)
         if spec.walltime != None:
-            oarsub_cmdline += ",walltime=%s" % (format_oar_duration(spec.walltime),)
+            oarsub_cmdline += ',walltime=%s' % (format_oar_duration(spec.walltime),)
         if os.environ.has_key('OAR_JOB_KEY_FILE'):
-            oarsub_cmdline += " -k -i %s" % (os.environ['OAR_JOB_KEY_FILE'],)
+            oarsub_cmdline += ' -k -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
         if spec.job_type != None:
-            oarsub_cmdline += " -t '%s'" % (spec.job_type,)
+            oarsub_cmdline += ' -t "%s"' % (spec.job_type,)
         if spec.sql_properties != None:
-            oarsub_cmdline += " -p \"%s\"" % (spec.sql_properties,)
+            oarsub_cmdline += ' -p "%s"' % (spec.sql_properties,)
         if spec.queue != None:
-            oarsub_cmdline += " -q '%s'" % (spec.queue,)
+            oarsub_cmdline += ' -q "%s"' % (spec.queue,)
         if spec.reservation_date != None:
-            oarsub_cmdline += " -r '%s'" % (format_oar_time(spec.reservation_date),)
+            oarsub_cmdline += ' -r "%s"' % (format_oar_time(spec.reservation_date),)
         if spec.directory != None:
-            oarsub_cmdline += " -d '%s'" % (spec.directory,)
+            oarsub_cmdline += ' -d "%s"' % (spec.directory,)
         if spec.project != None:
-            oarsub_cmdline += " --project '%s'" % (spec.project,)
+            oarsub_cmdline += ' --project "%s"' % (spec.project,)
         if spec.name != None:
-            oarsub_cmdline += " -n '%s'" % (spec.name,)
-        oarsub_cmdline += " 'sleep 31536000'"
+            oarsub_cmdline += ' -n "%s"' % (spec.name,)
+        oarsub_cmdline += ' "sleep 31536000"'
         if site == None:
             processes.append(Process(oarsub_cmdline,
                                      timeout = timeout,
@@ -620,30 +620,30 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
         if isinstance(walltime, datetime.timedelta):
             walltime = timedelta_to_seconds(walltime)
         walltime = int(walltime)
-    oargridsub_cmdline = "oargridsub -v -s '%s' " % (format_oar_time(reservation_date),)
+    oargridsub_cmdline = 'oargridsub -v -s "%s" ' % (format_oar_time(reservation_date),)
     if os.environ.has_key('OAR_JOB_KEY_FILE'):
-        oargridsub_cmdline += " -i %s" % (os.environ['OAR_JOB_KEY_FILE'],)
+        oargridsub_cmdline += ' -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
     if queue != None:
-        oargridsub_cmdline += "-q '%s' " % (queue,)
+        oargridsub_cmdline += '-q "%s" ' % (queue,)
     if job_type != None:
-        oargridsub_cmdline += "-t '%s' " % (job_type,)
+        oargridsub_cmdline += '-t "%s" ' % (job_type,)
     if walltime != None:
-        oargridsub_cmdline += "-w '%s' " % (format_oar_duration(walltime),)
+        oargridsub_cmdline += '-w "%s" ' % (format_oar_duration(walltime),)
     if directory != None:
-        oargridsub_cmdline += "-d '%s' " % (directory,)
+        oargridsub_cmdline += '-d "%s" ' % (directory,)
     firstclusteralias = True
     for (spec, clusteralias) in job_specs:
         if firstclusteralias:
             firstclusteralias = False
         else:
             oargridsub_cmdline += ','
-        oargridsub_cmdline += "%s:rdef='%s'" % (clusteralias, spec.resources)
+            oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
         if spec.job_type != None:
-            oargridsub_cmdline += ":type='%s'" % (spec.job_type,)
+            oargridsub_cmdline += ':type="%s"' % (spec.job_type,)
         if spec.sql_properties != None:
-            oargridsub_cmdline += ":prop=\"%s\"" % (spec.sql_properties,)
+            oargridsub_cmdline += ':prop="%s"' % (spec.sql_properties,)
         if spec.name != None:
-            oargridsub_cmdline += ":name='%s'" % (spec.name,)
+            oargridsub_cmdline += ':name="%s"' % (spec.name,)
     process = Process(oargridsub_cmdline,
                       timeout = timeout,
                       pty = True)
