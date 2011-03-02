@@ -529,8 +529,8 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
     oar_job_ids = []
     if len(processes) == 0:
         return oar_job_ids
-    map(Process.start, processes)
-    map(Process.wait, processes)
+    map(Process.__class__.start, processes)
+    map(Process.__class__.wait, processes)
     for process in processes:
         if isinstance(process, SshProcess):
             host = process.host().address
@@ -580,8 +580,8 @@ def oardel(job_specs, connexion_params = None, timeout = False):
                                         timeout = timeout,
                                         ignore_exit_code = True,
                                         pty = True))
-    map(Process.start, processes)
-    map(Process.wait, processes)
+    map(Process.__class__.start, processes)
+    map(Process.__class__.wait, processes)
 
 def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = None, queue = None, directory = None, timeout = False):
     """Submit oargrid jobs.
@@ -749,9 +749,9 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
     oar_job_ids = []
     if len(processes) == 0:
         return oar_job_ids
-    map(Process.start, processes)
-    map(Process.wait, processes)
-    if reduce(operator.and_, map(Process.ok, processes)) or not abort_on_error:
+    map(Process.__class__.start, processes)
+    map(Process.__class__.wait, processes)
+    if reduce(operator.and_, map(Process.__class__.ok, processes)) or not abort_on_error:
         for process in processes:
             if process.ok():
                 jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
