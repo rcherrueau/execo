@@ -416,7 +416,7 @@ class OarSubmission(object):
       checkpoint, timesharing.
 
     - sql_properties: constraints to properties for the job, oar
-      option -p.
+      option -p (use single quotes for literal strings).
 
     - queue: the queue to submit the job to. Oar option -q.
 
