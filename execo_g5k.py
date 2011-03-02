@@ -538,7 +538,7 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
             host = None
         job_id = None
         if process.ok():
-            mo = re.search("^OAR_JOB_ID=(\d+)$", process.stdout(), re.MULTILINE)
+            mo = re.search("^OAR_JOB_ID=(\d+)\s*$", process.stdout(), re.MULTILINE)
             if mo != None:
                 job_id = int(mo.group(1))
         oar_job_ids.append((job_id, host))
@@ -651,10 +651,10 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
     job_id = None
     ssh_key = None
     if process.ok():
-        mo = re.search("^\[OAR_GRIDSUB\] Grid reservation id = (\d+)$", process.stdout(), re.MULTILINE)
+        mo = re.search("^\[OAR_GRIDSUB\] Grid reservation id = (\d+)\s*$", process.stdout(), re.MULTILINE)
         if mo != None:
             job_id = int(mo.group(1))
-        mo = re.search("^\[OAR_GRIDSUB\] SSH KEY : (.*)$", process.stdout(), re.MULTILINE)
+        mo = re.search("^\[OAR_GRIDSUB\] SSH KEY : (.*)\s*$", process.stdout(), re.MULTILINE)
         if mo != None:
             ssh_key = mo.group(1)
     if job_id != None:
@@ -860,11 +860,11 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
     process.run()
     if process.ok():
         job_info = dict()
-        start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)$", process.stdout(), re.MULTILINE)
+        start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
         if start_date_result:
             start_date = time.mktime(time.strptime(start_date_result.group(1), "%Y-%m-%d %H:%M:%S"))
             job_info['start_date'] = start_date
-        duration_result = re.search("^\s*walltime = (\d+):(\d\d):(\d\d)$", process.stdout(), re.MULTILINE)
+        duration_result = re.search("^\s*walltime = (\d+):(\d\d):(\d\d)\s*$", process.stdout(), re.MULTILINE)
         if duration_result:
             duration = int(duration_result.group(1)) * 3600 + int(duration_result.group(2)) * 60 + int(duration_result.group(3))
             job_info['duration'] = duration
