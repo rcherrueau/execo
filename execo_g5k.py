@@ -529,8 +529,8 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
     oar_job_ids = []
     if len(processes) == 0:
         return oar_job_ids
-    map(Process.__class__.start, processes)
-    map(Process.__class__.wait, processes)
+    for process in processes: process.start()
+    for process in processes: process.wait()
     for process in processes:
         if isinstance(process, SshProcess):
             host = process.host().address
@@ -580,8 +580,8 @@ def oardel(job_specs, connexion_params = None, timeout = False):
                                         timeout = timeout,
                                         ignore_exit_code = True,
                                         pty = True))
-    map(Process.__class__.start, processes)
-    map(Process.__class__.wait, processes)
+    for process in processes: process.start()
+    for process in processes: process.wait()
 
 def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = None, queue = None, directory = None, timeout = False):
     """Submit oargrid jobs.
@@ -684,8 +684,8 @@ def oargriddel(job_ids, timeout = False):
                                  timeout = timeout,
                                  ignore_exit_code = True,
                                  pty = True))
-    map(Process.start, processes)
-    map(Process.wait, processes)
+    for process in processes: process.start()
+    for process in processes: process.wait()
 
 def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False, abort_on_error = False):
     """Return a list of current active oar job ids.
@@ -749,9 +749,9 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
     oar_job_ids = []
     if len(processes) == 0:
         return oar_job_ids
-    map(Process.__class__.start, processes)
-    map(Process.__class__.wait, processes)
-    if reduce(operator.and_, map(Process.__class__.ok, processes)) or not abort_on_error:
+    for process in processes: process.start()
+    for process in processes: process.wait()
+    if reduce(operator.and_, [ p.ok() for p in processes ]) or not abort_on_error:
         for process in processes:
             if process.ok():
                 jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
