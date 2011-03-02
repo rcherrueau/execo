@@ -430,6 +430,9 @@ class OarSubmission(object):
       option --project.
 
     - name: Specify an arbitrary name for the job. Oar option -n.
+
+    - additional_options: passed directly to oarsub on the command
+      line.
     """
 
     def __init__(self,
@@ -441,7 +444,8 @@ class OarSubmission(object):
                  reservation_date = None,
                  directory = None,
                  project = None,
-                 name = None):
+                 name = None,
+                 additional_options = None):
         if walltime != None:
             if isinstance(walltime, datetime.timedelta):
                 walltime = timedelta_to_seconds(walltime)
@@ -459,6 +463,7 @@ class OarSubmission(object):
         self.directory = directory
         self.project = project
         self.name = name
+        self.additional_options = additional_options
 
     def __repr__(self):
         s = "OarSubmission(resources=%r" % (self.resources,)
@@ -470,6 +475,7 @@ class OarSubmission(object):
         if self.directory != None: s += ", directory=%r" % (self.directory,)
         if self.project != None: s += ", project=%r" % (self.project,)
         if self.name != None: s += ", name=%r" % (self.name,)
+        if self.additional_options != None: s += ", additional_options=%r" % (self.additional_options,)
         s += ")"
         return s
 
@@ -496,7 +502,10 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         connexion_params = default_frontend_connexion_params
     processes = []
     for (spec, site) in job_specs:
-        oarsub_cmdline = 'oarsub -l %s' % (spec.resources,)
+        oarsub_cmdline = 'oarsub'
+        if spec.additional_options != None:
+            oarsub_cmdline += ' %s' % (spec.additional_options,)
+        oarsub_cmdline += ' -l %s' % (spec.resources,)
         if spec.walltime != None:
             oarsub_cmdline += ',walltime=%s' % (format_oar_duration(spec.walltime),)
         if os.environ.has_key('OAR_JOB_KEY_FILE'):
@@ -583,12 +592,15 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     for process in processes: process.start()
     for process in processes: process.wait()
 
-def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = None, queue = None, directory = None, timeout = False):
+def oargridsub(job_specs, reservation_date = None,
+               walltime = None, job_type = None,
+               queue = None, directory = None,
+               additional_options = None, timeout = False):
     """Submit oargrid jobs.
 
     :param job_specs: iterable of tuples (OarSubmission,
       clusteralias). Reservation date, walltime, queue, directory,
-      project of the OarSubmission are ignored.
+      project, additional_options of the OarSubmission are ignored.
 
     :param reservation_date: grid job reservation date. Default: now.
 
@@ -601,6 +613,9 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
 
     :param directory: directory where the reservation will be
       launched.
+
+    :param additional_options: passed directly to oargridsub on the
+      command line.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -620,7 +635,10 @@ def oargridsub(job_specs, reservation_date = None, walltime = None, job_type = N
         if isinstance(walltime, datetime.timedelta):
             walltime = timedelta_to_seconds(walltime)
         walltime = int(walltime)
-    oargridsub_cmdline = 'oargridsub -v -s "%s" ' % (format_oar_time(reservation_date),)
+    oargridsub_cmdline = 'oargridsub'
+    if additional_options != None:
+        oargridsub_cmdline += ' %s' % (additional_options,)
+    oargridsub_cmdline += ' -v -s "%s" ' % (format_oar_time(reservation_date),)
     if os.environ.has_key('OAR_JOB_KEY_FILE'):
         oargridsub_cmdline += ' -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
     if queue != None:
