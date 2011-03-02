@@ -1480,7 +1480,7 @@ def get_ssh_scp_pty_option(connexion_params):
     if connexion_params != None and connexion_params.has_key('ssh_scp_pty'):
         return connexion_params['ssh_scp_pty']
     elif default_connexion_params != None and default_connexion_params.has_key('ssh_scp_pty'):
-        return ssh_scp_pty
+        return default_connexion_params.has_key('ssh_scp_pty')
     else:
         return False
 
