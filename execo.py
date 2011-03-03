@@ -893,29 +893,19 @@ class Process(ProcessBase):
                 os.kill(self._pid, sig)
             except OSError, e:
                 if e.errno == errno.EPERM:
-                    char = None
-                    if self._pty:
+                    if (self._pty
+                        and (sig == signal.SIGTERM
+                             or sig == signal.SIGHUP
+                             or sig == signal.SIGINT
+                             or sig == signal.SIGKILL
+                             or sig == signal.SIGPIPE
+                             or sig == signal.SIGQUIT)):
                         # unable to send signal to process due to lack
                         # of permissions. If _pty == True, then there
-                        # is a pty through which we can try to
-                        # simulate sending control characters
-                        if (sig == signal.SIGTERM
-                            or sig == signal.SIGHUP
-                            or sig == signal.SIGINT
-                            or sig == signal.SIGKILL
-                            or sig == signal.SIGPIPE):
-                            if hasattr(termios, 'VINTR'):
-                                char = termios.tcgetattr(self._ptymaster)[6][termios.VINTR]
-                            else:
-                                char = chr(3)
-                        elif sig == signal.SIGQUIT:
-                            if hasattr(termios, 'VQUIT'):
-                                char = termios.tcgetattr(self._ptymaster)[6][termios.VQUIT]
-                            else:
-                                char = chr(28)
-                    if char != None:
-                        logger.debug("sending %r to pty of %s" % (char, self))
-                        os.write(self.stdin_fd(), char)
+                        # is a pty, we can close its master side, it should
+                        # trigger a signal (SIGPIPE?) on the other side
+                        os.close(self._ptymaster)
+                        logger.debug("EPERM for signal %s -> closing pty master side of %s" % (sig, self))
                     else:
                         logger.debug(style("EPERM: unable to send signal", 'emph') + " to %s" % self)
                 elif e.errno == errno.ESRCH:
