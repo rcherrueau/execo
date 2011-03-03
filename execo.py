@@ -1040,6 +1040,7 @@ class _Conductor(object):
                              # we enqueue tuples (function to call,
                              # tuple of parameters to pass to this
                              # function))
+        signal.set_wakeup_fd(self.__wpipe)
 
     def __str__(self):
         return "<" + style("Conductor", 'obj_repr') + "(num processes=%i, num fds=%i, num pids=%i, timeline length=%i)>" % (len(self.__processes), len(self.__fds), len(self.__pids), len(self.__timeline))
