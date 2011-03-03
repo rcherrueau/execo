@@ -433,6 +433,8 @@ class OarSubmission(object):
 
     - additional_options: passed directly to oarsub on the command
       line.
+
+    - command: run by oarsub (default: sleep a long time).
     """
 
     def __init__(self,
@@ -445,7 +447,8 @@ class OarSubmission(object):
                  directory = None,
                  project = None,
                  name = None,
-                 additional_options = None):
+                 additional_options = None,
+                 command = None):
         if walltime != None:
             if isinstance(walltime, datetime.timedelta):
                 walltime = timedelta_to_seconds(walltime)
@@ -464,6 +467,7 @@ class OarSubmission(object):
         self.project = project
         self.name = name
         self.additional_options = additional_options
+        self.command = command
 
     def __repr__(self):
         s = "OarSubmission(resources=%r" % (self.resources,)
@@ -476,6 +480,7 @@ class OarSubmission(object):
         if self.project != None: s += ", project=%r" % (self.project,)
         if self.name != None: s += ", name=%r" % (self.name,)
         if self.additional_options != None: s += ", additional_options=%r" % (self.additional_options,)
+        if self.command != None: s += ", command=%r" % (self.command,)
         s += ")"
         return s
 
@@ -524,7 +529,10 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
             oarsub_cmdline += ' --project "%s"' % (spec.project,)
         if spec.name != None:
             oarsub_cmdline += ' -n "%s"' % (spec.name,)
-        oarsub_cmdline += ' "sleep 31536000"'
+        if spec.command != None:
+            oarsub_cmdline += ' "%s"' % (spec.command,)
+        else:
+            oarsub_cmdline += ' "sleep 31536000"'
         if site == None:
             processes.append(Process(oarsub_cmdline,
                                      timeout = timeout,
@@ -600,7 +608,8 @@ def oargridsub(job_specs, reservation_date = None,
 
     :param job_specs: iterable of tuples (OarSubmission,
       clusteralias). Reservation date, walltime, queue, directory,
-      project, additional_options of the OarSubmission are ignored.
+      project, additional_options, command of the OarSubmission are
+      ignored.
 
     :param reservation_date: grid job reservation date. Default: now.
 
