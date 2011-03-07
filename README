@@ -6,10 +6,12 @@ Execo offers a Python API for local or remote, standalone or parallel,
 processes execution. It is especially well suited for scripting
 workflows of parallel/distributed operations on local or remote hosts:
 conducting experiments, performing automated tests, etc. The core
-python module is ``execo``. The ``execo_g5k`` python module provides a
-set of tools and extensions to execo, to be used in Grid5000. The
-``g5k_deploy`` shell command builds upon execo to deploy environments
-on grid5000 with a more user friendly interface than kadeploy.
+python module is ``execo``. The ``execo_g5k`` module provides a set of
+tools and extensions to execo, to be used in Grid5000. The
+``g5k_api_tools`` module offers simple functions for dealing with the
+Grid5000 rest API. The ``g5k_deploy`` shell command builds upon these
+modules to deploy environments on grid5000 with a more user friendly
+interface than kadeploy.
 
 installation instructions
 =========================
