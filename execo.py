@@ -946,9 +946,17 @@ class Process(ProcessBase):
         self._end_date = time.time()
         self._ended = True
         if self._ptymaster != None:
-            os.close(self._ptymaster)
+            try:
+                os.close(self._ptymaster)
+            except OSError, e:
+                if e.errno == errno.EBADF: pass
+                else: raise e
         if self._ptyslave != None:
-            os.close(self._ptyslave)
+            try:
+                os.close(self._ptyslave)
+            except OSError, e:
+                if e.errno == errno.EBADF: pass
+                else: raise e
         if self._process.stdin:
             self._process.stdin.close()
         if self._process.stdout:
@@ -1168,15 +1176,23 @@ class _Conductor(object):
             self.__poller.unregister(fileno_stdout)
             # read the last data that may be available on stdout of
             # this process
-            (last_bytes, eof) = _read_asmuch(fileno_stdout)
-            process._handle_stdout(last_bytes, eof = True)
+            try:
+                (last_bytes, eof) = _read_asmuch(fileno_stdout)
+                process._handle_stdout(last_bytes, eof = True)
+            except OSError, e:
+                if e.errno == errno.EBADF: pass
+                else: raise e
         if self.__fds.has_key(fileno_stderr):
             del self.__fds[fileno_stderr]
             self.__poller.unregister(fileno_stderr)
             # read the last data that may be available on stderr of
             # this process
-            (last_bytes, eof) = _read_asmuch(fileno_stderr)
-            process._handle_stderr(last_bytes, eof = True)
+            try:
+                (last_bytes, eof) = _read_asmuch(fileno_stderr)
+                process._handle_stderr(last_bytes, eof = True)
+            except OSError, e:
+                if e.errno == errno.EBADF: pass
+                else: raise e
         self.__processes.remove(process)
         if exit_code != None:
             process._set_terminated(exit_code = exit_code)
