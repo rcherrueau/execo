@@ -126,18 +126,18 @@ _styles = {
 _MAXREAD = 32767
 
 def read_user_configuration_dicts(dicts_confs):
-    """Update dicts with those found in ``~/.execo_conf.py``.
+    """Update dicts with those found in ``~/.execo.conf.py``.
 
     :param dicts_confs: an iterable of couples (dict, string)
 
     Used to read configuration dicts. For each couple (dict, string),
-    if a dict named string is defined in ``~/.execo_conf.py``, update
+    if a dict named string is defined in ``~/.execo.conf.py``, update
     dict with the content of this dict. Does nothing if unable to open
-    ``~/.execo_conf.py``.
+    ``~/.execo.conf.py``.
     """
     if not os.environ.has_key('HOME'):
         return
-    user_conf_file = os.environ['HOME'] + '/.execo_conf.py'
+    user_conf_file = os.environ['HOME'] + '/.execo.conf.py'
     if not os.path.exists(user_conf_file):
         return
     conf_dict = {}

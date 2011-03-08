@@ -277,7 +277,7 @@ Configuration
 This module may be configured at import time by modifiing execo module
 variables `configuration`, `default_connexion_params` or by defining
 two dicts `configuration` and `default_connexion_params` in the file
-``~/.execo_conf.py``
+``~/.execo.conf.py``
 
 The `configuration` dict contains global configuration parameters.
 
@@ -311,7 +311,7 @@ made, then from the ``connexion_params`` given to the `SshProcess` /
 `TaktukRemote` / `Remote` / `Get` / `TaktukGet` / `Put` / `TaktukPut`,
 if there are some, then from the `default_connexion_params`, which has
 default values which can be changed by directly modifying its global
-value, or in ``~/.execo_conf.py``
+value, or in ``~/.execo.conf.py``
 
 ssh/scp configuration for SshProcess, Remote, TaktukRemote, Get, TaktukGet, Put, TaktukPut
 ------------------------------------------------------------------------------------------

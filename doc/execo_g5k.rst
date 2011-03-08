@@ -101,7 +101,7 @@ Configuration
 =============
 This module may be configured at import time by defining two dicts
 `g5k_configuration` and `default_frontend_connexion_params` in the
-file ``~/.execo_conf.py``
+file ``~/.execo.conf.py``
 
 The `g5k_configuration` dict contains global g5k configuration
 parameters.
