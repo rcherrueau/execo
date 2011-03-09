@@ -2249,7 +2249,7 @@ class Remote(Action):
                                               pty = get_ssh_scp_pty_option(connexion_params)))
 
     def __repr__(self):
-        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts(), self._connexion_params, self._remote_cmd)
+        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._connexion_params, self._remote_cmd)
 
     def processes(self):
         return list(self._processes)
