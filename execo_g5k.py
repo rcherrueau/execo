@@ -263,7 +263,7 @@ class Kadeployer(Remote):
                 sites[site].append(host)
             else:
                 sites[site] = [host]
-        self._processes = dict()
+        self._processes = list()
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(sites))
@@ -272,24 +272,24 @@ class Kadeployer(Remote):
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
             if site == _get_local_site():
-                self._processes[site] = Process(kadeploy_command,
-                                                stdout_handler = _KadeployStdoutHandler(self, out = out),
-                                                stderr_handler = _KadeployStderrHandler(self, out = out),
-                                                timeout = self._timeout,
-                                                ignore_exit_code = self._ignore_exit_code,
-                                                ignore_timeout = self._ignore_timeout,
-                                                process_lifecycle_handler = lifecycle_handler,
-                                                pty = True)
+                self._processes.append(Process(kadeploy_command,
+                                               stdout_handler = _KadeployStdoutHandler(self, out = out),
+                                               stderr_handler = _KadeployStderrHandler(self, out = out),
+                                               timeout = self._timeout,
+                                               ignore_exit_code = self._ignore_exit_code,
+                                               ignore_timeout = self._ignore_timeout,
+                                               process_lifecycle_handler = lifecycle_handler,
+                                               pty = True))
             else:
-                self._processes[site] = SshProcess(Host(site),
-                                                   kadeploy_command,
-                                                   connexion_params = connexion_params,
-                                                   stdout_handler = _KadeployStdoutHandler(self, out = out),
-                                                   stderr_handler = _KadeployStderrHandler(self, out = out),
-                                                   timeout = self._timeout,
-                                                   ignore_exit_code = self._ignore_exit_code,
-                                                   process_lifecycle_handler = lifecycle_handler,
-                                                   pty = True)
+                self._processes.append(SshProcess(Host(site),
+                                                  kadeploy_command,
+                                                  connexion_params = connexion_params,
+                                                  stdout_handler = _KadeployStdoutHandler(self, out = out),
+                                                  stderr_handler = _KadeployStderrHandler(self, out = out),
+                                                  timeout = self._timeout,
+                                                  ignore_exit_code = self._ignore_exit_code,
+                                                  process_lifecycle_handler = lifecycle_handler,
+                                                  pty = True))
 
     def __repr__(self):
         r = style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
@@ -307,7 +307,7 @@ class Kadeployer(Remote):
         r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r" % (self._connexion_params,
                                                                                 self._ignore_exit_code,
                                                                                 self._ignore_timeout)
-        r += ", cmds=%r, deployed_hosts=%r error_hosts=%r)>" % ([ process.cmd() for process in self._processes.values()],
+        r += ", cmds=%r, deployed_hosts=%r error_hosts=%r)>" % ([ process.cmd() for process in self._processes],
                                                                 self._good_hosts, self._bad_hosts)
         return r
 
