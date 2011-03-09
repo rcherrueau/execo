@@ -1621,25 +1621,18 @@ class FrozenHost(Host):
         return super(FrozenHost, self).__repr__()
 
 def get_frozen_hosts_set(hosts):
-    """Deep copy an iterable of `Host` to a set of `FrozenHost` (thus removing duplicates)."""
+    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a set of `FrozenHost` (thus removing duplicates)."""
     copy = set()    
-    for host in hosts:
-        fhost = FrozenHost(host)
-        copy.add(fhost)
+    for host in hosts: copy.add(FrozenHost(host))
     return copy
 
 def get_frozen_hosts_list(hosts):
-    """Deep copy an iterable of `Host` to an iterable of `FrozenHost`, removing duplicates and keeping order."""
-    fhosts = get_frozen_hosts_set(hosts)
-    return [host for host in hosts if FrozenHost(host) in fhosts]
+    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a list of `FrozenHost`."""
+    return [ FrozenHost(host) for host in hosts ]
 
-def get_hosts_sequence(hosts):
-    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a sequence of `Host`."""
-    copy = []
-    for host in hosts:
-        host_copy = Host(host)
-        copy.append(host_copy)
-    return copy
+def get_hosts_list(hosts):
+    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a list of `Host`."""
+    return [ Host(host) for host in hosts ]
 
 class SshProcess(Process):
 

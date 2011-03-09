@@ -284,9 +284,9 @@ get_frozen_hosts_list
 ---------------------
 .. autofunction:: get_frozen_hosts_list
 
-get_hosts_sequence
-------------------
-.. autofunction:: get_hosts_sequence
+get_hosts_list
+--------------
+.. autofunction:: get_hosts_list
 
 Logging
 =======
