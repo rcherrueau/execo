@@ -1994,8 +1994,8 @@ class Action(object):
 
     """Abstract base class. A set of parallel processes.
 
-    An `Action` can be started (`Action.start`), stopped
-    (`Action.stop`). One can wait (`Action.wait`) for an `Action`, it
+    An `Action` can be started (`Action.start`), killed
+    (`Action.kill`). One can wait (`Action.wait`) for an `Action`, it
     means waiting for all processes in the `Action` to finish. An
     `Action` can be run (`Action.wait`), it means start it then wait
     for it to complete.
@@ -2064,11 +2064,11 @@ class Action(object):
             handler.start(self)
         return self
 
-    def stop(self):
-        """Stop all subprocesses.
+    def kill(self):
+        """Kill all subprocesses.
 
         return self"""
-        logger.debug(style("stop:", 'emph') + " %s" % (self,))
+        logger.debug(style("kill:", 'emph') + " %s" % (self,))
         return self
     
     def wait(self):
@@ -2264,8 +2264,8 @@ class Remote(Action):
                 process.start()
         return retval
 
-    def stop(self):
-        retval = super(Remote, self).stop()
+    def kill(self):
+        retval = super(Remote, self).kill()
         for process in self._processes:
             process.kill()
         return retval
@@ -2575,8 +2575,8 @@ class TaktukRemote(Action):
             self._taktuk.start()
         return retval
 
-    def stop(self):
-        retval = super(TaktukRemote, self).stop()
+    def kill(self):
+        retval = super(TaktukRemote, self).kill()
         self._taktuk.kill()
         return retval
 
@@ -2964,8 +2964,8 @@ class Local(Action):
         self._process.start()
         return retval
 
-    def stop(self):
-        retval = super(Local, self).stop()
+    def kill(self):
+        retval = super(Local, self).kill()
         self._process.kill()
         return retval
 
@@ -2988,7 +2988,7 @@ class ParallelActions(Action):
 
     """An `Action` running several sub-`Action` in parallel.
 
-    Will start, stop, wait, run every `Action` in parallel.
+    Will start, kill, wait, run every `Action` in parallel.
     """
 
     def __init__(self, actions = None, **kwargs):
@@ -3019,10 +3019,10 @@ class ParallelActions(Action):
             action.start()
         return retval
 
-    def stop(self):
-        retval = super(ParallelActions, self).stop()
+    def kill(self):
+        retval = super(ParallelActions, self).kill()
         for action in self._actions:
-            action.stop()
+            action.kill()
         return retval
 
     def processes(self):
@@ -3060,7 +3060,7 @@ class SequentialActions(Action):
 
     """An `Action` running several sub-`Action` sequentially.
 
-    Will start, stop, wait, run every `Action` sequentially.
+    Will start, kill, wait, run every `Action` sequentially.
     """
 
     def __init__(self, actions = None, **kwargs):
@@ -3096,10 +3096,10 @@ class SequentialActions(Action):
         self._actions[0].start()
         return retval
 
-    def stop(self):
-        retval = super(SequentialActions, self).stop()
+    def kill(self):
+        retval = super(SequentialActions, self).kill()
         for action in self._actions:
-            action.stop()
+            action.kill()
         return retval
 
     def processes(self):

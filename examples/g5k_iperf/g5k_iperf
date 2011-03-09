@@ -34,7 +34,7 @@ execo.sleep(2)
 #begin_capture.run()
 clients.run()
 #end_capture.run()
-servers.stop()
+servers.kill()
 servers.wait()
 
 #report = execo.Report((servers, clients, begin_capture, end_capture), name = "iperf on g5k")
