@@ -1621,25 +1621,18 @@ class FrozenHost(Host):
         return super(FrozenHost, self).__repr__()
 
 def get_frozen_hosts_set(hosts):
-    """Deep copy an iterable of `Host` to a set of `FrozenHost` (thus removing duplicates)."""
+    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a set of `FrozenHost` (thus removing duplicates)."""
     copy = set()    
-    for host in hosts:
-        fhost = FrozenHost(host)
-        copy.add(fhost)
+    for host in hosts: copy.add(FrozenHost(host))
     return copy
 
 def get_frozen_hosts_list(hosts):
-    """Deep copy an iterable of `Host` to an iterable of `FrozenHost`, removing duplicates and keeping order."""
-    fhosts = get_frozen_hosts_set(hosts)
-    return [host for host in hosts if FrozenHost(host) in fhosts]
+    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a list of `FrozenHost`."""
+    return [ FrozenHost(host) for host in hosts ]
 
-def get_hosts_sequence(hosts):
-    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a sequence of `Host`."""
-    copy = []
-    for host in hosts:
-        host_copy = Host(host)
-        copy.append(host_copy)
-    return copy
+def get_hosts_list(hosts):
+    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a list of `Host`."""
+    return [ Host(host) for host in hosts ]
 
 class SshProcess(Process):
 
@@ -2241,29 +2234,25 @@ class Remote(Action):
         self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
-        self._processes = dict()
-        fhosts = get_frozen_hosts_list(hosts)
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts))
-        for (index, fhost) in enumerate(fhosts):
-            self._processes[fhost] = SshProcess(fhost,
-                                                remote_substitute(remote_cmd, fhosts, index, self._caller_context),
-                                                connexion_params = connexion_params,
-                                                timeout = self._timeout,
-                                                ignore_exit_code = self._ignore_exit_code,
-                                                ignore_timeout = self._ignore_timeout,
-                                                ignore_error = self._ignore_error,
-                                                process_lifecycle_handler = lifecycle_handler,
-                                                pty = get_ssh_scp_pty_option(connexion_params))
+        self._hosts = get_hosts_list(hosts)
+        self._processes = list()
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        for (index, host) in enumerate(self._hosts):
+            self._processes.append(SshProcess(host,
+                                              remote_substitute(remote_cmd, self._hosts, index, self._caller_context),
+                                              connexion_params = connexion_params,
+                                              timeout = self._timeout,
+                                              ignore_exit_code = self._ignore_exit_code,
+                                              ignore_timeout = self._ignore_timeout,
+                                              ignore_error = self._ignore_error,
+                                              process_lifecycle_handler = lifecycle_handler,
+                                              pty = get_ssh_scp_pty_option(connexion_params)))
 
     def __repr__(self):
-        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
+        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._connexion_params, self._remote_cmd)
 
     def processes(self):
-        return self._processes.values()
-
-    def get_hosts_processes(self):
-        """Return a dict whose keys are `Host` and values are `Process` ran on those hosts."""
-        return self._processes.copy()
+        return list(self._processes)
 
     def start(self):
         retval = super(Remote, self).start()
@@ -2271,13 +2260,13 @@ class Remote(Action):
             logger.debug("%s contains 0 processes -> immediately terminated" % (self,))
             self._notify_terminated()
         else:
-            for process in self._processes.values():
+            for process in self._processes:
                 process.start()
         return retval
 
     def stop(self):
         retval = super(Remote, self).stop()
-        for process in self._processes.values():
+        for process in self._processes:
             process.kill()
         return retval
 
@@ -2303,7 +2292,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                 if position == 0:
                     host_address = "localhost"
                 else:
-                    host_address = self._taktukaction._taktuk_fhost_order[position-1].address
+                    host_address = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]].host().address
                 if header in (65, 66, 67, 70, 71, 72):
                     if header == 65: t = "stdout"
                     elif header == 66: t = "stderr"
@@ -2320,7 +2309,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                         if peer_position == 0:
                             peer_host_address = "localhost"
                         else:
-                            peer_host_address = self._taktukaction._taktuk_fhost_order[peer_position-1].address
+                            peer_host_address = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]].host().address
                     except:
                         pass
                     if header == 68:
@@ -2363,8 +2352,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                         self._log_unexpected_output(string)
                         return
                     else:
-                        host = self._taktukaction._taktuk_fhost_order[position-1]
-                        process = self._taktukaction._processes[host]
+                        process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]]
                         if header == 65: # stdout
                             process._handle_stdout(line, eof = eof, error = error)
                         elif header == 66: # stderr
@@ -2375,23 +2363,20 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                     (peer_position, sep, line) = line.partition(" # ")
                     if header == 68: # connector
                         peer_position = int(peer_position)
-                        host = self._taktukaction._taktuk_fhost_order[peer_position-1]
-                        process = self._taktukaction._processes[host]
+                        process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
                         process._handle_stderr(line)
                     else: # state
                         (state_code, sep, state_msg) = line.partition(" # ")
                         state_code = int(state_code)
                         if state_code == 6 or state_code == 7: # command started or remote command exec failed
-                            host = self._taktukaction._taktuk_fhost_order[position-1]
-                            process = self._taktukaction._processes[host]
+                            process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]]
                             if state_code == 6: # command started
                                 process.start()
                             else: # 7: remote command exec failed
                                 process._set_terminated(error = True, error_reason = "taktuk remote command execution failed")
                         elif state_code == 3 or state_code == 5: # connexion failed or lost
                             peer_position = int(peer_position)
-                            host = self._taktukaction._taktuk_fhost_order[peer_position-1]
-                            process = self._taktukaction._processes[host]
+                            process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
                             if state_code == 3: # connexion failed
                                 process._set_terminated(error = True, error_reason = "taktuk connexion failed")
                             else: # 5: connexion lost
@@ -2468,35 +2453,36 @@ class TaktukRemote(Action):
         self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
-        self._processes = dict()
+        self._hosts = get_hosts_list(hosts)
+        self._processes = list()
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
-        self._taktuk_common_init(hosts)
+        self._taktuk_common_init()
 
-    def _gen_taktukprocesses(self, fhosts_list):
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts_list))
-        for (index, fhost) in enumerate(fhosts_list):
-            self._processes[fhost] = TaktukProcess(fhost,
-                                                   remote_substitute(self._remote_cmd, fhosts_list, index, self._caller_context),
-                                                   timeout = self._timeout,
-                                                   ignore_exit_code = self._ignore_exit_code,
-                                                   ignore_timeout = self._ignore_timeout,
-                                                   ignore_error = self._ignore_error,
-                                                   process_lifecycle_handler = lifecycle_handler)
+    def _gen_taktukprocesses(self):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        for (index, host) in enumerate(self._hosts):
+            self._processes.append(TaktukProcess(host,
+                                                 remote_substitute(self._remote_cmd, self._hosts, index, self._caller_context),
+                                                 timeout = self._timeout,
+                                                 ignore_exit_code = self._ignore_exit_code,
+                                                 ignore_timeout = self._ignore_timeout,
+                                                 ignore_error = self._ignore_error,
+                                                 process_lifecycle_handler = lifecycle_handler))
 
-    def _gen_taktuk_commands(self, fhosts_list, hosts_with_explicit_user):
-        self._taktuk_fhost_order = []
-        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", fhost.address, "-[", "exec", "[", self._processes[fhosts_list[index]].cmd(), "]", "-]",)
-            self._taktuk_fhost_order.append(fhost)
-        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", fhost.user, "-m", fhost.address, "-[", "exec", "[", self._processes[fhosts_list[index]].cmd(), "]", "-]",)
-            self._taktuk_fhost_order.append(fhost)
+    def _gen_taktuk_commands(self, hosts_with_explicit_user):
+        self._taktuk_hosts_order = []
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) not in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-m", host.address, "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
+            self._taktuk_hosts_order.append(index)
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-l", host.user, "-m", host.address, "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
+            self._taktuk_hosts_order.append(index)
 
-    def _taktuk_common_init(self, hosts):
+    def _taktuk_common_init(self):
         # taktuk code common to TaktukRemote and subclasses TaktukGet
         # TaktukPut
-        fhosts = get_frozen_hosts_list(hosts)
+
         # we can provide per-host user with taktuk, but we cannot
         # provide per-host port or keyfile, so check that all hosts
         # and connexion_params have the same port / keyfile (or None)
@@ -2513,9 +2499,9 @@ class TaktukRemote(Action):
         check_keyfiles = set()
         check_ports = set()
         hosts_with_explicit_user = set()
-        for host in fhosts:
+        for host in self._hosts:
             if host.user != None:
-                hosts_with_explicit_user.add(host)
+                hosts_with_explicit_user.add(FrozenHost(host))
             if host.keyfile != None:
                 check_keyfiles.add(host.keyfile)
             else:
@@ -2532,7 +2518,7 @@ class TaktukRemote(Action):
             global_keyfile = list(check_keyfiles)[0]
         if len(check_ports) == 1:
             global_port = list(check_ports)[0]
-        self._gen_taktukprocesses(fhosts)
+        self._gen_taktukprocesses()
         self._taktuk_cmdline = ()
         if self._connexion_params != None and self._connexion_params.has_key('taktuk'):
             if self._connexion_params['taktuk'] != None:
@@ -2562,7 +2548,7 @@ class TaktukRemote(Action):
                                  "-o", 'message="H $position # $line\\n"',
                                  "-o", 'default="I $position # $type > $line\\n"')
         self._taktuk_cmdline += ("-c", " ".join(get_ssh_command(keyfile = global_keyfile, port = global_port,connexion_params = self._connexion_params)))
-        self._gen_taktuk_commands(fhosts, hosts_with_explicit_user)
+        self._gen_taktuk_commands(hosts_with_explicit_user)
         self._taktuk_cmdline += ("quit",)
         handler = _TaktukRemoteOutputHandler(self)
         self._taktuk = Process(self._taktuk_cmdline,
@@ -2575,14 +2561,10 @@ class TaktukRemote(Action):
                                process_lifecycle_handler = _TaktukLifecycleHandler(self))
 
     def __repr__(self):
-        return style("TaktukRemote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._connexion_params, self._remote_cmd)
+        return style("TaktukRemote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._connexion_params, self._remote_cmd)
 
     def processes(self):
-        return self._processes.values()
-
-    def get_hosts_processes(self):
-        """Return a dict whose keys are `Host` and values are `Process` run on those hosts."""
-        return self._processes.copy()
+        return list(self._processes)
 
     def start(self):
         retval = super(TaktukRemote, self).start()
@@ -2627,30 +2609,30 @@ class Put(Remote):
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
-        self._processes = dict()
+        self._hosts = get_hosts_list(hosts)
+        self._processes = list()
         self._local_files = local_files
         self._remote_location = remote_location
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
-        fhosts = get_frozen_hosts_list(hosts)
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts))
-        for (index, fhost) in enumerate(fhosts):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
             if self._create_dirs:
-                prepend_dir_creation = get_ssh_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params) + (fhost.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, fhosts, index, self._caller_context), '&&')
-            real_command = list(prepend_dir_creation) + list(get_scp_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params)) + [ remote_substitute(local_file, fhosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (fhost.address, remote_substitute(self._remote_location, fhosts, index, self._caller_context)),]
+                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, self._hosts, index, self._caller_context), '&&')
+            real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
-            self._processes[fhost] = Process(real_command,
-                                             timeout = self._timeout,
-                                             shell = True,
-                                             ignore_exit_code = self._ignore_exit_code,
-                                             ignore_timeout = self._ignore_timeout,
-                                             ignore_error = self._ignore_error,
-                                             process_lifecycle_handler = lifecycle_handler,
-                                             pty = get_ssh_scp_pty_option(connexion_params))
+            self._processes.append(Process(real_command,
+                                           timeout = self._timeout,
+                                           shell = True,
+                                           ignore_exit_code = self._ignore_exit_code,
+                                           ignore_timeout = self._ignore_timeout,
+                                           ignore_error = self._ignore_error,
+                                           process_lifecycle_handler = lifecycle_handler,
+                                           pty = get_ssh_scp_pty_option(connexion_params)))
 
     def __repr__(self):
-        return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
+        return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
 
 class Get(Remote):
 
@@ -2681,33 +2663,33 @@ class Get(Remote):
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
-        self._processes = dict()
+        self._hosts = get_hosts_list(hosts)
+        self._processes = list()
         self._remote_files = remote_files
         self._local_location = local_location
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
-        fhosts = get_frozen_hosts_list(hosts)
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts))
-        for (index, fhost) in enumerate(fhosts):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
             if self._create_dirs:
-                prepend_dir_creation = ('mkdir', '-p', remote_substitute(local_location, fhosts, index, self._caller_context), '&&')
+                prepend_dir_creation = ('mkdir', '-p', remote_substitute(local_location, self._hosts, index, self._caller_context), '&&')
             remote_specs = ()
             for path in self._remote_files:
-                remote_specs += ("%s:%s" % (fhost.address, remote_substitute(path, fhosts, index, self._caller_context)),)
-            real_command = prepend_dir_creation + get_scp_command(fhost.user, fhost.keyfile, fhost.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, fhosts, index, self._caller_context),)
+                remote_specs += ("%s:%s" % (host.address, remote_substitute(path, self._hosts, index, self._caller_context)),)
+            real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, self._hosts, index, self._caller_context),)
             real_command = ' '.join(real_command)
-            self._processes[fhost] = Process(real_command,
-                                             timeout = self._timeout,
-                                             shell = True,
-                                             ignore_exit_code = self._ignore_exit_code,
-                                             ignore_timeout = self._ignore_timeout,
-                                             ignore_error = self._ignore_error,
-                                             process_lifecycle_handler = lifecycle_handler,
-                                             pty = get_ssh_scp_pty_option(connexion_params))
+            self._processes.append(Process(real_command,
+                                           timeout = self._timeout,
+                                           shell = True,
+                                           ignore_exit_code = self._ignore_exit_code,
+                                           ignore_timeout = self._ignore_timeout,
+                                           ignore_error = self._ignore_error,
+                                           process_lifecycle_handler = lifecycle_handler,
+                                           pty = get_ssh_scp_pty_option(connexion_params)))
 
     def __repr__(self):
-        return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
+        return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
 
 class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
 
@@ -2732,15 +2714,13 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                     (peer_position, sep, line) = line.partition(" # ")
                     if header == 68: # connector
                         peer_position = int(peer_position)
-                        host = self._taktukaction._taktuk_fhost_order[peer_position-1]
-                        process = self._taktukaction._processes[host]
+                        process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
                         process._handle_stderr(line)
                     else: # state
                         (state_code, sep, state_msg) = line.partition(" # ")
                         state_code = int(state_code)
                         if state_code in (13, 14, 15): # file reception started, failed, terminated
-                            host = self._taktukaction._taktuk_fhost_order[position-1]
-                            process = self._taktukaction._processes[host]
+                            process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]]
                             if state_code == 13: # file reception started
                                 process._num_transfers_started += 1
                             elif state_code == 14: # file reception failed
@@ -2750,8 +2730,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                             self._update_taktukprocess_end_state(process)
                         elif state_code == 3 or state_code == 5: # connexion failed or lost
                             peer_position = int(peer_position)
-                            host = self._taktukaction._taktuk_fhost_order[peer_position-1]
-                            process = self._taktukaction._processes[host]
+                            process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
                             if state_code == 3: # connexion failed
                                 process._set_terminated(error = True, error_reason = "taktuk connexion failed")
                             else: # 5: connexion lost
@@ -2795,41 +2774,43 @@ class TaktukPut(TaktukRemote):
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(TaktukRemote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
-        self._processes = dict()
+        self._hosts = get_hosts_list(hosts)
+        self._processes = list()
         self._local_files = local_files
         self._remote_location = remote_location
         self._connexion_params = connexion_params
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
-        self._taktuk_common_init(hosts)
+        self._taktuk_common_init()
 
-    def _gen_taktukprocesses(self, fhosts_list):
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts_list))
-        for (index, fhost) in enumerate(fhosts_list):
-            self._processes[fhost] = TaktukProcess(fhost,
-                                                   "",
-                                                   timeout = self._timeout,
-                                                   ignore_exit_code = self._ignore_exit_code,
-                                                   ignore_timeout = self._ignore_timeout,
-                                                   ignore_error = self._ignore_error,
-                                                   process_lifecycle_handler = lifecycle_handler)
-            self._processes[fhost]._num_transfers_started = 0
-            self._processes[fhost]._num_transfers_terminated = 0
-            self._processes[fhost]._num_transfers_failed = 0
+    def _gen_taktukprocesses(self):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        for (index, host) in enumerate(self._hosts):
+            process = TaktukProcess(host,
+                                    "",
+                                    timeout = self._timeout,
+                                    ignore_exit_code = self._ignore_exit_code,
+                                    ignore_timeout = self._ignore_timeout,
+                                    ignore_error = self._ignore_error,
+                                    process_lifecycle_handler = lifecycle_handler)
+            process._num_transfers_started = 0
+            process._num_transfers_terminated = 0
+            process._num_transfers_failed = 0
+            self._processes.append(process)
 
-    def _gen_taktuk_commands(self, fhosts_list, hosts_with_explicit_user):
-        self._taktuk_fhost_order = []
-        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", fhost.address)
-            self._taktuk_fhost_order.append(fhost)
-        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", fhost.user, "-m", fhost.address)
-            self._taktuk_fhost_order.append(fhost)
+    def _gen_taktuk_commands(self, hosts_with_explicit_user):
+        self._taktuk_hosts_order = []
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) not in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-m", host.address)
+            self._taktuk_hosts_order.append(index)
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-l", host.user, "-m", host.address)
+            self._taktuk_hosts_order.append(index)
         for src in self._local_files:
             self._taktuk_cmdline += ("broadcast", "put", "[", src, "]", "[", self._remote_location, "]", ";")
 
     def __repr__(self):
-        return style("TaktukPut", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._local_files, self._remote_location, self._connexion_params)
+        return style("TaktukPut", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._local_files, self._remote_location, self._connexion_params)
 
 class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
 
@@ -2854,16 +2835,14 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                     (peer_position, sep, line) = line.partition(" # ")
                     if header == 68: # connector
                         peer_position = int(peer_position)
-                        host = self._taktukaction._taktuk_fhost_order[peer_position-1]
-                        process = self._taktukaction._processes[host]
+                        process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
                         process._handle_stderr(line)
                     else: # state
                         (state_code, sep, state_msg) = line.partition(" # ")
                         state_code = int(state_code)
                         if state_code in (13, 14, 15): # file reception started, failed, terminated
                             peer_position = int(peer_position)
-                            host = self._taktukaction._taktuk_fhost_order[peer_position-1]
-                            process = self._taktukaction._processes[host]
+                            process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
                             if state_code == 13: # file reception started
                                 process._num_transfers_started += 1
                             elif state_code == 14: # file reception failed
@@ -2873,8 +2852,7 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                             self._update_taktukprocess_end_state(process)
                         elif state_code == 3 or state_code == 5: # connexion failed or lost
                             peer_position = int(peer_position)
-                            host = self._taktukaction._taktuk_fhost_order[peer_position-1]
-                            process = self._taktukaction._processes[host]
+                            process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
                             if state_code == 3: # connexion failed
                                 process._set_terminated(error = True, error_reason = "taktuk connexion failed")
                             else: # 5: connexion lost
@@ -2917,41 +2895,43 @@ class TaktukGet(TaktukRemote):
             kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(TaktukRemote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
-        self._processes = dict()
+        self._hosts = get_hosts_list(hosts)
+        self._processes = list()
         self._remote_files = remote_files
         self._local_location = local_location
         self._connexion_params = connexion_params
         self._taktuk_stdout_output_handler = _TaktukGetOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
-        self._taktuk_common_init(hosts)
+        self._taktuk_common_init()
 
-    def _gen_taktukprocesses(self, fhosts_list):
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(fhosts_list))
-        for (index, fhost) in enumerate(fhosts_list):
-            self._processes[fhost] = TaktukProcess(fhost,
-                                                   "",
-                                                   timeout = self._timeout,
-                                                   ignore_exit_code = self._ignore_exit_code,
-                                                   ignore_timeout = self._ignore_timeout,
-                                                   ignore_error = self._ignore_error,
-                                                   process_lifecycle_handler = lifecycle_handler)
-            self._processes[fhost]._num_transfers_started = 0
-            self._processes[fhost]._num_transfers_terminated = 0
-            self._processes[fhost]._num_transfers_failed = 0
+    def _gen_taktukprocesses(self):
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        for (index, host) in enumerate(self._hosts):
+            process = TaktukProcess(host,
+                                    "",
+                                    timeout = self._timeout,
+                                    ignore_exit_code = self._ignore_exit_code,
+                                    ignore_timeout = self._ignore_timeout,
+                                    ignore_error = self._ignore_error,
+                                    process_lifecycle_handler = lifecycle_handler)
+            process._num_transfers_started = 0
+            process._num_transfers_terminated = 0
+            process._num_transfers_failed = 0
+            self._processes.append(process)
 
-    def _gen_taktuk_commands(self, fhosts_list, hosts_with_explicit_user):
-        self._taktuk_fhost_order = []
-        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", fhost.address)
-            self._taktuk_fhost_order.append(fhost)
-        for (index, fhost) in [ (idx, h) for (idx, h) in enumerate(fhosts_list) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", fhost.user, "-m", fhost.address)
-            self._taktuk_fhost_order.append(fhost)
+    def _gen_taktuk_commands(self, hosts_with_explicit_user):
+        self._taktuk_hosts_order = []
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) not in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-m", host.address)
+            self._taktuk_hosts_order.append(index)
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) in hosts_with_explicit_user ]:
+            self._taktuk_cmdline += ("-l", host.user, "-m", host.address)
+            self._taktuk_hosts_order.append(index)
         for src in self._remote_files:
             self._taktuk_cmdline += ("broadcast", "get", "[", src, "]", "[", self._local_location, "]", ";")
 
     def __repr__(self):
-        return style("TaktukGet", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._processes.keys(), self._remote_files, self._local_location, self._connexion_params)
+        return style("TaktukGet", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._remote_files, self._local_location, self._connexion_params)
 
 class Local(Action):
 

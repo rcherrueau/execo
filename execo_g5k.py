@@ -263,7 +263,7 @@ class Kadeployer(Remote):
                 sites[site].append(host)
             else:
                 sites[site] = [host]
-        self._processes = dict()
+        self._processes = list()
         if connexion_params == None:
             connexion_params = default_frontend_connexion_params
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(sites))
@@ -272,24 +272,24 @@ class Kadeployer(Remote):
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
             if site == _get_local_site():
-                self._processes[site] = Process(kadeploy_command,
-                                                stdout_handler = _KadeployStdoutHandler(self, out = out),
-                                                stderr_handler = _KadeployStderrHandler(self, out = out),
-                                                timeout = self._timeout,
-                                                ignore_exit_code = self._ignore_exit_code,
-                                                ignore_timeout = self._ignore_timeout,
-                                                process_lifecycle_handler = lifecycle_handler,
-                                                pty = True)
+                self._processes.append(Process(kadeploy_command,
+                                               stdout_handler = _KadeployStdoutHandler(self, out = out),
+                                               stderr_handler = _KadeployStderrHandler(self, out = out),
+                                               timeout = self._timeout,
+                                               ignore_exit_code = self._ignore_exit_code,
+                                               ignore_timeout = self._ignore_timeout,
+                                               process_lifecycle_handler = lifecycle_handler,
+                                               pty = True))
             else:
-                self._processes[site] = SshProcess(Host(site),
-                                                   kadeploy_command,
-                                                   connexion_params = connexion_params,
-                                                   stdout_handler = _KadeployStdoutHandler(self, out = out),
-                                                   stderr_handler = _KadeployStderrHandler(self, out = out),
-                                                   timeout = self._timeout,
-                                                   ignore_exit_code = self._ignore_exit_code,
-                                                   process_lifecycle_handler = lifecycle_handler,
-                                                   pty = True)
+                self._processes.append(SshProcess(Host(site),
+                                                  kadeploy_command,
+                                                  connexion_params = connexion_params,
+                                                  stdout_handler = _KadeployStdoutHandler(self, out = out),
+                                                  stderr_handler = _KadeployStderrHandler(self, out = out),
+                                                  timeout = self._timeout,
+                                                  ignore_exit_code = self._ignore_exit_code,
+                                                  process_lifecycle_handler = lifecycle_handler,
+                                                  pty = True))
 
     def __repr__(self):
         r = style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
@@ -307,7 +307,7 @@ class Kadeployer(Remote):
         r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r" % (self._connexion_params,
                                                                                 self._ignore_exit_code,
                                                                                 self._ignore_timeout)
-        r += ", cmds=%r, deployed_hosts=%r error_hosts=%r)>" % ([ process.cmd() for process in self._processes.values()],
+        r += ", cmds=%r, deployed_hosts=%r error_hosts=%r)>" % ([ process.cmd() for process in self._processes],
                                                                 self._good_hosts, self._bad_hosts)
         return r
 
@@ -975,7 +975,7 @@ def wait_oargrid_job_start(oargrid_job_id = None, timeout = False):
     sleep(until = get_oargrid_job_info(oargrid_job_id, timeout)['start_date'])
 
 def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = False):
-    """Return an iterable of `FrozenHost` containing the hosts of an oar job.
+    """Return an iterable of `Host` containing the hosts of an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
@@ -1012,14 +1012,11 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
-        hosts = set()
-        for host_address in host_addresses:
-            hosts.add(FrozenHost(host_address))
-        return hosts
+        return [ Host(host_address) for host_address in host_addresses ]
     raise Exception, "error retrieving nodes list for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
 def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
-    """Return an iterable of `FrozenHost` containing the hosts of an oargrid job.
+    """Return an iterable of `Host` containing the hosts of an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
@@ -1034,10 +1031,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
-        hosts = set()
-        for host_address in host_addresses:
-            hosts.add(FrozenHost(host_address))
-        return hosts
+        return [ Host(host_address) for host_address in host_addresses ]
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
 
 def kadeploy(deployment, connexion_params = None, out = False, timeout = None):
@@ -1150,18 +1144,18 @@ def deploy(deployment, connexion_params = None,
                                 timeout = check_timeout)
         deployed_check.run()
         newly_deployed = list()
-        for (host, process) in deployed_check.get_hosts_processes().iteritems():
-            logger.debug(style("check on %s:" % (host,), 'emph')
+        for process in deployed_check.processes():
+            logger.debug(style("check on %s:" % (process.host(),), 'emph')
                          + " %s\n" % (process,)
                          + style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
                          + style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
             if (process.exit_code() == 0
                 and process.error() == False
                 and process.timeouted() == False):
-                newly_deployed.append(host)
-                logger.info("OK %s" % host)
+                newly_deployed.append(process.host())
+                logger.info("OK %s" % process.host())
             else:
-                logger.info("KO %s" % host)
+                logger.info("KO %s" % process.host())
         return newly_deployed
 
     start_time = time.time()
