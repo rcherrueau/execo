@@ -172,6 +172,13 @@ SequentialActions
    :members:
    :show-inheritance:
 
+ActionLifecycleHandler
+----------------------
+.. inheritance-diagram:: ActionLifecycleHandler
+.. autoclass:: ActionLifecycleHandler
+   :members:
+   :show-inheritance:
+
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
 
@@ -252,6 +259,34 @@ Utilities
 sleep
 -----
 .. autofunction:: sleep
+
+format_time
+-----------
+.. autofunction:: format_time
+
+format_duration
+---------------
+.. autofunction:: format_duration
+
+timedelta_to_seconds
+--------------------
+.. autofunction:: timedelta_to_seconds
+
+datetime_to_unixts
+------------------
+.. autofunction:: datetime_to_unixts
+
+get_frozen_hosts_set
+--------------------
+.. autofunction:: get_frozen_hosts_set
+
+get_frozen_hosts_list
+---------------------
+.. autofunction:: get_frozen_hosts_list
+
+get_hosts_sequence
+------------------
+.. autofunction:: get_hosts_sequence
 
 Logging
 =======
