@@ -2261,10 +2261,6 @@ class Remote(Action):
     def processes(self):
         return self._processes.values()
 
-    def get_hosts_processes(self):
-        """Return a dict whose keys are `Host` and values are `Process` ran on those hosts."""
-        return self._processes.copy()
-
     def start(self):
         retval = super(Remote, self).start()
         if len(self._processes) == 0:
@@ -2573,10 +2569,6 @@ class TaktukRemote(Action):
 
     def processes(self):
         return self._processes.values()
-
-    def get_hosts_processes(self):
-        """Return a dict whose keys are `Host` and values are `Process` run on those hosts."""
-        return self._processes.copy()
 
     def start(self):
         retval = super(TaktukRemote, self).start()

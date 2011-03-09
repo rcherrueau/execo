@@ -1150,18 +1150,18 @@ def deploy(deployment, connexion_params = None,
                                 timeout = check_timeout)
         deployed_check.run()
         newly_deployed = list()
-        for (host, process) in deployed_check.get_hosts_processes().iteritems():
-            logger.debug(style("check on %s:" % (host,), 'emph')
+        for process in deployed_check.processes():
+            logger.debug(style("check on %s:" % (process.host(),), 'emph')
                          + " %s\n" % (process,)
                          + style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
                          + style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
             if (process.exit_code() == 0
                 and process.error() == False
                 and process.timeouted() == False):
-                newly_deployed.append(host)
-                logger.info("OK %s" % host)
+                newly_deployed.append(process.host())
+                logger.info("OK %s" % process.host())
             else:
-                logger.info("KO %s" % host)
+                logger.info("KO %s" % process.host())
         return newly_deployed
 
     start_time = time.time()
