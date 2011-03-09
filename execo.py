@@ -1900,11 +1900,11 @@ class Report(object):
         stats = self.stats()
         output = ""
         if wide:
-            output += "Name                                    start               end                 length         started   ended     errors    timeouts  kills     badretval ok        total     \n"
+            output += "Name                                    start               end                 length         started   ended     errors    timeouts  f.killed  badretval ok        total     \n"
             output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
         else:
             output += "Name                                    start               end                \n"
-            output += "  length       started ended   error   timeout killed  ret!=0  ok      total   \n"
+            output += "  length       started ended   error   timeout fkilled ret!=0  ok      total   \n"
             output += "-------------------------------------------------------------------------------\n"
         def format_line(name, stats, indent):
             result = ""
