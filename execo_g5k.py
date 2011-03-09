@@ -1175,7 +1175,12 @@ def deploy(deployment, connexion_params = None,
     num_tries = 0
     elapsed = time.time() - start_time
     last_time = time.time()
-    deploy_stats = list() # contains tuples (timestamp, num attempted deploys, len(kadeploy_newly_deployed), len(my_newly_deployed), len(deployed_hosts), len(undeployed_hosts)
+    deploy_stats = list() # contains tuples ( timestamp,
+                          #                   num attempted deploys,
+                          #                   len(kadeploy_newly_deployed),
+                          #                   len(my_newly_deployed),
+                          #                   len(deployed_hosts),
+                          #                   len(undeployed_hosts )
     deploy_stats.append((elapsed, None, None, len(my_newly_deployed), len(deployed_hosts), len(undeployed_hosts)))
     while (not check_enough_func(deployed_hosts, undeployed_hosts)
            and num_tries < num_deploy_retries):
