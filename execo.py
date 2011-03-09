@@ -532,16 +532,32 @@ class ProcessBase(object):
         self._default_stderr_handler = default_stderr_handler
         self._process_lifecycle_handler = process_lifecycle_handler
 
-    def _args(self):
-        return "cmd=%r, timeout=%r, stdout_handler=%r, stderr_handler=%r, ignore_exit_code=%r, ignore_timeout=%r" % (self._cmd, self._timeout, self._stdout_handler, self._stderr_handler, self._ignore_exit_code, self._ignore_timeout)
+    def _processbase_args(self):
+        return "%r%s" % (self._cmd, self._processbase_kwargs())
+
+    def _processbase_kwargs(self):
+        kwargs = ""
+        if self._timeout: kwargs += ", timeout=%r" % (self._timeout,)
+        if self._stdout_handler: kwargs += ", stdout_handler=%r" % (self._stdout_handler,)
+        if self._stderr_handler: kwargs += ", stderr_handler=%r" % (self._stderr_handler,)
+        if self._ignore_exit_code != False: kwargs += ", ignore_exit_code=%r" % (self._ignore_exit_code,)
+        if self._ignore_timeout != False: kwargs += ", ignore_timeout=%r" % (self._ignore_timeout,)
+        if self._ignore_error != False: kwargs += ", ignore_error=%r" % (self._ignore_error,)
+        if self._default_stdout_handler != True: kwargs += ", default_stdout_handler=%r" % (self._default_stdout_handler,)
+        if self._default_stderr_handler != True: kwargs += ", default_stderr_handler=%r" % (self._default_stderr_handler,)
+        if self._process_lifecycle_handler: kwargs += ", process_lifecycle_handler=%r" % (self._process_lifecycle_handler,)
+        return kwargs
+
+    def _processbase_infos(self):
+        return "started=%s, start_date=%s, ended=%s end_date=%s, error=%s, error_reason=%s, timeouted=%s, exit_code=%s, ok=%s" %  (self._started, format_time(self._start_date), self._ended, format_time(self._end_date), self._error, self._error_reason, self._timeouted, self._exit_code, self.ok())
 
     @_synchronized
     def __repr__(self):
-        return style("ProcessBase", 'object_repr') + "(%s)" % (self._args(),)
+        return "ProcessBase(%s)" % (self._processbase_args(),)
 
     @_synchronized
     def __str__(self):
-        return "<" + style("ProcessBase", 'object_repr') + "(cmd=%r, timeout=%s, ignore_exit_code=%s, ignore_timeout=%s, ignore_error=%s, started=%s, start_date=%s, ended=%s end_date=%s, error=%s, error_reason=%s, timeouted=%s, exit_code=%s, ok=%s)>" % (self._cmd, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._started, format_time(self._start_date), self._ended, format_time(self._end_date), self._error, self._error_reason, self._timeouted, self._exit_code, self.ok())
+        return "<" + style("ProcessBase", 'object_repr') + "(%s, %s)>" % (self._processbase_args(), self._processbase_infos())
 
     def cmd(self):
         """Return the process command line."""
@@ -764,17 +780,26 @@ class Process(ProcessBase):
         else:
             self._close_stdin = close_stdin
 
-    def _args(self):
-        return "%s, close_stdin=%r, shell=%r, pty=%r" % (super(Process, self)._args(),
-                                                         self._close_stdin, self._shell, self._pty)
+    def _process_args(self):
+        return "%s%s" % (self._processbase_args(), self._process_kwargs())
 
+    def _process_kwargs(self):
+        kwargs = ""
+        if self._close_stdin: kwargs += ", close_stdin=%r" % (self._close_stdin,)
+        if self._shell != True: kwargs += ", shell=%r" % (self._shell,)
+        if self._pty != False: kwargs += ", pty=%r" % (self._pty,)
+        return kwargs
+
+    def _process_infos(self):
+        return "%s, pid=%s, forced_kill=%s" % (self._processbase_infos(), self._pid, self._forced_kill)
+    
     @_synchronized
     def __repr__(self):
-        return style("Process", 'object_repr') + "(%s)" % (self._args(),)
+        return "Process(%s)" % (self._process_args(),)
 
     @_synchronized
     def __str__(self):
-        return "<" + style("Process", 'object_repr') + "(shell=%s, pty=%s, pid=%s, forced_kill=%s) " % (self._shell, self._pty, self._pid, self._forced_kill) + super(Process, self).__str__() + ">"
+        return "<" + style("Process", 'object_repr') + "(%s, %s)>" % (self._process_args(), self._process_infos())
 
     def pid(self):
         """Return the subprocess's pid, if available (subprocess started) or None."""
@@ -1551,13 +1576,15 @@ class Host(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def _args(self):
+        args = "%r" % (self.address,)
+        if self.user: args += ", user=%r" % (self.user,)
+        if self.keyfile: args += ", keyfile=%r" % (self.keyfile,)
+        if self.port: args += ", port=%r" % (self.port,)
+        return args
+
     def __repr__(self):
-        r = "Host(%r" % self.address
-        if self.user: r += ", user=%r" % self.user
-        if self.keyfile: r += ", keyfile=%r" % self.keyfile
-        if self.port: r += ", port=%r" % self.port
-        r += ")"
-        return r
+        return "Host(%s)" % (self._args())
 
 class FrozenHost(Host):
 
@@ -1610,15 +1637,7 @@ class FrozenHost(Host):
                 ^ self.port.__hash__())
 
     def __repr__(self):
-        r = "FrozenHost(%r" % self.address
-        if self.user: r += ", user=%r" % self.user
-        if self.keyfile: r += ", keyfile=%r" % self.keyfile
-        if self.port: r += ", port=%r" % self.port
-        r += ")"
-        return r
-
-    def __str__(self):
-        return super(FrozenHost, self).__repr__()
+        return "FrozenHost(%s)" % (self._args())
 
 def get_frozen_hosts_set(hosts):
     """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a set of `FrozenHost` (thus removing duplicates)."""
@@ -1650,19 +1669,24 @@ class SshProcess(Process):
                     + (remote_cmd,))
         super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
 
-    def _args(self):
-        return "host=%r, remote_cmd=%r, %s, connexion_params=%r" % (self._host,
-                                                                    self._remote_cmd,
-                                                                    super(SshProcess, self)._args(),
-                                                                    self._connexion_params)
+    def _sshprocess_args(self):
+        return "%r, %r%s%s" % (self._host, self._remote_cmd, self._process_kwargs(), self._sshprocess_kwargs())
+
+    def _sshprocess_kwargs(self):
+        kwargs = ""
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        return kwargs
+
+    def _sshprocess_infos(self):
+        return "cmd=%r, %s" % (self._cmd, self._process_infos())
 
     @_synchronized
     def __repr__(self):
-        return style("SshProcess", 'object_repr') + "(%s)" % (self._args(),)
+        return "SshProcess(%s)" % (self._sshprocess_args(),)
 
     @_synchronized
     def __str__(self):
-        return "<" + style("SshProcess", 'object_repr') + "(%s) " % (self._args(),) + super(SshProcess, self).__str__() + ">"
+        return "<" + style("SshProcess", 'object_repr') + "(%s, %s)>" % (self._sshprocess_args(), self._sshprocess_infos())
 
     def remote_cmd(self):
         """Return the command line executed remotely through ssh."""
@@ -1684,16 +1708,16 @@ class TaktukProcess(ProcessBase):
         self._host = host
         super(TaktukProcess, self).__init__(remote_cmd, **kwargs)
 
-    def _args(self):
-        return "host=%r, %s" % (self._host, super(TaktukProcess, self)._args(),)
+    def _taktukprocess_args(self):
+        return "%r, %r%s%s" % (self._host, self._remote_cmd, self._processbase_kwargs())
 
     @_synchronized
     def __repr__(self):
-        return style("TakTukProcess", 'object_repr') + "(%s)" % (self._args(),)
+        return "TaktukProcess(%s)" % (self._taktukprocess_args(),)
 
     @_synchronized
     def __str__(self):
-        return "<" + style("TaktukProcess", 'object_repr') + "(%s) " % (self._args(),) + super(TaktukProcess, self).__str__() + ">"
+        return "<" + style("TaktukProcess", 'object_repr') + "(%s, %s)>" % (self._taktukprocess_args(), self._processbase_infos())
 
     def host(self):
         """Return the remote host."""
@@ -2020,10 +2044,7 @@ class Action(object):
         :param ignore_error: if True, subprocesses which have an error
           won't generate a warning and will still be counted as ok.
         """
-        if name == None:
-            self._name = "%s 0x%08.8x" % (self.__class__.__name__, id(self))
-        else:
-            self._name = name
+        self._name = name
         self._timeout = timeout
         self._started = False
         self._ended = False
@@ -2033,9 +2054,34 @@ class Action(object):
         self._lifecycle_handler = list()
         self._end_event = threading.Event()
 
+    def _action_args(self):
+        return self._action_kwargs()
+
+    def _action_kwargs(self):
+        kwargs = ""
+        if self._name: kwargs += ", name=%r" % (self._name,)
+        if self._timeout: kwargs += ", timeout=%r" % (self._timeout,)
+        if self._ignore_exit_code != False: kwargs += ", ignore_exit_code=%r" % (self._ignore_exit_code,)
+        if self._ignore_timeout != False: kwargs += ", ignore_timeout=%r" % (self._ignore_timeout,)
+        if self._ignore_error != False: kwargs += ", ignore_error=%r" % (self._ignore_error,)
+        if len(kwargs)>0: kwargs=karwgs[2:]
+        return kwargs
+
+    def _action_infos(self):
+        return "started=%r, ended=%r" % (self._started, self._ended)
+
+    def __repr__(self):
+        return "Action(%s)" % (self._action_args(),)
+
+    def __str__(self):
+        return "<" + style("Action", 'object_repr') + "(%s, %s)>" % (self._action_args(), self._action_infos())
+
     def name(self):
         """Return the `Report` name."""
-        return self._name
+        if self._name == None:
+            return "%s 0x%08.8x" % (self.__class__.__name__, id(self))
+        else:
+            return self._name
 
     def add_lifecycle_handler(self, handler):
         """Add a lifecycle handler.
@@ -2216,7 +2262,7 @@ class Remote(Action):
     One ssh process is launched for each connexion.
     """
 
-    def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
+    def __init__(self, hosts, remote_cmd, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` to which to connect and run
           the command.
@@ -2228,8 +2274,6 @@ class Remote(Action):
           `default_connexion_params` whose values will override those
           in `default_connexion_params` for connexion.
         """
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, remote_cmd, hosts)
         super(Remote, self).__init__(**kwargs)
         self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params
@@ -2248,8 +2292,28 @@ class Remote(Action):
                                               process_lifecycle_handler = lifecycle_handler,
                                               pty = get_ssh_scp_pty_option(connexion_params)))
 
+    def _remote_args(self):
+        return "%r, %r, %s%s" % (self._hosts, self._remote_cmd, self._action_args(), self._remote_kwargs())
+
+    def _remote_kwargs(self):
+        kwargs = ""
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        return kwargs
+
+    def _remote_infos(self):
+        return self._action_infos()
+
     def __repr__(self):
-        return style("Remote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._connexion_params, self._remote_cmd)
+        return "Remote(%s)" % (self._remote_args(),)
+
+    def __str__(self):
+        return "<" + style("Remote", 'object_repr') + "(%s, %s)>" % (self._remote_args(), self._remote_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s %s on %i hosts" % (self.__class__.__name__, self._remote_cmd, len(self._hosts))
+        else:
+            return self._name
 
     def processes(self):
         return list(self._processes)
@@ -2435,7 +2499,7 @@ class TaktukRemote(Action):
     an exception is raised during initialization.
     """
 
-    def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
+    def __init__(self, hosts, remote_cmd, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` to which to connect and run
           the command.
@@ -2447,8 +2511,6 @@ class TaktukRemote(Action):
           `default_connexion_params` whose values will override those
           in `default_connexion_params` for connexion.
         """
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, remote_cmd, hosts)
         super(TaktukRemote, self).__init__(**kwargs)
         self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params
@@ -2458,6 +2520,23 @@ class TaktukRemote(Action):
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
         self._taktuk_common_init()
+
+    def _taktukremote_args(self):
+        return "%r, %r%s%s" % (self._hosts, self._remote_cmd, self._action_args(), self._taktukremote_kwargs())
+
+    def _taktukremote_kwargs(self):
+        kwargs = ""
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        return kwargs
+
+    def _taktukremote_infos(self):
+        return self._action_infos()
+
+    def __repr__(self):
+        return "TaktukRemote(%s)" % (self._taktukremote_args(),)
+
+    def __str__(self):
+        return "<" + style("TaktukRemote", 'object_repr') + "(%s, %s)>" % (self._taktukremote_args(), self._taktukremote_infos())
 
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
@@ -2560,9 +2639,6 @@ class TaktukRemote(Action):
                                #default_stderr_handler = False,
                                process_lifecycle_handler = _TaktukLifecycleHandler(self))
 
-    def __repr__(self):
-        return style("TaktukRemote", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, connexion_params=%r, remote_cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._connexion_params, self._remote_cmd)
-
     def processes(self):
         return list(self._processes)
 
@@ -2584,7 +2660,7 @@ class Put(Remote):
 
     """Copy local files to several remote `Host`, with ``scp`` or a similar connexion tool."""
 
-    def __init__(self, hosts = None, local_files = None, remote_location = ".", create_dirs = False, connexion_params = None, **kwargs):
+    def __init__(self, hosts, local_files, remote_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` onto which to copy the files.
 
@@ -2605,8 +2681,6 @@ class Put(Remote):
         """
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
@@ -2631,14 +2705,36 @@ class Put(Remote):
                                            process_lifecycle_handler = lifecycle_handler,
                                            pty = get_ssh_scp_pty_option(connexion_params)))
 
+    def _put_args(self):
+        return "%r, %r%s%s" % (self._hosts, self._local_files, self._action_args(), self._put_kwargs())
+
+    def _put_kwargs(self):
+        kwargs = ""
+        if self._remote_location: kwargs += ", remote_location=%r" % (self._remote_location,)
+        if self._create_dirs: kwargs += ", create_dirs=%r" % (self._create_dirs,)
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        return kwargs
+
+    def _put_infos(self):
+        return self._action_infos()
+
     def __repr__(self):
-        return style("Put", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._local_files, self._remote_location, self._create_dirs, self._connexion_params)
+        return "Put(%s)" % (self._put_args(),)
+
+    def __str__(self):
+        return "<" + style("Put", 'object_repr') + "(%s, %s)>" % (self._put_args(), self._put_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s to %i hosts" % (self.__class__.__name__, len(self._hosts))
+        else:
+            return self._name
 
 class Get(Remote):
 
     """Copy remote files from several remote `Host` to a local directory, with ``scp`` or a similar connexion tool."""
 
-    def __init__(self, hosts = None, remote_files = None, local_location = ".", create_dirs = False, connexion_params = None, **kwargs):
+    def __init__(self, hosts, remote_files, local_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` from which to get the files.
 
@@ -2659,8 +2755,6 @@ class Get(Remote):
         """
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(Remote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
@@ -2688,8 +2782,30 @@ class Get(Remote):
                                            process_lifecycle_handler = lifecycle_handler,
                                            pty = get_ssh_scp_pty_option(connexion_params)))
 
+    def _get_args(self):
+        return "%r, %r%s%s" % (self._hosts, self._remote_files, self._action_args(), self._get_kwargs())
+
+    def _get_kwargs(self):
+        kwargs = ""
+        if self._local_location: kwargs += ", local_location=%r" % (self._local_location,)
+        if self._create_dirs: kwargs += ", create_dirs=%r" % (self._create_dirs,)
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        return kwargs
+
+    def _get_infos(self):
+        return self._action_infos()
+
     def __repr__(self):
-        return style("Get", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, create_dirs=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._remote_files, self._local_location, self._create_dirs, self._connexion_params)
+        return "Get(%s)" % (self._get_args(),)
+
+    def __str__(self):
+        return "<" + style("Get", 'object_repr') + "(%s, %s)>" % (self._get_args(), self._get_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s from %i hosts" % (self.__class__.__name__, len(self._hosts))
+        else:
+            return self._name
 
 class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
 
@@ -2749,7 +2865,7 @@ class TaktukPut(TaktukRemote):
 
     """Copy local files to several remote `Host`, with ``taktuk``."""
 
-    def __init__(self, hosts = None, local_files = None, remote_location = ".", connexion_params = None, **kwargs):
+    def __init__(self, hosts, local_files, remote_location = ".", connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` onto which to copy the files.
 
@@ -2770,8 +2886,6 @@ class TaktukPut(TaktukRemote):
         """
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(TaktukRemote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
@@ -2782,6 +2896,30 @@ class TaktukPut(TaktukRemote):
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
         self._taktuk_common_init()
+
+    def _taktukput_args(self):
+        return "%r, %r%s%s" % (self._hosts, self._local_files, self._action_args(), self._taktukput_kwargs())
+
+    def _taktukput_kwargs(self):
+        kwargs = ""
+        if self._remote_location: kwargs += ", remote_location=%r" % (self._remote_location,)
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        return kwargs
+
+    def _taktukput_infos(self):
+        return self._taktukremote_infos()
+
+    def __repr__(self):
+        return "TaktukPut(%s)" % (self._taktukput_args(),)
+
+    def __str__(self):
+        return "<" + style("TaktukPut", 'object_repr') + "(%s, %s)>" % (self._taktukput_args(), self._taktukput_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s from %i hosts" % (self.__class__.__name__, len(self._hosts))
+        else:
+            return self._name
 
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
@@ -2808,9 +2946,6 @@ class TaktukPut(TaktukRemote):
             self._taktuk_hosts_order.append(index)
         for src in self._local_files:
             self._taktuk_cmdline += ("broadcast", "put", "[", src, "]", "[", self._remote_location, "]", ";")
-
-    def __repr__(self):
-        return style("TaktukPut", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, local_files=%r, remote_location=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._local_files, self._remote_location, self._connexion_params)
 
 class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
 
@@ -2871,7 +3006,7 @@ class TaktukGet(TaktukRemote):
 
     """Copy remote files from several remote `Host` to a local directory, with ``taktuk``."""
 
-    def __init__(self, hosts = None, remote_files = None, local_location = ".", connexion_params = None, **kwargs):
+    def __init__(self, hosts, remote_files, local_location = ".", connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `Host` from which to get the files.
 
@@ -2891,8 +3026,6 @@ class TaktukGet(TaktukRemote):
         """
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s on %s" % (self.__class__.__name__, hosts)
         super(TaktukRemote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
@@ -2903,6 +3036,30 @@ class TaktukGet(TaktukRemote):
         self._taktuk_stdout_output_handler = _TaktukGetOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
         self._taktuk_common_init()
+
+    def _taktukget_args(self):
+        return "%r, %r%s%s" % (self._hosts, self._remote_files, self._action_args(), self._taktukget_kwargs())
+
+    def _taktukget_kwargs(self):
+        kwargs = ""
+        if self._local_location: kwargs += ", local_location=%r" % (self._local_location,)
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        return kwargs
+
+    def _taktukget_infos(self):
+        return self._taktukremote_infos()
+
+    def __repr__(self):
+        return "TaktukGet(%s)" % (self._taktukget_args(),)
+
+    def __str__(self):
+        return "<" + style("TaktukGet", 'object_repr') + "(%s, %s)>" % (self._taktukget_args(), self._taktukget_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s from %i hosts" % (self.__class__.__name__, len(self._hosts))
+        else:
+            return self._name
 
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
@@ -2930,19 +3087,14 @@ class TaktukGet(TaktukRemote):
         for src in self._remote_files:
             self._taktuk_cmdline += ("broadcast", "get", "[", src, "]", "[", self._local_location, "]", ";")
 
-    def __repr__(self):
-        return style("TaktukGet", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, hosts=%r, remote_files=%r, local_location=%r, connexion_params=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_timeout, self._ignore_error, self._hosts, self._remote_files, self._local_location, self._connexion_params)
-
 class Local(Action):
 
     """Launch a command localy."""
 
-    def __init__(self, cmd = None, **kwargs):
+    def __init__(self, cmd, **kwargs):
         """
         :param cmd: the command to run.
         """
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s %s" % (self.__class__.__name__, cmd)
         super(Local, self).__init__(**kwargs)
         self._cmd = cmd
         self._process = Process(self._cmd,
@@ -2953,8 +3105,26 @@ class Local(Action):
                                 ignore_error = self._ignore_error,
                                 process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1))
 
+    def _local_args(self):
+        return "%r%s%s" % (self._cmd, self._action_args(), self._local_kwargs())
+
+    def _local_kwargs(self):
+        return ""
+
+    def _local_infos(self):
+        return self._action_infos()
+
     def __repr__(self):
-        return style("Local", 'object_repr') + "(name=%r, timeout=%r, ignore_exit_code=%r, ignore_timeout=%r, ignore_error=%r, cmd=%r)" % (self._name, self._timeout, self._ignore_exit_code, self._ignore_error, self._ignore_timeout, self._cmd)
+        return "Local(%s)" % (self._local_args(),)
+
+    def __str__(self):
+        return "<" + style("Local", 'object_repr') + "(%s, %s)>" % (self._local_args(), self._local_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s %s" % (self.__class__.__name__, self._cmd)
+        else:
+            return self._name
 
     def processes(self):
         return [ self._process ]
@@ -2991,7 +3161,7 @@ class ParallelActions(Action):
     Will start, kill, wait, run every `Action` in parallel.
     """
 
-    def __init__(self, actions = None, **kwargs):
+    def __init__(self, actions, **kwargs):
         if kwargs.has_key('timeout'):
             raise AttributeError, "ParallelActions doesn't support timeouts. The timeouts are those of each contained Actions"
         if kwargs.has_key('ignore_exit_code'):
@@ -3006,8 +3176,26 @@ class ParallelActions(Action):
         for action in self._actions:
             action.add_lifecycle_handler(subactions_lifecycle_handler)
 
+    def _parallelaction_args(self):
+        return "%r%s%s" % (self._actions, self._action_args(), self._parallelaction_kwargs())
+
+    def _parallelaction_kwargs(self):
+        return ""
+
+    def _parallelaction_infos(self):
+        return self._action_infos()
+
     def __repr__(self):
-        return style("ParallelActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
+        return "ParallelAction(%s)" % (self._parallelaction_args(),)
+
+    def __str__(self):
+        return "<" + style("ParallelAction", 'object_repr') + "(%s, %s)>" % (self._parallelaction_args(), self._parallelaction_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s %i actions" % (self.__class__.__name__, len(self._actions))
+        else:
+            return self._name
 
     def actions(self):
         """Return an iterable of `Action` that this `ParallelActions` gathers."""
@@ -3063,7 +3251,7 @@ class SequentialActions(Action):
     Will start, kill, wait, run every `Action` sequentially.
     """
 
-    def __init__(self, actions = None, **kwargs):
+    def __init__(self, actions, **kwargs):
         if kwargs.has_key('timeout'):
             raise AttributeError, "SequentialActions doesn't support timeouts. The timeouts are those of each contained Actions"
         if kwargs.has_key('ignore_exit_code'):
@@ -3084,8 +3272,26 @@ class SequentialActions(Action):
                                                                              len(self._actions),
                                                                              next_action))
 
+    def _sequentialaction_args(self):
+        return "%r%s%s" % (self._actions, self._action_args(), self._sequentialaction_kwargs())
+
+    def _sequentialaction_kwargs(self):
+        return ""
+
+    def _sequentialaction_infos(self):
+        return self._action_infos()
+
     def __repr__(self):
-        return style("SequentialActions", 'object_repr') + "(name=%r, actions=%r)" % (self._name, self._actions)
+        return "SequentialAction(%s)" % (self._sequentialaction_args(),)
+
+    def __str__(self):
+        return "<" + style("SequentialAction", 'object_repr') + "(%s, %s)>" % (self._sequentialaction_args(), self._sequentialaction_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s %i actions" % (self.__class__.__name__, len(self._actions))
+        else:
+            return self._name
 
     def actions(self):
         """Return an iterable of `Action` that this `SequentialActions` gathers."""
