@@ -975,7 +975,7 @@ def wait_oargrid_job_start(oargrid_job_id = None, timeout = False):
     sleep(until = get_oargrid_job_info(oargrid_job_id, timeout)['start_date'])
 
 def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = False):
-    """Return an iterable of `FrozenHost` containing the hosts of an oar job.
+    """Return an iterable of `Host` containing the hosts of an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
@@ -1012,14 +1012,11 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
-        hosts = set()
-        for host_address in host_addresses:
-            hosts.add(FrozenHost(host_address))
-        return hosts
+        return [ Host(host_address) for host_address in host_addresses ]
     raise Exception, "error retrieving nodes list for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
 def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
-    """Return an iterable of `FrozenHost` containing the hosts of an oargrid job.
+    """Return an iterable of `Host` containing the hosts of an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
@@ -1034,10 +1031,7 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
-        hosts = set()
-        for host_address in host_addresses:
-            hosts.add(FrozenHost(host_address))
-        return hosts
+        return [ Host(host_address) for host_address in host_addresses ]
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
 
 def kadeploy(deployment, connexion_params = None, out = False, timeout = None):
