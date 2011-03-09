@@ -2442,6 +2442,12 @@ class TaktukRemote(Action):
 
     One taktuk instance is ran, which itself connects to hosts through
     an ``ssh`` tree.
+
+    Behavior should be identical to `Remote`. Only limitation is that
+    we can provide per-host user with taktuk, but we cannot provide
+    per-host port or keyfile, so a check is made that all hosts and
+    connexion_params have the same port / keyfile (or None). If not,
+    an exception is raised during initialization.
     """
 
     def __init__(self, hosts = None, remote_cmd = None, connexion_params = None, **kwargs):
