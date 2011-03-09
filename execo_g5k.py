@@ -237,6 +237,7 @@ class Kadeployer(Remote):
         super(Remote, self).__init__(**kwargs)
         self._connexion_params = connexion_params
         self._deployment = deployment
+        self._out = out
         self._fhosts = get_frozen_hosts_set(deployment.hosts)
         self._good_hosts = set()
         self._bad_hosts = set()
@@ -273,8 +274,8 @@ class Kadeployer(Remote):
                 kadeploy_command += " -m %s" % host.address
             if site == _get_local_site():
                 self._processes.append(Process(kadeploy_command,
-                                               stdout_handler = _KadeployStdoutHandler(self, out = out),
-                                               stderr_handler = _KadeployStderrHandler(self, out = out),
+                                               stdout_handler = _KadeployStdoutHandler(self, out = self._out),
+                                               stderr_handler = _KadeployStderrHandler(self, out = self._out),
                                                timeout = self._timeout,
                                                ignore_exit_code = self._ignore_exit_code,
                                                ignore_timeout = self._ignore_timeout,
@@ -284,32 +285,39 @@ class Kadeployer(Remote):
                 self._processes.append(SshProcess(Host(site),
                                                   kadeploy_command,
                                                   connexion_params = connexion_params,
-                                                  stdout_handler = _KadeployStdoutHandler(self, out = out),
-                                                  stderr_handler = _KadeployStderrHandler(self, out = out),
+                                                  stdout_handler = _KadeployStdoutHandler(self, out = self._out),
+                                                  stderr_handler = _KadeployStderrHandler(self, out = self._out),
                                                   timeout = self._timeout,
                                                   ignore_exit_code = self._ignore_exit_code,
                                                   process_lifecycle_handler = lifecycle_handler,
                                                   pty = True))
 
+    def _kadeployer_args(self):
+        return "%r%s%s" % (self._deployment, self._remote_args(), self._kadeployer_kwargs())
+
+    def _kadeployer_kwargs(self):
+        kwargs = ""
+        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
+        if self._out: kwargs += ", out=%r" % (self._out,)
+        return kwargs
+
+    def _kadeployer_infos(self):
+        return "cmds=%r, deployed_hosts=%r error_hosts=%r, %s" % ([ process.cmd() for process in self._processes],
+                                                                  self._good_hosts,
+                                                                  self._bad_hosts,
+                                                                  self._remote_infos())
+
     def __repr__(self):
-        r = style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
-                                                                                          self._deployment,
-                                                                                          self._timeout)
-        r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r)" % (self._connexion_params,
-                                                                                 self._ignore_exit_code,
-                                                                                 self._ignore_timeout)
-        return r
+        return "Kadeployer(%s)" % (self._kadeployer_args(),)
 
     def __str__(self):
-        r = "<" + style("Kadeployer", 'object_repr') + "(name=%r, deployment=%r, timeout=%r" % (self._name,
-                                                                                                self._deployment,
-                                                                                                self._timeout)
-        r += ", connexion_params=%r, ignore_exit_code=%r, ignore_timeout=%r" % (self._connexion_params,
-                                                                                self._ignore_exit_code,
-                                                                                self._ignore_timeout)
-        r += ", cmds=%r, deployed_hosts=%r error_hosts=%r)>" % ([ process.cmd() for process in self._processes],
-                                                                self._good_hosts, self._bad_hosts)
-        return r
+        return "<" + style("Kadeployer", 'object_repr') + "(%s, %s)>" % (self._kadeployer_args(), self._kadeployer_infos())
+
+    def name(self):
+        if self._name == None:
+            return "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._deployment.hosts), len(self._hosts))
+        else:
+            return self._name
 
     def _add_good_host_address(self, host_address):
         """Add a host to the deployed hosts list. Intended to be called from the `ProcessOutputHandler`."""
