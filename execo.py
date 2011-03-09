@@ -1685,6 +1685,8 @@ class SshProcess(Process):
 
 class TaktukProcess(ProcessBase):
 
+    r"""Dummy process similar to `SshProcess`."""
+
     def __init__(self, host, remote_cmd, **kwargs):
         self._host = host
         super(TaktukProcess, self).__init__(remote_cmd, **kwargs)
