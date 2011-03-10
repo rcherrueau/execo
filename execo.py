@@ -878,7 +878,7 @@ class Process(ProcessBase):
     def start(self):
         """Start the subprocess."""
         if self._started:
-            raise StandardError, "unable to start an already started process"
+            raise ValueError, "unable to start an already started process"
         logger.debug(style("start:", 'emph') + " %s" % self)
         self._started = True
         self._start_date = time.time()
@@ -1027,10 +1027,9 @@ class Process(ProcessBase):
         """Wait for the subprocess end."""
         with _the_conductor.get_lock():
             if self._error:
-                #raise StandardError, "Trying to wait a process which is in error"
                 return self
             if not self._started or self._pid == None:
-                raise StandardError, "Trying to wait a process which has not been started"
+                raise ValueError, "Trying to wait a process which has not been started"
             logger.debug(style("wait:", 'emph') + " %s" % self)
             while self._ended != True:
                 _the_conductor.get_condition().wait()
@@ -1761,7 +1760,7 @@ class TaktukProcess(ProcessBase):
         This method is intended to be used by `TaktukRemote`.
         """
         if self._started:
-            raise StandardError, "unable to start an already started process"
+            raise ValueError, "unable to start an already started process"
         logger.debug(style("start:", 'emph') + " %s" % self)
         self._started = True
         self._start_date = time.time()
