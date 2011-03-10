@@ -616,6 +616,11 @@ class ProcessBase(object):
         self._process_lifecycle_handler = process_lifecycle_handler
 
     def _common_reset(self):
+        # all methods _common_reset() of this class hierarchy contain
+        # the code common to the constructor and reset() to
+        # reinitialize an object. If redefined in a child class,
+        # _common_reset() must then explicitely call _common_reset()
+        # of its parent class.
         self._started = False
         self._start_date = None
         self._ended = False
@@ -632,9 +637,21 @@ class ProcessBase(object):
         self._stderr_ioerror = False
 
     def _processbase_args(self):
+        # all methods name _<classname>_args() (no camel case) in the
+        # class hierarchy must return a string with all arguments to
+        # the constructor, beginning by the positionnal arguments,
+        # finishing by keyword arguments, with no leading or trailing
+        # space or commas. This string will be directly used in
+        # __repr__ methods.
         return "%r%s" % (self._cmd, self._processbase_kwargs())
 
     def _processbase_kwargs(self):
+        # all methods name _<classname>_kwargs() (no camel case) in
+        # the class hierarchy must return a string with all keyword
+        # arguments to the constructor. If not empty, there will be a
+        # leading comma + space. no trailing space or commas. This
+        # string will be used to build the strings returned by
+        # _<classname>_args() of this class or child classes.
         kwargs = ""
         if self._timeout: kwargs += ", timeout=%r" % (self._timeout,)
         if self._stdout_handler: kwargs += ", stdout_handler=%r" % (self._stdout_handler,)
@@ -648,6 +665,10 @@ class ProcessBase(object):
         return kwargs
 
     def _processbase_infos(self):
+        # all methods name _<classname>_infos() (no camel case) in the
+        # class hierarchy must return a string with all relevant infos
+        # other than those returned by _<classname>_args(), for use in
+        # __str__ methods. No leading or trailing space or commas.
         return "started=%s, start_date=%s, ended=%s end_date=%s, error=%s, error_reason=%s, timeouted=%s, exit_code=%s, ok=%s" %  (self._started, format_unixts(self._start_date), self._ended, format_unixts(self._end_date), self._error, self._error_reason, self._timeouted, self._exit_code, self.ok())
 
     @_synchronized
@@ -2184,15 +2205,31 @@ class Action(object):
         self._end_event = threading.Event()
 
     def _common_reset(self):
+        # all methods _common_reset() of this class hierarchy contain
+        # the code common to the constructor and reset() to
+        # reinitialize an object. _common_reset() of child classes
+        # must explicitely call _common_reset() of their parent class.
         self._started = False
         self._ended = False
 
     def _action_args(self):
+        # all methods name _<classname>_args() (no camel case) in the
+        # class hierarchy must return a string with all arguments to
+        # the constructor, beginning by the positionnal arguments,
+        # finishing by keyword arguments, with no leading or trailing
+        # space or commas. This string will be directly used in
+        # __repr__ methods.
         kwargs = self._action_kwargs()
         if len(kwargs)>0: kwargs=kwargs[2:]
         return kwargs
 
     def _action_kwargs(self):
+        # all methods name _<classname>_kwargs() (no camel case) in
+        # the class hierarchy must return a string with all keyword
+        # arguments to the constructor. If not empty, there will be a
+        # leading comma + space. no trailing space or commas. This
+        # string will be used to build the strings returned by
+        # _<classname>_args() of this class or child classes.
         kwargs = ""
         if self._name: kwargs += ", name=%r" % (self._name,)
         if self._timeout: kwargs += ", timeout=%r" % (self._timeout,)
@@ -2202,6 +2239,10 @@ class Action(object):
         return kwargs
 
     def _action_infos(self):
+        # all methods name _<classname>_infos() (no camel case) in the
+        # class hierarchy must return a string with all relevant infos
+        # other than those returned by _<classname>_args(), for use in
+        # __str__ methods. No leading or trailing space or commas.
         stats = self.stats()
         return "started=%r, start_date=%r, ended=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r, ok=%r" % (self._started, format_unixts(stats['start_date']), self._ended, format_unixts(stats['end_date']), stats['num_processes'], stats['num_started'], stats['num_ended'], stats['num_timeouts'], stats['num_errors'], stats['num_forced_kills'], stats['num_non_zero_exit_codes'], stats['num_ok'], self.ok())
 
