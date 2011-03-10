@@ -377,18 +377,17 @@ Timestamps
 
 Internally all dates are unix timestamps, ie. number of seconds
 elapsed since the unix epoch (00:00:00 on Jan 1 1970), possibly with
-or without subsecond precision (float or integer).  In most cases (see
-detailed API documentation), timestamps can be passed as unix
-timestamps (integers or floats) or as `datetime.datetime`, and time
-lengths can be passed as seconds (integers or floats) or as
-`datetime.timedelta`
+or without subsecond precision (float or integer). All durations are
+in seconds. When passing parameters to execo api, all dates and
+duration can be given in various formats (see `get_unixts`,
+`get_seconds`) and will be automatically converted to dates as unix
+timestamps, and durations in seconds.
 
 Exceptions at shutdown
 ----------------------
 
-Sometimes, some exceptions are triggered during python shutdown, at
-the end of a script using execo. These exceptions are reported by
-python to be ``most likely raised during interpreter shutdown``. It
-seems (i think) to be related to a bug in shutdown code's handling of
-threads termination, and thus it should be ignored. See
+Some exceptions may sometimes be triggered at python shutdown, with
+the message ``most likely raised during interpreter shutdown``. They
+are most likely caused by a bug in shutdown code's handling of threads
+termination, and thus should be ignored. See
 http://bugs.python.org/issue1856
