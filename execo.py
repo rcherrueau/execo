@@ -506,23 +506,10 @@ class ProcessBase(object):
           `ProcessLifecycleHandler` for being notified of process
           lifecycle events.
         """
+        self._common_reset()
         self._lock = threading.RLock()
         self._cmd = cmd
-        self._started = False
-        self._start_date = None
-        self._ended = False
-        self._end_date = None
-        self._error = False
-        self._error_reason = None
-        self._exit_code = None
         self._timeout = timeout
-        self._timeout_date = None
-        self._timeouted = False
-        self._forced_kill = False
-        self._stdout = ""
-        self._stderr = ""
-        self._stdout_ioerror = False
-        self._stderr_ioerror = False
         self._ignore_exit_code = ignore_exit_code
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
@@ -531,6 +518,22 @@ class ProcessBase(object):
         self._default_stdout_handler = default_stdout_handler
         self._default_stderr_handler = default_stderr_handler
         self._process_lifecycle_handler = process_lifecycle_handler
+
+    def _common_reset(self):
+        self._started = False
+        self._start_date = None
+        self._ended = False
+        self._end_date = None
+        self._error = False
+        self._error_reason = None
+        self._exit_code = None
+        self._timeout_date = None
+        self._timeouted = False
+        self._forced_kill = False
+        self._stdout = ""
+        self._stderr = ""
+        self._stdout_ioerror = False
+        self._stderr_ioerror = False
 
     def _processbase_args(self):
         return "%r%s" % (self._cmd, self._processbase_kwargs())
@@ -711,6 +714,17 @@ class ProcessBase(object):
         else:
             logger.warning(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (self._stdout,) + style("stderr:", 'emph') + "\n%s" % (self._stderr,))
 
+    def reset(self):
+        """Reinitialize a ProcessBase so that it can later be restarted.
+
+        If it is running, this method will first kill it then wait for
+        its termination before reseting;
+        """
+        if self._started and not self._ended:
+            self.kill()
+            self.wait()
+        self._common_reset()
+        return self
 
 class Process(ProcessBase):
 
@@ -765,13 +779,8 @@ class Process(ProcessBase):
           characters to its pty.
         """
         super(Process, self).__init__(cmd, **kwargs)
-        self._process = None
-        self._pid = None
-        self._already_got_sigterm = False
         self._shell = shell
         self._pty = pty
-        self._ptymaster = None
-        self._ptyslave = None
         if close_stdin == None:
             if self._pty:
                 self._close_stdin = False
@@ -779,6 +788,14 @@ class Process(ProcessBase):
                 self._close_stdin = True
         else:
             self._close_stdin = close_stdin
+
+    def _common_reset(self):
+        super(Process, self)._common_reset()
+        self._process = None
+        self._pid = None
+        self._already_got_sigterm = False
+        self._ptymaster = None
+        self._ptyslave = None
 
     def _process_args(self):
         return "%s%s" % (self._processbase_args(), self._process_kwargs())
@@ -940,6 +957,7 @@ class Process(ProcessBase):
                     pass
                 else:
                     raise e
+        return self
 
     @_synchronized
     def _timeout_kill(self):
@@ -2044,15 +2062,18 @@ class Action(object):
         :param ignore_error: if True, subprocesses which have an error
           won't generate a warning and will still be counted as ok.
         """
+        self._common_reset()
         self._name = name
         self._timeout = timeout
-        self._started = False
-        self._ended = False
         self._ignore_exit_code = ignore_exit_code
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
         self._lifecycle_handler = list()
         self._end_event = threading.Event()
+
+    def _common_reset(self):
+        self._started = False
+        self._ended = False
 
     def _action_args(self):
         kwargs = self._action_kwargs()
@@ -2135,6 +2156,18 @@ class Action(object):
         logger.debug(style("run:", 'emph') + " %s" % (self,))
         self.start()
         self.wait()
+        return self
+
+    def reset(self):
+        """Reinitialize an Action so that it can later be restarted.
+
+        If it is running, this method will first kill it then wait for
+        its termination before reseting;
+        """
+        if self._started and not self._ended:
+            self.kill()
+            self.wait()
+        self._common_reset()
         return self
 
     def processes(self):
@@ -2334,6 +2367,12 @@ class Remote(Action):
         retval = super(Remote, self).kill()
         for process in self._processes:
             process.kill()
+        return retval
+
+    def reset(self):
+        retval = super(Remote, self).reset()
+        for process in self._processes:
+            process.reset()
         return retval
 
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
@@ -2656,6 +2695,13 @@ class TaktukRemote(Action):
     def kill(self):
         retval = super(TaktukRemote, self).kill()
         self._taktuk.kill()
+        return retval
+
+    def reset(self):
+        retval = super(TaktukRemote, self).reset()
+        self._taktuk.reset()
+        for process in self._processes:
+            process.reset()
         return retval
 
 class Put(Remote):
@@ -3141,11 +3187,19 @@ class Local(Action):
         self._process.kill()
         return retval
 
+    def reset(self):
+        retval = super(Local, self).reset()
+        self._process.reset()
+        return retval
+
 class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
 
     def __init__(self, parallelaction, total_parallel_subactions):
         self._parallelaction = parallelaction
         self._total_parallel_subactions = total_parallel_subactions
+        self._terminated_subactions = 0
+
+    def reset(self):
         self._terminated_subactions = 0
 
     def end(self, action):
@@ -3172,9 +3226,9 @@ class ParallelActions(Action):
             raise AttributeError, "ParallelActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
         super(ParallelActions, self).__init__(**kwargs)
         self._actions = list(actions)
-        subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self._actions))
+        self._subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self._actions))
         for action in self._actions:
-            action.add_lifecycle_handler(subactions_lifecycle_handler)
+            action.add_lifecycle_handler(self._subactions_lifecycle_handler)
 
     def _parallelaction_args(self):
         return "%r, %s%s" % (self._actions, self._action_args(), self._parallelaction_kwargs())
@@ -3211,6 +3265,13 @@ class ParallelActions(Action):
         retval = super(ParallelActions, self).kill()
         for action in self._actions:
             action.kill()
+        return retval
+
+    def reset(self):
+        retval = super(ParallelActions, self).reset()
+        for action in self._actions:
+            action.reset()
+        self._subactions_lifecycle_handler.reset()
         return retval
 
     def processes(self):
@@ -3304,6 +3365,12 @@ class SequentialActions(Action):
         retval = super(SequentialActions, self).kill()
         for action in self._actions:
             action.kill()
+        return retval
+
+    def reset(self):
+        retval = super(SequentialActions, self).reset()
+        for action in self._actions:
+            action.reset()
         return retval
 
     def processes(self):

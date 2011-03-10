@@ -169,6 +169,9 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         self._current_section = self._SECTION_NONE
         self._out = out
 
+    def reset(self):
+        self._current_section = self._SECTION_NONE
+        
     def read_line(self, process, string, eof = False, error = False):
         if self._out:
             print string,
@@ -239,8 +242,6 @@ class Kadeployer(Remote):
         self._deployment = deployment
         self._out = out
         self._fhosts = get_frozen_hosts_set(deployment.hosts)
-        self._good_hosts = set()
-        self._bad_hosts = set()
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
         searchre3 = re.compile("^[^ \t\n\r\f\v\.]+$")
@@ -292,6 +293,13 @@ class Kadeployer(Remote):
                                                   process_lifecycle_handler = lifecycle_handler,
                                                   pty = True))
 
+    def _common_reset(self):
+        super(Kadeployer, self)._common_reset()
+        for process in self._processes:
+            process.stdout_handler().reset()
+        self._good_hosts = set()
+        self._bad_hosts = set()
+        
     def _kadeployer_args(self):
         return "%r, %s%s" % (self._deployment, self._remote_args(), self._kadeployer_kwargs())
 
