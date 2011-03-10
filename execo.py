@@ -2096,7 +2096,7 @@ class Action(object):
 
     def _action_args(self):
         kwargs = self._action_kwargs()
-        if len(kwargs)>0: kwargs=karwgs[2:]
+        if len(kwargs)>0: kwargs=kwargs[2:]
         return kwargs
 
     def _action_kwargs(self):
