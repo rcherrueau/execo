@@ -2028,7 +2028,11 @@ class Report(object):
         return stats
 
     def __repr__(self):
-        return "Report(reports=%r, name=%r)" % (self._reports, self._name)
+        return "<Report(<%i entries>, name=%r)>" % (len(self._reports), self._name)
+
+    def __str__(self):
+        stats = self.stats()
+        return "<Report(<%i entries>, name=%r, start_date=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r)>" % (len(self._reports), self._name, format_unixts(stats['start_date']), format_unixts(stats['end_date']), stats['num_processes'], stats['num_started'], stats['num_ended'], stats['num_timeouts'], stats['num_errors'], stats['num_forced_kills'], stats['num_non_zero_exit_codes'], stats['num_ok'])
 
     def output(self, wide = False, brief = False):
         """Returns a formatted string with a human-readable summary of all `Action` results.
