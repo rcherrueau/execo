@@ -183,6 +183,83 @@ else:
 def _set_internal_debug_formatter():
     logger_handler.setFormatter(logging.Formatter(style("%(asctime)s | ", 'log_header') + style("%(levelname)-5.5s ", 'log_level') + style("| %(threadName)-10.10s |", 'log_header') + " %(message)s"))
 
+def _timedelta_to_seconds(td):
+    """Convert a `datetime.timedelta` to a number of seconds (float)."""
+    return td.days * 86400 + td.seconds + td.microseconds / 1e6
+
+_epoch = datetime.datetime (1970, 1, 1, 0, 0, 0, 0)
+
+def _datetime_to_unixts(dt):
+    """Convert a `datetime.datetime` to a unix timestamp (float)."""
+    elapsed = dt - _epoch
+    return _timedelta_to_seconds(elapsed)
+
+def _strdate_to_unixts(date):
+    """Convert a date in format 'YYYY-MM-DD HH:MM:SS' to a unix timestamp (float)."""
+    return time.mktime(time.strptime(date, "%Y-%m-%d %H:%M:%S"))
+
+def _strduration_to_seconds(duration):
+    """Convert a duration in format 'HH:MM:SS' to a number of seconds (float)."""
+    parsed_duration = re.search("^(\d+):(\d?\d):(\d?\d)$", duration)
+    duration = (int(parsed_duration.group(1)) * 3600
+                + int(parsed_duration.group(2)) * 60
+                + int(parsed_duration.group(3)))
+    return duration
+
+def get_seconds(duration):
+    """Convert a duration to a number of seconds.
+
+    :param duration: a duration in one of the supported types. if
+      duration == None, returns None. Supported types
+
+      - `datetime.timedelta`
+
+      - string in format 'HH:MM:SS'
+
+      - number of seconds, int or float
+    """
+    if duration == None:
+        return None
+    elif isinstance(duration, datetime.timedelta):
+        duration = _timedelta_to_seconds(duration)
+    elif isinstance(duration, str):
+        duration = _strduration_to_seconds(duration)
+    elif not isinstance(duration, int) and not isinstance(duration, float):
+        raise ValueError, "unknown duration format: %s" % (date,)
+    return duration
+
+def get_unixts(date):
+    """Convert a date to a unix timestamp.
+
+    :param date: a duration in one of the supported types. if
+      date == None, returns None. Supported types
+
+      - `datetime.datetime`
+
+      - string in format 'YYYY-MM-DD HH:MM:SS'
+
+      - unix timestamp in seconds, int or float if >= 315532800
+        (timestamp after Jan 1 1980)
+
+      - offset from now otherwise, if type is supported by
+        `get_seconds`
+    """
+    if date == None:
+        return None
+    try:
+        seconds = get_seconds(date)
+        if seconds < 315532800:
+            return time.time() + seconds
+    except:
+        pass
+    if isinstance(date, datetime.datetime):
+        return _datetime_to_unixts(date)
+    elif isinstance(date, str):
+        return _strdate_to_unixts(date)
+    elif isinstance(date, int) or isinstance(date, float):
+        return date
+    raise ValueError, "unknown date format: %s" % (date,)
+
 def _get_milliseconds_suffix(secs):
     """Return a formatted millisecond suffix, either empty if ms = 0, or dot with 3 digits otherwise.
 
@@ -194,27 +271,27 @@ def _get_milliseconds_suffix(secs):
         ms_suffix = ".%03i" % msecs
     return ms_suffix
 
-def format_time(secs, showms = False):
-    """Return a string with the formatted time (year, month, day, hour, min, sec, ms).
+def format_unixts(secs, showms = False):
+    """Return a string with the formatted date (year, month, day, hour, min, sec, ms) for pretty printing.
 
-    :param secs: a unix timestamp (integer or float)
+    :param secs: a unix timestamp (integer or float) (or None).
 
     :param showms: whether to show ms or not. Default False.
     """
     if secs == None:
         return None
     t = time.localtime(secs)
-    formatted_time = time.strftime("%Y-%m-%d_%H:%M:%S", t)
+    formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     if showms:
         formatted_time += _get_milliseconds_suffix(secs)
     timezone = time.strftime("%Z", t)
-    if timezone != "": formatted_time += "_" + timezone
+    if timezone != "": formatted_time += " " + timezone
     return formatted_time
 
-def format_duration(secs, showms = False):
-    """Return a string with a formatted duration (days, hours, mins, secs, ms).
+def format_seconds(secs, showms = False):
+    """Return a string with a formatted duration (days, hours, mins, secs, ms) for pretty printing.
 
-    :param secs: a duration in seconds (integer or float)
+    :param secs: a duration in seconds (integer or float) (or None).
 
     :param showms: whether to show ms or not. Default False.
     """
@@ -237,6 +314,26 @@ def format_duration(secs, showms = False):
         formatted_duration += "%is" % (s,)
     return formatted_duration
 
+def format_date(date, showms = False):
+    """Return a string with the formatted date (year, month, day, hour, min, sec, ms) for pretty printing.
+
+    :param date: a date in one of the formats handled (or None) (see
+      `get_unixts`).
+
+    :param showms: whether to show ms or not. Default False.
+    """
+    return format_unixts(get_unixts(date), showms)
+
+def format_duration(duration, showms = False):
+    """Return a string with a formatted duration (days, hours, mins, secs, ms) for pretty printing.
+
+    :param duration: a duration in one of the formats handled (or
+      None) (see `get_seconds`).
+
+    :param showms: whether to show ms or not. Default False.
+    """
+    return format_seconds(get_seconds(duration), showms)
+
 def _safe_sleep(secs):
     """Safe sleeping: restarted if interrupted by signals.
 
@@ -248,33 +345,20 @@ def _safe_sleep(secs):
         time.sleep(sleep_time)
         sleep_time = end - time.time()
 
-def timedelta_to_seconds(td):
-    """Convert a `datetime.timedelta` to a number of seconds (float)."""
-    return td.days * 86400 + td.seconds + td.microseconds / 1e6
-
-_epoch = datetime.datetime (1970, 1, 1, 0, 0, 0, 0)
-
-def datetime_to_unixts(dt):
-    """Convert a `datetime.datetime` to a unix timestamp (float)."""
-    elapsed = dt - _epoch
-    return timedelta_to_seconds(elapsed)
-
 def sleep(delay = None, until = None):
     """Sleep until a given delay has elapsed or until a given date.
 
     If both present, will sleep at least for the delay and at least
     until the date.
 
-    :param delay: the delay to sleep as a `datetime.timedelta` or in
-      seconds (int or float).
+    :param delay: the delay to sleep in one of the formats handled (or
+      None) (see `get_seconds`).
 
-    :param until: the date until which to sleep as a
-      `datetime.datetime` or as a unix timestamp (int or float).
+    :param until: the date until which to sleep in one of the formats
+      handled (or None) (see `get_unixts`).
     """
-    if delay != None and isinstance(delay, datetime.timedelta):
-        delay = timedelta_to_seconds(delay)
-    if until != None and isinstance(until, datetime.datetime):
-        until = datetime_to_unixts(until)
+    delay = get_seconds(delay)
+    until = get_unixts(until)
     sleeptime = 0
     if delay != None:
         sleeptime = delay
@@ -283,7 +367,7 @@ def sleep(delay = None, until = None):
         if (sleeptime > 0 and dt > sleeptime) or (sleeptime <= 0 and dt > 0):
             sleeptime = dt
     if sleeptime > 0:
-        logger.info("sleeping %s" % format_duration(sleeptime))
+        logger.info("sleeping %s" % format_unixts(sleeptime))
         _safe_sleep(sleeptime)
         logger.info("end sleeping")
         return sleeptime
@@ -298,7 +382,12 @@ class Timer(object):
         return self
 
     def wait_elapsed(self, elapsed):
-        """Sleep until the given amount of time has elapsed since the Timer's start."""
+        """Sleep until the given amount of time has elapsed since the Timer's start.
+
+        :param elapsed: the delay to sleep in one of the formats
+          handled (or None) (see `get_seconds`).
+        """
+        elapsed = get_seconds(elapsed)
         really_elapsed = time.time() - self._start
         if really_elapsed < elapsed:
             sleep(elapsed - really_elapsed)
@@ -559,7 +648,7 @@ class ProcessBase(object):
         return kwargs
 
     def _processbase_infos(self):
-        return "started=%s, start_date=%s, ended=%s end_date=%s, error=%s, error_reason=%s, timeouted=%s, exit_code=%s, ok=%s" %  (self._started, format_time(self._start_date), self._ended, format_time(self._end_date), self._error, self._error_reason, self._timeouted, self._exit_code, self.ok())
+        return "started=%s, start_date=%s, ended=%s end_date=%s, error=%s, error_reason=%s, timeouted=%s, exit_code=%s, ok=%s" %  (self._started, format_unixts(self._start_date), self._ended, format_unixts(self._end_date), self._error, self._error_reason, self._timeouted, self._exit_code, self.ok())
 
     @_synchronized
     def __repr__(self):
@@ -1965,14 +2054,14 @@ class Report(object):
             indented_name = " " * indent + name
             length = ""
             if stats['start_date'] != None and stats['end_date'] != None:
-                length = format_duration(stats['end_date'] - stats['start_date'])
+                length = format_seconds(stats['end_date'] - stats['start_date'])
             else:
                 length = ""
             if wide:
                 tmpline = "%-39.39s %-19.19s %-19.19s %-15.15s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s\n" % (
                     indented_name,
-                    format_time(stats['start_date']),
-                    format_time(stats['end_date']),
+                    format_unixts(stats['start_date']),
+                    format_unixts(stats['end_date']),
                     length,
                     stats['num_started'],
                     stats['num_ended'],
@@ -1985,8 +2074,8 @@ class Report(object):
             else:
                 tmpline = "%-39.39s %-19.19s %-19.19s\n" % (
                     indented_name,
-                    format_time(stats['start_date']),
-                    format_time(stats['end_date']),)
+                    format_unixts(stats['start_date']),
+                    format_unixts(stats['end_date']),)
                 tmpline += "  %-13.13s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s\n" % (
                     length,
                     stats['num_started'],
@@ -2110,7 +2199,7 @@ class Action(object):
 
     def _action_infos(self):
         stats = self.stats()
-        return "started=%r, start_date=%r, ended=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r, ok=%r" % (self._started, format_time(stats['start_date']), self._ended, format_time(stats['end_date']), stats['num_processes'], stats['num_started'], stats['num_ended'], stats['num_timeouts'], stats['num_errors'], stats['num_forced_kills'], stats['num_non_zero_exit_codes'], stats['num_ok'], self.ok())
+        return "started=%r, start_date=%r, ended=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r, ok=%r" % (self._started, format_unixts(stats['start_date']), self._ended, format_unixts(stats['end_date']), stats['num_processes'], stats['num_started'], stats['num_ended'], stats['num_timeouts'], stats['num_errors'], stats['num_forced_kills'], stats['num_non_zero_exit_codes'], stats['num_ok'], self.ok())
 
     def __repr__(self):
         return "Action(%s)" % (self._action_args(),)

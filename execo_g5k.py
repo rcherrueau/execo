@@ -2,6 +2,7 @@
 
 r"""Tools and extensions to execo suitable for use in Grid5000."""
 
+import execo
 from execo import *
 import operator, copy, time
 
@@ -364,17 +365,6 @@ class Kadeployer(Remote):
             process.stdout_handler().action_reset()
         return retval
 
-def _convert_endpoint(endpoint):
-    """Convert endpoint from `datetime.datetime` or `datetime.timedelta`, or deltat in seconds, to unix timestamp."""
-    if endpoint != None:
-        if isinstance(endpoint, datetime.datetime):
-            endpoint = datetime_to_unixts(endpoint)
-        elif isinstance(endpoint, datetime.timedelta):
-            endpoint = time.time() + timedelta_to_seconds(endpoint)
-        elif endpoint < 315532800: # timestamp before Jan 1 1980, assume it is a deltat (less than 10 years)
-            endpoint = time.time() + endpoint
-    return endpoint
-
 def _date_in_range(date, range):
     """Check that a date is inside a range. If range is None, return True."""
     if range == None: return True
@@ -384,42 +374,49 @@ def _date_in_range(date, range):
         return False
     return True
 
-def format_oar_time(secs):
-    """Return a string with the formatted time (year, month, day, hour, min, sec, ms) formatted for oar.
+def format_oar_date(date):
+    """Return a string with the formatted date (year, month, day, hour, min, sec, ms) formatted for oar/oargrid.
 
     timezone is discarded since oar doesn't know about them.
 
-    :param secs: a unix timestamp (integer or float)
+    :param date: a date in one of the formats handled.
     """
-    if secs == None:
-        return None
-    t = time.localtime(secs)
+    date = int(get_unixts(date))
+    t = time.localtime(date)
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     return formatted_time
 
-def format_oar_duration(secs):
-    """Return a string with a formatted duration (hours, mins, secs).
+def format_oar_duration(duration):
+    """Return a string with a formatted duration (hours, mins, secs, ms) formatted for oar/oargrid.
 
-    :param secs: a duration in seconds (integer or float)
+    :param duration: a duration in one of the formats handled.
     """
-    if secs == None:
-        return None
-    s = secs
+    duration = get_seconds(duration)
+    s = duration
     h = (s - (s % 3600)) / 3600
     s -= h * 3600
     m = (s - (s % 60)) / 60
     s -= m * 60
+    s = int(s)
     formatted_duration = ""
-    if secs >= 3600:
+    if duration >= 3600:
         formatted_duration += "%i:" % h
     else:
         formatted_duration += "0:"
-    if secs >= 60:
+    if duration >= 60:
         formatted_duration += "%i:" % m
     else:
         formatted_duration += "0:"
     formatted_duration += "%i" % s
     return formatted_duration
+
+def oar_date_to_unixts(date):
+    """Convert a date in the format returned by oar/oargrid to an unix timestamp."""
+    return execo._strdate_to_unixts(date)
+
+def oar_duration_to_seconds(duration):
+    """Convert a duration in the format returned by oar/oargrid to a number of seconds."""
+    return execo._strduration_to_seconds(duration)
 
 class OarSubmission(object):
     """An oar submission.
@@ -470,14 +467,6 @@ class OarSubmission(object):
                  name = None,
                  additional_options = None,
                  command = None):
-        if walltime != None:
-            if isinstance(walltime, datetime.timedelta):
-                walltime = timedelta_to_seconds(walltime)
-            walltime = int(walltime)
-        if reservation_date != None:
-            if isinstance(reservation_date, datetime.datetime):
-                reservation_date = datetime_to_unixts(reservation_date)
-            reservation_date = int(reservation_date)
         self.resources = resources
         self.walltime = walltime
         self.job_type = job_type
@@ -492,11 +481,11 @@ class OarSubmission(object):
 
     def __repr__(self):
         s = "OarSubmission(resources=%r" % (self.resources,)
-        if self.walltime != None: s += ", walltime=%r" % (self.walltime,)
+        if self.walltime != None: s += ", walltime=%r" % (format_duration(self.walltime),)
         if self.job_type != None: s += ", job_type=%r" % (self.job_type,)
         if self.sql_properties != None: s += ", sql_properties=%r" % (self.sql_properties,)
         if self.queue != None: s += ", queue=%r" % (self.queue,)
-        if self.reservation_date != None: s += ", reservation_date=%r" % (self.reservation_date,)
+        if self.reservation_date != None: s += ", reservation_date=%r" % (format_date(self.reservation_date),)
         if self.directory != None: s += ", directory=%r" % (self.directory,)
         if self.project != None: s += ", project=%r" % (self.project,)
         if self.name != None: s += ", name=%r" % (self.name,)
@@ -543,7 +532,7 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         if spec.queue != None:
             oarsub_cmdline += ' -q "%s"' % (spec.queue,)
         if spec.reservation_date != None:
-            oarsub_cmdline += ' -r "%s"' % (format_oar_time(spec.reservation_date),)
+            oarsub_cmdline += ' -r "%s"' % (format_oar_date(spec.reservation_date),)
         if spec.directory != None:
             oarsub_cmdline += ' -d "%s"' % (spec.directory,)
         if spec.project != None:
@@ -656,19 +645,12 @@ def oargridsub(job_specs, reservation_date = None,
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
-    if reservation_date != None:
-        if isinstance(reservation_date, datetime.datetime):
-            reservation_date = datetime_to_unixts(reservation_date)
-    else:
-        reservation_date = datetime_to_unixts(datetime.datetime.utcnow())
-    if walltime != None:
-        if isinstance(walltime, datetime.timedelta):
-            walltime = timedelta_to_seconds(walltime)
-        walltime = int(walltime)
     oargridsub_cmdline = 'oargridsub'
     if additional_options != None:
         oargridsub_cmdline += ' %s' % (additional_options,)
-    oargridsub_cmdline += ' -v -s "%s" ' % (format_oar_time(reservation_date),)
+    oargridsub_cmdline += ' -v'
+    if reservation_date:
+        oargridsub_cmdline += ' -s "%s" ' % (format_oar_date(reservation_date),)
     if os.environ.has_key('OAR_JOB_KEY_FILE'):
         oargridsub_cmdline += ' -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
     if queue != None:
@@ -747,19 +729,10 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
 
     :param start_between: a tuple (low, high) of endpoints. Filters
       and returns only jobs whose start date is in between these
-      endpoints. Each endpoint may be given as a `datetime.datetime`
-      (absolute date), as a `datetime.timedelta` (delta from now), as
-      an absolute unix timestamp, or as a delta from now in seconds
-      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
-      is a deltat (less than 10 years)).
+      endpoints.
         
     :param end_between: a tuple (low, high) of endpoints. Filters and
-      returns only jobs whose end date is in between these
-      endpoints. Each endpoint may be given as a `datetime.datetime`
-      (absolute date), as a `datetime.timedelta` (delta from now), as
-      an absolute unix timestamp, or as a delta from now in seconds
-      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
-      is a deltat, (less than 10 years)).
+      returns only jobs whose end date is in between these endpoints.
         
     :param connexion_params: connexion params to connect to other
       site's frontend if needed.
@@ -774,8 +747,8 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
-    if start_between: start_between = map(_convert_endpoint, start_between)
-    if end_between: end_between = map(_convert_endpoint, end_between)
+    if start_between: start_between = map(get_unixts, start_between)
+    if end_between: end_between = map(get_unixts, end_between)
     if connexion_params == None:
         connexion_params = default_frontend_connexion_params
     processes = []
@@ -824,19 +797,10 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
 
     :param start_between: a tuple (low, high) of endpoints. Filters
       and returns only jobs whose start date is in between these
-      endpoints. Each endpoint may be given as a `datetime.datetime`
-      (absolute date), as a `datetime.timedelta` (delta from now), as
-      an absolute unix timestamp, or as a delta from now in seconds
-      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
-      is a deltat (less than 10 years)).
+      endpoints.
         
     :param end_between: a tuple (low, high) of endpoints. Filters and
-      returns only jobs whose end date is in between these
-      endpoints. Each endpoint may be given as a `datetime.datetime`
-      (absolute date), as a `datetime.timedelta` (delta from now), as
-      an absolute unix timestamp, or as a delta from now in seconds
-      (if unix timestamp before 315532800 (Jan 1 1980), then assume it
-      is a deltat, (less than 10 years)).
+      returns only jobs whose end date is in between these endpoints.
         
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -844,8 +808,8 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
-    if start_between: start_between = map(_convert_endpoint, start_between)
-    if end_between: end_between = map(_convert_endpoint, end_between)
+    if start_between: start_between = map(get_unixts, start_between)
+    if end_between: end_between = map(get_unixts, end_between)
     cmd = "oargridstat"
     process = Process(cmd, timeout = timeout, pty = True).run()
     if process.ok():
@@ -910,11 +874,11 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
         job_info = dict()
         start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
         if start_date_result:
-            start_date = time.mktime(time.strptime(start_date_result.group(1), "%Y-%m-%d %H:%M:%S"))
+            start_date = oar_date_to_unixts(start_date_result.group(1))
             job_info['start_date'] = start_date
-        duration_result = re.search("^\s*walltime = (\d+):(\d\d):(\d\d)\s*$", process.stdout(), re.MULTILINE)
+        duration_result = re.search("^\s*walltime = (\d+:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
         if duration_result:
-            duration = int(duration_result.group(1)) * 3600 + int(duration_result.group(2)) * 60 + int(duration_result.group(3))
+            duration = oar_duration_to_seconds(duration_result.group(1))
             job_info['duration'] = duration
         return job_info
     raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
@@ -974,11 +938,11 @@ def get_oargrid_job_info(oargrid_job_id = None, timeout = False):
         job_info = dict()
         start_date_result = re.search("start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)", process.stdout(), re.MULTILINE)
         if start_date_result:
-            start_date = time.mktime(time.strptime(start_date_result.group(1), "%Y-%m-%d %H:%M:%S"))
+            start_date = oar_date_to_unixts(start_date_result.group(1))
             job_info['start_date'] = start_date
-        duration_result = re.search("walltime : (\d+):(\d\d):(\d\d)", process.stdout(), re.MULTILINE)
+        duration_result = re.search("walltime : (\d+:\d\d:\d\d)", process.stdout(), re.MULTILINE)
         if duration_result:
-            duration = int(duration_result.group(1)) * 3600 + int(duration_result.group(2)) * 60 + int(duration_result.group(3))
+            duration = oar_duration_to_seconds(duration_result.group(1))
             job_info['duration'] = duration
         return job_info
     raise Exception, "error retrieving info for oargrid job %i: %s" % (oargrid_job_id, process)
@@ -1226,14 +1190,14 @@ def deploy(deployment, connexion_params = None,
                              len(deployed_hosts),
                              len(undeployed_hosts)))
 
-    logger.info(style("deploy finished", 'emph') + " in %i tries, %s" % (num_tries, format_duration(time.time() - start_time)))
+    logger.info(style("deploy finished", 'emph') + " in %i tries, %s" % (num_tries, format_seconds(time.time() - start_time)))
     logger.info("deploy  duration  attempted  deployed     deployed     total     total")
     logger.info("                  deploys    as reported  as reported  already   still")
     logger.info("                             by kadeploy  by check     deployed  undeployed")
     logger.info("---------------------------------------------------------------------------")
     for (deploy_index, deploy_stat) in enumerate(deploy_stats):
         logger.info("#%-5.5s  %-8.8s  %-9.9s  %-11.11s  %-11.11s  %-8.8s  %-10.10s" % (deploy_index,
-                                                                                       format_duration(deploy_stat[0]),
+                                                                                       format_seconds(deploy_stat[0]),
                                                                                        deploy_stat[1],
                                                                                        deploy_stat[2],
                                                                                        deploy_stat[3],

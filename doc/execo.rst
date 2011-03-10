@@ -260,21 +260,29 @@ sleep
 -----
 .. autofunction:: sleep
 
-format_time
+get_unixts
+----------
+.. autofunction:: get_unixts
+
+get_seconds
 -----------
-.. autofunction:: format_time
+.. autofunction:: get_seconds
+
+format_unixts
+-------------
+.. autofunction:: format_unixts
+
+format_seconds
+--------------
+.. autofunction:: format_seconds
+
+format_date
+-----------
+.. autofunction:: format_date
 
 format_duration
 ---------------
 .. autofunction:: format_duration
-
-timedelta_to_seconds
---------------------
-.. autofunction:: timedelta_to_seconds
-
-datetime_to_unixts
-------------------
-.. autofunction:: datetime_to_unixts
 
 get_frozen_hosts_set
 --------------------

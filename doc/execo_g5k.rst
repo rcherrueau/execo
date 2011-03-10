@@ -97,6 +97,25 @@ deploy
 -------------------
 .. autofunction:: deploy
 
+Utilities
+=========
+
+format_oar_date
+---------------
+.. autofunction:: format_oar_date
+
+format_oar_duration
+-------------------
+.. autofunction:: format_oar_duration
+
+oar_date_to_unixts
+------------------
+.. autofunction:: oar_date_to_unixts
+
+oar_duration_to_seconds
+-----------------------
+.. autofunction:: oar_duration_to_seconds
+
 Configuration
 =============
 This module may be configured at import time by defining two dicts
