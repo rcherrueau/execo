@@ -717,7 +717,7 @@ def oargriddel(job_ids, timeout = False):
     for process in processes: process.start()
     for process in processes: process.wait()
 
-def get_current_oar_jobs(sites = None, local = True, start_between = None, end_between = None, connexion_params = None, timeout = False, abort_on_error = False):
+def get_current_oar_jobs(sites = None, local = None, start_between = None, end_between = None, connexion_params = None, timeout = False, abort_on_error = False):
     """Return a list of current active oar job ids.
 
     The list contains tuples (oarjob id, site), with site == None for
@@ -745,6 +745,11 @@ def get_current_oar_jobs(sites = None, local = True, start_between = None, end_b
       on any error. If False, will returned the list of job got, even
       if incomplete (some sites may have failed to answer).
     """
+    if local == None:
+        if sites:
+            local = False
+        else:
+            local = True
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     if start_between: start_between = map(get_unixts, start_between)
