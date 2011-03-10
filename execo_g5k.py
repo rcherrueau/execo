@@ -293,7 +293,7 @@ class Kadeployer(Remote):
                                                   pty = True))
 
     def _kadeployer_args(self):
-        return "%r%s%s" % (self._deployment, self._remote_args(), self._kadeployer_kwargs())
+        return "%r, %s%s" % (self._deployment, self._remote_args(), self._kadeployer_kwargs())
 
     def _kadeployer_kwargs(self):
         kwargs = ""

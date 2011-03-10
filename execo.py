@@ -2055,7 +2055,9 @@ class Action(object):
         self._end_event = threading.Event()
 
     def _action_args(self):
-        return self._action_kwargs()
+        kwargs = self._action_kwargs()
+        if len(kwargs)>0: kwargs=karwgs[2:]
+        return kwargs
 
     def _action_kwargs(self):
         kwargs = ""
@@ -2064,11 +2066,11 @@ class Action(object):
         if self._ignore_exit_code != False: kwargs += ", ignore_exit_code=%r" % (self._ignore_exit_code,)
         if self._ignore_timeout != False: kwargs += ", ignore_timeout=%r" % (self._ignore_timeout,)
         if self._ignore_error != False: kwargs += ", ignore_error=%r" % (self._ignore_error,)
-        if len(kwargs)>0: kwargs=karwgs[2:]
         return kwargs
 
     def _action_infos(self):
-        return "started=%r, ended=%r" % (self._started, self._ended)
+        stats = self.stats()
+        return "started=%r, start_date=%r, ended=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r, ok=%r" % (self._started, format_time(stats['start_date']), self._ended, format_time(stats['end_date']), stats['num_processes'], stats['num_started'], stats['num_ended'], stats['num_timeouts'], stats['num_errors'], stats['num_forced_kills'], stats['num_non_zero_exit_codes'], stats['num_ok'], self.ok())
 
     def __repr__(self):
         return "Action(%s)" % (self._action_args(),)
@@ -2522,7 +2524,7 @@ class TaktukRemote(Action):
         self._taktuk_common_init()
 
     def _taktukremote_args(self):
-        return "%r, %r%s%s" % (self._hosts, self._remote_cmd, self._action_args(), self._taktukremote_kwargs())
+        return "%r, %r, %s%s" % (self._hosts, self._remote_cmd, self._action_args(), self._taktukremote_kwargs())
 
     def _taktukremote_kwargs(self):
         kwargs = ""
@@ -2706,7 +2708,7 @@ class Put(Remote):
                                            pty = get_ssh_scp_pty_option(connexion_params)))
 
     def _put_args(self):
-        return "%r, %r%s%s" % (self._hosts, self._local_files, self._action_args(), self._put_kwargs())
+        return "%r, %r, %s%s" % (self._hosts, self._local_files, self._action_args(), self._put_kwargs())
 
     def _put_kwargs(self):
         kwargs = ""
@@ -2783,7 +2785,7 @@ class Get(Remote):
                                            pty = get_ssh_scp_pty_option(connexion_params)))
 
     def _get_args(self):
-        return "%r, %r%s%s" % (self._hosts, self._remote_files, self._action_args(), self._get_kwargs())
+        return "%r, %r, %s%s" % (self._hosts, self._remote_files, self._action_args(), self._get_kwargs())
 
     def _get_kwargs(self):
         kwargs = ""
@@ -2898,7 +2900,7 @@ class TaktukPut(TaktukRemote):
         self._taktuk_common_init()
 
     def _taktukput_args(self):
-        return "%r, %r%s%s" % (self._hosts, self._local_files, self._action_args(), self._taktukput_kwargs())
+        return "%r, %r, %s%s" % (self._hosts, self._local_files, self._action_args(), self._taktukput_kwargs())
 
     def _taktukput_kwargs(self):
         kwargs = ""
@@ -3038,7 +3040,7 @@ class TaktukGet(TaktukRemote):
         self._taktuk_common_init()
 
     def _taktukget_args(self):
-        return "%r, %r%s%s" % (self._hosts, self._remote_files, self._action_args(), self._taktukget_kwargs())
+        return "%r, %r, %s%s" % (self._hosts, self._remote_files, self._action_args(), self._taktukget_kwargs())
 
     def _taktukget_kwargs(self):
         kwargs = ""
@@ -3106,7 +3108,7 @@ class Local(Action):
                                 process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1))
 
     def _local_args(self):
-        return "%r%s%s" % (self._cmd, self._action_args(), self._local_kwargs())
+        return "%r, %s%s" % (self._cmd, self._action_args(), self._local_kwargs())
 
     def _local_kwargs(self):
         return ""
@@ -3177,7 +3179,7 @@ class ParallelActions(Action):
             action.add_lifecycle_handler(subactions_lifecycle_handler)
 
     def _parallelaction_args(self):
-        return "%r%s%s" % (self._actions, self._action_args(), self._parallelaction_kwargs())
+        return "%r, %s%s" % (self._actions, self._action_args(), self._parallelaction_kwargs())
 
     def _parallelaction_kwargs(self):
         return ""
@@ -3273,7 +3275,7 @@ class SequentialActions(Action):
                                                                              next_action))
 
     def _sequentialaction_args(self):
-        return "%r%s%s" % (self._actions, self._action_args(), self._sequentialaction_kwargs())
+        return "%r, %s%s" % (self._actions, self._action_args(), self._sequentialaction_kwargs())
 
     def _sequentialaction_kwargs(self):
         return ""
