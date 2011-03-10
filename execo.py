@@ -681,21 +681,24 @@ class ProcessBase(object):
 
     @_synchronized
     def ok(self):
-        """Check process has correctly finished.
+        """Check process is ok.
 
-        A `ProcessBase` is ok, if its has:
+        A `ProcessBase` is ok, if:
 
-        - started and ended
+        - it is not yet started or not yet ended
 
-        - has no error (or was instructed to ignore them)
+        - it started and ended and:
 
-        - did not timeout (or was instructed to ignore it)
+          - has no error (or was instructed to ignore them)
 
-        - returned 0 (or was instructed to ignore a non zero exit
-          code)
+          - did not timeout (or was instructed to ignore it)
+
+          - returned 0 (or was instructed to ignore a non zero exit
+            code)
         """
-        return (self._started and self._ended
-                and (not self._error or self._ignore_error)
+        if not self._started: return True
+        if self._started and not self._ended: return True
+        return ((not self._error or self._ignore_error)
                 and (not self._timeouted or self._ignore_timeout)
                 and (self._exit_code == 0 or self._ignore_exit_code))
 
