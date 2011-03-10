@@ -397,6 +397,13 @@ class ProcessLifecycleHandler(object):
         """
         pass
 
+    def reset(self, process):
+        """Handle `ProcessBase`'s reset.
+
+        :param process: The `ProcessBase` which is reset.
+        """
+        pass
+
 class ProcessOutputHandler(object):
     
     """Abstract handler for `ProcessBase` output."""
@@ -723,9 +730,12 @@ class ProcessBase(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting;
         """
+        logger.debug(style("reset:", 'emph') + " %s" % self)
         if self._started and not self._ended:
             self.kill()
             self.wait()
+        if self._process_lifecycle_handler != None:
+            self._process_lifecycle_handler.reset(self)
         self._common_reset()
         return self
 
@@ -2035,6 +2045,13 @@ class ActionLifecycleHandler(object):
         """
         pass
 
+    def reset(self, action):
+        """Handle `Action`'s reset.
+
+        :param action: the `Action` which is reset.
+        """
+        pass
+
 class Action(object):
 
     """Abstract base class. A set of parallel processes.
@@ -2167,9 +2184,12 @@ class Action(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting;
         """
+        logger.debug(style("reset:", 'emph') + " %s" % (self,))
         if self._started and not self._ended:
             self.kill()
             self.wait()
+        for handler in self._lifecycle_handler:
+            handler.reset(self)
         self._common_reset()
         return self
 
@@ -2293,6 +2313,9 @@ class ActionNotificationProcessLifecycleHandler(ProcessLifecycleHandler):
         if self._terminated_processes == self._total_processes:
             self._action._notify_terminated()
 
+    def action_reset(self):
+        self._terminated_processes = 0
+
 class Remote(Action):
 
     """Launch a command remotely on several `Host`, with ``ssh`` or a similar remote connexion tool.
@@ -2318,7 +2341,7 @@ class Remote(Action):
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             self._processes.append(SshProcess(host,
                                               remote_substitute(remote_cmd, self._hosts, index, self._caller_context),
@@ -2327,7 +2350,7 @@ class Remote(Action):
                                               ignore_exit_code = self._ignore_exit_code,
                                               ignore_timeout = self._ignore_timeout,
                                               ignore_error = self._ignore_error,
-                                              process_lifecycle_handler = lifecycle_handler,
+                                              process_lifecycle_handler = self._process_lifecycle_handler,
                                               pty = get_ssh_scp_pty_option(connexion_params)))
 
     def _remote_args(self):
@@ -2376,6 +2399,7 @@ class Remote(Action):
         retval = super(Remote, self).reset()
         for process in self._processes:
             process.reset()
+        self._process_lifecycle_handler.action_reset()
         return retval
 
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
@@ -2998,6 +3022,14 @@ class TaktukPut(TaktukRemote):
         for src in self._local_files:
             self._taktuk_cmdline += ("broadcast", "put", "[", src, "]", "[", self._remote_location, "]", ";")
 
+    def reset(self):
+        retval = super(TaktukPut, self).reset()
+        for process in self._processes:
+            process._num_transfers_started = 0
+            process._num_transfers_terminated = 0
+            process._num_transfers_failed = 0
+        return retval
+
 class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
 
     """Parse taktuk output."""
@@ -3138,6 +3170,14 @@ class TaktukGet(TaktukRemote):
         for src in self._remote_files:
             self._taktuk_cmdline += ("broadcast", "get", "[", src, "]", "[", self._local_location, "]", ";")
 
+    def reset(self):
+        retval = super(TaktukGet, self).reset()
+        for process in self._processes:
+            process._num_transfers_started = 0
+            process._num_transfers_terminated = 0
+            process._num_transfers_failed = 0
+        return retval
+
 class Local(Action):
 
     """Launch a command localy."""
@@ -3202,7 +3242,7 @@ class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
         self._total_parallel_subactions = total_parallel_subactions
         self._terminated_subactions = 0
 
-    def reset(self):
+    def reset(self, action):
         self._terminated_subactions = 0
 
     def end(self, action):
@@ -3274,7 +3314,6 @@ class ParallelActions(Action):
         retval = super(ParallelActions, self).reset()
         for action in self._actions:
             action.reset()
-        self._subactions_lifecycle_handler.reset()
         return retval
 
     def processes(self):

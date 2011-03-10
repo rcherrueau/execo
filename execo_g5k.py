@@ -169,7 +169,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         self._current_section = self._SECTION_NONE
         self._out = out
 
-    def reset(self):
+    def action_reset(self):
         self._current_section = self._SECTION_NONE
         
     def read_line(self, process, string, eof = False, error = False):
@@ -295,8 +295,6 @@ class Kadeployer(Remote):
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()
-        for process in self._processes:
-            process.stdout_handler().reset()
         self._good_hosts = set()
         self._bad_hosts = set()
         
@@ -359,6 +357,12 @@ class Kadeployer(Remote):
             if len(self._good_hosts.union(self._bad_hosts).symmetric_difference(self._fhosts)) != 0:
                 error = True
         return error
+
+    def reset(self):
+        retval = super(Kadeployer, self).reset()
+        for process in self._processes:
+            process.stdout_handler().action_reset()
+        return retval
 
 def _convert_endpoint(endpoint):
     """Convert endpoint from `datetime.datetime` or `datetime.timedelta`, or deltat in seconds, to unix timestamp."""
