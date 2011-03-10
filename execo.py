@@ -3170,8 +3170,6 @@ class ParallelActions(Action):
             raise AttributeError, "ParallelActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
         if kwargs.has_key('ignore_timeout'):
             raise AttributeError, "ParallelActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s" % (self.__class__.__name__,)
         super(ParallelActions, self).__init__(**kwargs)
         self._actions = list(actions)
         subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self._actions))
@@ -3260,8 +3258,6 @@ class SequentialActions(Action):
             raise AttributeError, "SequentialActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
         if kwargs.has_key('ignore_timeout'):
             raise AttributeError, "SequentialActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s" % (self.__class__.__name__,)
         super(SequentialActions, self).__init__(**kwargs)
         self._actions = list(actions)
         for (index, action) in enumerate(self._actions):
