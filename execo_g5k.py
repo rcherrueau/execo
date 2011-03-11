@@ -144,14 +144,13 @@ class Deployment(object):
         return cmd_line
 
     def __repr__(self):
-        s = "Deployment("
+        s = ""
         if self.hosts != None: s = _cjoin(s, "hosts=%r" % (self.hosts,))
         if self.env_file != None: s = _cjoin(s, "env_file=%r" % (self.env_file,))
         if self.env_name != None: s = _cjoin(s, "env_name=%r" % (self.env_name,))
         if self.user != None: s = _cjoin(s, "user=%r" % (self.user,))
         if self.other_options: s = _cjoin(s, "other_options=%r" % (self.other_options,))
-        s += ")"
-        return s
+        return "Deployment(%s)" % (s,)
 
 class _KadeployStdoutHandler(ProcessOutputHandler):
 
@@ -469,7 +468,7 @@ class OarSubmission(object):
         self.command = command
 
     def __repr__(self):
-        s = "OarSubmission("
+        s = ""
         if self.resources != None: s = _cjoin(s, "resources=%r" % (self.resources,))
         if self.walltime != None: s = _cjoin(s, "walltime=%r" % (format_duration(self.walltime),))
         if self.job_type != None: s = _cjoin(s, "job_type=%r" % (self.job_type,))
@@ -481,8 +480,7 @@ class OarSubmission(object):
         if self.name != None: s = _cjoin(s, "name=%r" % (self.name,))
         if self.additional_options != None: s = _cjoin(s, "additional_options=%r" % (self.additional_options,))
         if self.command != None: s = _cjoin(s, "command=%r" % (self.command,))
-        s += ")"
-        return s
+        return "OarSubmission(%s)"
 
 def oarsub(job_specs, connexion_params = None, timeout = False):
     """Submit jobs.
