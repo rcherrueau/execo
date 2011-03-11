@@ -234,8 +234,8 @@ def get_seconds(duration):
 def get_unixts(date):
     """Convert a date to a unix timestamp.
 
-    :param date: a duration in one of the supported types. if
-      date == None, returns None. Supported types
+    :param date: a date in one of the supported types. if date ==
+      None, returns None. Supported types
 
       - `datetime.datetime`
 
