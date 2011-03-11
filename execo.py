@@ -2884,7 +2884,8 @@ class Put(Remote):
         for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
             if self._create_dirs:
-                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p ' + remote_substitute(self._remote_location, self._hosts, index, self._caller_context), '&&')
+                created_dir = remote_substitute(self._remote_location, self._hosts, index, self._caller_context)
+                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p "%(dir)s" || test -d "%(dir)s"' % {'dir': created_dir}, '&&')
             real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
             self._processes.append(Process(real_command,
@@ -2953,7 +2954,8 @@ class Get(Remote):
         for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
             if self._create_dirs:
-                prepend_dir_creation = ('mkdir', '-p', remote_substitute(local_location, self._hosts, index, self._caller_context), '&&')
+                created_dir = remote_substitute(local_location, self._hosts, index, self._caller_context)
+                prepend_dir_creation = ('mkdir', '-p', created_dir, '||', 'test', '-d', created_dir, '&&')
             remote_specs = ()
             for path in self._remote_files:
                 remote_specs += ("%s:%s" % (host.address, remote_substitute(path, self._hosts, index, self._caller_context)),)
