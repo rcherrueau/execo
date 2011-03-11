@@ -64,6 +64,12 @@ default_oarsh_oarcp_params = {
                      '-o', 'ConnectTimeout=20',
                      '-rp' ),
     'taktuk_options': ( '-s', ),
+    'taktuk_connector': 'oarsh',
+    'taktuk_connector_options': ( '-o', 'BatchMode=yes',
+                                  '-o', 'PasswordAuthentication=no',
+                                  '-o', 'StrictHostKeyChecking=no',
+                                  '-o', 'UserKnownHostsFile=/dev/null',
+                                  '-o', 'ConnectTimeout=20'),
     'ssh_scp_pty': True,
     }
 # _ENDOF_ default_oarsh_oarcp_params

@@ -60,6 +60,12 @@ default_connexion_params = {
                      '-o', 'ConnectTimeout=20',
                      '-rp' ),
     'taktuk_options': ( '-s', ),
+    'taktuk_connector': 'ssh',
+    'taktuk_connector_options': ( '-o', 'BatchMode=yes',
+                                  '-o', 'PasswordAuthentication=no',
+                                  '-o', 'StrictHostKeyChecking=no',
+                                  '-o', 'UserKnownHostsFile=/dev/null',
+                                  '-o', 'ConnectTimeout=20'),
     'ssh_scp_pty': False,
     }
 # _ENDOF_ default_connexion_params
@@ -71,17 +77,21 @@ default_connexion_params = {
 
 - ``port``: the port to connect to.
 
-- ``ssh``: the ssh command.
+- ``ssh``: the ssh or ssh-like command.
 
-- ``scp``: the scp command.
+- ``scp``: the scp or scp-like command.
 
 - ``taktuk``: the taktuk command.
 
-- ``ssh_options``: global options passed to ssh.
+- ``ssh_options``: options passed to ssh.
 
-- ``scp_options``: global options passed to scp.
+- ``scp_options``: options passed to scp.
 
-- ``taktuk_options``: global options passed to taktuk.
+- ``taktuk_options``: options passed to taktuk.
+
+- ``taktuk_connector``: the ssh-like connector command for taktuk.
+
+- ``taktuk_connector_options``: options passed to taktuk_connector.
 
 - ``ssh_scp_pty``: allocate a pty for ssh/scp.
 """
@@ -1567,6 +1577,64 @@ def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion
             
     return ssh_scp_auth_options
 
+def _get_connector_command(connector_params_entry,
+                           connector_options_params_entry,
+                           user = None,
+                           keyfile = None,
+                           port = None,
+                           connexion_params = None):
+    """build an ssh / scp / taktuk connector command line.
+
+    Constructs the command line based on values of
+    <connector_params_entry> and <connector_options_params_entry> in
+    connexion_params, if any, or fallback to
+    `default_connexion_params`, and add authentification options got
+    from `get_ssh_scp_auth_options`
+
+    :param connector_params_entry: name of field in connexion_params
+      or default_connexion_params containing the connector executable
+      name
+
+    :param connector_options_params_entry: name of field in
+      connexion_params or default_connexion_params containing the
+      connector options
+
+    :param user: see `get_ssh_scp_auth_options`
+
+    :param keyfile: see `get_ssh_scp_auth_options`
+    
+    :param port: see `get_ssh_scp_auth_options`
+    
+    :param connexion_params: see `get_ssh_scp_auth_options`
+    """
+    command = ()
+    
+    if connexion_params != None and connexion_params.has_key(connector_params_entry):
+        if connexion_params[connector_params_entry] != None:
+            command += (connexion_params[connector_params_entry],)
+        else:
+            raise ValueError, "invalid connector command %s in connexion_params %s" % (connector_params_entry,
+                                                                                       connexion_params,)
+    elif default_connexion_params != None and default_connexion_params.has_key(connector_params_entry):
+        if default_connexion_params[connector_params_entry] != None:
+            command += (default_connexion_params[connector_params_entry],)
+        else:
+            raise ValueError, "invalid connector command %s in default_connexion_params %s" % (connector_params_entry,
+                                                                                               default_connexion_params,)
+    else:
+        raise ValueError, "no connector command %s in default_connexion_params %s" % (connector_params_entry,
+                                                                                      default_connexion_params,)
+    
+    if connexion_params != None and connexion_params.has_key(connector_options_params_entry):
+        if connexion_params[connector_options_params_entry] != None:
+            command += connexion_params[connector_options_params_entry]
+    elif default_connexion_params != None and default_connexion_params.has_key(connector_options_params_entry):
+        if default_connexion_params[connector_options_params_entry] != None:
+            command += default_connexion_params[connector_options_params_entry]
+            
+    command += get_ssh_scp_auth_options(user, keyfile, port, connexion_params)
+    return command
+
 def get_ssh_command(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with complete ssh command line.
 
@@ -1583,30 +1651,12 @@ def get_ssh_command(user = None, keyfile = None, port = None, connexion_params =
     
     :param connexion_params: see `get_ssh_scp_auth_options`
     """
-    ssh_command = ()
-    
-    if connexion_params != None and connexion_params.has_key('ssh'):
-        if connexion_params['ssh'] != None:
-            ssh_command += (connexion_params['ssh'],)
-        else:
-            raise ValueError, "invalid ssh command in connexion_params %s" % (connexion_params,)
-    elif default_connexion_params != None and default_connexion_params.has_key('ssh'):
-        if default_connexion_params['ssh'] != None:
-            ssh_command += (default_connexion_params['ssh'],)
-        else:
-            raise ValueError, "invalid ssh command in default_connexion_params %s" % (default_connexion_params,)
-    else:
-        raise ValueError, "no ssh command in default_connexion_params %s" % (default_connexion_params,)
-    
-    if connexion_params != None and connexion_params.has_key('ssh_options'):
-        if connexion_params['ssh_options'] != None:
-            ssh_command += connexion_params['ssh_options']
-    elif default_connexion_params != None and default_connexion_params.has_key('ssh_options'):
-        if default_connexion_params['ssh_options'] != None:
-            ssh_command += default_connexion_params['ssh_options']
-
-    ssh_command += get_ssh_scp_auth_options(user, keyfile, port, connexion_params)
-    return ssh_command
+    return _get_connector_command('ssh',
+                                  'ssh_options',
+                                  user,
+                                  keyfile,
+                                  port,
+                                  connexion_params)
 
 def get_scp_command(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with complete scp command line.
@@ -1624,30 +1674,35 @@ def get_scp_command(user = None, keyfile = None, port = None, connexion_params =
 
     :param connexion_params: see `get_ssh_scp_auth_options`
     """
-    scp_command = ()
-    
-    if connexion_params != None and connexion_params.has_key('scp'):
-        if connexion_params['scp'] != None:
-            scp_command += (connexion_params['scp'],)
-        else:
-            raise ValueError, "invalid scp command in connexion_params %s" % (connexion_params,)
-    elif default_connexion_params != None and default_connexion_params.has_key('scp'):
-        if default_connexion_params['scp'] != None:
-            scp_command += (default_connexion_params['scp'],)
-        else:
-            raise ValueError, "invalid scp command in default_connexion_params %s" % (default_connexion_params,)
-    else:
-        raise ValueError, "no scp command in default_connexion_params %s" % (default_connexion_params,)
-    
-    if connexion_params != None and connexion_params.has_key('scp_options'):
-        if connexion_params['scp_options'] != None:
-            scp_command += connexion_params['scp_options']
-    elif default_connexion_params != None and default_connexion_params.has_key('scp_options'):
-        if default_connexion_params['scp_options'] != None:
-            scp_command += default_connexion_params['scp_options']
+    return _get_connector_command('scp',
+                                  'scp_options',
+                                  user,
+                                  keyfile,
+                                  port,
+                                  connexion_params)
 
-    scp_command += get_ssh_scp_auth_options(user, keyfile, port, connexion_params)
-    return scp_command
+def get_taktuk_connector_command(user = None, keyfile = None, port = None, connexion_params = None):
+    """Return tuple with complete taktuk connector command line.
+
+    Constructs the command line based on values of 'taktuk_connector'
+    and 'taktuk_connector_options' in connexion_params, if any, or
+    fallback to `default_connexion_params`, and add authentification
+    options got from `get_ssh_scp_auth_options`
+
+    :param user: see `get_ssh_scp_auth_options`
+
+    :param keyfile: see `get_ssh_scp_auth_options`
+
+    :param port: see `get_ssh_scp_auth_options`
+
+    :param connexion_params: see `get_ssh_scp_auth_options`
+    """
+    return _get_connector_command('taktuk_connector',
+                                  'taktuk_connector_options',
+                                  user,
+                                  keyfile,
+                                  port,
+                                  connexion_params)
 
 def get_ssh_scp_pty_option(connexion_params):
     """Based on given connexion_params or default_connexion_params, return a boolean suitable for pty option for Process creation."""
@@ -1796,7 +1851,14 @@ def get_hosts_list(hosts):
 
 class SshProcess(Process):
 
-    r"""Handle a remote command execution through ssh or similar remote execution tool."""
+    r"""Handle a remote command execution through ssh or similar remote execution tool.
+
+    Note: the closing of the remote process upon killing of the
+    SshProcess depends on the ssh (or ssh-like) command behavior. With
+    openssh, this can be obtained by passing options -tt (force tty
+    creation), thus these are the default options in
+    ``default_connexion_params``.
+    """
 
     def __init__(self, host, remote_cmd, connexion_params = None, **kwargs):
         self._host = host
@@ -2681,11 +2743,20 @@ class TaktukRemote(Action):
     One taktuk instance is ran, which itself connects to hosts through
     an ``ssh`` tree.
 
-    Behavior should be identical to `Remote`. Only limitation is that
-    we can provide per-host user with taktuk, but we cannot provide
-    per-host port or keyfile, so a check is made that all hosts and
-    connexion_params have the same port / keyfile (or None). If not,
-    an exception is raised during initialization.
+    Behavior should be identical to `Remote`. Current limitation are:
+
+    - we can provide per-host user with taktuk, but we cannot provide
+      per-host port or keyfile, so a check is made that all hosts and
+      connexion_params have the same port / keyfile (or None). If not,
+      an exception is raised during initialization.
+
+    - remote processes are not killed when killing the
+      TaktukRemote. See 'hanged commands' in
+      http://taktuk.gforge.inria.fr/taktuk.html#bugs. With ssh the
+      workaround is to pass options -tt but passing these options to
+      taktuk connector causes immediate closing of the connector upon
+      connexion, thus this option is not in default taktuk connector
+      options in ``default_connexion_params``.
     """
 
     def __init__(self, hosts, remote_cmd, connexion_params = None, **kwargs):
@@ -2810,7 +2881,10 @@ class TaktukRemote(Action):
                                  "-o", 'taktuk="G $position # $line\\n"',
                                  "-o", 'message="H $position # $line\\n"',
                                  "-o", 'default="I $position # $type > $line\\n"')
-        self._taktuk_cmdline += ("-c", " ".join(get_ssh_command(keyfile = global_keyfile, port = global_port,connexion_params = self._connexion_params)))
+        self._taktuk_cmdline += ("-c", " ".join(
+            get_taktuk_connector_command(keyfile = global_keyfile,
+                                         port = global_port,
+                                         connexion_params = self._connexion_params)))
         self._gen_taktuk_commands(hosts_with_explicit_user)
         self._taktuk_cmdline += ("quit",)
         handler = _TaktukRemoteOutputHandler(self)
