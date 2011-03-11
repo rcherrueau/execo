@@ -389,5 +389,5 @@ Exceptions at shutdown
 Some exceptions may sometimes be triggered at python shutdown, with
 the message ``most likely raised during interpreter shutdown``. They
 are most likely caused by a bug in shutdown code's handling of threads
-termination, and thus should be ignored. See
+termination, and thus can be ignored. See
 http://bugs.python.org/issue1856
