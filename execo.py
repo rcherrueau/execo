@@ -1108,7 +1108,7 @@ class Process(ProcessBase):
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
         """
-        logger.debug("set terminated %s" % self)
+        logger.debug("set terminated %s, exit_code=%s" % (self, exit_code))
         self._exit_code = exit_code
         self._end_date = time.time()
         self._ended = True
@@ -1879,7 +1879,7 @@ class TaktukProcess(ProcessBase):
         """
         if not self._started:
             self.start()
-        logger.debug("set terminated %s" % self)
+        logger.debug("set terminated %s, exit_code=%s, error=%s" % (self, exit_code, error))
         if error != None:
             self._error = error
         if error_reason != None:
@@ -2599,6 +2599,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         #  default   "I $position # $type # $line"                             73     NO
         try:
             if len(string) > 0:
+                #logger.debug("taktuk: %s" % self._describe_taktuk_output(string))
                 header = ord(string[0])
                 (position, sep, line) = string[2:].partition(" # ")
                 position = int(position)
