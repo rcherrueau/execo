@@ -295,27 +295,19 @@ class Kadeployer(Remote):
         self._good_hosts = set()
         self._bad_hosts = set()
         
-    def _kadeployer_args(self):
-        return _cjoin(repr(self._deployment), self._remote_args(), self._kadeployer_kwargs())
+    def _args(self):
+        return [ repr(self._deployment) ] + Action._args(self) + Kadeployer._kwargs(self)
 
-    def _kadeployer_kwargs(self):
-        kwargs = ""
-        if self._connexion_params: kwargs = _cjoin(kwargs, "connexion_params=%r" % (self._connexion_params,))
-        if self._out: kwargs = _cjoin(kwargs, "out=%r" % (self._out,))
+    def _kwargs(self):
+        kwargs = []
+        if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
+        if self._out: kwargs.append("out=%r" % (self._out,))
         return kwargs
 
-    def _kadeployer_infos(self):
-        return _cjoin("cmds=%r, deployed_hosts=%r error_hosts=%r"
-                      % ([ process.cmd() for process in self._processes],
-                         self._good_hosts,
-                         self._bad_hosts),
-                      self._remote_infos())
-
-    def __repr__(self):
-        return "Kadeployer(%s)" % (self._kadeployer_args(),)
-
-    def __str__(self):
-        return "<" + style("Kadeployer", 'object_repr') + "(%s)>" % (_cjoin(self._kadeployer_args(), self._kadeployer_infos()),)
+    def _infos(self):
+        return Remote._infos(self) + [ "cmds=%r" % ([ process.cmd() for process in self._processes],),
+                                       "deployed_hosts=%r" % (self._good_hosts,),
+                                       "error_hosts=%r" % (self._bad_hosts,) ]
 
     def name(self):
         if self._name == None:
