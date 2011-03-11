@@ -4,6 +4,7 @@ r"""Tools and extensions to execo suitable for use in Grid5000."""
 
 import execo
 from execo import *
+from execo import  _strdate_to_unixts, _strduration_to_seconds, _cjoin
 import operator, copy, time
 
 logger = logging.getLogger("execo.g5k")
@@ -143,11 +144,12 @@ class Deployment(object):
         return cmd_line
 
     def __repr__(self):
-        s = "Deployment(hosts=%r" % (self.hosts,)
-        if self.env_file != None: s += ", env_file=%r" % (self.env_file,)
-        if self.env_name != None: s += ", env_name=%r" % (self.env_name,)
-        if self.user != None: s += ", user=%r" % (self.user,)
-        if self.other_options: s += ", other_options=%r" % (self.other_options,)
+        s = "Deployment("
+        if self.hosts != None: s = _cjoin(s, "hosts=%r" % (self.hosts,))
+        if self.env_file != None: s = _cjoin(s, "env_file=%r" % (self.env_file,))
+        if self.env_name != None: s = _cjoin(s, "env_name=%r" % (self.env_name,))
+        if self.user != None: s = _cjoin(s, "user=%r" % (self.user,))
+        if self.other_options: s = _cjoin(s, "other_options=%r" % (self.other_options,))
         s += ")"
         return s
 
@@ -193,9 +195,6 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
                 host_address = so.group(1)
                 self._kadeployer._add_bad_host_address(host_address)
 
-    def __repr__(self):
-        return "<_KadeployStdoutHandler(...)>"
-
 class _KadeployStderrHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stderr."""
@@ -212,9 +211,6 @@ class _KadeployStderrHandler(ProcessOutputHandler):
     def read_line(self, process, string, eof = False, error = False):
         if self._out:
             print string,
-
-    def __repr__(self):
-        return "<_KadeployStderrHandler(...)>"
 
 class Kadeployer(Remote):
 
@@ -300,25 +296,26 @@ class Kadeployer(Remote):
         self._bad_hosts = set()
         
     def _kadeployer_args(self):
-        return "%r, %s%s" % (self._deployment, self._remote_args(), self._kadeployer_kwargs())
+        return _cjoin(repr(self._deployment), self._remote_args(), self._kadeployer_kwargs())
 
     def _kadeployer_kwargs(self):
         kwargs = ""
-        if self._connexion_params: kwargs += ", connexion_params=%r" % (self._connexion_params,)
-        if self._out: kwargs += ", out=%r" % (self._out,)
+        if self._connexion_params: kwargs = _cjoin(kwargs, "connexion_params=%r" % (self._connexion_params,))
+        if self._out: kwargs = _cjoin(kwargs, "out=%r" % (self._out,))
         return kwargs
 
     def _kadeployer_infos(self):
-        return "cmds=%r, deployed_hosts=%r error_hosts=%r, %s" % ([ process.cmd() for process in self._processes],
-                                                                  self._good_hosts,
-                                                                  self._bad_hosts,
-                                                                  self._remote_infos())
+        return _cjoin("cmds=%r, deployed_hosts=%r error_hosts=%r"
+                      % ([ process.cmd() for process in self._processes],
+                         self._good_hosts,
+                         self._bad_hosts),
+                      self._remote_infos())
 
     def __repr__(self):
         return "Kadeployer(%s)" % (self._kadeployer_args(),)
 
     def __str__(self):
-        return "<" + style("Kadeployer", 'object_repr') + "(%s, %s)>" % (self._kadeployer_args(), self._kadeployer_infos())
+        return "<" + style("Kadeployer", 'object_repr') + "(%s)>" % (_cjoin(self._kadeployer_args(), self._kadeployer_infos()),)
 
     def name(self):
         if self._name == None:
@@ -412,11 +409,11 @@ def format_oar_duration(duration):
 
 def oar_date_to_unixts(date):
     """Convert a date in the format returned by oar/oargrid to an unix timestamp."""
-    return execo._strdate_to_unixts(date)
+    return _strdate_to_unixts(date)
 
 def oar_duration_to_seconds(duration):
     """Convert a duration in the format returned by oar/oargrid to a number of seconds."""
-    return execo._strduration_to_seconds(duration)
+    return _strduration_to_seconds(duration)
 
 class OarSubmission(object):
     """An oar submission.
@@ -456,7 +453,7 @@ class OarSubmission(object):
     """
 
     def __init__(self,
-                 resources = "nodes=1",
+                 resources = None,
                  walltime = None,
                  job_type = None,
                  sql_properties = None,
@@ -480,17 +477,18 @@ class OarSubmission(object):
         self.command = command
 
     def __repr__(self):
-        s = "OarSubmission(resources=%r" % (self.resources,)
-        if self.walltime != None: s += ", walltime=%r" % (format_duration(self.walltime),)
-        if self.job_type != None: s += ", job_type=%r" % (self.job_type,)
-        if self.sql_properties != None: s += ", sql_properties=%r" % (self.sql_properties,)
-        if self.queue != None: s += ", queue=%r" % (self.queue,)
-        if self.reservation_date != None: s += ", reservation_date=%r" % (format_date(self.reservation_date),)
-        if self.directory != None: s += ", directory=%r" % (self.directory,)
-        if self.project != None: s += ", project=%r" % (self.project,)
-        if self.name != None: s += ", name=%r" % (self.name,)
-        if self.additional_options != None: s += ", additional_options=%r" % (self.additional_options,)
-        if self.command != None: s += ", command=%r" % (self.command,)
+        s = "OarSubmission("
+        if self.resources != None: s = _cjoin(s, "resources=%r" % (self.resources,))
+        if self.walltime != None: s = _cjoin(s, "walltime=%r" % (format_duration(self.walltime),))
+        if self.job_type != None: s = _cjoin(s, "job_type=%r" % (self.job_type,))
+        if self.sql_properties != None: s = _cjoin(s, "sql_properties=%r" % (self.sql_properties,))
+        if self.queue != None: s = _cjoin(s, "queue=%r" % (self.queue,))
+        if self.reservation_date != None: s = _cjoin(s, "reservation_date=%r" % (format_date(self.reservation_date),))
+        if self.directory != None: s = _cjoin(s, "directory=%r" % (self.directory,))
+        if self.project != None: s = _cjoin(s, "project=%r" % (self.project,))
+        if self.name != None: s = _cjoin(s, "name=%r" % (self.name,))
+        if self.additional_options != None: s = _cjoin(s, "additional_options=%r" % (self.additional_options,))
+        if self.command != None: s = _cjoin(s, "command=%r" % (self.command,))
         s += ")"
         return s
 
