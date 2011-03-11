@@ -231,8 +231,6 @@ class Kadeployer(Remote):
         :param out: if True, output kadeploy stdout / stderr to
           stdout.
         """
-        if not kwargs.has_key('name') or kwargs['name'] == None:
-            kwargs['name'] = "%s %s on %s" % (self.__class__.__name__, deployment.env_name or deployment.env_file, deployment.hosts)
         super(Remote, self).__init__(**kwargs)
         self._connexion_params = connexion_params
         self._deployment = deployment
@@ -310,7 +308,7 @@ class Kadeployer(Remote):
 
     def name(self):
         if self._name == None:
-            return "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._deployment.hosts), len(self._hosts))
+            return "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._fhosts), len(self._processes))
         else:
             return self._name
 
