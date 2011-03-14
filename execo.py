@@ -2959,7 +2959,7 @@ class Put(Remote):
             prepend_dir_creation = ()
             if self._create_dirs:
                 created_dir = remote_substitute(self._remote_location, self._hosts, index, self._caller_context)
-                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('mkdir -p "%(dir)s" || test -d "%(dir)s"' % {'dir': created_dir}, '&&')
+                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('\'mkdir -p "%(dir)s" || test -d "%(dir)s"\'' % {'dir': created_dir}, '&&')
             real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
             self._processes.append(Process(real_command,
