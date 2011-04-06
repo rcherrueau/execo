@@ -1354,10 +1354,10 @@ class _Conductor(object):
             # this process
             try:
                 (last_bytes, eof) = _read_asmuch(fileno_stdout)
-                process._handle_stdout(last_bytes, eof = True)
             except OSError, e:
-                if e.errno == errno.EBADF: pass
+                if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
+            process._handle_stdout(last_bytes, eof = True)
         if self.__fds.has_key(fileno_stderr):
             del self.__fds[fileno_stderr]
             self.__poller.unregister(fileno_stderr)
@@ -1365,10 +1365,10 @@ class _Conductor(object):
             # this process
             try:
                 (last_bytes, eof) = _read_asmuch(fileno_stderr)
-                process._handle_stderr(last_bytes, eof = True)
             except OSError, e:
-                if e.errno == errno.EBADF: pass
+                if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
+            process._handle_stderr(last_bytes, eof = True)
         self.__processes.remove(process)
         if exit_code != None:
             process._set_terminated(exit_code = exit_code)
