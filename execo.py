@@ -2077,15 +2077,14 @@ class Report(object):
           ignore_exit_code).
         """
         stats = Report.empty_stats()
-        no_start_date = False
+        stats['start_date'] = None
         no_end_date = False
         for report in self._reports:
             stats2 = report.stats()
             for k in stats2.keys():
                 if k == 'start_date':
-                    if stats2[k] == None:
-                        no_start_date = True
-                    elif stats[k] == None or stats2[k] < stats[k]:
+                    if (stats2[k] != None
+                        and (stats[k] == None or stats2[k] < stats[k])):
                         stats[k] = stats2[k]
                 elif k == 'end_date':
                     if stats2[k] == None:
@@ -2094,11 +2093,7 @@ class Report(object):
                         stats[k] = stats2[k]
                 else:
                     stats[k] += stats2[k]
-        if no_start_date:
-            stats['start_date'] = None
         if no_end_date:
-            stats['end_date'] = None
-        if stats['num_ended'] != stats['num_processes']:
             stats['end_date'] = None
         return stats
 
@@ -2447,6 +2442,8 @@ class Action(object):
                 stats['num_non_zero_exit_codes'] += 1
             if process.ok():
                 stats['num_ok'] += 1
+        if stats['num_processes'] > stats['num_ended']:
+            stats['end_date'] = None
         return stats
 
     def reports(self):
