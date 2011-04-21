@@ -11,6 +11,7 @@ import termios, functools, inspect
 # _STARTOF_ configuration
 configuration = {
     'log_level': logging.WARNING,
+    'compact_output_threshold': 4096,
     'kill_timeout': 5,
     'color_mode': os.isatty(sys.stdout.fileno())
                   and os.isatty(sys.stderr.fileno()),
@@ -26,12 +27,16 @@ configuration = {
 
 - ``log_level``: the log level (see module `logging`)
 
+- ``compact_output_threshold``: only beginning and end of stdout /
+  stderr are displayed when their size is greater than this
+  threshold. 0 for no threshold
+
 - ``kill_timeout``: number of seconds to wait after a clean SIGTERM
   kill before assuming that the process is not responsive and killing
   it with SIGKILL
 
 - ``color_mode``: whether to colorize output (with ansi escape
-  sequences).
+  sequences)
 
 - ``style_log_header``, ``style_log_level``, ``style_object_repr``,
   ``style_emph``, ``style_report_warn``, ``style_report_error``:
@@ -564,6 +569,11 @@ def _synchronized(func):
             return func(*args, **kw)
     return wrapper
 
+def _compact_output(s):
+    thresh = configuration['compact_output_threshold']
+    if thresh == 0 or len(s) <= thresh: return s
+    return s[:thresh/2] + "\n[...]\n" + s[(thresh/2)-thresh:]
+
 class ProcessBase(object):
 
     """An almost abstract base class for all kinds of processes.
@@ -848,9 +858,9 @@ class ProcessBase(object):
             and (not self._error or self._ignore_error)
             and (not self._timeouted or self._ignore_timeout)
             and (self._exit_code == 0 or self._ignore_exit_code)):
-            logger.debug(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (self._stdout,) + style("stderr:", 'emph') + "\n%s" % (self._stderr,))
+            logger.debug(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (_compact_output(self._stdout),) + style("stderr:", 'emph') + "\n%s" % (_compact_output(self._stderr),))
         else:
-            logger.warning(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (self._stdout,) + style("stderr:", 'emph') + "\n%s" % (self._stderr,))
+            logger.warning(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (_compact_output(self._stdout),) + style("stderr:", 'emph') + "\n%s" % (_compact_output(self._stderr),))
 
     def reset(self):
         """Reinitialize a ProcessBase so that it can later be restarted.
