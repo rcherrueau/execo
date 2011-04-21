@@ -5,7 +5,7 @@ r"""Handles launching of several operating system level processes in parallel an
 
 from __future__ import with_statement
 import datetime, logging, os, select, time, thread, threading, subprocess
-import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty
+import signal, errno, fcntl, sys, traceback, Queue, re, socket, pty, types
 import termios, functools, inspect
 
 # _STARTOF_ configuration
@@ -184,7 +184,46 @@ def style(string, style):
     else:
         return string
 
+class _ConductorDebugLogRecord(logging.LogRecord):
+    def __init__(self, name, level, fn, lno, msg, args, exc_info, func):
+        logging.LogRecord.__init__(self, name, level, fn, lno, msg, args, exc_info, func)
+        self.conductor_lock = None
+        if _the_conductor != None:
+            self.conductor_lock = _the_conductor.get_lock()
+
+def makeRecord(logger, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
+    rv = _ConductorDebugLogRecord(name, level, fn, lno, msg, args, exc_info, func)
+    if extra:
+        for key in extra:
+            if (key in ["message", "asctime"]) or (key in rv.__dict__):
+                raise KeyError("Attempt to overwrite %r in LogRecord" % key)
+            rv.__dict__[key] = extra[key]
+    return rv
+
+def _run_debug_thread(interval = 10, processes = None):
+    def runforever():
+        while True:
+            time.sleep(interval)
+            print >> sys.stderr
+            print >> sys.stderr, ">>>>> %s - number of threads = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1)
+            print >> sys.stderr
+            if processes != None:
+                for process in processes:
+                    print >> sys.stderr, "  %s" % process
+                    print >> sys.stderr, "  stdout = %s" % process.stdout()
+                    print >> sys.stderr, "  stderr = %s" % process.stderr()
+                    print >> sys.stderr
+            for thread_id, frame in sys._current_frames().iteritems():
+                if thread_id != thread.get_ident():
+                    print >> sys.stderr, "===== [%#x] refcount = %s" % (thread_id, sys.getrefcount(frame))
+                    traceback.print_stack(frame, file = sys.stderr)
+            print >> sys.stderr
+    t = threading.Thread(target = runforever, name = "Debug")
+    t.setDaemon(True)
+    t.start()
+
 # logger is the execo logging object
+_fulldebug = False
 logger = logging.getLogger("execo")
 """The execo logger."""
 logger_handler = logging.StreamHandler(sys.stderr)
@@ -195,8 +234,12 @@ if configuration.has_key('log_level'):
 else:
     logger.setLevel(logging.WARNING)
 
-def _set_internal_debug_formatter():
-    logger_handler.setFormatter(logging.Formatter(style("%(asctime)s | ", 'log_header') + style("%(levelname)-5.5s ", 'log_level') + style("| %(threadName)-10.10s |", 'log_header') + " %(message)s"))
+def enable_full_debug():
+    global _fulldebug
+    _fulldebug = True
+    logger_handler.setFormatter(logging.Formatter(style("%(asctime)s", 'log_header') + style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
+    logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
+    _run_debug_thread()
 
 def _cjoin(*args):
     return ", ".join([ arg for arg in args if len(arg) > 0 ])
@@ -1307,7 +1350,7 @@ class _Conductor(object):
     def __handle_add_process(self, process):
         # intended to be called from conductor thread
         # register a process to conductor
-        #logger.debug("add %s to %s" % (process, self))
+        if _fulldebug: logger.debug("add %s to %s" % (process, self))
         if process not in self.__processes:
             if not process.ended():
                 fileno_stdout = process.stdout_fd()
@@ -1342,7 +1385,7 @@ class _Conductor(object):
         # Currently: only update the timeout. This is related to the
         # way the system for forcing SIGKILL on processes not killing
         # cleanly is implemented.
-        #logger.debug("update timeouts of %s in %s" % (process, self))
+        if _fulldebug: logger.debug("update timeouts of %s in %s" % (process, self))
         if process not in self.__processes:
             return # this will frequently occur if the process kills
                    # quickly because the process will already be
@@ -1354,7 +1397,7 @@ class _Conductor(object):
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
         # unregister a Process from conductor
-        #logger.debug("removing %s from %s" % (process, self))
+        if _fulldebug: logger.debug("removing %s from %s" % (process, self))
         if process not in self.__processes:
             raise ValueError, "trying to remove a process which was not yet added to conductor"
         self.__timeline = [ x for x in self.__timeline if x[1] != process ]
@@ -1421,7 +1464,7 @@ class _Conductor(object):
         exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
         while exit_pid != 0:
             process = self.__pids[exit_pid]
-            logger.debug("process pid %s terminated: %s" % (exit_pid, process))
+            if _fulldebug: logger.debug("process pid %s terminated: %s" % (exit_pid, process))
             self.__handle_remove_process(process, exit_code)
             exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
 
@@ -1460,11 +1503,11 @@ class _Conductor(object):
                                               # first of our
                                               # registered processes
                                               # reaches its timeout
-            #logger.debug("polling %i descriptors (+ rpipe) with timeout %s" % (len(self.__fds), "%.3fs" % delay if delay != None else "None"))
+            if _fulldebug: logger.debug("polling %i descriptors (+ rpipe) with timeout %s" % (len(self.__fds), "%.3fs" % delay if delay != None else "None"))
             if delay == None or delay > 0: # don't even poll if poll timeout is <= 0
                 if delay != None: delay *= 1000 # poll needs delay in millisecond
                 descriptors_events = self.__poller.poll(delay)
-            #logger.debug("len(descriptors_events) = %i" % len(descriptors_events))
+            if _fulldebug: logger.debug("len(descriptors_events) = %i" % len(descriptors_events))
             event_on_rpipe = None # we want to handle any event on
                                   # rpipe after all other file
                                   # descriptors, hence this flag
@@ -1476,7 +1519,7 @@ class _Conductor(object):
                 else:
                     if self.__fds.has_key(fd):
                         process, stream_handler_func = self.__fds[fd]
-                        #logger.debug("event %s on fd %s, process %s" % (_event_desc(event), fd, process))
+                        if _fulldebug: logger.debug("event %s on fd %s, process %s" % (_event_desc(event), fd, process))
                         if event & select.POLLIN:
                             (string, eof) = _read_asmuch(fd)
                             stream_handler_func(string, eof = eof)
@@ -1490,7 +1533,7 @@ class _Conductor(object):
                             self.__remove_handle(fd)
             self.__check_timeouts()
             if event_on_rpipe != None:
-                #logger.debug("event %s on inter-thread pipe" % _event_desc(event_on_rpipe))
+                if _fulldebug: logger.debug("event %s on inter-thread pipe" % _event_desc(event_on_rpipe))
                 if event_on_rpipe & select.POLLIN:
                     (string, eof) = _read_asmuch(self.__rpipe)
                     if eof:
