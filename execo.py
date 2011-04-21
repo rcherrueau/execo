@@ -1432,8 +1432,6 @@ class _Conductor(object):
         # exception handling
         try:
             self.__io_loop()
-        except SystemExit:
-            pass
         except Exception, e:
             print "exception in conductor thread"
             traceback.print_exc()
