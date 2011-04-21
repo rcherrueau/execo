@@ -995,25 +995,29 @@ class Process(ProcessBase):
         else:
             return None
 
-    @_synchronized
     def start(self):
         """Start the subprocess."""
-        if self._started:
-            raise ValueError, "unable to start an already started process"
-        logger.debug(style("start:", 'emph') + " %s" % self)
-        self._started = True
-        self._start_date = time.time()
-        if self._timeout != None:
-            self._timeout_date = self._start_date + self._timeout
+        # not synchronized: instead, self._lock managed explicitely to
+        # avoid deadlock with conductor lock
+        with self._lock:
+            if self._started:
+                raise ValueError, "unable to start an already started process"
+            logger.debug(style("start:", 'emph') + " %s" % self)
+            self._started = True
+            self._start_date = time.time()
+            if self._timeout != None:
+                self._timeout_date = self._start_date + self._timeout
+            if self._pty:
+                (self._ptymaster, self._ptyslave) = pty.openpty()
         if self._process_lifecycle_handler != None:
             self._process_lifecycle_handler.start(self)
-        with _the_conductor.get_lock():
-        # this lock is needed to ensure that
-        # Conductor.__update_terminated_processes() won't be called
-        # before the process has been registered to the conductor
-            try:
+        try:
+            with _the_conductor.get_lock():
+                # this lock is needed to ensure that
+                # Conductor.__update_terminated_processes() won't be
+                # called before the process has been registered to the
+                # conductor
                 if self._pty:
-                    (self._ptymaster, self._ptyslave) = pty.openpty()
                     self._process = subprocess.Popen(self._cmd,
                                                      stdin = self._ptyslave,
                                                      stdout = self._ptyslave,
@@ -1028,7 +1032,12 @@ class Process(ProcessBase):
                                                      stderr = subprocess.PIPE,
                                                      close_fds = True,
                                                      shell = self._shell)
-            except OSError, e:
+                self._pid = self._process.pid
+                _the_conductor.add_process(self)
+            if self._close_stdin:
+                self._process.stdin.close()
+        except OSError, e:
+            with self._lock:
                 self._error = True
                 self._error_reason = e
                 self._ended = True
@@ -1037,13 +1046,8 @@ class Process(ProcessBase):
                     logger.info(style("error:", 'emph') + " %s on %s" % (e, self,))
                 else:
                     logger.warning(style("error:", 'emph') + " %s on %s" % (e, self,))
-                if self._process_lifecycle_handler != None:
-                    self._process_lifecycle_handler.end(self)
-                return self
-            self._pid = self._process.pid
-            _the_conductor.add_process(self)
-        if self._close_stdin:
-            self._process.stdin.close()
+            if self._process_lifecycle_handler != None:
+                self._process_lifecycle_handler.end(self)
         return self
 
     @_synchronized
