@@ -40,6 +40,6 @@ fi
 # update version in grid5000
 if [ $UPDATEG5K == 1 ] ; then
     echo "### sync $G5KLOCATION"
-    $RSYNC dist/execo-1.2.tar.gz $G5KLOCATION:
-    ssh $G5KLOCATION 'rm -rf execo-1.2 ; tar xzf execo-1.2.tar.gz ; cd execo-1.2 ; make install PREFIX=/home/mimbert/.local'
+    $RSYNC dist/execo-1.3.tar.gz $G5KLOCATION:
+    ssh $G5KLOCATION 'rm -rf execo-1.3 ; tar xzf execo-1.3.tar.gz ; cd execo-1.3 ; make install PREFIX=/home/mimbert/.local'
 fi
