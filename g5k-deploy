@@ -4,11 +4,11 @@
 #
 # - for deploying a default environment:
 #
-#   g5k_deploy -c "{'user':'root','ssh':'sshpass','ssh_options':('-pgrid5000','ssh','-o','StrictHostKeyChecking=no','-o','UserKnownHostsFile=/dev/null','-o','ConnectTimeout=20')}" -CEXECO -e lenny-x64-base -j XXXXXX
+#   g5k-deploy -c "{'user':'root','ssh':'sshpass','ssh_options':('-pgrid5000','ssh','-o','StrictHostKeyChecking=no','-o','UserKnownHostsFile=/dev/null','-o','ConnectTimeout=20')}" -CEXECO -e lenny-x64-base -j XXXXXX
 #
 # - for deploying a production environment on a cluster (TODO: fix connexion_params)
 #
-#   deploy -c "{'user':'root','ssh':'sshpass','ssh_options':('-pgrid5000','ssh','-o','StrictHostKeyChecking=no','-o','UserKnownHostsFile=/dev/null','-o','ConnectTimeout=20')}" -CKAENV -e debian-x64-5-prod capricorne
+#   g5k-deploy -c "{'user':'root','ssh':'sshpass','ssh_options':('-pgrid5000','ssh','-o','StrictHostKeyChecking=no','-o','UserKnownHostsFile=/dev/null','-o','ConnectTimeout=20')}" -CKAENV -e debian-x64-5-prod capricorne
 
 import execo, execo_g5k, optparse, logging, re, tempfile, fileinput, shutil, sys
 g5k_api = False
@@ -18,7 +18,7 @@ try:
 except:
     pass
 
-logger = logging.getLogger("execo.g5k_deploy")
+logger = logging.getLogger("execo.g5k-deploy")
 
 usage = "usage: %prog <-e env_name>|<-a env_file> <space separated list of fqdn nodes or clusters to deploy>"
 description = """Deploy an environment, with kadeploy3, to Grid5000 nodes.  The nodes

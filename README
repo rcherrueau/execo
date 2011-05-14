@@ -9,7 +9,7 @@ conducting experiments, performing automated tests, etc. The core
 python module is ``execo``. The ``execo_g5k`` module provides a set of
 tools and extensions to execo, to be used in Grid5000. The
 ``g5k_api_tools`` module offers simple functions for dealing with the
-Grid5000 rest API. The ``g5k_deploy`` shell command builds upon these
+Grid5000 rest API. The ``g5k-deploy`` shell command builds upon these
 modules to deploy environments on grid5000 with a more user friendly
 interface than kadeploy.
 

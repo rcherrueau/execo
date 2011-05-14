@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+
+from g5k_api_tools import *
+
+for site in get_g5k_sites():
+    print "site: %s" % site
+    for cluster in get_site_clusters(site):
+        print "  %s" % cluster
+#         for host in get_cluster_hosts(cluster):
+#             print "    %s" % host

@@ -15,7 +15,7 @@ Contents:
    execo
    execo_g5k
    g5k_api_tools
-   g5k_deploy
+   g5k-deploy
 
 Indices and tables
 ==================

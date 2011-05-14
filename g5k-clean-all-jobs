@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+
+import execo, execo_g5k, g5k_api_tools, pprint
+
+sites = g5k_api_tools.get_g5k_sites()
+all_jobs = execo_g5k.get_current_oar_jobs(sites, local = False, abort_on_error = False)
+
+for site in g5k_api_tools.get_g5k_sites():
+    print "site: %s" % site
+    for job_id in [ job_id for (job_id, job_site) in all_jobs if job_site == site ]:
+        print "  %s" % job_id
+
+if len(all_jobs) > 0:
+    print "deleting..."
+    execo_g5k.oardel(all_jobs)
+    print "...done"
