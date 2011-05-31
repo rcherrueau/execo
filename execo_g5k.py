@@ -17,7 +17,7 @@ g5k_configuration = {
     'default_env_name': None,
     'default_env_file': None,
     'default_timeout': 900,
-    'check_deployed_command': "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ' || ps -u oar -o args | grep sshd)",
+    'check_deployed_command': "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ')",
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
@@ -38,8 +38,7 @@ g5k_configuration = {
 - ``check_deployed_command``: default shell command used by `deploy`
   to check that the nodes are correctly deployed. This command should
   return 0 if the node is correctly deployed, or another value
-  otherwise. This default value checks that there is no ssh daemon
-  running under user oar, and that the root is not on the second
+  otherwise. The default checks that the root is not on the second
   partition of the disk.
 """
 
