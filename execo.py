@@ -1827,6 +1827,12 @@ class Host(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return (self.address.__hash__()
+                ^ self.user.__hash__()
+                ^ self.keyfile.__hash__()
+                ^ self.port.__hash__())
+
     def _args(self):
         args = "%r" % (self.address,)
         if self.user: args = _cjoin(args, "user=%r" % (self.user,))
@@ -1880,12 +1886,6 @@ class FrozenHost(Host):
         if user != False: super(FrozenHost, self).__setattr__('user', user)
         if keyfile != False: super(FrozenHost, self).__setattr__('keyfile', keyfile)
         if port != False: super(FrozenHost, self).__setattr__('port', port)
-
-    def __hash__(self):
-        return (self.address.__hash__()
-                ^ self.user.__hash__()
-                ^ self.keyfile.__hash__()
-                ^ self.port.__hash__())
 
     def __repr__(self):
         return "FrozenHost(%s)" % (self._args())
