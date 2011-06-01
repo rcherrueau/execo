@@ -1778,12 +1778,20 @@ class Host(object):
       remote connexion and authentification (with a ssh like remote
       connexion tool).
 
+    Has an intuitive comparison and hashing behavior: two `Host` with
+    the same members (address, user, keyfile, port) will hash equally
+    and will be seen as identical keys in a set or dict.
+
     >>> h1 = Host('localhost')
     >>> h1.user = 'root'
     >>> h1
     Host('localhost', user='root')
     >>> h2 = Host('localhost', user = 'root')
     >>> h1 == h2
+    True
+    >>> d = dict()
+    >>> d[h1] = True
+    >>> d[h2]
     True
     """
 
@@ -1843,66 +1851,13 @@ class Host(object):
     def __repr__(self):
         return "Host(%s)" % (self._args())
 
-class FrozenHost(Host):
-
-    """Readonly subclass of `Host` with more usefull (and intuitive) hashing behavior. 
-
-    As the `Host` class is not readonly, it has the default python
-    hashing behavior based on its id(). This means that two `Host`
-    with the same members (address, user, keyfile, port) won't have
-    the same hash, and will thus be seen as different keys in a set or
-    dict. This subclass is readonly (by redefining __setattr__), and
-    redefines __hash__ in order to have a more usefull hashing
-    behavior: two `FrozenHost` with the same members (address, user,
-    keyfile, port) will hash equally and will be seen as identical
-    keys in a set or dict.
-
-    >>> h1 = FrozenHost('localhost', user = 'root')
-    >>> h2 = FrozenHost('localhost', user = 'root')
-    >>> d = dict()
-    >>> d[h1] = True
-    >>> d[h2]
-    True
-    """
-
-    def __setattr__(self, *args):
-        """Redefined to force instances of this class to be readonly."""
-        raise TypeError("can't modify immutable instance")
-
-    __delattr__ = __setattr__
-
-    def __init__(self, address, user = False, keyfile = False, port = False):
-        """See `Host.__init__`."""
-        if isinstance(address, Host):
-            super(FrozenHost, self).__setattr__('address', address.address)
-            super(FrozenHost, self).__setattr__('user', address.user)
-            super(FrozenHost, self).__setattr__('keyfile', address.keyfile)
-            super(FrozenHost, self).__setattr__('port', address.port)
-        else:
-            super(FrozenHost, self).__setattr__('address', address)
-            super(FrozenHost, self).__setattr__('user', None)
-            super(FrozenHost, self).__setattr__('keyfile', None)
-            super(FrozenHost, self).__setattr__('port', None)
-        if user != False: super(FrozenHost, self).__setattr__('user', user)
-        if keyfile != False: super(FrozenHost, self).__setattr__('keyfile', keyfile)
-        if port != False: super(FrozenHost, self).__setattr__('port', port)
-
-    def __repr__(self):
-        return "FrozenHost(%s)" % (self._args())
-
-def get_frozen_hosts_set(hosts):
-    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a set of `FrozenHost` (thus removing duplicates)."""
-    copy = set()    
-    for host in hosts: copy.add(FrozenHost(host))
-    return copy
-
-def get_frozen_hosts_list(hosts):
-    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a list of `FrozenHost`."""
-    return [ FrozenHost(host) for host in hosts ]
-
 def get_hosts_list(hosts):
-    """Deep copy an iterable of `Host` (possibly `FrozenHost`) to a list of `Host`."""
+    """Deep copy an iterable of `Host` to a list of `Host`."""
     return [ Host(host) for host in hosts ]
+
+def get_hosts_set(hosts):
+    """Deep copy an iterable of `Host` to a set of `Host`."""
+    return set(get_hosts_list(hosts))
 
 class SshProcess(Process):
 
@@ -2858,10 +2813,10 @@ class TaktukRemote(Action):
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
-        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) not in hosts_with_explicit_user ]:
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
             self._taktuk_cmdline += ("-m", host.address, "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
             self._taktuk_hosts_order.append(index)
-        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) in hosts_with_explicit_user ]:
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
             self._taktuk_cmdline += ("-l", host.user, "-m", host.address, "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
             self._taktuk_hosts_order.append(index)
 
@@ -2887,7 +2842,7 @@ class TaktukRemote(Action):
         hosts_with_explicit_user = set()
         for host in self._hosts:
             if host.user != None:
-                hosts_with_explicit_user.add(FrozenHost(host))
+                hosts_with_explicit_user.add(host)
             if host.keyfile != None:
                 check_keyfiles.add(host.keyfile)
             else:
@@ -3242,10 +3197,10 @@ class TaktukPut(TaktukRemote):
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
-        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) not in hosts_with_explicit_user ]:
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
             self._taktuk_cmdline += ("-m", host.address)
             self._taktuk_hosts_order.append(index)
-        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) in hosts_with_explicit_user ]:
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
             self._taktuk_cmdline += ("-l", host.user, "-m", host.address)
             self._taktuk_hosts_order.append(index)
         for src in self._local_files:
@@ -3385,10 +3340,10 @@ class TaktukGet(TaktukRemote):
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
-        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) not in hosts_with_explicit_user ]:
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
             self._taktuk_cmdline += ("-m", host.address)
             self._taktuk_hosts_order.append(index)
-        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if FrozenHost(h) in hosts_with_explicit_user ]:
+        for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
             self._taktuk_cmdline += ("-l", host.user, "-m", host.address)
             self._taktuk_hosts_order.append(index)
         for src in self._remote_files:

@@ -240,7 +240,7 @@ class Kadeployer(Remote):
         self._connexion_params = connexion_params
         self._deployment = deployment
         self._out = out
-        self._fhosts = get_frozen_hosts_set(deployment.hosts)
+        self._fhosts = get_hosts_set(deployment.hosts)
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
         searchre3 = re.compile("^[^ \t\n\r\f\v\.]+$")
@@ -319,14 +319,14 @@ class Kadeployer(Remote):
 
     def _add_good_host_address(self, host_address):
         """Add a host to the deployed hosts list. Intended to be called from the `ProcessOutputHandler`."""
-        self._good_hosts.add(FrozenHost(host_address))
+        self._good_hosts.add(Host(host_address))
 
     def _add_bad_host_address(self, host_address):
         """Add a host to the hosts not deployed list. Intended to be called from the `ProcessOutputHandler`."""
-        self._bad_hosts.add(FrozenHost(host_address))
+        self._bad_hosts.add(Host(host_address))
 
     def get_deployed_hosts(self):
-        """Return an iterable of `FrozenHost` containing the deployed hosts.
+        """Return an iterable of `Host` containing the deployed hosts.
 
         this iterable won't be complete if `Kadeployer` has not
         terminated.
@@ -334,7 +334,7 @@ class Kadeployer(Remote):
         return list(self._good_hosts)
 
     def get_error_hosts(self):
-        """Return an iterable of `FrozenHost` containing the hosts not deployed.
+        """Return an iterable of `Host` containing the hosts not deployed.
 
         this iterable won't be complete if `Kadeployer` has not
         terminated.
@@ -1025,8 +1025,8 @@ def kadeploy(deployment, connexion_params = None, out = False, timeout = None):
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
 
-    Returns a tuple (iterable of `FrozenHost` containing the deployed
-    host, iterable of `FrozenHost` containing the nodes not deployed).
+    Returns a tuple (iterable of `Host` containing the deployed host,
+    iterable of `Host` containing the nodes not deployed).
     """
     kadeployer = Kadeployer(deployment, out = out,
                             timeout = timeout).run()
@@ -1140,7 +1140,7 @@ def deploy(deployment, connexion_params = None,
 
     start_time = time.time()
     deployed_hosts = set()
-    undeployed_hosts = get_frozen_hosts_set(deployment.hosts)
+    undeployed_hosts = get_hosts_set(deployment.hosts)
     my_newly_deployed = None
     if check_deployed_command:
         my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)

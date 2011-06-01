@@ -234,13 +234,6 @@ Host
    :members:
    :show-inheritance:
 
-FrozenHost
-----------
-.. inheritance-diagram:: FrozenHost
-.. autoclass:: FrozenHost
-   :members:
-   :show-inheritance:
-
 Report
 ------
 .. autoclass:: Report
@@ -284,17 +277,13 @@ format_duration
 ---------------
 .. autofunction:: format_duration
 
-get_frozen_hosts_set
---------------------
-.. autofunction:: get_frozen_hosts_set
-
-get_frozen_hosts_list
----------------------
-.. autofunction:: get_frozen_hosts_list
-
 get_hosts_list
 --------------
 .. autofunction:: get_hosts_list
+
+get_hosts_set
+-------------
+.. autofunction:: get_hosts_set
 
 Logging
 =======
