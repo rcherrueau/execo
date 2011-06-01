@@ -6,7 +6,7 @@ test_hosts = [ execo.Host('graal.ens-lyon.fr'), execo.Host('g5k'), execo.Host('r
 class Test_functions(unittest.TestCase):
 
     def test_format_time(self):
-        self.assertEqual(execo.format_time(1260000000), '2009-12-05_09:00:00_CET')
+        self.assertEqual(execo.format_unixts(1260000000), '2009-12-05_09:00:00_CET')
 
     def test_format_duration(self):
         self.assertEqual(execo.format_duration(126045), '1d11h0m45s')

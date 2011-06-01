@@ -942,14 +942,15 @@ class Process(ProcessBase):
     >>> client.ended()
     False
     >>> client.wait()
-    Process(cmd='iperf -c localhost -t 2', timeout=None, stdout_handler=None, stderr_handler=None, ignore_exit_code=False, ignore_timeout=False, close_stdin=True, shell=True, pty=False)
+    Process('iperf -c localhost -t 2', close_stdin=True)
     >>> client.ended()
     True
     >>> server.ended()
     False
     >>> server.kill()
+    Process('iperf -s', ignore_exit_code=True, close_stdin=True)
     >>> server.wait()
-    Process(cmd='iperf -s', timeout=None, stdout_handler=None, stderr_handler=None, ignore_exit_code=True, ignore_timeout=False, close_stdin=True, shell=True, pty=False)
+    Process('iperf -s', ignore_exit_code=True, close_stdin=True)
     >>> server.ended()
     True
     """
@@ -1990,7 +1991,7 @@ class Report(object):
 
     >>> r = Report()
     >>> r
-    Report(reports=set([]), name='Report')
+    <Report(<0 entries>, name='Report')>
     >>> sorted(r.stats().items())
     [('end_date', None), ('num_ended', 0), ('num_errors', 0), ('num_forced_kills', 0), ('num_non_zero_exit_codes', 0), ('num_ok', 0), ('num_processes', 0), ('num_started', 0), ('num_timeouts', 0), ('start_date', None)]
     """
