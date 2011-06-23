@@ -72,6 +72,7 @@ default_connexion_params = {
                                   '-o', 'UserKnownHostsFile=/dev/null',
                                   '-o', 'ConnectTimeout=20'),
     'ssh_scp_pty': False,
+    'host_rewrite_func': lambda host: host
     }
 # _ENDOF_ default_connexion_params
 """Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
@@ -99,6 +100,8 @@ default_connexion_params = {
 - ``taktuk_connector_options``: options passed to taktuk_connector.
 
 - ``ssh_scp_pty``: allocate a pty for ssh/scp.
+
+- ``host_rewrite_func``: function called to rewrite hosts addresses.
 """
 
 default_default_connexion_params = default_connexion_params.copy()
@@ -163,7 +166,8 @@ def read_user_configuration_dicts(dicts_confs):
             dict.update(conf_dict[conf])
 
 # update configuration and default_connexion_params dicts from config file
-read_user_configuration_dicts(((configuration, 'configuration'), (default_connexion_params, 'default_connexion_params')))
+read_user_configuration_dicts(((configuration, 'configuration'),
+                               (default_connexion_params, 'default_connexion_params')))
 
 def style(string, style):
     """Enclose a string with ansi color escape codes if ``configuration['color_mode']`` is True.
@@ -1769,6 +1773,15 @@ def get_ssh_scp_pty_option(connexion_params):
     else:
         return False
 
+def get_rewritten_host_address(host_addr, connexion_params):
+    """Based on given connexion_params or default_connexion_params, return a rewritten host address."""
+    if connexion_params != None and connexion_params.has_key('host_rewrite_func'):
+        return connexion_params['host_rewrite_func'](host_addr)
+    elif default_connexion_params != None and default_connexion_params.has_key('host_rewrite_func'):
+        return default_connexion_params['host_rewrite_func'](host_addr)
+    else:
+        return host_addr
+
 class Host(object):
 
     """A host to connect to.
@@ -1879,7 +1892,7 @@ class SshProcess(Process):
                                     host.keyfile,
                                     host.port,
                                     connexion_params)
-                    + (host.address,)
+                    + (get_rewritten_host_address(host.address, connexion_params),)
                     + (remote_cmd,))
         super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
 
@@ -2815,10 +2828,10 @@ class TaktukRemote(Action):
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", host.address, "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
+            self._taktuk_cmdline += ("-m", get_rewritten_host_address(host.address, self._connexion_params), "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", host.user, "-m", host.address, "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
+            self._taktuk_cmdline += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params), "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
             self._taktuk_hosts_order.append(index)
 
     def _taktuk_common_init(self):
@@ -2967,8 +2980,8 @@ class Put(Remote):
             prepend_dir_creation = ()
             if self._create_dirs:
                 created_dir = remote_substitute(self._remote_location, self._hosts, index, self._caller_context)
-                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (host.address,) + ('\'mkdir -p "%(dir)s" || test -d "%(dir)s"\'' % {'dir': created_dir}, '&&')
-            real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (host.address, remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
+                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (get_rewritten_host_address(host.address, self._connexion_params),) + ('\'mkdir -p "%(dir)s" || test -d "%(dir)s"\'' % {'dir': created_dir}, '&&')
+            real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self._connexion_params), remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
             self._processes.append(Process(real_command,
                                            timeout = self._timeout,
@@ -3040,7 +3053,7 @@ class Get(Remote):
                 prepend_dir_creation = ('mkdir', '-p', created_dir, '||', 'test', '-d', created_dir, '&&')
             remote_specs = ()
             for path in self._remote_files:
-                remote_specs += ("%s:%s" % (host.address, remote_substitute(path, self._hosts, index, self._caller_context)),)
+                remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self._connexion_params), remote_substitute(path, self._hosts, index, self._caller_context)),)
             real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, self._hosts, index, self._caller_context),)
             real_command = ' '.join(real_command)
             self._processes.append(Process(real_command,
@@ -3199,10 +3212,10 @@ class TaktukPut(TaktukRemote):
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", host.address)
+            self._taktuk_cmdline += ("-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", host.user, "-m", host.address)
+            self._taktuk_cmdline += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for src in self._local_files:
             self._taktuk_cmdline += ("broadcast", "put", "[", src, "]", "[", self._remote_location, "]", ";")
@@ -3342,10 +3355,10 @@ class TaktukGet(TaktukRemote):
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", host.address)
+            self._taktuk_cmdline += ("-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", host.user, "-m", host.address)
+            self._taktuk_cmdline += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for src in self._remote_files:
             self._taktuk_cmdline += ("broadcast", "get", "[", src, "]", "[", self._local_location, "]", ";")
