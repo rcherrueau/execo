@@ -9,19 +9,35 @@
 This module is currently not thread-safe.
 """
 
-import re, socket
+import re, socket, execo
 import restclient # http://pypi.python.org/pypi/py-restclient/1.3.3
 import simplejson # http://pypi.python.org/pypi/simplejson/
+import httplib2
 
-# following module globals may be modified by client *before* calling any function:
-_g5k_api_server = "https://api.grid5000.fr"
-"""g5k api server url."""
-_g5k_api_version = "2.0"
-"""g5k api version to use."""
-_g5k_platform_version = None
-"""g5k platform version to use. If None, use the default (latest)."""
+# _STARTOF_ g5k_api_params
+g5k_api_params = {
+    'api_server': "https://api.grid5000.fr",
+    'api_version': "2.0",
+    'platform_version': None,
+    'username': None,
+    'password': None,
+    }
+# _ENDOF_ g5k_api_params
+"""Grid5000 REST API configuration parameters.
 
-# following module globals not to be modified by client.
+- ``api_server``: g5k api server url.
+
+- ``api_version``: g5k api version to use.
+
+- ``platform_version``: g5k platform version to use. If None, use the default (latest).
+
+- ``username``: api username.
+
+- ``password``: api password.
+"""
+
+execo.read_user_configuration_dicts(((g5k_api_params, 'g5k_api_params'),),)
+
 _g5k_api = None
 """Internal singleton instance of the g5k api rest resource."""
 _g5k = None
@@ -43,8 +59,12 @@ def _get_g5k_api():
     """Get a singleton instance of a g5k api rest resource."""
     global _g5k_api
     if not _g5k_api:
-        _g5k_api = restclient.Resource(_g5k_api_server,
-                                       transport = restclient.transport.HTTPLib2Transport())
+        http = httplib2.Http()
+        if g5k_api_params['username'] != None or g5k_api_params['password'] != None:
+            http.add_credentials(g5k_api_params['username'], g5k_api_params['password'])
+        transport = restclient.transport.HTTPLib2Transport(http = http)
+        _g5k_api = restclient.Resource(g5k_api_params['api_server'],
+                                       transport = transport)
     return _g5k_api
 
 def get_g5k_sites():
@@ -52,10 +72,10 @@ def get_g5k_sites():
     global _g5k
     if not _g5k:
         sites = simplejson.loads(
-            _get_g5k_api().get('/' + _g5k_api_version
+            _get_g5k_api().get('/' + g5k_api_params['api_version']
                                + '/grid5000/sites',
                                headers = {'Accept': 'application/json'},
-                               version = _g5k_platform_version))
+                               version = g5k_api_params['platform_version']))
         _g5k = dict()
         for site in [site['uid'] for site in sites['items']]:
             _g5k[site] = None
@@ -68,12 +88,12 @@ def get_site_clusters(site):
         raise ValueError, "unknown g5k site %s" % (site,)
     if not _g5k[site]:
         clusters = simplejson.loads(
-            _get_g5k_api().get('/' + _g5k_api_version
+            _get_g5k_api().get('/' + g5k_api_params['api_version']
                                + '/grid5000/sites/'
                                + site
                                + '/clusters',
                                headers = {'Accept': 'application/json'},
-                               version = _g5k_platform_version))
+                               version = g5k_api_params['platform_version']))
         _g5k[site] = dict()
         for cluster in [cluster['uid'] for cluster in clusters['items']]:
             _g5k[site][cluster] = None
@@ -86,12 +106,12 @@ def get_cluster_hosts(cluster):
         if cluster in _g5k[site]:
             if not _g5k[site][cluster]:
                 hosts = simplejson.loads(
-                    _get_g5k_api().get('/' + _g5k_api_version
+                    _get_g5k_api().get('/' + g5k_api_params['api_version']
                                        + '/grid5000/sites/' + site
                                        + '/clusters/' + cluster
                                        + '/nodes',
                                        headers = {'Accept': 'application/json'},
-                                       version = _g5k_platform_version))
+                                       version = g5k_api_params['platform_version']))
                 _g5k[site][cluster] = ["%s.%s.grid5000.fr" % (host['uid'], site) for host in hosts['items']]
             return list(_g5k[site][cluster])
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
@@ -137,11 +157,11 @@ def get_cluster_site(cluster):
 #     are dicts of environment properties.
 #     """
 #     envs = simplejson.loads(
-#         _get_g5k_api().get('/' + _g5k_api_version
+#         _get_g5k_api().get('/' + g5k_api_params['g5k_api_version']
 #                            + '/grid5000/sites/' + site
 #                            + '/environments',
 #                            headers = {'Accept': 'application/json'},
-#                            version = _g5k_platform_version))
+#                            version = g5k_api_params['g5k_platform_version']))
 #     environments = {}
 #     for env in envs['items']:
 #         environments[env['uid']] = env
