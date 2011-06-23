@@ -83,7 +83,9 @@ default_oarsh_oarcp_params = {
 See `execo.default_connexion_params`
 """
 
+# _STARTOF_ default_frontend_connexion_params
 default_frontend_connexion_params = default_connexion_params.copy()
+# _ENDOF_ default_frontend_connexion_params
 """Default connexion params when connecting to a Grid5000 frontend."""
 
 read_user_configuration_dicts(((g5k_configuration, 'g5k_configuration'), (default_frontend_connexion_params, 'default_frontend_connexion_params'), (default_oarsh_oarcp_params, 'default_oarsh_oarcp_params')))

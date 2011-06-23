@@ -51,9 +51,9 @@ dist: doc
 extract = ( sed -n '/^\# _STARTOF_ $(2)/,/^\# _ENDOF_ $(2)/p' $(1) | grep -v ^\# | sed 's/^\(.*\)$$/\# \1/' ; echo )
 
 execo.conf.py.sample: execo.conf.py.sample.in execo.py execo_g5k.py
-	#echo $(call extract,execo.py,configuration)
 	cp $< $@
 	$(call extract,execo.py,configuration) >> $@
 	$(call extract,execo.py,default_connexion_params) >> $@
 	$(call extract,execo_g5k.py,g5k_configuration) >> $@
+	$(call extract,execo_g5k.py,default_frontend_connexion_params) >> $@
 	$(call extract,execo_g5k.py,default_oarsh_oarcp_params) >> $@

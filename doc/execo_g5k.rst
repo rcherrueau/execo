@@ -139,7 +139,12 @@ parameters for remote connexions to grid5000 frontends.
 
 .. autodata:: default_frontend_connexion_params
 
-Its default values are the same as `default_connexion_params`
+Its default values are:
+
+.. literalinclude:: ../execo_g5k.py
+   :start-after: # _STARTOF_ default_frontend_connexion_params
+   :end-before: # _ENDOF_ default_frontend_connexion_params
+   :language: python
 
 `default_oarsh_oarcp_params` contains default connexion parameters
 suitable to connect to grid5000 nodes with oarsh / oarcp.
