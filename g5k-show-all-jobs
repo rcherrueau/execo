@@ -3,7 +3,7 @@
 import execo, execo_g5k, g5k_api_tools
 
 sites = g5k_api_tools.get_g5k_sites()
-all_jobs = execo_g5k.get_current_oar_jobs(sites, local = False, abort_on_error = False)
+all_jobs = execo_g5k.get_current_oar_jobs(sites, abort_on_error = False)
 
 for site in g5k_api_tools.get_g5k_sites():
     print "site: %s" % site

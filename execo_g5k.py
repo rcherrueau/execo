@@ -18,6 +18,7 @@ g5k_configuration = {
     'default_env_file': None,
     'default_timeout': 900,
     'check_deployed_command': "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ')",
+    'no_ssh_for_local_frontend' : False,
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
@@ -40,6 +41,11 @@ g5k_configuration = {
   return 0 if the node is correctly deployed, or another value
   otherwise. The default checks that the root is not on the second
   partition of the disk.
+
+- ``no_ssh_for_local_frontend``: if True, don't use ssh to issue g5k
+  commands for local site. If False, always use ssh, both for remote
+  frontends and local site. Set it to True if you are sure that your
+  scripts always run on the local frontend.
 """
 
 # _STARTOF_ default_oarsh_oarcp_params
@@ -89,6 +95,16 @@ def _get_local_site():
     except:
         raise EnvironmentError, "unable to get local site name"
     return local_site
+
+def _site_to_frontend(site):
+    """Convert the name of a site to the name of its frontend."""
+    return site + ".grid5000.fr"
+
+def _get_frontend_connexion_params(frontend_connexion_params):
+    params = default_frontend_connexion_params
+    if frontend_connexion_params:
+        params.update(frontend_connexion_params)
+    return params
 
 class Deployment(object):
     """A kadeploy3 deployment.
@@ -223,21 +239,20 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple Grid5000 sites.
     """
 
-    def __init__(self, deployment, connexion_params = None, out = False, **kwargs):
+    def __init__(self, deployment, frontend_connexion_params = None, out = False, **kwargs):
         """
         :param deployment: instance of Deployment class describing the
           intended kadeployment.
 
-        :param connexion_params: a dict similar to
-          `default_frontend_connexion_params` whose values will
-          override those in `default_frontend_connexion_params` for
-          connexion.
+        :param frontend_connexion_params: connexion params for
+          connecting to sites' frontends if needed. Values override
+          those in `default_frontend_connexion_params`.
 
         :param out: if True, output kadeploy stdout / stderr to
           stdout.
         """
         super(Remote, self).__init__(**kwargs)
-        self._connexion_params = connexion_params
+        self._frontend_connexion_params = frontend_connexion_params
         self._deployment = deployment
         self._out = out
         self._fhosts = get_hosts_set(deployment.hosts)
@@ -265,14 +280,12 @@ class Kadeployer(Remote):
             else:
                 sites[site] = [host]
         self._processes = list()
-        if connexion_params == None:
-            connexion_params = default_frontend_connexion_params
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(sites))
         for site in sites.keys():
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
-            if site == _get_local_site():
+            if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _get_local_site():
                 self._processes.append(Process(kadeploy_command,
                                                stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                                                stderr_handler = _KadeployStderrHandler(self, out = self._out),
@@ -282,9 +295,9 @@ class Kadeployer(Remote):
                                                process_lifecycle_handler = lifecycle_handler,
                                                pty = True))
             else:
-                self._processes.append(SshProcess(Host(site),
+                self._processes.append(SshProcess(Host(_site_to_frontend(site)),
                                                   kadeploy_command,
-                                                  connexion_params = connexion_params,
+                                                  connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                                   stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                                                   stderr_handler = _KadeployStderrHandler(self, out = self._out),
                                                   timeout = self._timeout,
@@ -302,7 +315,7 @@ class Kadeployer(Remote):
 
     def _kwargs(self):
         kwargs = []
-        if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
+        if self._frontend_connexion_params: kwargs.append("frontend_connexion_params=%r" % (self._frontend_connexion_params,))
         if self._out: kwargs.append("out=%r" % (self._out,))
         return kwargs
 
@@ -485,14 +498,15 @@ class OarSubmission(object):
         if self.command != None: s = _cjoin(s, "command=%r" % (self.command,))
         return "OarSubmission(%s)"
 
-def oarsub(job_specs, connexion_params = None, timeout = False):
+def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
     """Submit jobs.
 
     :param job_specs: iterable of tuples (OarSubmission, site) with None
       for local site
 
-    :param connexion_params: connexion params to connect to other
-      site's frontend if needed
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -504,8 +518,6 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
-    if connexion_params == None:
-        connexion_params = default_frontend_connexion_params
     processes = []
     for (spec, site) in job_specs:
         oarsub_cmdline = 'oarsub'
@@ -535,34 +547,36 @@ def oarsub(job_specs, connexion_params = None, timeout = False):
         else:
             oarsub_cmdline += ' "sleep 31536000"'
         if site == None:
-            processes.append(Process(oarsub_cmdline,
-                                     timeout = timeout,
-                                     pty = True))
+            site = _get_local_site()
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _get_local_site():
+            p = Process(oarsub_cmdline,
+                        timeout = timeout,
+                        pty = True)
+            p.site = _get_local_site()
+            processes.append(p)
         else:
-            processes.append(SshProcess(Host(site),
-                                        oarsub_cmdline,
-                                        connexion_params = connexion_params,
-                                        timeout = timeout,
-                                        pty = True))
+            p = SshProcess(Host(_site_to_frontend(site)),
+                           oarsub_cmdline,
+                           connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                           timeout = timeout,
+                           pty = True)
+            p.site = site
+            processes.append(p)
     oar_job_ids = []
     if len(processes) == 0:
         return oar_job_ids
     for process in processes: process.start()
     for process in processes: process.wait()
     for process in processes:
-        if isinstance(process, SshProcess):
-            host = process.host().address
-        else:
-            host = None
         job_id = None
         if process.ok():
             mo = re.search("^OAR_JOB_ID=(\d+)\s*$", process.stdout(), re.MULTILINE)
             if mo != None:
                 job_id = int(mo.group(1))
-        oar_job_ids.append((job_id, host))
+        oar_job_ids.append((job_id, process.site))
     return oar_job_ids
 
-def oardel(job_specs, connexion_params = None, timeout = False):
+def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     """Delete oar jobs.
 
     Ignores any error, so you can delete inexistant jobs, already
@@ -572,8 +586,9 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     :param job_specs: iterable of tuples (job_id, site) with None for
       local site
 
-    :param connexion_params: connexion params to connect to other
-      site's frontend if needed
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -581,20 +596,20 @@ def oardel(job_specs, connexion_params = None, timeout = False):
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
-    if connexion_params == None:
-        connexion_params = default_frontend_connexion_params
     processes = []
     for (job_id, site) in job_specs:
         oardel_cmdline = "oardel %i" % (job_id,)
         if site == None:
+            site = _get_local_site()
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _get_local_site():
             processes.append(Process(oardel_cmdline,
                                      timeout = timeout,
                                      ignore_exit_code = True,
                                      pty = True))
         else:
-            processes.append(SshProcess(Host(site),
+            processes.append(SshProcess(Host(_site_to_frontend(site)),
                                         oardel_cmdline,
-                                        connexion_params = connexion_params,
+                                        connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
                                         ignore_exit_code = True,
                                         pty = True))
@@ -604,7 +619,9 @@ def oardel(job_specs, connexion_params = None, timeout = False):
 def oargridsub(job_specs, reservation_date = None,
                walltime = None, job_type = None,
                queue = None, directory = None,
-               additional_options = None, timeout = False):
+               additional_options = None,
+               frontend_connexion_params = None,
+               timeout = False):
     """Submit oargrid jobs.
 
     :param job_specs: iterable of tuples (OarSubmission,
@@ -626,6 +643,10 @@ def oargridsub(job_specs, reservation_date = None,
 
     :param additional_options: passed directly to oargridsub on the
       command line.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -665,9 +686,16 @@ def oargridsub(job_specs, reservation_date = None,
             oargridsub_cmdline += ':prop="%s"' % (spec.sql_properties,)
         if spec.name != None:
             oargridsub_cmdline += ':name="%s"' % (spec.name,)
-    process = Process(oargridsub_cmdline,
-                      timeout = timeout,
-                      pty = True)
+    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+        process = Process(oargridsub_cmdline,
+                          timeout = timeout,
+                          pty = True)
+    else:
+        process = SshProcess(Host(_site_to_frontend(_get_local_site())),
+                             oargridsub_cmdline,
+                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             timeout = timeout,
+                             pty = True)
     process.run()
     job_id = None
     ssh_key = None
@@ -683,7 +711,7 @@ def oargridsub(job_specs, reservation_date = None,
     else:
         return (None, None)
 
-def oargriddel(job_ids, timeout = False):
+def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
     """Delete oargrid jobs.
 
     Ignores any error, so you can delete inexistant jobs, already
@@ -691,6 +719,10 @@ def oargriddel(job_ids, timeout = False):
     ignored.
 
     :param job_ids: iterable of oar grid job ids.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -701,22 +733,34 @@ def oargriddel(job_ids, timeout = False):
     processes = []
     for job_id in job_ids:
         oargriddel_cmdline = "oargriddel %i" % (job_id,)
-        processes.append(Process(oargriddel_cmdline,
-                                 timeout = timeout,
-                                 ignore_exit_code = True,
-                                 pty = True))
+        if g5k_configuration['no_ssh_for_local_frontend'] == True:
+            processes.append(Process(oargriddel_cmdline,
+                                     timeout = timeout,
+                                     ignore_exit_code = True,
+                                     pty = True))
+        else:
+            processes.append(SshProcess(Host(_site_to_frontend(_get_local_site())),
+                                        oargriddel_cmdline,
+                                        connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                                        timeout = timeout,
+                                        ignore_exit_code = True,
+                                        pty = True))
     for process in processes: process.start()
     for process in processes: process.wait()
 
-def get_current_oar_jobs(sites = None, local = None, start_between = None, end_between = None, connexion_params = None, timeout = False, abort_on_error = False):
+def get_current_oar_jobs(sites = None,
+                         start_between = None,
+                         end_between = None,
+                         frontend_connexion_params = None,
+                         timeout = False,
+                         abort_on_error = False):
     """Return a list of current active oar job ids.
 
-    The list contains tuples (oarjob id, site), with site == None for
-    local site.
+    The list contains tuples (oarjob id, site).
 
-    :param sites: an iterable of sites to connect to.
-
-    :param local: boolean indicating if we retrieve from local site
+    :param sites: an iterable of sites to connect to. A site with
+      value None means local site. If sites == None, means get current
+      oar jobs only for local site.
 
     :param start_between: a tuple (low, high) of endpoints. Filters
       and returns only jobs whose start date is in between these
@@ -725,8 +769,9 @@ def get_current_oar_jobs(sites = None, local = None, start_between = None, end_b
     :param end_between: a tuple (low, high) of endpoints. Filters and
       returns only jobs whose end date is in between these endpoints.
         
-    :param connexion_params: connexion params to connect to other
-      site's frontend if needed.
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -736,33 +781,31 @@ def get_current_oar_jobs(sites = None, local = None, start_between = None, end_b
       on any error. If False, will returned the list of job got, even
       if incomplete (some sites may have failed to answer).
     """
-    if local == None:
-        if sites:
-            local = False
-        else:
-            local = True
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     if start_between: start_between = map(get_unixts, start_between)
     if end_between: end_between = map(get_unixts, end_between)
-    if connexion_params == None:
-        connexion_params = default_frontend_connexion_params
     processes = []
-    if local:
-        cmd = "oarstat -u"
-        process = Process(cmd,
-                          timeout = timeout,
-                          pty = True)
-        process.site = None
-        processes.append(process)
-    if sites:
-        for site in sites:
-            process = SshProcess(Host(site),
-                                 "oarstat -u",
-                                 connexion_params = connexion_params,
-                                 timeout = timeout,
-                                 pty = True)
-            processes.append(process)
+    if sites == None:
+        sites = [ None ]
+    cmd = "oarstat -u"
+    for site in sites:
+        if site == None:
+            site = _get_local_site()
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _get_local_site():
+            p = Process(cmd,
+                        timeout = timeout,
+                        pty = True)
+            p.site = _get_local_site()
+            processes.append(p)
+        else:
+            p = SshProcess(Host(_site_to_frontend(site)),
+                           cmd,
+                           connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                           timeout = timeout,
+                           pty = True)
+            p.site = site
+            processes.append(p)
     oar_job_ids = []
     if len(processes) == 0:
         return oar_job_ids
@@ -772,11 +815,7 @@ def get_current_oar_jobs(sites = None, local = None, start_between = None, end_b
         for process in processes:
             if process.ok():
                 jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
-                if isinstance(process, SshProcess):
-                    host = process.host().address
-                else:
-                    host = None
-                oar_job_ids.extend([ (int(jobid), host) for jobid in jobs ])
+                oar_job_ids.extend([ (int(jobid), process.site) for jobid in jobs ])
         if start_between or end_between:
             filtered_job_ids = []
             for jobsite in oar_job_ids:
@@ -788,7 +827,10 @@ def get_current_oar_jobs(sites = None, local = None, start_between = None, end_b
         return oar_job_ids
     raise Exception, "error, list of current oar jobs: %s" % (processes,)
 
-def get_current_oargrid_jobs(start_between = None, end_between = None, timeout = False):
+def get_current_oargrid_jobs(start_between = None,
+                             end_between = None,
+                             frontend_connexion_params = None,
+                             timeout = False):
     """Return a list of current active oargrid job ids.
 
     :param start_between: a tuple (low, high) of endpoints. Filters
@@ -798,6 +840,10 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
     :param end_between: a tuple (low, high) of endpoints. Filters and
       returns only jobs whose end date is in between these endpoints.
         
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
+
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
@@ -807,7 +853,16 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
     if start_between: start_between = map(get_unixts, start_between)
     if end_between: end_between = map(get_unixts, end_between)
     cmd = "oargridstat"
-    process = Process(cmd, timeout = timeout, pty = True).run()
+    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+        process = Process(cmd,
+                          timeout = timeout,
+                          pty = True).run()
+    else:
+        process = SshProcess(Host(_site_to_frontend(_get_local_site())),
+                             cmd,
+                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             timeout = timeout,
+                             pty = True).run()
     if process.ok():
         jobs = re.findall("Reservation # (\d+):", process.stdout(), re.MULTILINE)
         oargrid_job_ids = map(int, jobs)
@@ -822,7 +877,7 @@ def get_current_oargrid_jobs(start_between = None, end_between = None, timeout =
         return oargrid_job_ids
     raise Exception, "error, list of current oargrid jobs: %s" % (process,)
 
-def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, timeout = False):
+def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -831,10 +886,10 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
     :param site: the Grid5000 site of the oar job. If None given,
       assume local oar job (only works if run on the local frontend).
         
-    :param connexion_params: connexion params to connect to other
-      site's frontend in case the oar job is on a remote site
-      (default: `default_frontend_connexion_params`)
-        
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
+
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
@@ -855,16 +910,18 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     cmd = "oarstat -fj %i" % (oar_job_id,)
-    if site != None:
-        if connexion_params == None:
-            connexion_params = default_frontend_connexion_params
-        process = SshProcess(Host(site),
+    if site == None:
+        site = _get_local_site()
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _get_local_site():
+        process = Process(cmd,
+                          timeout = timeout,
+                          pty = True)
+    else:
+        process = SshProcess(Host(_site_to_frontend(site)),
                              cmd,
-                             connexion_params = connexion_params,
+                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
                              pty = True)
-    else:
-        process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
         job_info = dict()
@@ -879,7 +936,7 @@ def get_oar_job_info(oar_job_id = None, site = None, connexion_params = None, ti
         return job_info
     raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
-def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, timeout = False):
+def wait_oar_job_start(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
     """Sleep until an oar job's start time.
 
     As long as the job isn't scheduled, wait_oar_job_start will sleep
@@ -893,9 +950,9 @@ def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, 
     :param site: the Grid5000 site of the oar job. If None given,
       assume local oar job (only works if run on the local frontend).
 
-    :param connexion_params: connexion params to connect to other
-      site's frontend in case the oar job is on a remote site
-      (default: `default_frontend_connexion_params`)
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -904,16 +961,20 @@ def wait_oar_job_start(oar_job_id = None, site = None, connexion_params = None, 
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     while True:
-        infos = get_oar_job_info(oar_job_id, site, connexion_params, timeout)
+        infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, timeout)
         if infos.has_key('start_date'):
             break
         sleep(30)
     sleep(until = infos['start_date'])
     
-def get_oargrid_job_info(oargrid_job_id = None, timeout = False):
+def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -928,7 +989,16 @@ def get_oargrid_job_info(oargrid_job_id = None, timeout = False):
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     cmd = "oargridstat %i" % oargrid_job_id
-    process = Process(cmd, timeout = timeout, pty = True)
+    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+        process = Process(cmd,
+                          timeout = timeout,
+                          pty = True)
+    else:
+        process = SshProcess(Host(_site_to_frontend(_get_local_site())),
+                             cmd,
+                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             timeout = timeout,
+                             pty = True)
     process.run()
     if process.ok():
         job_info = dict()
@@ -943,18 +1013,22 @@ def get_oargrid_job_info(oargrid_job_id = None, timeout = False):
         return job_info
     raise Exception, "error retrieving info for oargrid job %i: %s" % (oargrid_job_id, process)
 
-def wait_oargrid_job_start(oargrid_job_id = None, timeout = False):
+def wait_oargrid_job_start(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Sleep until an oargrid job's start time.
 
     :param oargrid_job_id: the oargrid job id.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
-    sleep(until = get_oargrid_job_info(oargrid_job_id, timeout)['start_date'])
+    sleep(until = get_oargrid_job_info(oargrid_job_id, frontend_connexion_params, timeout)['start_date'])
 
-def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, timeout = False):
+def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
     """Return an iterable of `Host` containing the hosts of an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -963,9 +1037,9 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
     :param site: the Grid5000 site of the oar job. If None given,
       assume local oar job (only works if run on the local frontend).
 
-    :param connexion_params: connexion params to connect to other
-      site's frontend in case the oar job is on a remote site
-      (default: `default_frontend_connexion_params`)
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -979,26 +1053,32 @@ def get_oar_job_nodes(oar_job_id = None, site = None, connexion_params = None, t
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
-    if site != None:
-        if connexion_params == None:
-            connexion_params = default_frontend_connexion_params
-        process = SshProcess(Host(site),
+    if site == None:
+        site = _get_local_site()
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _get_local_site():
+        process = Process(cmd,
+                          timeout = timeout,
+                          pty = True)
+    else:
+        process = SshProcess(Host(_site_to_frontend(site)),
                              cmd,
-                             connexion_params = connexion_params,
+                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
                              pty = True)
-    else:
-        process = Process(cmd, timeout = timeout, pty = True)
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         return [ Host(host_address) for host_address in host_addresses ]
     raise Exception, "error retrieving nodes list for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
-def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
+def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, timeout = False):
     """Return an iterable of `Host` containing the hosts of an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -1007,14 +1087,23 @@ def get_oargrid_job_nodes(oargrid_job_id, timeout = False):
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     cmd = "oargridstat -wl %i" % oargrid_job_id
-    process = Process(cmd, timeout = timeout, pty = True)
+    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+        process = Process(cmd,
+                          timeout = timeout,
+                          pty = True)
+    else:
+        process = SshProcess(Host(_site_to_frontend(_get_local_site()),
+                                  cmd,
+                                  connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                                  timeout = timeout,
+                                  pty = True))
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         return [ Host(host_address) for host_address in host_addresses ]
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
 
-def kadeploy(deployment, connexion_params = None, out = False, timeout = None):
+def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout = None):
     """Deploy hosts with kadeploy3.
 
     :param deployment: instance of Deployment class describing the
@@ -1022,13 +1111,19 @@ def kadeploy(deployment, connexion_params = None, out = False, timeout = None):
 
     :param out: if True, output kadeploy stdout / stderr to stdout.
 
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
+
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
 
     Returns a tuple (iterable of `Host` containing the deployed host,
     iterable of `Host` containing the nodes not deployed).
     """
-    kadeployer = Kadeployer(deployment, out = out,
+    kadeployer = Kadeployer(deployment,
+                            out = out,
+                            frontend_connexion_params = frontend_connexion_params,
                             timeout = timeout).run()
     if kadeployer.error():
         logoutput = style("deployment failed:", 'emph') + " %s\n" % (kadeployer,) + style("kadeploy processes:\n", 'emph')
@@ -1039,12 +1134,16 @@ def kadeploy(deployment, connexion_params = None, out = False, timeout = None):
         logger.error(logoutput)
     return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
 
-def deploy(deployment, connexion_params = None,
+def deploy(deployment,
            check_deployed_command = True,
-           num_deploy_tries = 2, check_enough_func = None,
-           timeout = False, deploy_timeout = None, check_timeout = 30,
-           out = False):
-
+           node_connexion_params = None,
+           num_deploy_tries = 2,
+           check_enough_func = None,
+           out = False,
+           frontend_connexion_params = None,
+           deploy_timeout = None,
+           check_timeout = 30,
+           timeout = False):
     """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
     - loop `num_deploy_tries` times:
@@ -1068,12 +1167,6 @@ def deploy(deployment, connexion_params = None,
     :param deployment: instance of Deployment class describing the
       intended kadeployment.
 
-    :param connexion_params: a dict similar to
-      `execo.default_connexion_params` whose values will override
-      those in `execo.default_connexion_params` when connecting to
-      check node deployment with ``check_deployed_command`` (see
-      below).
-
     :param check_deployed_command: command to perform remotely to
       check node deployement. May be a String, True, False or None. If
       String: the actual command to be used (This command should
@@ -1083,6 +1176,12 @@ def deploy(deployment, connexion_params = None,
       and deployed/undeployed status will be taken from kadeploy's
       output.
 
+    :param node_connexion_params: a dict similar to
+      `execo.default_connexion_params` whose values will override
+      those in `execo.default_connexion_params` when connecting to
+      check node deployment with ``check_deployed_command`` (see
+      below).
+
     :param num_deploy_tries: number of deploy tries
 
     :param check_enough_func: a function taking as parameter a list of
@@ -1091,9 +1190,11 @@ def deploy(deployment, connexion_params = None,
       a boolean indicating if there is already enough nodes (in this
       case, no further deployement will be attempted).
 
-    :param timeout: timeout for g5k operations, except deployment.
-      Default is False, which means use
-      ``g5k_configuration['default_timeout']``. None means no timeout.
+    :param out: if True, output kadeploy stdout / stderr to stdout.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
 
     :param deploy_timeout: timeout for deployement. Default is None,
       which means no timeout.
@@ -1101,7 +1202,9 @@ def deploy(deployment, connexion_params = None,
     :param check_timeout: timeout for node deployment checks. Default
       is 30 seconds.
 
-    :param out: if True, output kadeploy stdout / stderr to stdout.
+    :param timeout: timeout for g5k operations, except deployment.
+      Default is False, which means use
+      ``g5k_configuration['default_timeout']``. None means no timeout.
     """
 
     if timeout == False:
@@ -1113,11 +1216,11 @@ def deploy(deployment, connexion_params = None,
     if check_deployed_command == True:
         check_deployed_command = g5k_configuration['check_deployed_command']
 
-    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params):
+    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params):
         logger.info(style("check which hosts are already deployed among:", 'emph') + " %s" % (undeployed_hosts,))
         deployed_check = Remote(undeployed_hosts,
                                 check_deployed_command,
-                                connexion_params = connexion_params,
+                                connexion_params = node_connexion_params,
                                 ignore_exit_code = True,
                                 ignore_timeout = True,
                                 ignore_error = True,
@@ -1143,7 +1246,7 @@ def deploy(deployment, connexion_params = None,
     undeployed_hosts = get_hosts_set(deployment.hosts)
     my_newly_deployed = None
     if check_deployed_command:
-        my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
+        my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params)
         deployed_hosts.update(my_newly_deployed)
         undeployed_hosts.difference_update(my_newly_deployed)
     num_tries = 0
@@ -1163,11 +1266,12 @@ def deploy(deployment, connexion_params = None,
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         (kadeploy_newly_deployed, kadeploy_error_hosts) = kadeploy(tmp_deployment,
-                                                                   timeout = deploy_timeout,
-                                                                   out = out)
+                                                                   out = out,
+                                                                   frontend_connexion_params = frontend_connexion_params,
+                                                                   timeout = deploy_timeout)
         my_newly_deployed = None
         if check_deployed_command:
-            my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, connexion_params)
+            my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params)
             deployed_hosts.update(my_newly_deployed)
             undeployed_hosts.difference_update(my_newly_deployed)
         else:
