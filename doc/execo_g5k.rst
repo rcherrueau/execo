@@ -118,6 +118,7 @@ oar_duration_to_seconds
 
 Configuration
 =============
+
 This module may be configured at import time by defining two dicts
 `g5k_configuration` and `default_frontend_connexion_params` in the
 file ``~/.execo.conf.py``
@@ -146,6 +147,11 @@ Its default values are:
    :end-before: # _ENDOF_ default_frontend_connexion_params
    :language: python
 
+in default_frontend_connexion_params, the ``host_rewrite_func``
+configuration variable is set to automatically map a site name to its
+corresponding frontend, so that all commands are run on the proper
+frontends.
+
 `default_oarsh_oarcp_params` contains default connexion parameters
 suitable to connect to grid5000 nodes with oarsh / oarcp.
 
@@ -157,3 +163,65 @@ Its default values are:
    :start-after: # _STARTOF_ default_oarsh_oarcp_params
    :end-before: # _ENDOF_ default_oarsh_oarcp_params
    :language: python
+
+Running from another host than a frontend
+=========================================
+
+Note that when running a script from another host than a frontend,
+everything will work except oarsh/oarcp connexions, since these
+executables only exist on frontends. One may imagine a solution
+through the setup of an ssh proxying and an alias, as described in the
+next section, but i never tried it.
+
+Running from outside Grid5000
+=============================
+
+Execo scripts can be run from outside grid5000 with a subtle
+configuration of both execo and ssh.
+
+First, in ``~/.ssh/config``, declare aliases for g5k connexion (through
+the access machine)::
+
+ Host g5k lyon.g5k
+   ProxyCommand ssh access.lyon.grid5000.fr "nc -q 0 frontend  %p"
+   StrictHostKeyChecking no
+ Host *.g5k
+   ProxyCommand ssh access.lyon.grid5000.fr "nc -q 0 `basename %h .g5k` %p"
+   StrictHostKeyChecking no
+
+Then in ``~/.execo.conf.py`` put this code::
+
+ import re
+ def _rewrite_func(host):
+     host = re.sub("\.grid5000\.fr$", "", host)
+     if len(host) > 0:
+         host += ".g5k"
+     else:
+         host = "g5k"
+     return host
+
+ default_connexion_params = {
+     'host_rewrite_func': _rewrite_func
+     }
+
+ default_frontend_connexion_params = {
+     'host_rewrite_func': _rewrite_func
+     }
+
+ g5k_api_params = {
+     'username': '<username>',
+     'password': '<password>',
+     }
+
+(TODO: Putting the password in this file is very bad from a security
+point of view, but it works. One may ``chmod 600
+~/.execo.conf.py``. Or we may imagine storing the password in a
+keystore (gnome, kde?), or asking it on the command line or in a
+dialog when needed).
+
+Now, every time execo tries to connect to a host, the host name is
+rewritten as to be reached through the Grid5000 ssh proxy connexion
+alias, and the same for the frontends.
+
+This won't work, though, for taktuk actions (or oarsh/oarcp
+connexions).
