@@ -164,6 +164,20 @@ Its default values are:
    :end-before: # _ENDOF_ default_oarsh_oarcp_params
    :language: python
 
+OAR keys
+========
+
+Oar/oargrid by default generate job specific ssh keys. So by default,
+one has to retrieve these keys and explicitely use them for connecting
+to the jobs, which is painfull. Another possibility is to tell
+oar/oargrid to use specific keys. Oar can automatically use the key
+pointed to by the environement variable ``OAR_JOB_KEY_FILE`` if it is
+defined. Oargrid does not automatically do this, but execo takes care
+of telling oargrid to use the key pointed to by ``OAR_JOB_KEY_FILE``
+if it is defined. So the most convenient way to use execo/oar/oargrid,
+is to set ``OAR_JOB_KEY_FILE`` in your ``~/.profile`` to point to your
+internal Grid5000 ssh key and export this environment variable.
+
 Running from another host than a frontend
 =========================================
 
@@ -179,8 +193,9 @@ Running from outside Grid5000
 Execo scripts can be run from outside grid5000 with a subtle
 configuration of both execo and ssh.
 
-First, in ``~/.ssh/config``, declare aliases for g5k connexion (through
-the access machine)::
+First, in ``~/.ssh/config``, declare aliases for g5k connexion
+(through the access machine). For example, here is an alias ``g5k``
+for connecting through the lyon access::
 
  Host g5k lyon.g5k
    ProxyCommand ssh access.lyon.grid5000.fr "nc -q 0 frontend  %p"
