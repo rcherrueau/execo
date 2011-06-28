@@ -465,7 +465,7 @@ class OarSubmission(object):
     - walltime: Job walltime. Walltime part of oar -l option.
 
     - job_type: Job type, oar option -t: deploy, besteffort, cosystem,
-      checkpoint, timesharing.
+      checkpoint, timesharing, allow_classic_ssh.
 
     - sql_properties: constraints to properties for the job, oar
       option -p (use single quotes for literal strings).
