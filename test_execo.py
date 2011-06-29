@@ -1,3 +1,7 @@
+# Copyright 2009-2011 INRIA
+# This file is part of Execo, released under the GNU Lesser Public
+# License, version 3 or later.
+
 import execo, unittest, resource, shutil, os
 
 workdir = '/tmp/execo.unittests.tmp'

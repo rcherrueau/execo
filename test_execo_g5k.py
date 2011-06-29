@@ -1,3 +1,7 @@
+# Copyright 2009-2011 INRIA
+# This file is part of Execo, released under the GNU Lesser Public
+# License, version 3 or later.
+
 import execo, execo_g5k, unittest
 import simplejson # http://pypi.python.org/pypi/simplejson/
 import restclient # http://pypi.python.org/pypi/py-restclient/1.2.2

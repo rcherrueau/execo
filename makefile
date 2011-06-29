@@ -1,3 +1,7 @@
+# Copyright 2009-2011 INRIA
+# This file is part of Execo, released under the GNU Lesser Public
+# License, version 3 or later.
+
 .PHONY: all build install doc cleandoc sphinxdoccommon sphinxdochtml sphinxdoclatex cleansphinxdoc epydoc cleanepydoc check clean dist
 
 PREFIX=/usr/local

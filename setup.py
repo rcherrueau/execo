@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 
+# Copyright 2009-2011 INRIA
+# This file is part of Execo, released under the GNU Lesser Public
+# License, version 3 or later.
+
 from distutils.core import setup
 import sys
 
 setup(name = 'execo',
+      license = 'GNU GPL v3',
       version = '1.3',
       description = 'API for parallel local or remote processes execution',
       long_description = 'This module offers a high level API for parallel'

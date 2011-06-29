@@ -7,6 +7,7 @@ include examples/g5k_iperf/g5k_iperf
 include examples/process_iperf/process_iperf
 include examples/report/report
 include MANIFEST.in
+include COPYING
 include makefile
 include update-execo
 include doc/conf.py doc/Makefile doc/*.rst doc/execo.png doc/_static/execo-icon.ico
