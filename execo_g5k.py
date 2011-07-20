@@ -30,7 +30,7 @@ logger = logging.getLogger("execo.g5k")
 # _STARTOF_ g5k_configuration
 g5k_configuration = {
     'kadeploy3': 'kadeploy3',
-    'kadeploy3_options': '-d',
+    'kadeploy3_options': '-k -d',
     'default_env_name': None,
     'default_env_file': None,
     'default_timeout': 900,

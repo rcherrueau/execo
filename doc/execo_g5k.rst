@@ -228,15 +228,50 @@ Then in ``~/.execo.conf.py`` put this code::
      'password': '<password>',
      }
 
-(TODO: Putting the password in this file is very bad from a security
-point of view, but it works. One may ``chmod 600
-~/.execo.conf.py``. Or we may imagine storing the password in a
-keystore (gnome, kde?), or asking it on the command line or in a
-dialog when needed).
+TODO: Putting the password in this file is very bad from a security
+point of view, but it works. One may ``chmod 600 ~/.execo.conf.py``,
+but it's only an illusion of security (nfs is easily compromised). The
+solution would be to store the password in a keystore (gnome, kde?),
+or asking it on the command line or in a dialog when needed.
 
 Now, every time execo tries to connect to a host, the host name is
 rewritten as to be reached through the Grid5000 ssh proxy connexion
 alias, and the same for the frontends.
 
-This won't work, though, for taktuk actions (or oarsh/oarcp
-connexions).
+This won't work, though, for taktuk actions (because the first level
+of the taktuk connexion tree will work, but not the lower levels) or
+oarsh/oarcp connexions (because oarsh/oarcp are not installed outside
+grid5000, or even if they were, you don't have the oarsh private keys,
+only user oar on grid5000 frontends have it).
+
+The perfect grid5000 connexion configuration
+============================================
+
+* use separate ssh keys for connecting from outside to grid5000 and
+  inside grid5000:
+
+  * use your regular ssh key for connecting from outside grid5000 to
+    inside grid5000 by adding your regular public key to
+    ``~/.ssh/authorized_keys`` on each site's nfs.
+
+  * generate (with ``ssh-keygen``)a specific grid5000 private/public
+    key pair, without passphrase, for navigating inside
+    grid5000. replicate ``~/.ssh/id_dsa`` and ``~/.ssh/id_dsa.pub``
+    (for a dsa key pair, or the equivalent rsa keys for an rsa key
+    pair) to ``~/.ssh/`` on each site's nfs and add
+    ``~/.ssh/id_dsa.pub`` to ``~/.ssh/authorized_keys`` on each site's
+    nfs.
+
+* add ``export OAR_JOB_KEY_FILE=~/.ssh/id_dsa`` (or id_rsa) to each
+  site's ``~/.bash_profile``
+
+* Connexions should then work directly with oarsh/oarcp if you use
+  `default_oarsh_oarcp_params` connexion parameters. Connexions should
+  work directly with ssh (for nodes reserved with the
+  allow_classic_ssh option). For deployed nodes, connexions should
+  work directly (option -k passed to kadeploy3 by default).
+
+TODO: Currently, due to an ongoing bug or misconfiguration (see
+https://www.grid5000.fr/cgi-bin/bugzilla3/show_bug.cgi?id=3302), oar
+fails to access the ssh keys if they are not world-readable, so you
+need to make them so.
