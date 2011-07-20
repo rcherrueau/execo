@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2009-2011 INRIA
+# Copyright 2009-2011 INRIA Rhone-Alpes, Service Experimentation et
+# Developpement
 #
 # This file is part of Execo.
 #

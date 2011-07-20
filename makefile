@@ -1,4 +1,5 @@
-# Copyright 2009-2011 INRIA
+# Copyright 2009-2011 INRIA Rhone-Alpes, Service Experimentation et
+# Developpement
 # This file is part of Execo, released under the GNU Lesser Public
 # License, version 3 or later.
 
