@@ -1234,11 +1234,12 @@ class Process(ProcessBase):
                 raise ValueError, "Trying to wait a process which has not been started"
             logger.debug(style("wait:", 'emph') + " %s" % self)
             timeout = get_seconds(timeout)
-            if timeout > 0:
+            if timeout != None:
                end = time.time() + timeout 
             while self._ended != True and (timeout == None or timeout > 0):
                 _the_conductor.get_condition().wait(timeout)
-                timeout = end - time.time()
+                if timeout != None:
+                   timeout = end - time.time()
             logger.debug(style("wait finished:", 'emph') + " %s" % self)
         return self
 
