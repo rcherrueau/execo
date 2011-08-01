@@ -2507,7 +2507,7 @@ def wait_multiple_actions(actions, timeout = None):
         if len(finished) > 0:
             return finished
         else:
-            Action._wait_multiple_actions_condition.wait(timeout)
+            Action._wait_multiple_actions_condition.wait(get_seconds(timeout))
             finished = [action for action in actions if action.ended()]
             return finished
 
