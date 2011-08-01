@@ -207,20 +207,19 @@ for connecting through the lyon access::
 Then in ``~/.execo.conf.py`` put this code::
 
  import re
+
  def _rewrite_func(host):
-     host = re.sub("\.grid5000\.fr$", "", host)
-     if len(host) > 0:
-         host += ".g5k"
-     else:
-         host = "g5k"
-     return host
+     return re.sub("\.grid5000\.fr$", ".g5k", host)
 
  default_connexion_params = {
      'host_rewrite_func': _rewrite_func
      }
 
+ def _frontend_rewrite_func(host):
+     return host + ".g5k"
+
  default_frontend_connexion_params = {
-     'host_rewrite_func': _rewrite_func
+     'host_rewrite_func': _frontend_rewrite_func
      }
 
  g5k_api_params = {

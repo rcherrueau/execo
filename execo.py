@@ -1225,7 +1225,7 @@ class Process(ProcessBase):
         if self._process_lifecycle_handler != None:
             self._process_lifecycle_handler.end(self)
 
-    def wait(self):
+    def wait(self, timeout = None):
         """Wait for the subprocess end."""
         with _the_conductor.get_lock():
             if self._error:
@@ -1233,14 +1233,18 @@ class Process(ProcessBase):
             if not self._started or self._pid == None:
                 raise ValueError, "Trying to wait a process which has not been started"
             logger.debug(style("wait:", 'emph') + " %s" % self)
-            while self._ended != True:
-                _the_conductor.get_condition().wait()
+            timeout = get_seconds(timeout)
+            if timeout > 0:
+               end = time.time() + timeout 
+            while self._ended != True and (timeout == None or timeout > 0):
+                _the_conductor.get_condition().wait(timeout)
+                timeout = end - time.time()
             logger.debug(style("wait finished:", 'emph') + " %s" % self)
         return self
 
-    def run(self):
+    def run(self, timeout = None):
         """Start subprocess then wait for its end."""
-        return self.start().wait()
+        return self.start().wait(timeout)
 
 class _Conductor(object):
 
@@ -2263,7 +2267,9 @@ class Action(object):
     `Action` can be run (`Action.wait`), it means start it then wait
     for it to complete.
     """
-    
+
+    _wait_multiple_actions_condition = threading.Condition()
+
     def __init__(self, name = None, timeout = None, ignore_exit_code = False,
                  ignore_timeout = False, ignore_error = False):
         """
@@ -2299,6 +2305,7 @@ class Action(object):
         # must explicitely call _common_reset() of their parent class.
         self._started = False
         self._ended = False
+        self._end_event.clear()
 
     def _args(self):
         # to be implemented in all subclasses. Must return a list with
@@ -2363,11 +2370,13 @@ class Action(object):
         self._lifecycle_handler.append(handler)
 
     def _notify_terminated(self):
-        logger.debug(style("got termination notification for:", 'emph') + " %s" % (self,))
-        for handler in self._lifecycle_handler:
-            handler.end(self)
-        self._ended = True
-        self._end_event.set()
+        with Action._wait_multiple_actions_condition:
+            logger.debug(style("got termination notification for:", 'emph') + " %s" % (self,))
+            for handler in self._lifecycle_handler:
+                handler.end(self)
+            self._ended = True
+            self._end_event.set()
+            Action._wait_multiple_actions_condition.notifyAll()
 
     def start(self):
         """Start all subprocesses.
@@ -2384,33 +2393,36 @@ class Action(object):
     def kill(self):
         """Kill all subprocesses.
 
+        Returns immediately, without waiting for processes to be
+        actually killed.
+
         return self"""
         logger.debug(style("kill:", 'emph') + " %s" % (self,))
         return self
     
-    def wait(self):
+    def wait(self, timeout = None):
         """Wait for all subprocesses to complete.
 
         return self"""
         logger.debug(style("start waiting:", 'emph') + " %s" % (self,))
-        self._end_event.wait()
+        self._end_event.wait(get_seconds(timeout))
         logger.debug(style("end waiting:", 'emph') + " %s" % (self,))
         return self
 
-    def run(self):
+    def run(self, timeout = None):
         """Start all subprocesses then wait for them to complete.
 
         return self"""
         logger.debug(style("run:", 'emph') + " %s" % (self,))
         self.start()
-        self.wait()
+        self.wait(timeout)
         return self
 
     def reset(self):
         """Reinitialize an Action so that it can later be restarted.
 
         If it is running, this method will first kill it then wait for
-        its termination before reseting;
+        its termination before reseting.
         """
         logger.debug(style("reset:", 'emph') + " %s" % (self,))
         if self._started and not self._ended:
@@ -2488,6 +2500,16 @@ class Action(object):
     def reports(self):
         """See `Report.reports`."""
         return ()
+
+def wait_multiple_actions(actions, timeout = None):
+    with Action._wait_multiple_actions_condition:
+        finished = [action for action in actions if action.ended()]
+        if len(finished) > 0:
+            return finished
+        else:
+            Action._wait_multiple_actions_condition.wait(get_seconds(timeout))
+            finished = [action for action in actions if action.ended()]
+            return finished
 
 def remote_substitute(string, all_hosts, index, frame_context):
     """Perform some tag substitutions in a specific context.
