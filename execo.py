@@ -368,7 +368,7 @@ def format_unixts(secs, showms = False):
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     if showms:
         formatted_time += _get_milliseconds_suffix(secs)
-    timezone = time.strftime("%Z", t)
+    timezone = time.strftime("%z", t)
     if timezone != "": formatted_time += " " + timezone
     return formatted_time
 
