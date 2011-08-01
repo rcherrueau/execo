@@ -2414,7 +2414,7 @@ class Action(object):
         """Reinitialize an Action so that it can later be restarted.
 
         If it is running, this method will first kill it then wait for
-        its termination before reseting;
+        its termination before reseting.
         """
         logger.debug(style("reset:", 'emph') + " %s" % (self,))
         if self._started and not self._ended:
