@@ -2385,6 +2385,9 @@ class Action(object):
     def kill(self):
         """Kill all subprocesses.
 
+        Returns immediately, without waiting for processes to be
+        actually killed.
+
         return self"""
         logger.debug(style("kill:", 'emph') + " %s" % (self,))
         return self
