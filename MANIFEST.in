@@ -9,6 +9,5 @@ include examples/report/report
 include MANIFEST.in
 include COPYING
 include makefile
-include update-execo
 include doc/conf.py doc/Makefile doc/*.rst doc/execo.png doc/_static/execo-icon.ico
 graft doc/_build/html
