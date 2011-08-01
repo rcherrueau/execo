@@ -2299,6 +2299,7 @@ class Action(object):
         # must explicitely call _common_reset() of their parent class.
         self._started = False
         self._ended = False
+        self._end_event.clear()
 
     def _args(self):
         # to be implemented in all subclasses. Must return a list with
