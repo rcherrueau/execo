@@ -2263,7 +2263,9 @@ class Action(object):
     `Action` can be run (`Action.wait`), it means start it then wait
     for it to complete.
     """
-    
+
+    _wait_multiple_actions_condition = threading.Condition()
+
     def __init__(self, name = None, timeout = None, ignore_exit_code = False,
                  ignore_timeout = False, ignore_error = False):
         """
@@ -2364,11 +2366,13 @@ class Action(object):
         self._lifecycle_handler.append(handler)
 
     def _notify_terminated(self):
-        logger.debug(style("got termination notification for:", 'emph') + " %s" % (self,))
-        for handler in self._lifecycle_handler:
-            handler.end(self)
-        self._ended = True
-        self._end_event.set()
+        with Action._wait_multiple_actions_condition:
+            logger.debug(style("got termination notification for:", 'emph') + " %s" % (self,))
+            for handler in self._lifecycle_handler:
+                handler.end(self)
+            self._ended = True
+            self._end_event.set()
+            Action._wait_multiple_actions_condition.notifyAll()
 
     def start(self):
         """Start all subprocesses.
@@ -2492,6 +2496,16 @@ class Action(object):
     def reports(self):
         """See `Report.reports`."""
         return ()
+
+def wait_multiple_actions(actions, timeout = None):
+    with Action._wait_multiple_actions_condition:
+        finished = [action for action in actions if action.ended()]
+        if len(finished) > 0:
+            return finished
+        else:
+            Action._wait_multiple_actions_condition.wait(timeout)
+            finished = [action for action in actions if action.ended()]
+            return finished
 
 def remote_substitute(string, all_hosts, index, frame_context):
     """Perform some tag substitutions in a specific context.
