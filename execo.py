@@ -1225,7 +1225,7 @@ class Process(ProcessBase):
         if self._process_lifecycle_handler != None:
             self._process_lifecycle_handler.end(self)
 
-    def wait(self):
+    def wait(self, timeout = None):
         """Wait for the subprocess end."""
         with _the_conductor.get_lock():
             if self._error:
@@ -1233,14 +1233,18 @@ class Process(ProcessBase):
             if not self._started or self._pid == None:
                 raise ValueError, "Trying to wait a process which has not been started"
             logger.debug(style("wait:", 'emph') + " %s" % self)
-            while self._ended != True:
-                _the_conductor.get_condition().wait()
+            timeout = get_seconds(timeout)
+            if timeout > 0:
+               end = time.time() + timeout 
+            while self._ended != True and (timeout == None or timeout > 0):
+                _the_conductor.get_condition().wait(timeout)
+                timeout = end - time.time()
             logger.debug(style("wait finished:", 'emph') + " %s" % self)
         return self
 
-    def run(self):
+    def run(self, timeout = None):
         """Start subprocess then wait for its end."""
-        return self.start().wait()
+        return self.start().wait(timeout)
 
 class _Conductor(object):
 
@@ -2396,22 +2400,22 @@ class Action(object):
         logger.debug(style("kill:", 'emph') + " %s" % (self,))
         return self
     
-    def wait(self):
+    def wait(self, timeout = None):
         """Wait for all subprocesses to complete.
 
         return self"""
         logger.debug(style("start waiting:", 'emph') + " %s" % (self,))
-        self._end_event.wait()
+        self._end_event.wait(get_seconds(timeout))
         logger.debug(style("end waiting:", 'emph') + " %s" % (self,))
         return self
 
-    def run(self):
+    def run(self, timeout = None):
         """Start all subprocesses then wait for them to complete.
 
         return self"""
         logger.debug(style("run:", 'emph') + " %s" % (self,))
         self.start()
-        self.wait()
+        self.wait(timeout)
         return self
 
     def reset(self):
