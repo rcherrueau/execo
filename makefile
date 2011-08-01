@@ -9,7 +9,7 @@ PREFIX=/usr/local
 
 all: build
 
-build: execo.conf.py.sample
+build: execo.conf.py.sample execo-run
 	python setup.py build
 
 install: build
@@ -63,3 +63,9 @@ execo.conf.py.sample: execo.conf.py.sample.in execo.py execo_g5k.py g5k_api_tool
 	$(call extract,execo_g5k.py,default_frontend_connexion_params) >> $@
 	$(call extract,execo_g5k.py,default_oarsh_oarcp_params) >> $@
 	$(call extract,g5k_api_tools.py,g5k_api_params) >> $@
+
+do_subst = sed -e 's,[@]prefix[@],$(PREFIX),g'
+
+execo-run: execo-run.in
+	$(do_subst) < $< > $@
+	chmod a+x execo-run
