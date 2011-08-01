@@ -139,14 +139,14 @@ read_user_configuration_dicts(((g5k_configuration, 'g5k_configuration'),
                                (default_frontend_connexion_params, 'default_frontend_connexion_params'),
                                (default_oarsh_oarcp_params, 'default_oarsh_oarcp_params')))
 
-def _get_local_site():
+def get_local_site():
     """Return the name of the local site."""
     try:
         return re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", socket.gethostname()).group(1)
     except:
         return ""
 
-_local_site = _get_local_site()
+local_site = get_local_site()
 
 def _get_frontend_connexion_params(frontend_connexion_params):
     params = default_frontend_connexion_params
@@ -320,7 +320,7 @@ class Kadeployer(Remote):
                 else:
                     mo3 = searchre3.search(host.address)
                     if mo3 != None:
-                        site = _local_site
+                        site = local_site
                     else:
                         raise ValueError, "unknown grid5000 site for host %s" % host.address
             if sites.has_key(site):
@@ -333,7 +333,7 @@ class Kadeployer(Remote):
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
-            if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
+            if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
                 self._processes.append(Process(kadeploy_command,
                                                stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                                                stderr_handler = _KadeployStderrHandler(self, out = self._out),
@@ -595,8 +595,8 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
         else:
             oarsub_cmdline += ' "sleep 31536000"'
         if site == None:
-            site = _local_site
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
+            site = local_site
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
             p = Process(oarsub_cmdline,
                         timeout = timeout,
                         pty = True)
@@ -648,8 +648,8 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     for (job_id, site) in job_specs:
         oardel_cmdline = "oardel %i" % (job_id,)
         if site == None:
-            site = _local_site
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
+            site = local_site
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
             processes.append(Process(oardel_cmdline,
                                      timeout = timeout,
                                      ignore_exit_code = True,
@@ -739,7 +739,7 @@ def oargridsub(job_specs, reservation_date = None,
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(_local_site),
+        process = SshProcess(Host(local_site),
                              oargridsub_cmdline,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
@@ -787,7 +787,7 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
                                      ignore_exit_code = True,
                                      pty = True))
         else:
-            processes.append(SshProcess(Host(_local_site),
+            processes.append(SshProcess(Host(local_site),
                                         oargriddel_cmdline,
                                         connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
@@ -839,8 +839,8 @@ def get_current_oar_jobs(sites = None,
     cmd = "oarstat -u"
     for site in sites:
         if site == None:
-            site = _local_site
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
+            site = local_site
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
             p = Process(cmd,
                         timeout = timeout,
                         pty = True)
@@ -906,7 +906,7 @@ def get_current_oargrid_jobs(start_between = None,
                           timeout = timeout,
                           pty = True).run()
     else:
-        process = SshProcess(Host(_local_site),
+        process = SshProcess(Host(local_site),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
@@ -959,8 +959,8 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     cmd = "oarstat -fj %i" % (oar_job_id,)
     if site == None:
-        site = _local_site
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
+        site = local_site
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
         process = Process(cmd,
                           timeout = timeout,
                           pty = True)
@@ -1042,7 +1042,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(_local_site),
+        process = SshProcess(Host(local_site),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
@@ -1102,8 +1102,8 @@ def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params 
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
     if site == None:
-        site = _local_site
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
+        site = local_site
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
         process = Process(cmd,
                           timeout = timeout,
                           pty = True)
@@ -1140,7 +1140,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(_local_site,
+        process = SshProcess(Host(local_site,
                                   cmd,
                                   connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                   timeout = timeout,
