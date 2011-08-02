@@ -2515,6 +2515,19 @@ def wait_multiple_actions(actions, timeout = None):
                 timeout = end - time.time()
         return finished
 
+def wait_all_actions(actions, timeout = None):
+    timeout = get_seconds(timeout)
+    if timeout != None:
+        end = time.time() + timeout
+    with Action._wait_multiple_actions_condition:
+        finished = [action for action in actions if action.ended()]
+        while len(finished) != len(actions) 0 and (timeout == None or timeout > 0):
+            Action._wait_multiple_actions_condition.wait(get_seconds(timeout))
+            finished = [action for action in actions if action.ended()]
+            if timeout != None:
+                timeout = end - time.time()
+        return finished
+
 def remote_substitute(string, all_hosts, index, frame_context):
     """Perform some tag substitutions in a specific context.
 
