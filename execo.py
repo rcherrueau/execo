@@ -2521,7 +2521,7 @@ def wait_all_actions(actions, timeout = None):
         end = time.time() + timeout
     with Action._wait_multiple_actions_condition:
         finished = [action for action in actions if action.ended()]
-        while len(finished) != len(actions) 0 and (timeout == None or timeout > 0):
+        while len(finished) != len(actions) and (timeout == None or timeout > 0):
             Action._wait_multiple_actions_condition.wait(get_seconds(timeout))
             finished = [action for action in actions if action.ended()]
             if timeout != None:
