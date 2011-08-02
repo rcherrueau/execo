@@ -2290,6 +2290,7 @@ class Action(object):
         :param ignore_error: if True, subprocesses which have an error
           won't generate a warning and will still be counted as ok.
         """
+        self._end_event = threading.Event()
         self._common_reset()
         self._name = name
         self._timeout = timeout
@@ -2297,7 +2298,6 @@ class Action(object):
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
         self._lifecycle_handler = list()
-        self._end_event = threading.Event()
 
     def _common_reset(self):
         # all methods _common_reset() of this class hierarchy contain
