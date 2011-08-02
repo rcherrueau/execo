@@ -179,6 +179,14 @@ ActionLifecycleHandler
    :members:
    :show-inheritance:
 
+wait_multiple_actions
+---------------------
+.. autofunction:: wait_multiple_actions
+
+wait_all_actions
+----------------
+.. autofunction:: wait_all_actions
+
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
 
