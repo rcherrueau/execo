@@ -2503,6 +2503,15 @@ class Action(object):
         return ()
 
 def wait_multiple_actions(actions, timeout = None):
+    """Wait for any of the actions given to terminate.
+
+    :param actions: An iterable of `Action`.
+
+    :param timeout: Optional timeout in any type supported by
+      `get_seconds`.
+
+    returns: iterable of `Action` which have terminated.
+    """
     timeout = get_seconds(timeout)
     if timeout != None:
         end = time.time() + timeout
@@ -2516,6 +2525,15 @@ def wait_multiple_actions(actions, timeout = None):
         return finished
 
 def wait_all_actions(actions, timeout = None):
+    """Wait for all of the actions given to terminate.
+
+    :param actions: An iterable of `Action`.
+
+    :param timeout: Optional timeout in any type supported by
+      `get_seconds`.
+
+    returns: iterable of `Action` which have terminated.
+    """
     timeout = get_seconds(timeout)
     if timeout != None:
         end = time.time() + timeout
