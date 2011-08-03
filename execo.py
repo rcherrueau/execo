@@ -919,6 +919,15 @@ class ProcessBase(object):
                 and (self._exit_code == 0 or self._ignore_exit_code))
 
     @_synchronized
+    def finished_ok(self):
+        """Check process has ran and is ok.
+
+        A `ProcessBase` is finished_ok if it has started and ended and
+        it is ok.
+        """
+        return self._started and self._ended and self.ok()
+
+    @_synchronized
     def _log_terminated(self):
         """To be called (in subclasses) when a process terminates.
 
@@ -2086,6 +2095,7 @@ class Report(object):
             'num_forced_kills': 0,
             'num_non_zero_exit_codes': 0,
             'num_ok': 0,
+            'num_finished_ok': 0,
             }
 
     def stats(self):
@@ -2119,11 +2129,19 @@ class Report(object):
         - ``num_non_zero_exit_codes``: number of processes that ran
           correctly but whose return code was != 0.
         
-        - ``num_ok``: number of processes which did not went in error
-          (or where launched with flag ignore_error) , did not timeout
-          (or where launched with flag ignore_timeout), and had an
-          exit code == 0 (or where launched with flag
-          ignore_exit_code).
+        - ``num_ok``: number of processes which:
+
+          - did not started
+
+          - started and not yet ended
+
+          - started and ended and did not went in error (or where
+            launched with flag ignore_error) , did not timeout (or
+            where launched with flag ignore_timeout), and had an exit
+            code == 0 (or where launched with flag ignore_exit_code).
+
+        - ``num_finished_ok``: number of processes which started,
+          ended, and are ok.
         """
         stats = Report.empty_stats()
         stats['start_date'] = None
@@ -2151,7 +2169,7 @@ class Report(object):
 
     def __str__(self):
         stats = self.stats()
-        return "<Report(<%i entries>, name=%r, start_date=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r)>" % (len(self._reports), self._name, format_unixts(stats['start_date']), format_unixts(stats['end_date']), stats['num_processes'], stats['num_started'], stats['num_ended'], stats['num_timeouts'], stats['num_errors'], stats['num_forced_kills'], stats['num_non_zero_exit_codes'], stats['num_ok'])
+        return "<Report(<%i entries>, name=%r, start_date=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r, num_finished_ok=%r)>" % (len(self._reports), self._name, format_unixts(stats['start_date']), format_unixts(stats['end_date']), stats['num_processes'], stats['num_started'], stats['num_ended'], stats['num_timeouts'], stats['num_errors'], stats['num_forced_kills'], stats['num_non_zero_exit_codes'], stats['num_ok'], stats['num_finished_ok'])
 
     def output(self, wide = False, brief = False):
         """Returns a formatted string with a human-readable summary of all `Action` results.
@@ -2350,6 +2368,7 @@ class Action(object):
                  "num_forced_kills=%r" % (stats['num_forced_kills'],),
                  "num_non_zero_exit_codes=%r" % (stats['num_non_zero_exit_codes'],),
                  "num_ok=%r" % (stats['num_ok'],),
+                 "num_finished_ok=%r" % (stats['num_finished_ok'],),
                  "ok=%r" % (self.ok(),) ]
 
     def __repr__(self):
@@ -2470,7 +2489,12 @@ class Action(object):
         return error
 
     def ok(self):
+        """Not in error."""
         return not self.error()
+
+    def finished_ok(self):
+        """Action has started, ended, and is not in error."""
+        return self.started() and self.ended() and self.ok()
 
     def stats(self):
         """Return a dict summarizing the statistics of all processes of this `Action`.
@@ -2499,6 +2523,8 @@ class Action(object):
                 stats['num_non_zero_exit_codes'] += 1
             if process.ok():
                 stats['num_ok'] += 1
+            if process.finished_ok():
+                stats['num_finished_ok'] +=1
         if stats['num_processes'] > stats['num_ended']:
             stats['end_date'] = None
         return stats
