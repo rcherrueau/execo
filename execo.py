@@ -2462,6 +2462,10 @@ class Action(object):
         """Return an iterable of all `Process`."""
         return ()
 
+    def processes_hosts(self):
+        """Return a mapping from processes to their corresponding hosts."""
+        return dict()
+
     def started(self):
         """Return whether this `Action` was started (boolean)."""
         return self._started
@@ -2658,18 +2662,19 @@ class Remote(Action):
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
-        self._processes = list()
+        self._processes = dict()
         self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
-            self._processes.append(SshProcess(host,
-                                              remote_substitute(remote_cmd, self._hosts, index, self._caller_context),
-                                              connexion_params = connexion_params,
-                                              timeout = self._timeout,
-                                              ignore_exit_code = self._ignore_exit_code,
-                                              ignore_timeout = self._ignore_timeout,
-                                              ignore_error = self._ignore_error,
-                                              process_lifecycle_handler = self._process_lifecycle_handler,
-                                              pty = get_ssh_scp_pty_option(connexion_params)))
+            p = SshProcess(host,
+                           remote_substitute(remote_cmd, self._hosts, index, self._caller_context),
+                           connexion_params = connexion_params,
+                           timeout = self._timeout,
+                           ignore_exit_code = self._ignore_exit_code,
+                           ignore_timeout = self._ignore_timeout,
+                           ignore_error = self._ignore_error,
+                           process_lifecycle_handler = self._process_lifecycle_handler,
+                           pty = get_ssh_scp_pty_option(connexion_params))
+            self._processes[p] = host
 
     def _args(self):
         return [ repr(self._hosts),
@@ -2690,7 +2695,10 @@ class Remote(Action):
             return self._name
 
     def processes(self):
-        return list(self._processes)
+        return self._processes.keys()
+
+    def processes_hosts(self):
+        return dict(self._processes)
 
     def start(self):
         retval = super(Remote, self).start()
@@ -2698,20 +2706,20 @@ class Remote(Action):
             logger.debug("%s contains 0 processes -> immediately terminated" % (self,))
             self._notify_terminated()
         else:
-            for process in self._processes:
+            for process in self._processes.keys():
                 process.start()
         return retval
 
     def kill(self):
         retval = super(Remote, self).kill()
-        for process in self._processes:
+        for process in self._processes.keys():
             if process.running():
                 process.kill()
         return retval
 
     def reset(self):
         retval = super(Remote, self).reset()
-        for process in self._processes:
+        for process in self._processes.keys():
             process.reset()
         self._process_lifecycle_handler.action_reset()
         return retval
@@ -2906,6 +2914,7 @@ class TaktukRemote(Action):
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
+        self._processes_hosts = dict()
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
         self._taktuk_common_init()
@@ -2925,13 +2934,15 @@ class TaktukRemote(Action):
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
-            self._processes.append(TaktukProcess(host,
-                                                 remote_substitute(self._remote_cmd, self._hosts, index, self._caller_context),
-                                                 timeout = self._timeout,
-                                                 ignore_exit_code = self._ignore_exit_code,
-                                                 ignore_timeout = self._ignore_timeout,
-                                                 ignore_error = self._ignore_error,
-                                                 process_lifecycle_handler = lifecycle_handler))
+            p = TaktukProcess(host,
+                              remote_substitute(self._remote_cmd, self._hosts, index, self._caller_context),
+                              timeout = self._timeout,
+                              ignore_exit_code = self._ignore_exit_code,
+                              ignore_timeout = self._ignore_timeout,
+                              ignore_error = self._ignore_error,
+                              process_lifecycle_handler = lifecycle_handler)
+            self._processes.append(p)
+            self._processes_hosts[p] = host
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
@@ -3029,6 +3040,9 @@ class TaktukRemote(Action):
     def processes(self):
         return list(self._processes)
 
+    def processes_hosts():
+        return dict(self._processes_hosts)
+
     def start(self):
         retval = super(TaktukRemote, self).start()
         if len(self._processes) == 0:
@@ -3078,7 +3092,7 @@ class Put(Remote):
         super(Remote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
-        self._processes = list()
+        self._processes = dict()
         self._local_files = local_files
         self._remote_location = remote_location
         self._create_dirs = create_dirs
@@ -3091,14 +3105,15 @@ class Put(Remote):
                 prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (get_rewritten_host_address(host.address, self._connexion_params),) + ('\'mkdir -p "%(dir)s" || test -d "%(dir)s"\'' % {'dir': created_dir}, '&&')
             real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self._connexion_params), remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
-            self._processes.append(Process(real_command,
-                                           timeout = self._timeout,
-                                           shell = True,
-                                           ignore_exit_code = self._ignore_exit_code,
-                                           ignore_timeout = self._ignore_timeout,
-                                           ignore_error = self._ignore_error,
-                                           process_lifecycle_handler = lifecycle_handler,
-                                           pty = get_ssh_scp_pty_option(connexion_params)))
+            p = Process(real_command,
+                        timeout = self._timeout,
+                        shell = True,
+                        ignore_exit_code = self._ignore_exit_code,
+                        ignore_timeout = self._ignore_timeout,
+                        ignore_error = self._ignore_error,
+                        process_lifecycle_handler = lifecycle_handler,
+                        pty = get_ssh_scp_pty_option(connexion_params))
+            self._processes[p] = host
 
     def _args(self):
         return [ repr(self._hosts),
@@ -3148,7 +3163,7 @@ class Get(Remote):
         super(Remote, self).__init__(**kwargs)
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
-        self._processes = list()
+        self._processes = dict()
         self._remote_files = remote_files
         self._local_location = local_location
         self._create_dirs = create_dirs
@@ -3164,14 +3179,15 @@ class Get(Remote):
                 remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self._connexion_params), remote_substitute(path, self._hosts, index, self._caller_context)),)
             real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, self._hosts, index, self._caller_context),)
             real_command = ' '.join(real_command)
-            self._processes.append(Process(real_command,
-                                           timeout = self._timeout,
-                                           shell = True,
-                                           ignore_exit_code = self._ignore_exit_code,
-                                           ignore_timeout = self._ignore_timeout,
-                                           ignore_error = self._ignore_error,
-                                           process_lifecycle_handler = lifecycle_handler,
-                                           pty = get_ssh_scp_pty_option(connexion_params)))
+            p = Process(real_command,
+                        timeout = self._timeout,
+                        shell = True,
+                        ignore_exit_code = self._ignore_exit_code,
+                        ignore_timeout = self._ignore_timeout,
+                        ignore_error = self._ignore_error,
+                        process_lifecycle_handler = lifecycle_handler,
+                        pty = get_ssh_scp_pty_option(connexion_params))
+            self._processes[p] = host
 
     def _args(self):
         return [ repr(self._hosts),
@@ -3276,6 +3292,7 @@ class TaktukPut(TaktukRemote):
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
+        self._processes_hosts = dict()
         self._local_files = local_files
         self._remote_location = remote_location
         self._connexion_params = connexion_params
@@ -3316,6 +3333,7 @@ class TaktukPut(TaktukRemote):
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
             self._processes.append(process)
+            self._processes_hosts[process] = host
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
@@ -3419,6 +3437,7 @@ class TaktukGet(TaktukRemote):
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
+        self._processes_hosts = dict()
         self._remote_files = remote_files
         self._local_location = local_location
         self._connexion_params = connexion_params
@@ -3459,6 +3478,7 @@ class TaktukGet(TaktukRemote):
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
             self._processes.append(process)
+            self._processes_hosts[process] = host
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
@@ -3514,6 +3534,11 @@ class Local(Action):
 
     def processes(self):
         return [ self._process ]
+
+    def processes_hosts(self):
+        d = dict()
+        d[self._process] = None
+        return d
 
     def start(self):
         retval = super(Local, self).start()
@@ -3612,6 +3637,12 @@ class ParallelActions(Action):
             p.extend(action.processes())
         return p
 
+    def processes_hosts(self):
+        d = dict()
+        for action in self._actions:
+            d.update(action.processes_hosts())
+        return d
+
     def reports(self):
         reports = list(self.actions())
         _sort_reports(reports)
@@ -3704,6 +3735,12 @@ class SequentialActions(Action):
         for action in self._actions:
             p.extend(action.processes())
         return p
+
+    def processes_hosts(self):
+        d = dict()
+        for action in self._actions:
+            d.update(action.processes_hosts())
+        return d
 
     def reports(self):
         reports = list(self.actions())
