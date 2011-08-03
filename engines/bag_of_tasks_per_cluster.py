@@ -55,7 +55,7 @@ class bag_of_tasks_per_cluster(execo_engine):
             execo_g5k.wait_oar_job_start(oarjob, site)
             thread_log("get oar job nodes")
             nodes = execo_g5k.get_oar_job_nodes(oarjob, site)
-            thread_log("nodes = %s" % (nodes,))
+            thread_log("%i nodes = %s" % (len(nodes), nodes))
             if len(nodes) < self.options.min_nodes:
                 thread_log("aborting, not enough nodes")
                 return
