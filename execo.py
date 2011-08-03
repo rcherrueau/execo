@@ -792,6 +792,11 @@ class ProcessBase(object):
     def end_date(self):
         """Return the process end date or None if not yet ended."""
         return self._end_date
+
+    @_synchronized
+    def running(self):
+        """Return a boolean indicating if the process is currently running."""
+        return self._started and not self._ended
     
     def error(self):
         """Return a boolean indicating if there was an error starting the process.
