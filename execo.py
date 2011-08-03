@@ -2397,7 +2397,7 @@ class Action(object):
         return self
 
     def kill(self):
-        """Kill all processes.
+        """Kill all processes not yet ended.
 
         Returns immediately, without waiting for processes to be
         actually killed.
@@ -2679,7 +2679,8 @@ class Remote(Action):
     def kill(self):
         retval = super(Remote, self).kill()
         for process in self._processes:
-            process.kill()
+            if process.running():
+                process.kill()
         return retval
 
     def reset(self):
@@ -3495,7 +3496,8 @@ class Local(Action):
 
     def kill(self):
         retval = super(Local, self).kill()
-        self._process.kill()
+        if self._process.running():
+            self._process.kill()
         return retval
 
     def reset(self):
