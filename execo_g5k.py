@@ -869,7 +869,7 @@ def get_current_oar_jobs(sites = None,
             for jobsite in oar_job_ids:
                 info = get_oar_job_info(jobsite[0], jobsite[1], connexion_params, timeout)
                 if (_date_in_range(info['start_date'], start_between)
-                    and _date_in_range(info['start_date'] + info['duration'], end_between)):
+                    and _date_in_range(info['start_date'] + info['walltime'], end_between)):
                     filtered_job_ids.append(jobsite)
             oar_job_ids = filtered_job_ids
         return oar_job_ids
@@ -919,7 +919,7 @@ def get_current_oargrid_jobs(start_between = None,
             for job in oargrid_job_ids:
                 info = get_oargrid_job_info(job, timeout)
                 if (_date_in_range(info['start_date'], start_between)
-                    and _date_in_range(info['start_date'] + info['duration'], end_between)):
+                    and _date_in_range(info['start_date'] + info['walltime'], end_between)):
                     filtered_job_ids.append(job)
             oargrid_job_ids = filtered_job_ids
         return oargrid_job_ids
@@ -946,7 +946,7 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
 
     - ``start_date``: unix timestamp of job's start date
 
-    - ``duration``: unix timestamp of job's duration
+    - ``walltime``: job's walltime (seconds)
 
     - ``scheduled_start``: unix timestamp of job's start prediction
       (may change between invocations)
@@ -980,10 +980,10 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         if start_date_result:
             start_date = oar_date_to_unixts(start_date_result.group(1))
             job_info['start_date'] = start_date
-        duration_result = re.search("^\s*walltime = (\d+:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
-        if duration_result:
-            duration = oar_duration_to_seconds(duration_result.group(1))
-            job_info['duration'] = duration
+        walltime_result = re.search("^\s*walltime = (\d+:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
+        if walltime_result:
+            walltime = oar_duration_to_seconds(walltime_result.group(1))
+            job_info['walltime'] = walltime
         scheduled_start_result = re.search("^\s*scheduledStart = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
         if scheduled_start_result:
             scheduled_start = oar_date_to_unixts(scheduled_start_result.group(1))
@@ -1039,7 +1039,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
 
     - ``start_date``: unix timestamp of job's start date
 
-    - ``duration``: unix timestamp of job's duration
+    - ``walltime``: job's walltime in seconds
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
@@ -1061,10 +1061,10 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
         if start_date_result:
             start_date = oar_date_to_unixts(start_date_result.group(1))
             job_info['start_date'] = start_date
-        duration_result = re.search("walltime : (\d+:\d\d:\d\d)", process.stdout(), re.MULTILINE)
-        if duration_result:
-            duration = oar_duration_to_seconds(duration_result.group(1))
-            job_info['duration'] = duration
+        walltime_result = re.search("walltime : (\d+:\d\d:\d\d)", process.stdout(), re.MULTILINE)
+        if walltime_result:
+            walltime = oar_duration_to_seconds(walltime_result.group(1))
+            job_info['walltime'] = walltime
         return job_info
     raise Exception, "error retrieving info for oargrid job %i: %s" % (oargrid_job_id, process)
 
