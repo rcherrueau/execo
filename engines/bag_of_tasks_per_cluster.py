@@ -8,6 +8,9 @@ class bag_of_tasks_per_cluster(execo_engine):
         super(bag_of_tasks_per_cluster, self).__init__()
         self.deploy = False
         self.deployment = None
+        self.default_num_nodes = 2
+        self.default_min_nodes = 1
+        self.default_walltime = "1:0:0"
 
     def configure_options_parser(self):
         usage = "<arguments> = <space separated list of clusters>\n" \
@@ -16,9 +19,9 @@ class bag_of_tasks_per_cluster(execo_engine):
         self.options_parser.set_usage(self.options_parser.get_usage() + usage)
         self.options_parser.add_option("-a", dest = "all_clusters", help = "run on all clusters. Default = %default", action = "store_true", default = False)
         self.options_parser.add_option("-q", dest = "oar_queue", help = "oar queue to use. Default = %default", default = None)
-        self.options_parser.add_option("-n", dest = "num_nodes", help = "number of nodes per cluster to run. Default = %default", type = "int", default = 2)
-        self.options_parser.add_option("-m", dest = "min_nodes", help = "minimum number of nodes to get results from. Default = %default", type = "int", default = 1)
-        self.options_parser.add_option("-w", dest = "walltime", help = "walltime of jobs. Default = %default", type = "string", default = "1:0:0")
+        self.options_parser.add_option("-n", dest = "num_nodes", help = "number of nodes per cluster to run. Default = %default", type = "int", default = self.default_num_nodes)
+        self.options_parser.add_option("-m", dest = "min_nodes", help = "minimum number of nodes to get results from. Default = %default", type = "int", default = self.default_min_nodes)
+        self.options_parser.add_option("-w", dest = "walltime", help = "walltime of jobs. Default = %default", type = "string", default = self.default_walltime)
         self.options_parser.add_option("-r", dest = "reservation_date", help = "reservation date. Default = %default", type = "string", default = None)
 
     def configure(self):
