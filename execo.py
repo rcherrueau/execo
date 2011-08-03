@@ -792,6 +792,11 @@ class ProcessBase(object):
     def end_date(self):
         """Return the process end date or None if not yet ended."""
         return self._end_date
+
+    @_synchronized
+    def running(self):
+        """Return a boolean indicating if the process is currently running."""
+        return self._started and not self._ended
     
     def error(self):
         """Return a boolean indicating if there was an error starting the process.
@@ -2095,29 +2100,29 @@ class Report(object):
           `Action` or None if not available (not all started, not all
           ended).
         
-        - ``num_processes``: number of subprocesses in all `Action`.
+        - ``num_processes``: number of processes in all `Action`.
         
-        - ``num_started``: number of subprocesses that have started.
+        - ``num_started``: number of processes that have started.
         
-        - ``num_ended``: number of subprocesses that have ended.
+        - ``num_ended``: number of processes that have ended.
         
-        - ``num_errors``: number of subprocesses that went in error
+        - ``num_errors``: number of processes that went in error
           when started.
         
-        - ``num_timeouts``: number of subprocesses that had to be
-          killed (SIGTERM) after reaching their timeout.
+        - ``num_timeouts``: number of processes that had to be killed
+          (SIGTERM) after reaching their timeout.
         
-        - ``num_forced_kills``: number of subprocesses that had to be
+        - ``num_forced_kills``: number of processes that had to be
           forcibly killed (SIGKILL) after not responding for some
           time.
         
-        - ``num_non_zero_exit_codes``: number of subprocesses that ran
+        - ``num_non_zero_exit_codes``: number of processes that ran
           correctly but whose return code was != 0.
         
-        - ``num_ok``: number of subprocesses which did not went in
-          error (or where launched with flag ignore_error) , did not
-          timeout (or where launched with flag ignore_timeout), and
-          had an exit code == 0 (or where launched with flag
+        - ``num_ok``: number of processes which did not went in error
+          (or where launched with flag ignore_error) , did not timeout
+          (or where launched with flag ignore_timeout), and had an
+          exit code == 0 (or where launched with flag
           ignore_exit_code).
         """
         stats = Report.empty_stats()
@@ -2277,17 +2282,17 @@ class Action(object):
         :param name: `Action` name, one will be generated if None
           given
 
-        :param timeout: timeout for all subprocesses of this
+        :param timeout: timeout for all processes of this
           `Action`. None means no timeout.
 
-        :param ignore_exit_code: if True, subprocesses with return
+        :param ignore_exit_code: if True, processes with return
           value != 0 won't generate a warning and will still be
           counted as ok.
 
-        :param ignore_timeout: if True, subprocesses which timeout
+        :param ignore_timeout: if True, processes which timeout
           won't generate a warning and will still be counted as ok.
 
-        :param ignore_error: if True, subprocesses which have an error
+        :param ignore_error: if True, processes which have an error
           won't generate a warning and will still be counted as ok.
         """
         self._end_event = threading.Event()
@@ -2380,7 +2385,7 @@ class Action(object):
             Action._wait_multiple_actions_condition.notifyAll()
 
     def start(self):
-        """Start all subprocesses.
+        """Start all processes.
 
         return self"""
         if self._started:
@@ -2392,7 +2397,7 @@ class Action(object):
         return self
 
     def kill(self):
-        """Kill all subprocesses.
+        """Kill all processes not yet ended.
 
         Returns immediately, without waiting for processes to be
         actually killed.
@@ -2402,7 +2407,7 @@ class Action(object):
         return self
     
     def wait(self, timeout = None):
-        """Wait for all subprocesses to complete.
+        """Wait for all processes to complete.
 
         return self"""
         logger.debug(style("start waiting:", 'emph') + " %s" % (self,))
@@ -2411,7 +2416,7 @@ class Action(object):
         return self
 
     def run(self, timeout = None):
-        """Start all subprocesses then wait for them to complete.
+        """Start all processes then wait for them to complete.
 
         return self"""
         logger.debug(style("run:", 'emph') + " %s" % (self,))
@@ -2443,16 +2448,16 @@ class Action(object):
         return self._started
 
     def ended(self):
-        """Return whether all subprocesses of this `Action` have ended (boolean)."""
+        """Return whether all processes of this `Action` have ended (boolean)."""
         return self._ended
 
     def error(self):
-        """Return a boolean indicating if one or more subprocess failed.
+        """Return a boolean indicating if one or more process failed.
 
-        A subprocess failed if it went in error (unless ignore_error
-        flag was given), if it timeouted (unless ignore_timeout flag
-        was given), if its exit_code is != 0 (unless ignore_exit_code
-        flag was given).
+        A process failed if it went in error (unless ignore_error flag
+        was given), if it timeouted (unless ignore_timeout flag was
+        given), if its exit_code is != 0 (unless ignore_exit_code flag
+        was given).
         """
         error = False
         for process in self.processes():
@@ -2468,7 +2473,7 @@ class Action(object):
         return not self.error()
 
     def stats(self):
-        """Return a dict summarizing the statistics of all subprocesses of this `Action`.
+        """Return a dict summarizing the statistics of all processes of this `Action`.
 
         see `Report.stats`.
         """
@@ -2674,7 +2679,8 @@ class Remote(Action):
     def kill(self):
         retval = super(Remote, self).kill()
         for process in self._processes:
-            process.kill()
+            if process.running():
+                process.kill()
         return retval
 
     def reset(self):
@@ -3490,7 +3496,8 @@ class Local(Action):
 
     def kill(self):
         retval = super(Local, self).kill()
-        self._process.kill()
+        if self._process.running():
+            self._process.kill()
         return retval
 
     def reset(self):
