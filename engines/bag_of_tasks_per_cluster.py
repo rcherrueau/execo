@@ -1,6 +1,6 @@
 import optparse, sys, threading, time
 from execo_engine import execo_engine
-import g5k_api_tools, execo_g5k
+import g5k_api_tools, execo_g5k, execo
 
 class bag_of_tasks_per_cluster(execo_engine):
 
@@ -80,7 +80,7 @@ class bag_of_tasks_per_cluster(execo_engine):
             if oarjob_start_date != None:
                 job_duration = time.time() - oarjob_start_date
             real_duration = time.time() - thread_start_date
-            thread_log("end (job duration = %s, real duration = %s)" % (job_duration, real_duration))
+            thread_log("end (job duration = %s, real duration = %s)" % (execo.format_seconds(job_duration), execo.format_seconds(real_duration)))
 
     def run(self):
         self.oar_submissions = []
