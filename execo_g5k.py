@@ -980,7 +980,7 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         if start_date_result:
             start_date = oar_date_to_unixts(start_date_result.group(1))
             job_info['start_date'] = start_date
-        walltime_result = re.search("^\s*walltime = (\d+:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
+        walltime_result = re.search("^\s*walltime = (\d+:\d?\d:\d?\d)\s*$", process.stdout(), re.MULTILINE)
         if walltime_result:
             walltime = oar_duration_to_seconds(walltime_result.group(1))
             job_info['walltime'] = walltime
@@ -1061,7 +1061,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
         if start_date_result:
             start_date = oar_date_to_unixts(start_date_result.group(1))
             job_info['start_date'] = start_date
-        walltime_result = re.search("walltime : (\d+:\d\d:\d\d)", process.stdout(), re.MULTILINE)
+        walltime_result = re.search("walltime : (\d+:\d?\d:\d?\d)", process.stdout(), re.MULTILINE)
         if walltime_result:
             walltime = oar_duration_to_seconds(walltime_result.group(1))
             job_info['walltime'] = walltime
