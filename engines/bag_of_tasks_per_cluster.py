@@ -42,7 +42,7 @@ class bag_of_tasks_per_cluster(execo_engine):
         if len(unknown_clusters) > 0:
             raise Exception, "unknown clusters: %s" % (unknown_clusters,)
 
-    def cluster_run(self, oarjob, site, cluster, nodes):
+    def cluster_run(self, oarjob, site, cluster, nodes, oarjob_end_date):
         pass
 
     def cluster_run_threadfunc(self, oarjob, site, cluster):
@@ -59,13 +59,19 @@ class bag_of_tasks_per_cluster(execo_engine):
             if len(nodes) < self.options.min_nodes:
                 thread_log("aborting, not enough nodes")
                 return
+            thread_log("get oar job infos")
+            job_infos = execo_g5k.get_oar_job_info(oarjob, site)
+            if (not job_infos.has_key("start_date")) or (not job_infos.has_key("duration")):
+                thread_log("aborting, unable to get job infos")
+                return
+            oarjob_end_date = job_infos["start_date"] + job_infos["duration"]
             oarjob_start_date = time.time()
             if self.deploy and self.deployment != None:
                 self.deployment.hosts = nodes
                 thread_log("deploying nodes")
                 execo_g5k.deploy(deployment)
             thread_log("start")
-            threading.currentThread().ok = self.cluster_run(oarjob, site, cluster, nodes)
+            threading.currentThread().ok = self.cluster_run(oarjob, site, cluster, nodes, oarjob_end_date)
             thread_log("end")
         finally:
             thread_log("deleting oar job %i" % (oarjob,))
