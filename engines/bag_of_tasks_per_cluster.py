@@ -61,10 +61,10 @@ class bag_of_tasks_per_cluster(execo_engine):
                 return
             thread_log("get oar job infos")
             job_infos = execo_g5k.get_oar_job_info(oarjob, site)
-            if (not job_infos.has_key("start_date")) or (not job_infos.has_key("duration")):
+            if (not job_infos.has_key("start_date")) or (not job_infos.has_key("walltime")):
                 thread_log("aborting, unable to get job infos")
                 return
-            oarjob_end_date = job_infos["start_date"] + job_infos["duration"]
+            oarjob_end_date = job_infos["start_date"] + job_infos["walltime"]
             oarjob_start_date = time.time()
             if self.deploy and self.deployment != None:
                 self.deployment.hosts = nodes
