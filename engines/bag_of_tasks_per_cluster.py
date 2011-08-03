@@ -1,4 +1,4 @@
-import optparse, sys, threading, datetime
+import optparse, sys, threading, time
 from execo_engine import execo_engine
 import g5k_api_tools, execo_g5k
 
@@ -48,7 +48,7 @@ class bag_of_tasks_per_cluster(execo_engine):
     def cluster_run_threadfunc(self, oarjob, site, cluster):
         def thread_log(arg):
             self.logger.info("thread %s@%s (oarjob %s): %s" % (cluster, site, oarjob, arg))
-        thread_start_date = datetime.datetime.utcnow()
+        thread_start_date = time.time()
         oarjob_start_date = None
         try:
             thread_log("wait oar job start")
@@ -59,7 +59,7 @@ class bag_of_tasks_per_cluster(execo_engine):
             if len(nodes) < self.options.min_nodes:
                 thread_log("aborting, not enough nodes")
                 return
-            oarjob_start_date = datetime.datetime.utcnow()
+            oarjob_start_date = time.time()
             if self.deploy and self.deployment != None:
                 self.deployment.hosts = nodes
                 thread_log("deploying nodes")
@@ -72,8 +72,8 @@ class bag_of_tasks_per_cluster(execo_engine):
             execo_g5k.oardel([(oarjob, site)])
             job_duration = None
             if oarjob_start_date != None:
-                job_duration = datetime.datetime.utcnow() - oarjob_start_date
-            real_duration = datetime.datetime.utcnow() - thread_start_date
+                job_duration = time.time() - oarjob_start_date
+            real_duration = time.time() - thread_start_date
             thread_log("end (job duration = %s, real duration = %s)" % (job_duration, real_duration))
 
     def run(self):
