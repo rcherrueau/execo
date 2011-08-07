@@ -544,7 +544,7 @@ class OarSubmission(object):
         if self.name != None: s = _cjoin(s, "name=%r" % (self.name,))
         if self.additional_options != None: s = _cjoin(s, "additional_options=%r" % (self.additional_options,))
         if self.command != None: s = _cjoin(s, "command=%r" % (self.command,))
-        return "OarSubmission(%s)"
+        return "OarSubmission(%s)" % (s,)
 
 def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
     """Submit jobs.
@@ -991,7 +991,10 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         return job_info
     raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
-def wait_oar_job_start(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
+def wait_oar_job_start(oar_job_id = None, site = None,
+                       frontend_connexion_params = None,
+                       timeout = False,
+                       change_start_prediction_callback = None):
     """Sleep until an oar job's start time.
 
     As long as the job isn't scheduled, wait_oar_job_start will sleep
@@ -1012,13 +1015,29 @@ def wait_oar_job_start(oar_job_id = None, site = None, frontend_connexion_params
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
+
+    :param change_start_prediction_callback: function taking a unix
+      timestamp as parameter. This function will be called when job
+      start prediction changes.
     """
+
+    def check_prediction_changed(prediction, infos, key, callback):
+        old_prediction = prediction
+        prediction = infos[key]
+        if old_prediction == None or prediction !=  old_prediction:
+            if callback != None:
+                callback(prediction)
+
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
+    job_start_prediction = None
     while True:
         infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, timeout)
         if infos.has_key('start_date'):
+            check_prediction_changed(job_start_prediction, infos, 'start_date', change_start_prediction_callback)
             break
+        elif infos.has_key('scheduled_start'):
+            check_prediction_changed(job_start_prediction, infos, 'scheduled_start', change_start_prediction_callback)
         sleep(30)
     sleep(until = infos['start_date'])
     
