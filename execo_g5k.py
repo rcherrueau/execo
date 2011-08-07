@@ -976,8 +976,8 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
                              timeout = timeout,
                              pty = True)
     process.run()
+    job_info = dict()
     if process.ok():
-        job_info = dict()
         start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
         if start_date_result:
             start_date = oar_date_to_unixts(start_date_result.group(1))
@@ -993,8 +993,7 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         state_result = re.search("^\s*state = (\w*)\s*$", process.stdout(), re.MULTILINE)
         if state_result:
             job_info['state'] = state_result.group(1)
-        return job_info
-    raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
+    return job_info
 
 def wait_oar_job_start(oar_job_id = None, site = None,
                        frontend_connexion_params = None,
