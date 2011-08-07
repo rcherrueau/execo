@@ -1007,6 +1007,9 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     start date, it will sleep the amount of time necessary to wait for
     the job start.
 
+    returns True if wait was successful, False otherwise (job
+    cancelled, error)
+
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
 
@@ -1026,6 +1029,8 @@ def wait_oar_job_start(oar_job_id = None, site = None,
       start prediction changes.
     """
 
+    polling_interval = 30
+
     def check_prediction_changed(prediction, infos, key, callback):
         old_prediction = prediction
         prediction = infos[key]
@@ -1038,13 +1043,26 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     job_start_prediction = None
     while True:
         infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, timeout)
+        if infos.has_key('state'):
+            if infos['state'] == "Terminated" or infos['state'] == "Error":
+                return False
         if infos.has_key('start_date'):
+            now = time.time()
+            if now >= infos['start_date']:
+                return True
             check_prediction_changed(job_start_prediction, infos, 'start_date', change_start_prediction_callback)
-            break
+            if infos['start_date'] < now + polling_interval:
+                sleep(until = infos['start_date'])
+                return True
+            else:
+                sleep(polling_interval)
         elif infos.has_key('scheduled_start'):
             check_prediction_changed(job_start_prediction, infos, 'scheduled_start', change_start_prediction_callback)
-        sleep(30)
-    sleep(until = infos['start_date'])
+            now = time.time()
+            if infos['scheduled_start'] < now + polling_interval:
+                sleep(until = infos['scheduled_start'])
+            else:
+                sleep(polling_interval)
     
 def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
