@@ -544,7 +544,7 @@ class OarSubmission(object):
         if self.name != None: s = _cjoin(s, "name=%r" % (self.name,))
         if self.additional_options != None: s = _cjoin(s, "additional_options=%r" % (self.additional_options,))
         if self.command != None: s = _cjoin(s, "command=%r" % (self.command,))
-        return "OarSubmission(%s)"
+        return "OarSubmission(%s)" % (s,)
 
 def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
     """Submit jobs.
