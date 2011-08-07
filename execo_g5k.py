@@ -951,6 +951,8 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
     - ``scheduled_start``: unix timestamp of job's start prediction
       (may change between invocations)
 
+    - ``state``: job state
+
     But no info may be available as long as the job is not scheduled.
     """
     if timeout == False:
@@ -988,6 +990,9 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         if scheduled_start_result:
             scheduled_start = oar_date_to_unixts(scheduled_start_result.group(1))
             job_info['scheduled_start'] = scheduled_start
+        state_result = re.search("^\s*state = (\w*)\s*$", process.stdout(), re.MULTILINE)
+        if state_result:
+            job_info['state'] = state_result.group(1)
         return job_info
     raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
@@ -1001,6 +1006,9 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     / poll every 30 seconds until it is scheduled. Then, knowing its
     start date, it will sleep the amount of time necessary to wait for
     the job start.
+
+    returns True if wait was successful, False otherwise (job
+    cancelled, error)
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
@@ -1021,6 +1029,8 @@ def wait_oar_job_start(oar_job_id = None, site = None,
       start prediction changes.
     """
 
+    polling_interval = 30
+
     def check_prediction_changed(prediction, infos, key, callback):
         old_prediction = prediction
         prediction = infos[key]
@@ -1033,13 +1043,26 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     job_start_prediction = None
     while True:
         infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, timeout)
+        if infos.has_key('state'):
+            if infos['state'] == "Terminated" or infos['state'] == "Error":
+                return False
         if infos.has_key('start_date'):
+            now = time.time()
+            if now >= infos['start_date']:
+                return True
             check_prediction_changed(job_start_prediction, infos, 'start_date', change_start_prediction_callback)
-            break
+            if infos['start_date'] < now + polling_interval:
+                sleep(until = infos['start_date'])
+                return True
+            else:
+                sleep(polling_interval)
         elif infos.has_key('scheduled_start'):
             check_prediction_changed(job_start_prediction, infos, 'scheduled_start', change_start_prediction_callback)
-        sleep(30)
-    sleep(until = infos['start_date'])
+            now = time.time()
+            if infos['scheduled_start'] < now + polling_interval:
+                sleep(until = infos['scheduled_start'])
+            else:
+                sleep(polling_interval)
     
 def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
