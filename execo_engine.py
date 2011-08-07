@@ -20,6 +20,44 @@
 
 import optparse, sys, time, logging, os
 
+class MyOptionParser(optparse.OptionParser):
+
+    def __init__(self,
+                 usage = None,
+                 option_list = None,
+                 option_class = optparse.Option,
+                 version = None,
+                 conflict_handler = "error",
+                 description = None,
+                 formatter = None,
+                 add_help_option = True,
+                 prog = None,
+                 epilog = None):
+        optparse.OptionParser.__init__(self,
+                                       usage = usage,
+                                       option_list = option_list,
+                                       option_class = option_class,
+                                       version = version,
+                                       conflict_handler = conflict_handler,
+                                       description = description,
+                                       formatter = formatter,
+                                       add_help_option = add_help_option,
+                                       prog = prog,
+                                       epilog = epilog)
+        self.arguments = []
+
+    def add_argument(self, argument, description):
+        self.arguments.append((argument, description))
+
+    def format_help(self, formatter = None):
+        if len(self.arguments) > 0:
+            usage = self.get_usage()
+            usage += "\narguments:\n"
+            for (argument, description) in self.arguments:
+                usage += "  <%s> : %s\n" % (argument, description)
+            self.set_usage(usage)
+        return optparse.OptionParser.format_help(self, formatter = formatter)
+
 class execo_engine(object):
 
     """Base class for execo engine."""
@@ -28,19 +66,9 @@ class execo_engine(object):
         self.logger = logging.getLogger("execo." + self.__class__.__name__)
         self.logger.setLevel(logging.INFO)
         self.engine_dir = os.path.abspath(os.path.dirname(sys.modules[self.__module__].__file__))
-        self.options_parser = optparse.OptionParser()
-        self.options_parser.add_option("-l", dest = "log_level", type = "int", default = 20,
-                                       help ="log level (10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICAL). Default = %default")
-        self.options_parser.add_option("-L", dest = "output_mode", action="store_const", const = "copy", default = False,
-                                       help ="copy stdout / stderr to log files in the experiment result directory. Default = %default")
-        self.options_parser.add_option("-R", dest = "output_mode", action="store_const", const = "redirect", default = False,
-                                       help ="redirect stdout / stderr to log files in the experiment result directory. Default = %default")
-        self.options_parser.add_option("-M", dest = "merge_outputs", action="store_true", default = False,
-                                       help ="when copying or redirecting outputs, merge stdout / stderr in a single file. Default = %default")
+        self.options_parser = MyOptionParser()
+        self.arguments = []
         self.run_name_suffix = None
-
-    def set_usage(self, usage):
-        self.options_parser.set_usage(usage)
 
     def redirect_outputs(self, merge_stdout_stderr):
 
@@ -95,7 +123,6 @@ class execo_engine(object):
         else:
             self.logger.info("dup stdout / stderr to %s and %s" % (stdout_redir_filename, stderr_redir_filename))
             
-
     def start(self):
         self.configure_options_parser()
         self.parse_arguments()
@@ -111,7 +138,14 @@ class execo_engine(object):
         self.run()
 
     def configure_options_parser(self):
-        pass
+        self.options_parser.add_option("-l", dest = "log_level", type = "int", default = 20,
+                                       help ="log level (10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICAL). Default = %default")
+        self.options_parser.add_option("-L", dest = "output_mode", action="store_const", const = "copy", default = False,
+                                       help ="copy stdout / stderr to log files in the experiment result directory. Default = %default")
+        self.options_parser.add_option("-R", dest = "output_mode", action="store_const", const = "redirect", default = False,
+                                       help ="redirect stdout / stderr to log files in the experiment result directory. Default = %default")
+        self.options_parser.add_option("-M", dest = "merge_outputs", action="store_true", default = False,
+                                       help ="when copying or redirecting outputs, merge stdout / stderr in a single file. Default = %default")
 
     def parse_arguments(self):
         del sys.argv[1]

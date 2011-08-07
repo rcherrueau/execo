@@ -40,5 +40,6 @@ module search path is:
     engine_module = __import__(engine_name)
     engine_class = getattr(engine_module, engine_name)
     engine_instance = engine_class()
-    engine_instance.set_usage(usage)
+    engine_instance.options_parser.set_usage(usage)
+    engine_instance.options_parser.add_argument("engine", "name of engine to instanciate")
     engine_instance.start()

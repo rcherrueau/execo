@@ -13,10 +13,8 @@ class bag_of_tasks_per_cluster(execo_engine):
         self.default_walltime = "1:0:0"
 
     def configure_options_parser(self):
-        usage = "<arguments> = <space separated list of clusters>\n" \
-                "   a cluster: <clustername>[@sitename]\n" \
-                "   if sitename not given, will get it from g5k api"
-        self.options_parser.set_usage(self.options_parser.get_usage() + usage)
+        super(bag_of_tasks_per_cluster, self).configure_options_parser()
+        self.options_parser.add_argument("space separated list of clusters", "a cluster: <clustername>[@sitename]; if sitename not given, will get it from g5k api")
         self.options_parser.add_option("-a", dest = "all_clusters", help = "run on all clusters. Default = %default", action = "store_true", default = False)
         self.options_parser.add_option("-q", dest = "oar_queue", help = "oar queue to use. Default = %default", default = None)
         self.options_parser.add_option("-n", dest = "num_nodes", help = "number of nodes per cluster to run. Default = %default", type = "int", default = self.default_num_nodes)
