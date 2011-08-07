@@ -951,6 +951,8 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
     - ``scheduled_start``: unix timestamp of job's start prediction
       (may change between invocations)
 
+    - ``state``: job state
+
     But no info may be available as long as the job is not scheduled.
     """
     if timeout == False:
@@ -988,6 +990,9 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         if scheduled_start_result:
             scheduled_start = oar_date_to_unixts(scheduled_start_result.group(1))
             job_info['scheduled_start'] = scheduled_start
+        state_result = re.search("^\s*state = (\w*)\s*$", process.stdout(), re.MULTILINE)
+        if state_result:
+            job_info['state'] = state_result.group(1)
         return job_info
     raise Exception, "error retrieving info for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
