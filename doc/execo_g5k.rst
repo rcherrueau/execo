@@ -47,6 +47,10 @@ get_oar_job_nodes
 -----------------
 .. autofunction:: get_oar_job_nodes
 
+get_oar_job_subnets
+-------------------
+.. autofunction:: get_oar_job_subnets
+
 OARGRID functions
 =================
 
