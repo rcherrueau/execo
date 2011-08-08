@@ -52,7 +52,7 @@ class bag_of_tasks_per_cluster(execo_engine):
             thread_log("wait oar job start")
             def start_prediction_changed(t):
                 thread_log("oar job start prediction = %s" % (execo.format_unixts(t),))
-            if not execo_g5k.wait_oar_job_start(oarjob, site, change_start_prediction_callback = start_prediction_changed):
+            if not execo_g5k.wait_oar_job_start(oarjob, site, prediction_callback = start_prediction_changed):
                 thread_log("aborting, unable to wait job start")
                 return
             thread_log("get oar job nodes")

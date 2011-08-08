@@ -998,7 +998,7 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
 def wait_oar_job_start(oar_job_id = None, site = None,
                        frontend_connexion_params = None,
                        timeout = False,
-                       change_start_prediction_callback = None):
+                       prediction_callback = None):
     """Sleep until an oar job's start time.
 
     As long as the job isn't scheduled, wait_oar_job_start will sleep
@@ -1023,23 +1023,24 @@ def wait_oar_job_start(oar_job_id = None, site = None,
       means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
 
-    :param change_start_prediction_callback: function taking a unix
-      timestamp as parameter. This function will be called when job
-      start prediction changes.
+    :param prediction_callback: function taking a unix timestamp as
+      parameter. This function will be called each time oar job start
+      prediction changes.
     """
 
     polling_interval = 30
-
-    def check_prediction_changed(prediction, infos, key, callback):
-        old_prediction = prediction
-        prediction = infos[key]
-        if old_prediction == None or prediction !=  old_prediction:
-            if callback != None:
-                callback(prediction)
-
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
-    job_start_prediction = None
+
+    prediction = None
+    def check_prediction_changed(prediction, infos, key):
+        old_prediction = prediction
+        prediction = infos[key]
+        if old_prediction == None or prediction != old_prediction:
+            if prediction_callback != None:
+                prediction_callback(prediction)
+        return prediction
+
     while True:
         infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, timeout)
         if infos.has_key('state'):
@@ -1049,14 +1050,14 @@ def wait_oar_job_start(oar_job_id = None, site = None,
             now = time.time()
             if now >= infos['start_date']:
                 return True
-            check_prediction_changed(job_start_prediction, infos, 'start_date', change_start_prediction_callback)
+            prediction = check_prediction_changed(prediction, infos, 'start_date')
             if infos['start_date'] < now + polling_interval:
                 sleep(until = infos['start_date'])
                 return True
             else:
                 sleep(polling_interval)
         elif infos.has_key('scheduled_start'):
-            check_prediction_changed(job_start_prediction, infos, 'scheduled_start', change_start_prediction_callback)
+            prediction = check_prediction_changed(prediction, infos, 'scheduled_start')
             now = time.time()
             if infos['scheduled_start'] < now + polling_interval:
                 sleep(until = infos['scheduled_start'])
