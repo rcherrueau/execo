@@ -90,6 +90,10 @@ class execo_engine(object):
         sys.stderr.flush()
         redirect_fd(1, stdout_redir_filename)
         redirect_fd(2, stderr_redir_filename)
+        # additionnaly force stdout unbuffered by reopening stdout
+        # file descriptor with write mode
+	# and 0 as the buffer size (unbuffered)
+	sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
     def copy_outputs(self, merge_stdout_stderr):
 
@@ -121,6 +125,10 @@ class execo_engine(object):
         sys.stderr.flush()
         tee_fd(1, stdout_redir_filename)
         tee_fd(2, stderr_redir_filename)
+        # additionnaly force stdout unbuffered by reopening stdout
+        # file descriptor with write mode
+	# and 0 as the buffer size (unbuffered)
+	sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
         if merge_stdout_stderr:
             self.logger.info("dup stdout / stderr to %s" % (stdout_redir_filename,))
         else:
