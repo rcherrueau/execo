@@ -113,6 +113,7 @@ class bag_of_tasks_per_cluster(execo_engine):
             th.ok = False
             self.submit_success_jobs[indx] = self.submit_success_jobs[indx] + (th,)
             self.logger.info("start thread on %s@%s" % (job[2], job[1]))
+            th.daemon = True
             th.start()
         self.logger.info("waiting for all threads to end")
         for th in [ job[3] for job in self.submit_success_jobs ]:
