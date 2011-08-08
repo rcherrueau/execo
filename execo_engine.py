@@ -73,7 +73,7 @@ class execo_engine(object):
     def redirect_outputs(self, merge_stdout_stderr):
 
         def redirect_fd(fileno, filename):
-            f = os.open(filename, os.O_CREAT | os.O_WRONLY | os.O_APPEND)
+            f = os.open(filename, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0644)
             os.dup2(f, fileno)
             os.close(f)
 
