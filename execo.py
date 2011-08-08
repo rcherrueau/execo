@@ -1325,6 +1325,9 @@ class _Conductor(object):
                              # we enqueue tuples (function to call,
                              # tuple of parameters to pass to this
                              # function))
+        self.__reaper_thread_running = False
+                             # to keep track wether reaper thread is
+                             # running
         signal.set_wakeup_fd(self.__wpipe)
 
     def __str__(self):
@@ -1414,9 +1417,8 @@ class _Conductor(object):
                 self.__pids[process.pid()] = process
                 if process.timeout_date() != None:
                     self.__timeline.append((process.timeout_date(), process))
-                if len(self.__processes) == 1:
-                    # the reaper thread is only running when there is
-                    # at least one process to wait for
+                if self.__reaper_thread_running == False:
+                    self.__reaper_thread_running = True
                     reaper_thread = threading.Thread(target = self.__reaper_run_func, name = "Reaper")
                     reaper_thread.setDaemon(True)
                     reaper_thread.start()
@@ -1607,18 +1609,31 @@ class _Conductor(object):
         # notified by the operating system of terminated processes
         while True:
             exit_pid, exit_code = _checked_waitpid(-1, 0)
-            if (exit_pid, exit_code) == (0, 0):
-                # no more child processes, we stop this thread
-                # (another instance will be restarted as soon as
-                # another process is started)
-                break
-            logger.debug("process with pid=%s terminated, exit_code=%s" % (exit_pid, exit_code))
             with self.__lock:
-                # this lock is needed to ensure that
-                # Conductor.__update_terminated_processes() won't be
-                # called before the process has been registered to the
-                # conductor
-                self.notify_process_terminated(exit_pid, exit_code)
+                # this lock is needed to ensure that:
+                #
+                # - Conductor.__update_terminated_processes() won't be
+                #   called before the process has been registered to
+                #   the conductor
+                #
+                # - the following code cannot run while
+                #    __handle_add_process() is running
+                if (exit_pid, exit_code) == (0, 0):
+                    if len(self.__processes) == 0:
+                        # no more child processes, we stop this thread
+                        # (another instance will be restarted as soon as
+                        # another process is started)
+                        self.__reaper_thread_running = False
+                        break
+                    # (exit_pid, exit_code) can be == (0, 0) and
+                    # len(self.__processes) > 0 when and only when
+                    # _checked_waitpid has returned because there are
+                    # no more child and at the same time (but before
+                    # entering the locked section)
+                    # __handle_add_process() just added a process.
+                else:
+                    logger.debug("process with pid=%s terminated, exit_code=%s" % (exit_pid, exit_code))
+                    self.notify_process_terminated(exit_pid, exit_code)
         
 _the_conductor = _Conductor().start()
 """The **one and only** `_Conductor` instance."""
