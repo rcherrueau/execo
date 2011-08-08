@@ -1167,6 +1167,50 @@ def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params 
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         return [ Host(host_address) for host_address in host_addresses ]
     raise Exception, "error retrieving nodes list for oar job %i on site %s: %s" % (oar_job_id, site, process)
+    
+def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
+    """Return an iterable of IP addresses that OAR assigned to your reservation.
+
+    :param oar_job_id: the oar job id. If None given, will try to get
+      it from ``OAR_JOB_ID`` environment variable.
+
+    :param site: the Grid5000 site of the oar job. If None given,
+      assume local oar job (only works if run on the local frontend).
+
+    :param frontend_connexion_params: connexion params for connecting
+      to sites' frontends if needed. Values override those in
+      `default_frontend_connexion_params`.
+
+    :param timeout: timeout for retrieving. Default is False, which
+      means use ``g5k_configuration['default_timeout']``. None means no
+      timeout.
+    """
+    if timeout == False:
+        timeout = g5k_configuration['default_timeout']
+    if oar_job_id == None:
+        if os.environ.has_key('OAR_JOB_ID'):
+            oar_job_id = os.environ['OAR_JOB_ID']
+        else:
+            raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+    # g5k-subnets -i -j $OAR_JOB_ID
+    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then g5k-subnets -i -j %(oar_job_id)i ; else false ; fi" % {'oar_job_id': oar_job_id}
+    if site == None:
+        site = _local_site
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
+        process = Process(cmd,
+                          timeout = timeout,
+                          pty = True)
+    else:
+        process = SshProcess(Host(site),
+                             cmd,
+                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             timeout = timeout,
+                             pty = True)
+    process.run()
+    if process.ok():
+        subnet_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
+        return subnet_addresses
+    raise Exception, "error retrieving IPs list for oar job %i on site %s: %s" % (oar_job_id, site, process)
 
 def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, timeout = False):
     """Return an iterable of `Host` containing the hosts of an oargrid job.
