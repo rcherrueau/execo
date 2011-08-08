@@ -97,10 +97,13 @@ class execo_engine(object):
             pr, pw = os.pipe()
             pid = os.fork()
             if pid == 0:
-                os.close(pw)
                 os.dup2(pr, 0)
-                os.close(pr)
                 os.dup2(fileno, 1)
+                if (os.sysconf_names.has_key("SC_OPEN_MAX")):
+                    maxfd = os.sysconf("SC_OPEN_MAX")
+                else:
+                    maxfd = MAXFD
+                os.closerange(3, maxfd)
                 os.execv('/usr/bin/tee', ['tee', '-a', filename])
             else:
                 os.close(pr)
