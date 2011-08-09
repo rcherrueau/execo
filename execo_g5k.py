@@ -1195,7 +1195,7 @@ def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_param
     # g5k-subnets -i -j $OAR_JOB_ID
     cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then g5k-subnets -i -j %(oar_job_id)i ; else false ; fi" % {'oar_job_id': oar_job_id}
     if site == None:
-        site = _local_site
+        site = local_site
     if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
         process = Process(cmd,
                           timeout = timeout,
