@@ -1029,6 +1029,7 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     """
 
     polling_interval = 30
+    min_polling_interval = 5
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
 
@@ -1043,26 +1044,26 @@ def wait_oar_job_start(oar_job_id = None, site = None,
 
     while True:
         infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, timeout)
+        now = time.time()
         if infos.has_key('state'):
             if infos['state'] == "Terminated" or infos['state'] == "Error":
                 return False
-        if infos.has_key('start_date'):
-            now = time.time()
-            if now >= infos['start_date']:
+            if infos['state'] == "Running":
                 return True
+        if infos.has_key('start_date'):
+            if now >= infos['start_date']:
+                sleep(min_polling_interval)
+                continue
             prediction = check_prediction_changed(prediction, infos, 'start_date')
             if infos['start_date'] < now + polling_interval:
                 sleep(until = infos['start_date'])
-                return True
-            else:
-                sleep(polling_interval)
+                continue
         elif infos.has_key('scheduled_start'):
             prediction = check_prediction_changed(prediction, infos, 'scheduled_start')
-            now = time.time()
             if infos['scheduled_start'] < now + polling_interval:
                 sleep(until = infos['scheduled_start'])
-            else:
-                sleep(polling_interval)
+                continue
+        sleep(polling_interval)
     
 def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
