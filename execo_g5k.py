@@ -327,31 +327,32 @@ class Kadeployer(Remote):
                 sites[site].append(host)
             else:
                 sites[site] = [host]
-        self._processes = list()
+        self._processes = dict()
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(sites))
         for site in sites.keys():
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in sites[site]:
                 kadeploy_command += " -m %s" % host.address
             if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
-                self._processes.append(Process(kadeploy_command,
-                                               stdout_handler = _KadeployStdoutHandler(self, out = self._out),
-                                               stderr_handler = _KadeployStderrHandler(self, out = self._out),
-                                               timeout = self._timeout,
-                                               ignore_exit_code = self._ignore_exit_code,
-                                               ignore_timeout = self._ignore_timeout,
-                                               process_lifecycle_handler = lifecycle_handler,
-                                               pty = True))
+                p = Process(kadeploy_command,
+                            stdout_handler = _KadeployStdoutHandler(self, out = self._out),
+                            stderr_handler = _KadeployStderrHandler(self, out = self._out),
+                            timeout = self._timeout,
+                            ignore_exit_code = self._ignore_exit_code,
+                            ignore_timeout = self._ignore_timeout,
+                            process_lifecycle_handler = lifecycle_handler,
+                            pty = True)
             else:
-                self._processes.append(SshProcess(Host(site),
-                                                  kadeploy_command,
-                                                  connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
-                                                  stdout_handler = _KadeployStdoutHandler(self, out = self._out),
-                                                  stderr_handler = _KadeployStderrHandler(self, out = self._out),
-                                                  timeout = self._timeout,
-                                                  ignore_exit_code = self._ignore_exit_code,
-                                                  process_lifecycle_handler = lifecycle_handler,
-                                                  pty = True))
+                p = SshProcess(Host(site),
+                               kadeploy_command,
+                               connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                               stdout_handler = _KadeployStdoutHandler(self, out = self._out),
+                               stderr_handler = _KadeployStderrHandler(self, out = self._out),
+                               timeout = self._timeout,
+                               ignore_exit_code = self._ignore_exit_code,
+                               process_lifecycle_handler = lifecycle_handler,
+                               pty = True)
+            self._processes[p] = host
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()
