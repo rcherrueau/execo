@@ -1280,7 +1280,7 @@ def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout 
 def deploy(deployment,
            check_deployed_command = True,
            node_connexion_params = None,
-           num_deploy_tries = 2,
+           num_tries = 2,
            check_enough_func = None,
            out = False,
            frontend_connexion_params = None,
@@ -1289,7 +1289,7 @@ def deploy(deployment,
            timeout = False):
     """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
-    - loop `num_deploy_tries` times:
+    - loop `num_tries` times:
 
       - if `check_deployed_command` given, try to connect to these
         hosts using the supplied `connexion_params` (or the default
@@ -1325,7 +1325,7 @@ def deploy(deployment,
       check node deployment with ``check_deployed_command`` (see
       below).
 
-    :param num_deploy_tries: number of deploy tries
+    :param num_tries: number of deploy tries
 
     :param check_enough_func: a function taking as parameter a list of
       deployed hosts and a list of undeployed hosts, which will be
@@ -1403,7 +1403,7 @@ def deploy(deployment,
                           #                   len(undeployed_hosts )
     deploy_stats.append((elapsed, None, None, len(my_newly_deployed), len(deployed_hosts), len(undeployed_hosts)))
     while (not check_enough_func(deployed_hosts, undeployed_hosts)
-           and num_tries < num_deploy_tries):
+           and num_tries < num_tries):
         num_tries += 1
         logger.info(style("try %i, deploying on:" % (num_tries,), 'emph') + " %s" % (undeployed_hosts,))
         tmp_deployment = copy.copy(deployment)
