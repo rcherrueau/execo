@@ -1392,7 +1392,7 @@ def deploy(deployment,
         my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params)
         deployed_hosts.update(my_newly_deployed)
         undeployed_hosts.difference_update(my_newly_deployed)
-    num_tries = 0
+    num_tries_done = 0
     elapsed = time.time() - start_time
     last_time = time.time()
     deploy_stats = list() # contains tuples ( timestamp,
@@ -1403,9 +1403,9 @@ def deploy(deployment,
                           #                   len(undeployed_hosts )
     deploy_stats.append((elapsed, None, None, len(my_newly_deployed), len(deployed_hosts), len(undeployed_hosts)))
     while (not check_enough_func(deployed_hosts, undeployed_hosts)
-           and num_tries < num_tries):
-        num_tries += 1
-        logger.info(style("try %i, deploying on:" % (num_tries,), 'emph') + " %s" % (undeployed_hosts,))
+           and num_tries_done < num_tries):
+        num_tries_done += 1
+        logger.info(style("try %i, deploying on:" % (num_tries_done,), 'emph') + " %s" % (undeployed_hosts,))
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         (kadeploy_newly_deployed, kadeploy_error_hosts) = kadeploy(tmp_deployment,
@@ -1433,7 +1433,7 @@ def deploy(deployment,
                              len(deployed_hosts),
                              len(undeployed_hosts)))
 
-    logger.info(style("deploy finished", 'emph') + " in %i tries, %s" % (num_tries, format_seconds(time.time() - start_time)))
+    logger.info(style("deploy finished", 'emph') + " in %i tries, %s" % (num_tries_done, format_seconds(time.time() - start_time)))
     logger.info("deploy  duration  attempted  deployed     deployed     total     total")
     logger.info("                  deploys    as reported  as reported  already   still")
     logger.info("                             by kadeploy  by check     deployed  undeployed")
