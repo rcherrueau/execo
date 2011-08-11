@@ -1156,18 +1156,20 @@ def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params 
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
-    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep %(tiny_polling_interval)i ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id, 'tiny_polling_interval': g5k_configuration['tiny_polling_interval']}
+    countdown = Timer(timeout)
+    wait_oar_job_start(oar_job_id, site, frontend_connexion_params, countdown.remaining())
+    cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id}
     if site == None:
         site = local_site
     if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
         process = Process(cmd,
-                          timeout = timeout,
+                          timeout = countdown.remaining(),
                           pty = True)
     else:
         process = SshProcess(Host(site),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
-                             timeout = timeout,
+                             timeout = countdown.remaining(),
                              pty = True)
     process.run()
     if process.ok():
@@ -1199,19 +1201,21 @@ def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_param
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+    countdown = Timer(timeout)
+    wait_oar_job_start(oar_job_id, site, frontend_connexion_params, countdown.remaining())
     # g5k-subnets -i -j $OAR_JOB_ID
-    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep %(tiny_polling_interval)i ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then g5k-subnets -i -j %(oar_job_id)i ; else false ; fi" % {'oar_job_id': oar_job_id, 'tiny_polling_interval': g5k_configuration['tiny_polling_interval']}
+    cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
     if site == None:
         site = local_site
     if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
         process = Process(cmd,
-                          timeout = timeout,
+                          timeout = countdown.remaining(),
                           pty = True)
     else:
         process = SshProcess(Host(site),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
-                             timeout = timeout,
+                             timeout = countdown.remaining(),
                              pty = True)
     process.run()
     if process.ok():
