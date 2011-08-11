@@ -37,6 +37,8 @@ g5k_configuration = {
     'default_timeout': 900,
     'check_deployed_command': "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ')",
     'no_ssh_for_local_frontend' : False,
+    'polling_interval' : 60,
+    'tiny_polling_interval' : 10,
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
@@ -64,6 +66,14 @@ g5k_configuration = {
   commands for local site. If False, always use ssh, both for remote
   frontends and local site. Set it to True if you are sure that your
   scripts always run on the local frontend.
+
+- ``polling_interval``: time interval between pollings for various
+  operations, eg. wait oar job start.
+
+- ``tiny_polling_interval``: small time interval between pollings for
+  various operations, used for example when waiting for a job start,
+  and start date of the job is over but the job is not yet in running
+  state.
 """
 
 # _STARTOF_ default_oarsh_oarcp_params
@@ -1003,9 +1013,9 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     """Sleep until an oar job's start time.
 
     As long as the job isn't scheduled, wait_oar_job_start will sleep
-    / poll every 30 seconds until it is scheduled. Then, knowing its
-    start date, it will sleep the amount of time necessary to wait for
-    the job start.
+    / poll every `g5k_configuration['polling_interval']` seconds until
+    it is scheduled. Then, knowing its start date, it will sleep the
+    amount of time necessary to wait for the job start.
 
     returns True if wait was successful, False otherwise (job
     cancelled, error)
@@ -1029,8 +1039,6 @@ def wait_oar_job_start(oar_job_id = None, site = None,
       prediction changes.
     """
 
-    polling_interval = 30
-    min_polling_interval = 5
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
 
@@ -1053,18 +1061,18 @@ def wait_oar_job_start(oar_job_id = None, site = None,
                 return True
         if infos.has_key('start_date'):
             if now >= infos['start_date']:
-                sleep(min_polling_interval)
+                sleep(g5k_configuration['tiny_polling_interval'])
                 continue
             prediction = check_prediction_changed(prediction, infos, 'start_date')
-            if infos['start_date'] < now + polling_interval:
+            if infos['start_date'] < now + g5k_configuration['polling_interval']:
                 sleep(until = infos['start_date'])
                 continue
         elif infos.has_key('scheduled_start'):
             prediction = check_prediction_changed(prediction, infos, 'scheduled_start')
-            if infos['scheduled_start'] < now + polling_interval:
+            if infos['scheduled_start'] < now + g5k_configuration['polling_interval']:
                 sleep(until = infos['scheduled_start'])
                 continue
-        sleep(polling_interval)
+        sleep(g5k_configuration['polling_interval'])
     
 def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
@@ -1151,7 +1159,7 @@ def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params 
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
-    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id}
+    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep %(tiny_polling_interval)i ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then oarstat -pj %(oar_job_id)i | oarprint host -f - ; else false ; fi" % {'oar_job_id': oar_job_id, 'tiny_polling_interval': g5k_configuration['tiny_polling_interval']}
     if site == None:
         site = local_site
     if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
@@ -1195,7 +1203,7 @@ def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_param
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     # g5k-subnets -i -j $OAR_JOB_ID
-    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep 5 ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then g5k-subnets -i -j %(oar_job_id)i ; else false ; fi" % {'oar_job_id': oar_job_id}
+    cmd = "while (oarstat -sj %(oar_job_id)i | grep 'Waiting\|Launching') > /dev/null 2>&1 ; do sleep %(tiny_polling_interval)i ; done ; if (oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 ; then g5k-subnets -i -j %(oar_job_id)i ; else false ; fi" % {'oar_job_id': oar_job_id, 'tiny_polling_interval': g5k_configuration['tiny_polling_interval']}
     if site == None:
         site = local_site
     if g5k_configuration['no_ssh_for_local_frontend'] == True and site == _local_site:
