@@ -460,10 +460,10 @@ class Timer(object):
     
     """Keep track of elapsed time."""
     
-    def start(self):
-        """Start the Timer."""
+    def __init__(self, timeout = None):
+        """Create and start the Timer."""
         self._start = time.time()
-        return self
+        self._timeout = get_seconds(timeout)
 
     def wait_elapsed(self, elapsed):
         """Sleep until the given amount of time has elapsed since the Timer's start.
@@ -477,13 +477,20 @@ class Timer(object):
             sleep(elapsed - really_elapsed)
         return self
 
-    def get_start(self):
+    def start_date(self):
         """Return this Timer's instance start time."""
         return self._start
 
-    def get_elapsed(self):
+    def elapsed(self):
         """Return this Timer's instance elapsed time since start."""
         return time.time() - self._start
+
+    def remaining(self):
+        """Returns the remaining time before the timeout."""
+        if self._timeout != None:
+            return self._start + self._timeout - time.time()
+        else:
+            return None
 
 def _event_desc(event):
     """For debugging: user friendly representation of the event bitmask returned by poll()."""
