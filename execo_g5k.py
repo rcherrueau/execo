@@ -1047,6 +1047,11 @@ def wait_oar_job_start(oar_job_id = None, site = None,
                 prediction_callback(prediction)
         return prediction
 
+    def mymin(a, b):
+        if a == None: return b
+        if b == None: return a
+        return min(a, b)
+
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
         infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, countdown.remaining())
@@ -1058,18 +1063,18 @@ def wait_oar_job_start(oar_job_id = None, site = None,
                 return True
         if infos.has_key('start_date'):
             if now >= infos['start_date']:
-                sleep(min(g5k_configuration['tiny_polling_interval'], countdown.remaining()))
+                sleep(mymin(g5k_configuration['tiny_polling_interval'], countdown.remaining()))
                 continue
             prediction = check_prediction_changed(prediction, infos, 'start_date')
             if infos['start_date'] < now + g5k_configuration['polling_interval']:
-                sleep(until = min(infos['start_date'], now + countdown.remaining()))
+                sleep(until = mymin(infos['start_date'], now + countdown.remaining()))
                 continue
         elif infos.has_key('scheduled_start'):
             prediction = check_prediction_changed(prediction, infos, 'scheduled_start')
             if infos['scheduled_start'] < now + g5k_configuration['polling_interval']:
-                sleep(until = min(infos['scheduled_start'], countdown.remaining()))
+                sleep(until = mymin(infos['scheduled_start'], countdown.remaining()))
                 continue
-        sleep(min(g5k_configuration['polling_interval'], countdown.remaining()))
+        sleep(mymin(g5k_configuration['polling_interval'], countdown.remaining()))
     
 def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
