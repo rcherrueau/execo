@@ -115,11 +115,16 @@ class bag_of_tasks_per_cluster(execo_engine):
             self.logger.info("start thread on %s@%s" % (job[2], job[1]))
             th.daemon = True
             th.start()
-        self.logger.info("waiting for all threads to end")
-        for th in [ job[3] for job in self.submit_success_jobs ]:
-            while th.isAlive():
-                th.join(3600) # timeout hack for correct ctrl-c handling
-        self.logger.info("all threads finished. Summary:")
+        try:
+            self.logger.info("waiting for all threads to end")
+            for th in [ job[3] for job in self.submit_success_jobs ]:
+                while th.isAlive():
+                    th.join(3600) # timeout hack for correct ctrl-c handling
+        except KeyboardInterrupt:
+            self.logger.info("interrupted...")
+            self.logger.info("forcing deletion of all oar jobs")
+            execo_g5k.oardel([ (job[0], job[1]) for job in self.submit_success_jobs])
+        self.logger.info("Summary:")
         for job in self.submit_failure_jobs:
             self.logger.info("  %s@%s: submission failed" % (job[2], job[1]))
         for job in self.submit_success_jobs:
