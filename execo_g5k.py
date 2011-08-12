@@ -1067,7 +1067,7 @@ def wait_oar_job_start(oar_job_id = None, site = None,
                 continue
             prediction = check_prediction_changed(prediction, infos, 'start_date')
             if infos['start_date'] < now + g5k_configuration['polling_interval']:
-                sleep(until = mymin(infos['start_date'], now + countdown.remaining()))
+                sleep(until = mymin(infos['start_date'], now + countdown.remaining() if countdown.remaining() != None else None))
                 continue
         elif infos.has_key('scheduled_start'):
             prediction = check_prediction_changed(prediction, infos, 'scheduled_start')
