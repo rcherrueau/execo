@@ -117,7 +117,8 @@ class bag_of_tasks_per_cluster(execo_engine):
             th.start()
         self.logger.info("waiting for all threads to end")
         for th in [ job[3] for job in self.submit_success_jobs ]:
-            th.join()
+            while th.isAlive():
+                th.join(3600) # timeout hack for correct ctrl-c handling
         self.logger.info("all threads finished. Summary:")
         for job in self.submit_failure_jobs:
             self.logger.info("  %s@%s: submission failed" % (job[2], job[1]))
