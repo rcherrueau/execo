@@ -662,7 +662,12 @@ class ProcessBase(object):
     and `ProcessOutputHandler`.
     """
 
-    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None, ignore_exit_code = False, ignore_timeout = False, ignore_error = False, default_stdout_handler = True, default_stderr_handler = True, process_lifecycle_handler = None):
+    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None,
+                 ignore_exit_code = False, log_exit_code = True,
+                 ignore_timeout = False, log_timeout = True,
+                 ignore_error = False, log_error = True,
+                 default_stdout_handler = True, default_stderr_handler = True,
+                 process_lifecycle_handler = None):
         """
         :param cmd: string or tuple containing the command and args to
           run.
@@ -677,14 +682,23 @@ class ProcessBase(object):
           handling activity on process stderr
 
         :param ignore_exit_code: if True, a process with a return code
-          != 0 won't generate a warning
+          != 0 will still be considered ok
+
+        :param log_exit_code: if True, termination of a process with a
+          return code != 0 will cause a warning in logs
 
         :param ignore_timeout: if True, a process which reaches its
-          timeout will be sent a SIGTERM, but it won't generate a
-          warning
+          timeout will be sent a SIGTERM, but will still be considered
+          ok (but it will most probably have an exit code != 0)
+
+        :param log_timeout: if True, a process which reaches its
+          timeout and is sent a SIGTERM will cause a warning in logs
 
         :param ignore_error: if True, a process raising an OS level
-          error won't generate a warning
+          error will still be considered ok
+
+        :param log_error: if True, a process raising an OS level
+          error will cause a warning in logs
 
         :param default_stdout_handler: if True, a default handler
           sends stdout stream output to the member string accessed
@@ -705,6 +719,9 @@ class ProcessBase(object):
         self._ignore_exit_code = ignore_exit_code
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
+        self._log_exit_code = log_exit_code
+        self._log_timeout = log_timeout
+        self._log_error = log_error
         self._stdout_handler = stdout_handler
         self._stderr_handler = stderr_handler
         self._default_stdout_handler = default_stdout_handler
@@ -751,6 +768,9 @@ class ProcessBase(object):
         if self._ignore_exit_code != False: kwargs.append("ignore_exit_code=%r" % (self._ignore_exit_code,))
         if self._ignore_timeout != False: kwargs.append("ignore_timeout=%r" % (self._ignore_timeout,))
         if self._ignore_error != False: kwargs.append("ignore_error=%r" % (self._ignore_error,))
+        if self._log_exit_code != True: kwargs.append("log_exit_code=%r" % (self._log_exit_code,))
+        if self._log_timeout != True: kwargs.append("log_timeout=%r" % (self._log_timeout,))
+        if self._log_error != True: kwargs.append("log_error=%r" % (self._log_error,))
         if self._default_stdout_handler != True: kwargs.append("default_stdout_handler=%r" % (self._default_stdout_handler,))
         if self._default_stderr_handler != True: kwargs.append("default_stderr_handler=%r" % (self._default_stderr_handler,))
         if self._process_lifecycle_handler: kwargs.append("process_lifecycle_handler=%r" % (self._process_lifecycle_handler,))
@@ -940,14 +960,13 @@ class ProcessBase(object):
 
         This method will log process termination as needed.
         """
-        if (self._started
-            and self._ended
-            and (not self._error or self._ignore_error)
-            and (not self._timeouted or self._ignore_timeout)
-            and (self._exit_code == 0 or self._ignore_exit_code)):
-            logger.debug(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (_compact_output(self._stdout),) + style("stderr:", 'emph') + "\n%s" % (_compact_output(self._stderr),))
+        s = style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (_compact_output(self._stdout),) + style("stderr:", 'emph') + "\n%s" % (_compact_output(self._stderr),)
+        if ((self._error and self._log_error)
+            or (self._timeouted and self._log_timeout)
+            or (self._exit_code != 0 and self._log_exit_code)):
+            logger.warning(s)
         else:
-            logger.warning(style("terminated:", 'emph') + " %s\n" % (self,)+ style("stdout:", 'emph') + "\n%s\n" % (_compact_output(self._stdout),) + style("stderr:", 'emph') + "\n%s" % (_compact_output(self._stderr),))
+            logger.debug(s)
 
     def reset(self):
         """Reinitialize a ProcessBase so that it can later be restarted.
@@ -1140,10 +1159,7 @@ class Process(ProcessBase):
                 self._error_reason = e
                 self._ended = True
                 self._end_date = self._start_date
-                if self._ignore_error:
-                    logger.info(style("error:", 'emph') + " %s on %s" % (e, self,))
-                else:
-                    logger.warning(style("error:", 'emph') + " %s on %s" % (e, self,))
+                self._log_terminated()
             if self._process_lifecycle_handler != None:
                 self._process_lifecycle_handler.end(self)
         return self
@@ -2316,8 +2332,10 @@ class Action(object):
 
     _wait_multiple_actions_condition = threading.Condition()
 
-    def __init__(self, name = None, timeout = None, ignore_exit_code = False,
-                 ignore_timeout = False, ignore_error = False):
+    def __init__(self, name = None, timeout = None,
+                 ignore_exit_code = False, log_exit_code = True,
+                 ignore_timeout = False, log_timeout = True,
+                 ignore_error = False, log_error = True):
         """
         :param name: `Action` name, one will be generated if None
           given
@@ -2325,15 +2343,23 @@ class Action(object):
         :param timeout: timeout for all processes of this
           `Action`. None means no timeout.
 
-        :param ignore_exit_code: if True, processes with return
-          value != 0 won't generate a warning and will still be
-          counted as ok.
+        :param ignore_exit_code: if True, processes with return value
+          != 0 will still be counted as ok.
 
-        :param ignore_timeout: if True, processes which timeout
-          won't generate a warning and will still be counted as ok.
+        :param log_exit_code: if True, processes which terminate with
+          return value != 0 will cause a warning in logs.
+
+        :param ignore_timeout: if True, processes which timeout will
+          still be counted as ok.
+
+        :param log_timeout: if True, processes which timeout will
+          cause a warning in logs.
 
         :param ignore_error: if True, processes which have an error
-          won't generate a warning and will still be counted as ok.
+          will still be counted as ok.
+
+        :param log_error: if True, processes which have an error will
+          cause a warning in logs.
         """
         self._end_event = threading.Event()
         self._common_reset()
@@ -2342,6 +2368,9 @@ class Action(object):
         self._ignore_exit_code = ignore_exit_code
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
+        self._log_exit_code = log_exit_code
+        self._log_timeout = log_timeout
+        self._log_error = log_error
         self._lifecycle_handler = list()
 
     def _common_reset(self):
@@ -2371,6 +2400,9 @@ class Action(object):
         if self._ignore_exit_code != False: kwargs.append("ignore_exit_code=%r" % (self._ignore_exit_code,))
         if self._ignore_timeout != False: kwargs.append("ignore_timeout=%r" % (self._ignore_timeout,))
         if self._ignore_error != False: kwargs.append("ignore_error=%r" % (self._ignore_error,))
+        if self._log_exit_code != True: kwargs.append("log_exit_code=%r" % (self._log_exit_code,))
+        if self._log_timeout != True: kwargs.append("log_timeout=%r" % (self._log_timeout,))
+        if self._log_error != True: kwargs.append("log_error=%r" % (self._log_error,))
         return kwargs
 
     def _infos(self):
@@ -2692,8 +2724,11 @@ class Remote(Action):
                            connexion_params = connexion_params,
                            timeout = self._timeout,
                            ignore_exit_code = self._ignore_exit_code,
+                           log_exit_code = self._log_exit_code,
                            ignore_timeout = self._ignore_timeout,
+                           log_timeout = self._log_timeout,
                            ignore_error = self._ignore_error,
+                           log_error = self._log_error,
                            process_lifecycle_handler = self._process_lifecycle_handler,
                            pty = get_ssh_scp_pty_option(connexion_params))
             self._processes[p] = host
@@ -2960,8 +2995,11 @@ class TaktukRemote(Action):
                               remote_substitute(self._remote_cmd, self._hosts, index, self._caller_context),
                               timeout = self._timeout,
                               ignore_exit_code = self._ignore_exit_code,
+                              log_exit_code = self._log_exit_code,
                               ignore_timeout = self._ignore_timeout,
+                              log_timeout = self._log_timeout,
                               ignore_error = self._ignore_error,
+                              log_error = self._log_error,
                               process_lifecycle_handler = lifecycle_handler)
             self._processes.append(p)
             self._processes_hosts[p] = host
@@ -3131,8 +3169,11 @@ class Put(Remote):
                         timeout = self._timeout,
                         shell = True,
                         ignore_exit_code = self._ignore_exit_code,
+                        log_exit_code = self._log_exit_code,
                         ignore_timeout = self._ignore_timeout,
+                        log_timeout = self._log_timeout,
                         ignore_error = self._ignore_error,
+                        log_error = self._log_error,
                         process_lifecycle_handler = lifecycle_handler,
                         pty = get_ssh_scp_pty_option(connexion_params))
             self._processes[p] = host
@@ -3205,8 +3246,11 @@ class Get(Remote):
                         timeout = self._timeout,
                         shell = True,
                         ignore_exit_code = self._ignore_exit_code,
+                        log_exit_code = self._log_exit_code,
                         ignore_timeout = self._ignore_timeout,
+                        log_timeout = self._log_timeout,
                         ignore_error = self._ignore_error,
+                        log_error = self._log_error,
                         process_lifecycle_handler = lifecycle_handler,
                         pty = get_ssh_scp_pty_option(connexion_params))
             self._processes[p] = host
@@ -3348,8 +3392,11 @@ class TaktukPut(TaktukRemote):
                                     "",
                                     timeout = self._timeout,
                                     ignore_exit_code = self._ignore_exit_code,
+                                    log_exit_code = self._log_exit_code,
                                     ignore_timeout = self._ignore_timeout,
+                                    log_timeout = self._log_timeout,
                                     ignore_error = self._ignore_error,
+                                    log_error = self._log_error,
                                     process_lifecycle_handler = lifecycle_handler)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
@@ -3493,8 +3540,11 @@ class TaktukGet(TaktukRemote):
                                     "",
                                     timeout = self._timeout,
                                     ignore_exit_code = self._ignore_exit_code,
+                                    log_exit_code = self._log_exit_code,
                                     ignore_timeout = self._ignore_timeout,
+                                    log_timeout = self._log_timeout,
                                     ignore_error = self._ignore_error,
+                                    log_error = self._log_error,
                                     process_lifecycle_handler = lifecycle_handler)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
@@ -3535,8 +3585,11 @@ class Local(Action):
                                 timeout = self._timeout,
                                 shell = True,
                                 ignore_exit_code = self._ignore_exit_code,
+                                log_exit_code = self._log_exit_code,
                                 ignore_timeout = self._ignore_timeout,
+                                log_timeout = self._log_timeout,
                                 ignore_error = self._ignore_error,
+                                log_error = self._log_error,
                                 process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1))
 
     def _args(self):
@@ -3610,6 +3663,14 @@ class ParallelActions(Action):
             raise AttributeError, "ParallelActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
         if kwargs.has_key('ignore_timeout'):
             raise AttributeError, "ParallelActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
+        if kwargs.has_key('ignore_error'):
+            raise AttributeError, "ParallelActions doesn't support ignore_error. The ignore_error flags are those of each contained Actions"
+        if kwargs.has_key('log_exit_code'):
+            raise AttributeError, "ParallelActions doesn't support log_exit_code. The log_exit_code flags are those of each contained Actions"
+        if kwargs.has_key('log_timeout'):
+            raise AttributeError, "ParallelActions doesn't support log_timeout. The log_timeout flags are those of each contained Actions"
+        if kwargs.has_key('log_error'):
+            raise AttributeError, "ParallelActions doesn't support log_error. The log_error flags are those of each contained Actions"
         super(ParallelActions, self).__init__(**kwargs)
         self._actions = list(actions)
         self._subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self._actions))
@@ -3704,6 +3765,14 @@ class SequentialActions(Action):
             raise AttributeError, "SequentialActions doesn't support ignore_exit_code. The ignore_exit_code flags are those of each contained Actions"
         if kwargs.has_key('ignore_timeout'):
             raise AttributeError, "SequentialActions doesn't support ignore_timeout. The ignore_timeout flags are those of each contained Actions"
+        if kwargs.has_key('ignore_error'):
+            raise AttributeError, "SequentialActions doesn't support ignore_error. The ignore_error flags are those of each contained Actions"
+        if kwargs.has_key('log_exit_code'):
+            raise AttributeError, "SequentialActions doesn't support log_exit_code. The log_exit_code flags are those of each contained Actions"
+        if kwargs.has_key('log_timeout'):
+            raise AttributeError, "SequentialActions doesn't support log_timeout. The log_timeout flags are those of each contained Actions"
+        if kwargs.has_key('log_error'):
+            raise AttributeError, "SequentialActions doesn't support log_error. The log_error flags are those of each contained Actions"
         super(SequentialActions, self).__init__(**kwargs)
         self._actions = list(actions)
         for (index, action) in enumerate(self._actions):

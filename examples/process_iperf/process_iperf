@@ -11,7 +11,7 @@ num_processes_to_test = (1, 2, 4, 8, 16, 32, 64)
 iperf_length = 20
 
 timer = Timer().start()
-server = Process('iperf -s', ignore_exit_code = True).start()
+server = Process('iperf -s', ignore_exit_code = True, log_exit_code = False).start()
 experiments = dict()
 for simultaneous in num_processes_to_test:
     clients = [ Process('iperf -c localhost -t %i' % iperf_length).start() for num_try in xrange(0, simultaneous) ]

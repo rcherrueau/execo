@@ -23,7 +23,7 @@ hosts_other = [ host for host in deployed_hosts if host.address.find(".lyon.") =
 if len(hosts_lyon) == 0 or len(hosts_other) == 0:
     raise Exception, "not enough hosts"
 
-servers = execo.Remote(hosts_other, "killall iperf ; iperf -s", connexion_params = my_connexion_params, ignore_exit_code = True)
+servers = execo.Remote(hosts_other, "killall iperf ; iperf -s", connexion_params = my_connexion_params, ignore_exit_code = True, log_exit_code = False)
 clients = execo.Remote(hosts_lyon, "iperf -c {{[host.address for host in hosts_other]}}", connexion_params = my_connexion_params)
 
 #begin_capture = execo.Remote((metroflux10g,), "/opt/metroflux/bin/capture start")

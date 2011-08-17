@@ -349,7 +349,11 @@ class Kadeployer(Remote):
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
                             timeout = self._timeout,
                             ignore_exit_code = self._ignore_exit_code,
+                            log_exit_code = self._log_exit_code,
                             ignore_timeout = self._ignore_timeout,
+                            log_timeout = self._log_timeout,
+                            ignore_error = self._ignore_error,
+                            log_error = self._log_error,
                             process_lifecycle_handler = lifecycle_handler,
                             pty = True)
             else:
@@ -360,6 +364,11 @@ class Kadeployer(Remote):
                                stderr_handler = _KadeployStderrHandler(self, out = self._out),
                                timeout = self._timeout,
                                ignore_exit_code = self._ignore_exit_code,
+                               log_exit_code = self._log_exit_code,
+                               ignore_timeout = self._ignore_timeout,
+                               log_timeout = self._log_timeout,
+                               ignore_error = self._ignore_error,
+                               log_error = self._log_error,
                                process_lifecycle_handler = lifecycle_handler,
                                pty = True)
             self._processes[p] = host
@@ -663,14 +672,14 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
         if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
             processes.append(Process(oardel_cmdline,
                                      timeout = timeout,
-                                     ignore_exit_code = True,
+                                     log_exit_code = False,
                                      pty = True))
         else:
             processes.append(SshProcess(Host(site),
                                         oardel_cmdline,
                                         connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
-                                        ignore_exit_code = True,
+                                        log_exit_code = False,
                                         pty = True))
     for process in processes: process.start()
     for process in processes: process.wait()
@@ -795,14 +804,14 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
         if g5k_configuration['no_ssh_for_local_frontend'] == True:
             processes.append(Process(oargriddel_cmdline,
                                      timeout = timeout,
-                                     ignore_exit_code = True,
+                                     log_exit_code = False,
                                      pty = True))
         else:
             processes.append(SshProcess(Host(local_site),
                                         oargriddel_cmdline,
                                         connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
-                                        ignore_exit_code = True,
+                                        log_exit_code = False,
                                         pty = True))
     for process in processes: process.start()
     for process in processes: process.wait()
@@ -936,7 +945,8 @@ def get_current_oargrid_jobs(start_between = None,
         return oargrid_job_ids
     raise Exception, "error, list of current oargrid jobs: %s" % (process,)
 
-def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
+def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False,
+                     log_exit_code = True, log_timeout = True, log_error = True):
     """Return a dict with informations about an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -979,31 +989,36 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
     if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
         process = Process(cmd,
                           timeout = timeout,
-                          pty = True)
+                          pty = True,
+                          log_exit_code = log_exit_code,
+                          log_timeout = log_timeout,
+                          log_error = log_error)
     else:
         process = SshProcess(Host(site),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
-                             pty = True)
+                             pty = True,
+                             log_exit_code = log_exit_code,
+                             log_timeout = log_timeout,
+                             log_error = log_error)
     process.run()
     job_info = dict()
-    if process.ok():
-        start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
-        if start_date_result:
-            start_date = oar_date_to_unixts(start_date_result.group(1))
-            job_info['start_date'] = start_date
-        walltime_result = re.search("^\s*walltime = (\d+:\d?\d:\d?\d)\s*$", process.stdout(), re.MULTILINE)
-        if walltime_result:
-            walltime = oar_duration_to_seconds(walltime_result.group(1))
-            job_info['walltime'] = walltime
-        scheduled_start_result = re.search("^\s*scheduledStart = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
-        if scheduled_start_result:
-            scheduled_start = oar_date_to_unixts(scheduled_start_result.group(1))
-            job_info['scheduled_start'] = scheduled_start
-        state_result = re.search("^\s*state = (\w*)\s*$", process.stdout(), re.MULTILINE)
-        if state_result:
-            job_info['state'] = state_result.group(1)
+    start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
+    if start_date_result:
+        start_date = oar_date_to_unixts(start_date_result.group(1))
+        job_info['start_date'] = start_date
+    walltime_result = re.search("^\s*walltime = (\d+:\d?\d:\d?\d)\s*$", process.stdout(), re.MULTILINE)
+    if walltime_result:
+        walltime = oar_duration_to_seconds(walltime_result.group(1))
+        job_info['walltime'] = walltime
+    scheduled_start_result = re.search("^\s*scheduledStart = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
+    if scheduled_start_result:
+        scheduled_start = oar_date_to_unixts(scheduled_start_result.group(1))
+        job_info['scheduled_start'] = scheduled_start
+    state_result = re.search("^\s*state = (\w*)\s*$", process.stdout(), re.MULTILINE)
+    if state_result:
+        job_info['state'] = state_result.group(1)
     return job_info
 
 def wait_oar_job_start(oar_job_id = None, site = None,
@@ -1054,7 +1069,8 @@ def wait_oar_job_start(oar_job_id = None, site = None,
 
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
-        infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, countdown.remaining())
+        infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, countdown.remaining(),
+                                 log_exit_code = False, log_timeout = False, log_error = False)
         now = time.time()
         if infos.has_key('state'):
             if infos['state'] == "Terminated" or infos['state'] == "Error":
@@ -1378,9 +1394,9 @@ def deploy(deployment,
         deployed_check = Remote(undeployed_hosts,
                                 check_deployed_command,
                                 connexion_params = node_connexion_params,
-                                ignore_exit_code = True,
-                                ignore_timeout = True,
-                                ignore_error = True,
+                                log_exit_code = False,
+                                log_timeout = False,
+                                log_error = False,
                                 timeout = check_timeout)
         deployed_check.run()
         newly_deployed = list()
@@ -1389,9 +1405,7 @@ def deploy(deployment,
                          + " %s\n" % (process,)
                          + style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
                          + style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
-            if (process.exit_code() == 0
-                and process.error() == False
-                and process.timeouted() == False):
+            if (process.ok()):
                 newly_deployed.append(process.host())
                 logger.info("OK %s" % process.host())
             else:
