@@ -157,6 +157,7 @@ class execo_engine(object):
                                        help ="redirect stdout / stderr to log files in the experiment result directory. Default = %default")
         self.options_parser.add_option("-M", dest = "merge_outputs", action="store_true", default = False,
                                        help ="when copying or redirecting outputs, merge stdout / stderr in a single file. Default = %default")
+        self.options_parser.set_description(self.__class__.__name__)
 
     def parse_arguments(self):
         del sys.argv[1]
