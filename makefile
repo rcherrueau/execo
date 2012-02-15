@@ -55,14 +55,14 @@ dist: doc
 
 extract = ( sed -n '/^\# _STARTOF_ $(2)/,/^\# _ENDOF_ $(2)/p' $(1) | grep -v ^\# | sed 's/^\(.*\)$$/\# \1/' ; echo )
 
-execo.conf.py.sample: execo.conf.py.sample.in execo.py execo_g5k.py g5k_api_tools.py
+execo.conf.py.sample: execo.conf.py.sample.in src/execo/config.py src/execo_g5k/config.py
 	cp $< $@
-	$(call extract,execo.py,configuration) >> $@
-	$(call extract,execo.py,default_connexion_params) >> $@
-	$(call extract,execo_g5k.py,g5k_configuration) >> $@
-	$(call extract,execo_g5k.py,default_frontend_connexion_params) >> $@
-	$(call extract,execo_g5k.py,default_oarsh_oarcp_params) >> $@
-	$(call extract,g5k_api_tools.py,g5k_api_params) >> $@
+	$(call extract,src/execo/config.py,configuration) >> $@
+	$(call extract,src/execo/config.py,default_connexion_params) >> $@
+	$(call extract,src/execo_g5k/config.py,g5k_configuration) >> $@
+	$(call extract,src/execo_g5k/config.py,default_frontend_connexion_params) >> $@
+	$(call extract,src/execo_g5k/config.py,default_oarsh_oarcp_params) >> $@
+	$(call extract,src/execo_g5k/config.py,g5k_api_params) >> $@
 
 do_subst = sed -e 's,[@]prefix[@],$(PREFIX),g'
 

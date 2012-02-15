@@ -1,4 +1,4 @@
-# Copyright 2009-2011 INRIA Rhone-Alpes, Service Experimentation et
+# Copyright 2009-2012 INRIA Rhone-Alpes, Service Experimentation et
 # Developpement
 #
 # This file is part of Execo.
@@ -16,9 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
+from subprocess import MAXFD
+import logging
+import optparse
+import os
+import sys
+import time
+
 """execo run engine template base."""
 
-import optparse, sys, time, logging, os
 
 class MyOptionParser(optparse.OptionParser):
 
@@ -67,6 +73,10 @@ class execo_engine(object):
         self.logger.setLevel(logging.INFO)
         self.engine_dir = os.path.abspath(os.path.dirname(sys.modules[self.__module__].__file__))
         self.options_parser = MyOptionParser()
+        self.options = None
+        self.args = None
+        self.run_name = None
+        self.result_dir = None
         self.arguments = []
         self.run_name_suffix = None
 
@@ -92,8 +102,8 @@ class execo_engine(object):
         redirect_fd(2, stderr_redir_filename)
         # additionnaly force stdout unbuffered by reopening stdout
         # file descriptor with write mode
-	# and 0 as the buffer size (unbuffered)
-	sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+        # and 0 as the buffer size (unbuffered)
+        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
     def copy_outputs(self, merge_stdout_stderr):
 
@@ -127,8 +137,8 @@ class execo_engine(object):
         tee_fd(2, stderr_redir_filename)
         # additionnaly force stdout unbuffered by reopening stdout
         # file descriptor with write mode
-	# and 0 as the buffer size (unbuffered)
-	sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+        # and 0 as the buffer size (unbuffered)
+        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
         if merge_stdout_stderr:
             self.logger.info("dup stdout / stderr to %s" % (stdout_redir_filename,))
         else:

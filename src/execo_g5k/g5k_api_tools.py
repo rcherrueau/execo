@@ -1,4 +1,4 @@
-# Copyright 2009-2011 INRIA Rhone-Alpes, Service Experimentation et
+# Copyright 2009-2012 INRIA Rhone-Alpes, Service Experimentation et
 # Developpement
 #
 # This file is part of Execo.
@@ -16,6 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
+from execo.config import load_configuration, get_user_config_filename
+import httplib2
+import re
+import restclient # http://pypi.python.org/pypi/py-restclient/1.3.3
+import simplejson # http://pypi.python.org/pypi/simplejson/
+import socket
+
 """Tools for using grid5000.
 
 - Functions for wrapping the grid5000 rest api. The functions which
@@ -27,10 +34,6 @@
 This module is currently not thread-safe.
 """
 
-import re, socket, execo
-import restclient # http://pypi.python.org/pypi/py-restclient/1.3.3
-import simplejson # http://pypi.python.org/pypi/simplejson/
-import httplib2
 
 # _STARTOF_ g5k_api_params
 g5k_api_params = {
@@ -54,7 +57,9 @@ g5k_api_params = {
 - ``password``: api password.
 """
 
-execo.read_user_configuration_dicts(((g5k_api_params, 'g5k_api_params'),),)
+load_configuration(
+  get_user_config_filename(),
+  ((g5k_api_params, 'g5k_api_params'),),)
 
 _g5k_api = None
 """Internal singleton instance of the g5k api rest resource."""
