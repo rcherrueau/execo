@@ -135,8 +135,29 @@ default_frontend_connexion_params = {
 # _ENDOF_ default_frontend_connexion_params
 """Default connexion params when connecting to a Grid5000 frontend."""
 
+# _STARTOF_ g5k_api_params
+g5k_api_params = {
+    'api_uri': "https://api.grid5000.fr/2.0",
+    'username': None,
+    'password': None,
+    }
+# _ENDOF_ g5k_api_params
+"""Grid5000 REST API configuration parameters.
+
+- ``api_server``: g5k api server url.
+
+- ``api_version``: g5k api version to use.
+
+- ``platform_version``: g5k platform version to use. If None, use the default (latest).
+
+- ``username``: api username.
+
+- ``password``: api password.
+"""
+
 load_configuration(
   get_user_config_filename(),
   ((g5k_configuration, 'g5k_configuration'),
    (default_frontend_connexion_params, 'default_frontend_connexion_params'),
-   (default_oarsh_oarcp_params, 'default_oarsh_oarcp_params')))
+   (default_oarsh_oarcp_params, 'default_oarsh_oarcp_params'),
+   (g5k_api_params, 'g5k_api_params')))
