@@ -31,18 +31,18 @@ cleansphinxdoc:
 
 epydoc: epydoc/redirect.html
 
-epydoc/redirect.html: execo.py execo_g5k.py g5k_api_tools.py
-	epydoc --docformat "restructuredtext en" -v --html --output=epydoc execo.py execo_g5k.py g5k_api_tools.py
+epydoc/redirect.html: src
+	epydoc --docformat "restructuredtext en" -v --html --output=epydoc src/execo src/execo_g5k src/execo_engine
 
 cleanepydoc:
 	rm -rf epydoc
 
 check:
-	python execo.py
-	python test_execo.py
+#TODO
 
 clean: cleandoc
-	rm -rf build dist *.pyc MANIFEST execo.conf.py.sample
+	rm -rf build dist MANIFEST execo.conf.py.sample execo-run
+	find . -name '*.pyc' -exec $(RM) {} \;
 
 dist: doc
 	python setup.py sdist

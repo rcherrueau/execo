@@ -1,15 +1,7 @@
-include test_execo.py test_execo_g5k.py execo.conf.py.sample.in
+include execo.conf.py.sample.in
 include execo-run.in
-include engines/bag_of_tasks_per_cluster.py
-include examples/g5k_check_sniffer10g_capture_perfs/check_sniffer10g_capture_perfs
-include examples/g5k_check_sniffer10g_capture_perfs/config-pktgen
-include examples/g5k_check_sniffer10g_capture_perfs/parse-results
-include examples/g5k_check_sniffer10g_capture_perfs/parse-results2
-include examples/g5k_iperf/g5k_iperf
-include examples/process_iperf/process_iperf
-include examples/report/report
 include MANIFEST.in
 include COPYING
 include makefile
-include doc/conf.py doc/Makefile doc/*.rst doc/execo.png doc/_static/execo-icon.ico
+include doc/conf.py doc/*.rst doc/execo.png doc/_static/execo-icon.ico
 graft doc/_build/html
