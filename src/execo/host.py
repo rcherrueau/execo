@@ -108,4 +108,3 @@ def get_hosts_list(hosts):
 def get_hosts_set(hosts):
     """Deep copy an iterable of `Host` to a set of `Host`."""
     return set(get_hosts_list(hosts))
-

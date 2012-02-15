@@ -25,4 +25,3 @@ def compact_output(s):
     thresh = configuration['compact_output_threshold']
     if thresh == 0 or len(s) <= thresh: return s
     return s[:thresh/2] + "\n[...]\n" + s[(thresh/2)-thresh:]
-

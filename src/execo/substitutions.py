@@ -57,4 +57,3 @@ def remote_substitute(string, all_hosts, index, frame_context):
     string = re.sub("\{\{\{host\}\}\}", all_hosts[index].address, string)
     string = re.sub("\{\{((?:(?!\}\}).)+)\}\}", _subst_iterable, string)
     return string
-

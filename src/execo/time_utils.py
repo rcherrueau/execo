@@ -280,4 +280,3 @@ class Timer(object):
             return self._start + self._timeout - time.time()
         else:
             return None
-

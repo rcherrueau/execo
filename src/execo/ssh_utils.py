@@ -214,4 +214,3 @@ def get_rewritten_host_address(host_addr, connexion_params):
         return default_connexion_params['host_rewrite_func'](host_addr)
     else:
         return host_addr
-
