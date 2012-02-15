@@ -23,17 +23,11 @@ sphinxdoccommon:
 	./g5k-deploy --help > doc/g5k-deploy.txt
 
 sphinxdochtml: sphinxdoccommon
-	mkdir -p doc/_static doc/_template
-	$(MAKE) -C doc html
-
-sphinxdoclatex: sphinxdoccommon
-	mkdir -p doc/_static doc/_template
-	$(MAKE) -C doc latex
-	$(MAKE) -C doc/_build/latex all-pdf
+	mkdir -p doc/_template
+	sphinx-build -b html doc doc/_build/html
 
 cleansphinxdoc:
-	$(MAKE) -C doc clean
-	rm -f doc/g5k-deploy.txt
+	rm -rf doc/_build/ doc/_template doc/_templates/ doc/g5k-deploy.txt
 
 epydoc: epydoc/redirect.html
 

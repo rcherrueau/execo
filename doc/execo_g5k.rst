@@ -20,105 +20,105 @@ OAR functions
 
 OarSubmission
 -------------
-.. autoclass:: OarSubmission
+.. autoclass:: execo_g5k.oar.OarSubmission
    :members:
 
 oarsub
 ------
-.. autofunction:: oarsub
+.. autofunction:: execo_g5k.oar.oarsub
 
 oardel
 ------
-.. autofunction:: oardel
+.. autofunction:: execo_g5k.oar.oardel
 
 get_current_oar_jobs
 --------------------
-.. autofunction:: get_current_oar_jobs
+.. autofunction:: execo_g5k.oar.get_current_oar_jobs
 
 get_oar_job_info
 ----------------
-.. autofunction:: get_oar_job_info
+.. autofunction:: execo_g5k.oar.get_oar_job_info
 
 wait_oar_job_start
 ------------------
-.. autofunction:: wait_oar_job_start
+.. autofunction:: execo_g5k.oar.wait_oar_job_start
 
 get_oar_job_nodes
 -----------------
-.. autofunction:: get_oar_job_nodes
+.. autofunction:: execo_g5k.oar.get_oar_job_nodes
 
 get_oar_job_subnets
 -------------------
-.. autofunction:: get_oar_job_subnets
+.. autofunction:: execo_g5k.oar.get_oar_job_subnets
 
 OARGRID functions
 =================
 
 oargridsub
 ----------
-.. autofunction:: oargridsub
+.. autofunction:: execo_g5k.oargrid.oargridsub
 
 oargriddel
 ----------
-.. autofunction:: oargriddel
+.. autofunction:: execo_g5k.oargrid.oargriddel
 
 get_current_oargrid_jobs
 ------------------------
-.. autofunction:: get_current_oargrid_jobs
+.. autofunction:: execo_g5k.oargrid.get_current_oargrid_jobs
 
 get_oargrid_job_info
 --------------------
-.. autofunction:: get_oargrid_job_info
+.. autofunction:: execo_g5k.oargrid.get_oargrid_job_info
 
 wait_oargrid_job_start
 ----------------------
-.. autofunction:: wait_oargrid_job_start
+.. autofunction:: execo_g5k.oargrid.wait_oargrid_job_start
 
 get_oargrid_job_nodes
 ---------------------
-.. autofunction:: get_oargrid_job_nodes
+.. autofunction:: execo_g5k.oargrid.get_oargrid_job_nodes
 
 kadeploy3
 =========
 
 Deployment
 ----------
-.. autoclass:: Deployment
+.. autoclass:: execo_g5k.kadeploy.Deployment
    :members:
 
 Kadeployer
 ----------
-.. inheritance-diagram:: Kadeployer
-.. autoclass:: Kadeployer
+.. inheritance-diagram:: execo_g5k.kadeploy.Kadeployer
+.. autoclass:: execo_g5k.kadeploy.Kadeployer
    :members:
    :show-inheritance:
 
 kadeploy
 --------
-.. autofunction:: kadeploy
+.. autofunction:: execo_g5k.kadeploy.kadeploy
 
 deploy
 -------------------
-.. autofunction:: deploy
+.. autofunction:: execo_g5k.kadeploy.deploy
 
 Utilities
 =========
 
 format_oar_date
 ---------------
-.. autofunction:: format_oar_date
+.. autofunction:: execo_g5k.oar.format_oar_date
 
 format_oar_duration
 -------------------
-.. autofunction:: format_oar_duration
+.. autofunction:: execo_g5k.oar.format_oar_duration
 
 oar_date_to_unixts
 ------------------
-.. autofunction:: oar_date_to_unixts
+.. autofunction:: execo_g5k.oar.oar_date_to_unixts
 
 oar_duration_to_seconds
 -----------------------
-.. autofunction:: oar_duration_to_seconds
+.. autofunction:: execo_g5k.oar.oar_duration_to_seconds
 
 Configuration
 =============
@@ -130,11 +130,11 @@ file ``~/.execo.conf.py``
 The `g5k_configuration` dict contains global g5k configuration
 parameters.
 
-.. autodata:: g5k_configuration
+.. autodata:: execo_g5k.config.g5k_configuration
 
 Its default values are:
 
-.. literalinclude:: ../execo_g5k.py
+.. literalinclude:: ../src/execo_g5k/config.py
    :start-after: # _STARTOF_ g5k_configuration
    :end-before: # _ENDOF_ g5k_configuration
    :language: python
@@ -142,11 +142,11 @@ Its default values are:
 The `default_frontend_connexion_params` dict contains default
 parameters for remote connexions to grid5000 frontends.
 
-.. autodata:: default_frontend_connexion_params
+.. autodata:: execo_g5k.config.default_frontend_connexion_params
 
 Its default values are:
 
-.. literalinclude:: ../execo_g5k.py
+.. literalinclude:: ../src/execo_g5k/config.py
    :start-after: # _STARTOF_ default_frontend_connexion_params
    :end-before: # _ENDOF_ default_frontend_connexion_params
    :language: python
@@ -159,11 +159,11 @@ frontends.
 `default_oarsh_oarcp_params` contains default connexion parameters
 suitable to connect to grid5000 nodes with oarsh / oarcp.
 
-.. autodata:: default_oarsh_oarcp_params
+.. autodata:: execo_g5k.config.default_oarsh_oarcp_params
 
 Its default values are:
 
-.. literalinclude:: ../execo_g5k.py
+.. literalinclude:: ../src/execo_g5k/config.py
    :start-after: # _STARTOF_ default_oarsh_oarcp_params
    :end-before: # _ENDOF_ default_oarsh_oarcp_params
    :language: python
@@ -212,18 +212,13 @@ Then in ``~/.execo.conf.py`` put this code::
 
  import re
 
- def _rewrite_func(host):
-     return re.sub("\.grid5000\.fr$", ".g5k", host)
-
  default_connexion_params = {
-     'host_rewrite_func': _rewrite_func
+     'host_rewrite_func': lambda host: re.sub("\.grid5000\.fr$", ".g5k", host)
      }
 
- def _frontend_rewrite_func(host):
-     return host + ".g5k"
 
  default_frontend_connexion_params = {
-     'host_rewrite_func': _frontend_rewrite_func
+     'host_rewrite_func': lambda host: host + ".g5k"
      }
 
  g5k_api_params = {

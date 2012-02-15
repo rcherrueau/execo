@@ -30,41 +30,41 @@ probably not be used, unless for developing code similar to
 
 ProcessBase
 -----------
-.. inheritance-diagram:: ProcessBase
-.. autoclass:: ProcessBase
+.. inheritance-diagram:: execo.process.ProcessBase
+.. autoclass:: execo.process.ProcessBase
    :members:
    :show-inheritance:
 
 Process
 -------
-.. inheritance-diagram:: Process
-.. autoclass:: Process
+.. inheritance-diagram:: execo.process.Process
+.. autoclass:: execo.process.Process
    :members:
    :show-inheritance:
 
 SshProcess
 ----------
-.. inheritance-diagram:: SshProcess
-.. autoclass:: SshProcess
+.. inheritance-diagram:: execo.process.SshProcess
+.. autoclass:: execo.process.SshProcess
    :members:
    :show-inheritance:
 
 TaktukProcess
 -------------
-.. inheritance-diagram:: TaktukProcess
-.. autoclass:: TaktukProcess
+.. inheritance-diagram:: execo.process.TaktukProcess
+.. autoclass:: execo.process.TaktukProcess
    :members:
    :show-inheritance:
 
 ProcessLifecycleHandler
 -----------------------
-.. autoclass:: ProcessLifecycleHandler
+.. autoclass:: execo.process.ProcessLifecycleHandler
    :members:
    :show-inheritance:
 
 ProcessOutputHandler
 --------------------
-.. autoclass:: ProcessOutputHandler
+.. autoclass:: execo.process.ProcessOutputHandler
    :members:
    :show-inheritance:
 
@@ -104,88 +104,88 @@ commands on a few remote hosts::
 
 Action
 ------
-.. inheritance-diagram:: Action
-.. autoclass:: Action
+.. inheritance-diagram:: execo.action.Action
+.. autoclass:: execo.action.Action
    :members:
    :show-inheritance:
 
 Remote
 ------
-.. inheritance-diagram:: Remote
-.. autoclass:: Remote
+.. inheritance-diagram:: execo.action.Remote
+.. autoclass:: execo.action.Remote
    :members:
    :show-inheritance:
 
 TaktukRemote
 ------------
-.. inheritance-diagram:: TaktukRemote
-.. autoclass:: TaktukRemote
+.. inheritance-diagram:: execo.action.TaktukRemote
+.. autoclass:: execo.action.TaktukRemote
    :members:
    :show-inheritance:
 
 Put
 ---
-.. inheritance-diagram:: Put
-.. autoclass:: Put
+.. inheritance-diagram:: execo.action.Put
+.. autoclass:: execo.action.Put
    :members:
    :show-inheritance:
 
 TaktukPut
 ---------
-.. inheritance-diagram:: TaktukPut
-.. autoclass:: TaktukPut
+.. inheritance-diagram:: execo.action.TaktukPut
+.. autoclass:: execo.action.TaktukPut
    :members:
    :show-inheritance:
 
 Get
 ---
-.. inheritance-diagram:: Get
-.. autoclass:: Get
+.. inheritance-diagram:: execo.action.Get
+.. autoclass:: execo.action.Get
    :members:
    :show-inheritance:
 
 TaktukGet
 ---------
-.. inheritance-diagram:: TaktukGet
-.. autoclass:: TaktukGet
+.. inheritance-diagram:: execo.action.TaktukGet
+.. autoclass:: execo.action.TaktukGet
    :members:
    :show-inheritance:
 
 Local
 -----
-.. inheritance-diagram:: Local
-.. autoclass:: Local
+.. inheritance-diagram:: execo.action.Local
+.. autoclass:: execo.action.Local
    :members:
    :show-inheritance:
 
 ParallelActions
 ---------------
-.. inheritance-diagram:: ParallelActions
-.. autoclass:: ParallelActions
+.. inheritance-diagram:: execo.action.ParallelActions
+.. autoclass:: execo.action.ParallelActions
    :members:
    :show-inheritance:
 
 SequentialActions
 -----------------
-.. inheritance-diagram:: SequentialActions
-.. autoclass:: SequentialActions
+.. inheritance-diagram:: execo.action.SequentialActions
+.. autoclass:: execo.action.SequentialActions
    :members:
    :show-inheritance:
 
 ActionLifecycleHandler
 ----------------------
-.. inheritance-diagram:: ActionLifecycleHandler
-.. autoclass:: ActionLifecycleHandler
+.. inheritance-diagram:: execo.action.ActionLifecycleHandler
+.. autoclass:: execo.action.ActionLifecycleHandler
    :members:
    :show-inheritance:
 
 wait_multiple_actions
 ---------------------
-.. autofunction:: wait_multiple_actions
+.. autofunction:: execo.action.wait_multiple_actions
 
 wait_all_actions
 ----------------
-.. autofunction:: wait_all_actions
+.. autofunction:: execo.action.wait_all_actions
 
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
@@ -231,26 +231,26 @@ between hosts1 and hosts2 could be:
 `remote_substitute` is the function used internally by execo to
 perform these substitutions:
 
-.. autofunction:: remote_substitute
+.. autofunction:: execo.substitutions.remote_substitute
 
 Miscellaneous classes
 =====================
 
 Host
 ----
-.. autoclass:: Host
+.. autoclass:: execo.host.Host
    :members:
    :show-inheritance:
 
 Report
 ------
-.. autoclass:: Report
+.. autoclass:: execo.report.Report
    :members:
    :show-inheritance:
 
 Timer
 -----
-.. autoclass:: Timer
+.. autoclass:: execo.time_utils.Timer
    :members:
    :show-inheritance:
 
@@ -259,39 +259,39 @@ Utilities
 
 sleep
 -----
-.. autofunction:: sleep
+.. autofunction:: execo.time_utils.sleep
 
 get_unixts
 ----------
-.. autofunction:: get_unixts
+.. autofunction:: execo.time_utils.get_unixts
 
 get_seconds
 -----------
-.. autofunction:: get_seconds
+.. autofunction:: execo.time_utils.get_seconds
 
 format_unixts
 -------------
-.. autofunction:: format_unixts
+.. autofunction:: execo.time_utils.format_unixts
 
 format_seconds
 --------------
-.. autofunction:: format_seconds
+.. autofunction:: execo.time_utils.format_seconds
 
 format_date
 -----------
-.. autofunction:: format_date
+.. autofunction:: execo.time_utils.format_date
 
 format_duration
 ---------------
-.. autofunction:: format_duration
+.. autofunction:: execo.time_utils.format_duration
 
 get_hosts_list
 --------------
-.. autofunction:: get_hosts_list
+.. autofunction:: execo.host.get_hosts_list
 
 get_hosts_set
 -------------
-.. autofunction:: get_hosts_set
+.. autofunction:: execo.host.get_hosts_set
 
 Logging
 =======
@@ -307,7 +307,7 @@ or if process instanciation resulted in a operating system error
 
 logger
 ------
-.. data:: logger
+.. data:: execo.log.logger
 
   The execo logger.
 
@@ -321,11 +321,11 @@ two dicts `configuration` and `default_connexion_params` in the file
 
 The `configuration` dict contains global configuration parameters.
 
-.. autodata:: configuration
+.. autodata:: execo.config.configuration
 
 Its default values are:
 
-.. literalinclude:: ../execo.py
+.. literalinclude:: ../src/execo/config.py
    :start-after: # _STARTOF_ configuration
    :end-before: # _ENDOF_ configuration
    :language: python
@@ -333,11 +333,11 @@ Its default values are:
 The `default_connexion_params` dict contains default parameters for
 remote connexions.
 
-.. autodata:: default_connexion_params
+.. autodata:: execo.config.default_connexion_params
 
 Its default values are:
 
-.. literalinclude:: ../execo.py
+.. literalinclude:: ../src/execo/config.py
    :start-after: # _STARTOF_ default_connexion_params
    :end-before: # _ENDOF_ default_connexion_params
    :language: python
