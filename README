@@ -53,7 +53,7 @@ http://execo.gforge.inria.fr/epydoc/
 prerequisites
 -------------
 
-execo installation requires python (>= 2.5) and make (for debian 5.x,
+execo installation requires python (>= 2.6) and make (for debian 5.x,
 packages python, make)
 
 to use g5k_api_tools, python-simplejson
