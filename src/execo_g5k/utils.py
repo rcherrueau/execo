@@ -25,12 +25,12 @@ def get_local_site():
     try:
         localhost = socket.gethostname()
     except socket.error:
-        return ""
+        localhost = ""
     mo = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", localhost)
     if mo:
         return mo.group(1)
     else:
-        return ""
+        raise EnvironmentError, "unable to get local site name"
 
 local_site = get_local_site()
 
