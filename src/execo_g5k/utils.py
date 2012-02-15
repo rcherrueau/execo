@@ -32,7 +32,10 @@ def get_local_site():
     else:
         raise EnvironmentError, "unable to get local site name"
 
-local_site = get_local_site()
+try:
+    local_site = get_local_site()
+except EnvironmentError:
+    local_site = ""
 
 def _get_frontend_connexion_params(frontend_connexion_params):
     params = default_frontend_connexion_params

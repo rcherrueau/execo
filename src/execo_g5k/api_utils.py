@@ -75,7 +75,8 @@ def get_g5k_sites():
     """Get the list of Grid5000 sites. Returns an iterable."""
     global _g5k #IGNORE:W0603
     if not _g5k:
-        sites = json.loads(_get_g5k_api().get('/grid5000/sites'))
+        (_, content) = _get_g5k_api().get('/grid5000/sites')
+        sites = json.loads(content)
         _g5k = dict()
         for site in [site['uid'] for site in sites['items']]:
             _g5k[site] = None
@@ -87,10 +88,10 @@ def get_site_clusters(site):
     if not _g5k.has_key(site):
         raise ValueError, "unknown g5k site %s" % (site,)
     if not _g5k[site]:
-        clusters = json.loads(
-          _get_g5k_api().get('/grid5000/sites/'
-                             + site
-                             + '/clusters'))
+        (_, content) = _get_g5k_api().get('/grid5000/sites/'
+                         + site
+                         + '/clusters') 
+        clusters = json.loads(content)
         _g5k[site] = dict()
         for cluster in [cluster['uid'] for cluster in clusters['items']]:
             _g5k[site][cluster] = None
@@ -102,10 +103,10 @@ def get_cluster_hosts(cluster):
     for site in _g5k.keys():
         if cluster in _g5k[site]:
             if not _g5k[site][cluster]:
-                hosts = json.loads(
-                  _get_g5k_api().get('/grid5000/sites/' + site
-                                     + '/clusters/' + cluster
-                                     + '/nodes'))
+                (_, content) = _get_g5k_api().get('/grid5000/sites/' + site
+                                 + '/clusters/' + cluster
+                                 + '/nodes')
+                hosts = json.loads(content)
                 _g5k[site][cluster] = ["%s.%s.grid5000.fr" % (host['uid'], site) for host in hosts['items']]
             return list(_g5k[site][cluster])
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
