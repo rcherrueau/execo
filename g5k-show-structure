@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from g5k_api_tools import *
+from execo_g5k.api_utils import *
 
 for site in get_g5k_sites():
     print "site: %s" % site
