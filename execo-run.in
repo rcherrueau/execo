@@ -5,7 +5,7 @@
 # This file is part of Execo, released under the GNU Lesser Public
 # License, version 3 or later.
 
-import sys, os, optparse
+import sys, os, optparse, subprocess
 
 execo_engine_search_dir = "@prefix@/share/execo/engines/"
 
@@ -22,11 +22,18 @@ if __name__ == "__main__":
     additional_search_pathes = ["."]
     additional_search_pathes += _get_search_dirs(os.path.abspath(os.path.dirname(sys.argv[0])) + "/engines")
     if os.environ.has_key('HOME'):
-        additional_search_pathes += _get_search_dirs(os.environ['HOME'] + "/execo_engines")
+        additional_search_pathes += _get_search_dirs(os.environ['HOME'] + "/.execo/engines")
     additional_search_pathes += _get_search_dirs(execo_engine_search_dir)
+
     usage = """usage: %s <engine> [options] <arguments>
 
-instanciate <engine> from python module <engine>.py and call method start() on it.
+instanciate <engine> from python module <engine>.py and call method
+start() on it.
+
+if <engine> is of the form <engine_module_name:engine_class_name> then
+instanciate <engine_class_name> from python module
+<engine_module_name>
+
 module search path is:
   %s, default python directories""" % (progname, ", ".join(additional_search_pathes))
 
@@ -36,10 +43,9 @@ module search path is:
         print usage,
         exit(1)
 
-    engine_name = sys.argv[1]
-    engine_module = __import__(engine_name)
-    engine_class = getattr(engine_module, engine_name)
+    module_name, _, class_name = sys.argv[1].partition(":")
+    if not class_name: class_name = module_name
+    engine_module = __import__(module_name)
+    engine_class = getattr(engine_module, class_name)
     engine_instance = engine_class()
-    engine_instance.options_parser.set_usage(usage)
-    engine_instance.options_parser.add_argument("engine", "name of engine to instanciate")
     engine_instance.start()

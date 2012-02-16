@@ -1,8 +1,8 @@
-import optparse, sys, threading, time
-from execo_engine import execo_engine
-import g5k_api_tools, execo_g5k, execo
+import threading, time
+from execo_engine import Engine
+import execo, execo_g5k
 
-class bag_of_tasks_per_cluster(execo_engine):
+class bag_of_tasks_per_cluster(Engine):
 
     def __init__(self):
         super(bag_of_tasks_per_cluster, self).__init__()
@@ -11,9 +11,6 @@ class bag_of_tasks_per_cluster(execo_engine):
         self.default_num_nodes = 2
         self.default_min_nodes = 1
         self.default_walltime = "1:0:0"
-
-    def configure_options_parser(self):
-        super(bag_of_tasks_per_cluster, self).configure_options_parser()
         self.options_parser.add_argument("space separated list of clusters", "a cluster: <clustername>[@sitename]; if sitename not given, will get it from g5k api")
         self.options_parser.add_option("-a", dest = "all_clusters", help = "run on all clusters. Default = %default", action = "store_true", default = False)
         self.options_parser.add_option("-q", dest = "oar_queue", help = "oar queue to use. Default = %default", default = None)
@@ -21,71 +18,28 @@ class bag_of_tasks_per_cluster(execo_engine):
         self.options_parser.add_option("-m", dest = "min_nodes", help = "minimum number of nodes to get results from. Default = %default", type = "int", default = self.default_min_nodes)
         self.options_parser.add_option("-w", dest = "walltime", help = "walltime of jobs. Default = %default", type = "string", default = self.default_walltime)
         self.options_parser.add_option("-r", dest = "reservation_date", help = "reservation date. Default = %default", type = "string", default = None)
-
-    def configure(self):
         self.clusters = dict()
+        self.oar_submissions = []
+        self.submitted_jobs = []
+        self.submit_failure_jobs = []
+        self.submit_success_jobs = []
+
+    def run(self):
         for arg in self.args:
             arobindex = arg.find("@")
             if arobindex == -1:
                 cluster = arg
-                site = g5k_api_tools.get_cluster_site(cluster)
+                site = execo_g5k.api_utils.get_cluster_site(cluster)
             else:
                 cluster = arg[0:arobindex]
                 site = arg[arobindex+1:]
             self.clusters[cluster] = site
         if self.options.all_clusters:
-            for cluster in g5k_api_tools.get_g5k_clusters():
-                self.clusters[cluster] = g5k_api_tools.get_cluster_site(cluster)
+            for cluster in execo_g5k.api_utils.get_g5k_clusters():
+                self.clusters[cluster] = execo_g5k.api_utils.get_cluster_site(cluster)
         unknown_clusters = [ cluster for cluster in self.clusters.keys() if self.clusters[cluster] == None ]
         if len(unknown_clusters) > 0:
             raise Exception, "unknown clusters: %s" % (unknown_clusters,)
-
-    def cluster_run(self, oarjob, site, cluster, nodes, oarjob_end_date):
-        pass
-
-    def cluster_run_threadfunc(self, oarjob, site, cluster):
-        def thread_log(arg):
-            self.logger.info("thread %s@%s (oarjob %s): %s" % (cluster, site, oarjob, arg))
-        thread_start_date = time.time()
-        oarjob_start_date = None
-        try:
-            thread_log("wait oar job start")
-            def start_prediction_changed(t):
-                thread_log("oar job start prediction = %s" % (execo.format_unixts(t),))
-            if not execo_g5k.wait_oar_job_start(oarjob, site, prediction_callback = start_prediction_changed):
-                thread_log("aborting, unable to wait job start")
-                return
-            thread_log("get oar job nodes")
-            nodes = execo_g5k.get_oar_job_nodes(oarjob, site)
-            thread_log("%i nodes = %s" % (len(nodes), nodes))
-            if len(nodes) < self.options.min_nodes:
-                thread_log("aborting, not enough nodes")
-                return
-            thread_log("get oar job infos")
-            job_infos = execo_g5k.get_oar_job_info(oarjob, site)
-            if (not job_infos.has_key("start_date")) or (not job_infos.has_key("walltime")):
-                thread_log("aborting, unable to get job infos")
-                return
-            oarjob_end_date = job_infos["start_date"] + job_infos["walltime"]
-            oarjob_start_date = time.time()
-            if self.deploy and self.deployment != None:
-                self.deployment.hosts = nodes
-                thread_log("deploying nodes")
-                execo_g5k.deploy(deployment)
-            thread_log("start")
-            threading.currentThread().ok = self.cluster_run(oarjob, site, cluster, nodes, oarjob_end_date)
-            thread_log("end")
-        finally:
-            thread_log("deleting oar job %i" % (oarjob,))
-            execo_g5k.oardel([(oarjob, site)])
-            job_duration = None
-            if oarjob_start_date != None:
-                job_duration = time.time() - oarjob_start_date
-            real_duration = time.time() - thread_start_date
-            thread_log("end (job duration = %s, real duration = %s)" % (execo.format_seconds(job_duration), execo.format_seconds(real_duration)))
-
-    def run(self):
-        self.oar_submissions = []
         for cluster in self.clusters.keys():
             submission = execo_g5k.OarSubmission(walltime = self.options.walltime,
                                                  resources = "nodes=%i" % self.options.num_nodes,
@@ -132,3 +86,47 @@ class bag_of_tasks_per_cluster(execo_engine):
                 self.logger.info("  %s@%s: ok" % (job[2], job[1]))
             else:
                 self.logger.info("  %s@%s: error" % (job[2], job[1]))
+
+    def cluster_run_threadfunc(self, oarjob, site, cluster):
+        def thread_log(arg):
+            self.logger.info("thread %s@%s (oarjob %s): %s" % (cluster, site, oarjob, arg))
+        thread_start_date = time.time()
+        oarjob_start_date = None
+        try:
+            thread_log("wait oar job start")
+            def start_prediction_changed(t):
+                thread_log("oar job start prediction = %s" % (execo.format_date(t),))
+            if not execo_g5k.wait_oar_job_start(oarjob, site, prediction_callback = start_prediction_changed):
+                thread_log("aborting, unable to wait job start")
+                return
+            thread_log("get oar job nodes")
+            nodes = execo_g5k.get_oar_job_nodes(oarjob, site)
+            thread_log("%i nodes = %s" % (len(nodes), nodes))
+            if len(nodes) < self.options.min_nodes:
+                thread_log("aborting, not enough nodes")
+                return
+            thread_log("get oar job infos")
+            job_infos = execo_g5k.get_oar_job_info(oarjob, site)
+            if (not job_infos.has_key("start_date")) or (not job_infos.has_key("walltime")):
+                thread_log("aborting, unable to get job infos")
+                return
+            oarjob_end_date = job_infos["start_date"] + job_infos["walltime"]
+            oarjob_start_date = time.time()
+            if self.deploy and self.deployment != None:
+                self.deployment.hosts = nodes
+                thread_log("deploying nodes")
+                execo_g5k.deploy(self.deployment)
+            thread_log("start")
+            threading.currentThread().ok = self.cluster_run(oarjob, site, cluster, nodes, oarjob_end_date)
+            thread_log("end")
+        finally:
+            thread_log("deleting oar job %i" % (oarjob,))
+            execo_g5k.oardel([(oarjob, site)])
+            job_duration = None
+            if oarjob_start_date != None:
+                job_duration = time.time() - oarjob_start_date
+            real_duration = time.time() - thread_start_date
+            thread_log("end (job duration = %s, real duration = %s)" % (execo.format_duration(job_duration), execo.format_duration(real_duration)))
+
+    def cluster_run(self, oarjob, site, cluster, nodes, oarjob_end_date):
+        pass
