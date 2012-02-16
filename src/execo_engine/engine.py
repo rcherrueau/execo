@@ -34,9 +34,9 @@ class ArgsOptionParser(optparse.OptionParser):
         self.arguments = []
         optparse.OptionParser.__init__(self, *args, **kwargs)
 
-    def add_argument(self, argument, description):
-        """Add an argument to the argument list."""
-        self.arguments.append((argument, description))
+    def add_argument(self, arg_name, description):
+        """Add an arg_name to the arg_name list."""
+        self.arguments.append((arg_name, description))
 
     def set_usage(self, usage):
         """Automatic generation of usage string with arguments."""
