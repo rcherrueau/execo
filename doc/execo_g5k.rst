@@ -264,10 +264,11 @@ The perfect grid5000 connexion configuration
   site's ``~/.bash_profile``
 
 * Connexions should then work directly with oarsh/oarcp if you use
-  `default_oarsh_oarcp_params` connexion parameters. Connexions should
-  work directly with ssh (for nodes reserved with the
-  allow_classic_ssh option). For deployed nodes, connexions should
-  work directly (option -k passed to kadeploy3 by default).
+  `execo_g5k.config.default_oarsh_oarcp_params` connexion
+  parameters. Connexions should work directly with ssh (for nodes
+  reserved with the allow_classic_ssh option). For deployed nodes,
+  connexions should work directly (option -k passed to kadeploy3 by
+  default).
 
 TODO: Currently, due to an ongoing bug or misconfiguration (see
 https://www.grid5000.fr/cgi-bin/bugzilla3/show_bug.cgi?id=3302), oar

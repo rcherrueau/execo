@@ -34,21 +34,21 @@ class ActionLifecycleHandler(object):
     """Abstract handler for `Action` lifecycle."""
 
     def start(self, action):
-        """Handle `Action`'s start.
+        """Handle `execo.action.Action`'s start.
 
         :param action: The `Action` which starts.
         """
         pass
 
     def end(self, action):
-        """Handle `Action`'s end.
+        """Handle `execo.action.Action`'s end.
 
         :param action: The `Action` which ends.
         """
         pass
 
     def reset(self, action):
-        """Handle `Action`'s reset.
+        """Handle `execo.action.Action`'s reset.
 
         :param action: the `Action` which is reset.
         """
