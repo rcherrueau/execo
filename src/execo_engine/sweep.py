@@ -18,7 +18,7 @@
 
 from engine import Engine
 from param_sweeper import ParamSweeper
-import threading, os.path, json
+import threading, os.path, cPickle
 
 class Sweep(Engine):
     
@@ -26,45 +26,51 @@ class Sweep(Engine):
 
     def __init__(self):
         super(Sweep, self).__init__()
-        self.__lock = threading.Lock()
-        self.param_combinations = None
-        self.__param_file = None
-        self.current_param = None
-        self.__current_param_file = None
+        self.__lock = threading.RLock()
+        self.__combinations = None
+        self.__done = None
+        self.__remaining_iter = None
+        self.__done_file = None
         self.parameters = {}
+
+    def __update_remaining_iter(self):
+        with self.__lock:
+            remaining = self.__combinations.difference(self.__done)
+            self.__remaining_iter = iter(remaining)
+
+    def __post_init(self):
+        with self.__lock:
+            if not self.__combinations:
+                self.__combinations = frozenset(ParamSweeper(self.parameters))
+                self.create_result_dir()
+                self.__done_file = os.path.join(self.result_dir, "sweep_done")
+                if os.path.isfile(self.__done_file):
+                    with open(self.__done_file, "r") as done_file:
+                        self.__done = cPickle.load(done_file)
+                else:
+                    self.__done = set()
+                self.__update_remaining_iter()
 
     def next_xp(self):
         with self.__lock:
-            self.__current_param_file = os.path.join(self.result_dir, "sweep_current")
-            if not self.param_combinations:
-                self.create_result_dir()
-                self.__param_file = os.path.join(self.result_dir, "sweep_parameters")
-                # try loading state from previous run
-                if os.path.isfile(self.__param_file) and os.path.isfile(self.__current_param_file):
-                    with open(self.__param_file, "r") as param_file:
-                        saved_parameters = json.load(param_file)
-                    with open(self.__current_param_file, "r") as current_param_file:
-                        self.current_param = json.load(current_param_file)
-                    if json.dumps(saved_parameters) != json.dumps(self.parameters):
-                        raise EnvironmentError, "parameters differ between xp runs: " \
-                            "previous run params = %s current run params = %s" % (
-                            saved_parameters, self.parameters)
-                # save state for next runs
-                else:
-                    with open(self.__param_file, "w") as param_file:
-                        json.dump(self.parameters, param_file)
-                    self.current_param = 0
-                print "parameters = %s" % (self.parameters,)
-                self.param_combinations = list(ParamSweeper(self.parameters))
-                print "param_combinations = %s" % (self.param_combinations,)
-            if self.current_param < len(self.param_combinations):
-                self.mark_current_xp_done()
-                combination = self.param_combinations[self.current_param]
-                self.current_param += 1
-                return combination
-            else:
+            self.__post_init()
+            try:
+                return self.__remaining_iter.next()
+            except StopIteration:
                 return None
 
-    def mark_current_xp_done(self):
-        with open(self.__current_param_file, "w") as current_param_file:
-            json.dump(self.current_param, current_param_file)
+    def mark_xp_done(self, xp):
+        with self.__lock:
+            self.__post_init()
+            self.__done.add(xp)
+            self.__update_remaining_iter()
+            with open(self.__done_file, "w") as done_file:
+                cPickle.dump(self.__done, done_file)
+
+    def num_xp_remaining(self):
+        with self.__lock:
+            return len(self.__combinations.difference(self.__done))
+
+    def num_xp_total(self):
+        with self.__lock:
+            return len(self.__combinations)

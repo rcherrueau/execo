@@ -18,6 +18,19 @@
 
 import itertools
 
+class HashableDict(dict):
+
+    """Hashable dictionnary. Beware: must not mutate it after its first use as a key."""
+
+    def __key(self):
+        return tuple((k,self[k]) for k in sorted(self))
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        return self.__key() == other.__key()
+
 class ParamSweeper(object):
     
     """Iterable over all possible combinations of parameters.
@@ -35,8 +48,8 @@ class ParamSweeper(object):
     """
 
     def __init__(self, parameters):
-        self.__parameters = parameters
+        self.parameters = parameters
 
     def __iter__(self):
-        return ( dict(zip(self.__parameters.keys(), values)) for
-                 values in itertools.product(*self.__parameters.values()) )
+        return ( HashableDict(zip(self.parameters.keys(), values)) for
+                 values in itertools.product(*self.parameters.values()) )
