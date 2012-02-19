@@ -32,41 +32,41 @@ import time
 
 class ProcessLifecycleHandler(object):
 
-    """Abstract handler for `ProcessBase` lifecycle."""
+    """Abstract handler for `execo.process.ProcessBase` lifecycle."""
 
     def start(self, process):
-        """Handle `ProcessBase`'s start.
+        """Handle `execo.process.ProcessBase`'s start.
 
-        :param process: The `ProcessBase` which starts.
+        :param process: The ProcessBase which starts.
         """
         pass
 
     def end(self, process):
-        """Handle `ProcessBase`'s end.
+        """Handle  `execo.process.ProcessBase`'s end.
 
-        :param process: The `ProcessBase` which ends.
+        :param process: The ProcessBase which ends.
         """
         pass
 
     def reset(self, process):
-        """Handle `ProcessBase`'s reset.
+        """Handle `execo.process.ProcessBase`'s reset.
 
-        :param process: The `ProcessBase` which is reset.
+        :param process: The ProcessBase which is reset.
         """
         pass
 
 class ProcessOutputHandler(object):
     
-    """Abstract handler for `ProcessBase` output."""
+    """Abstract handler for `execo.process.ProcessBase` output."""
 
     def __init__(self):
         """ProcessOutputHandler constructor. Call it in inherited classes."""
         self.__buffer = ""
 
     def read(self, process, string, eof = False, error = False):
-        """Handle string read from a `ProcessBase`'s stream.
+        """Handle string read from a `execo.process.ProcessBase`'s stream.
 
-        :param process: the `ProcessBase` which outputs the string
+        :param process: the ProcessBase which outputs the string
 
         :param string: the string read
 
@@ -88,9 +88,9 @@ class ProcessOutputHandler(object):
             self.__buffer = ""
 
     def read_line(self, process, string, eof = False, error = False):
-        """Handle string read line by line from a `ProcessBase`'s stream.
+        """Handle string read line by line from a `execo.process.ProcessBase`'s stream.
 
-        :param process: the `ProcessBase` which outputs the line
+        :param process: the ProcessBase which outputs the line
 
         :param string: the line read
 
@@ -105,15 +105,15 @@ class ProcessBase(object):
 
     """An almost abstract base class for all kinds of processes.
 
-    There are no abstract methods, but a `ProcessBase` by itself is
-    almost useless, it only provides accessors to data shared with all
-    subclasses, but no way to start it or stop it. These methods have
-    to be implemented in concrete subclasses.
+    There are no abstract methods, but a `execo.process.ProcessBase`
+    by itself is almost useless, it only provides accessors to data
+    shared with all subclasses, but no way to start it or stop
+    it. These methods have to be implemented in concrete subclasses.
 
     It is possible to register custom lifecycle and output handlers to
-    the `Process`, in order to provide specific actions or
-    stdout/stderr parsing when needed. See `ProcessLifecycleHandler`
-    and `ProcessOutputHandler`.
+    the process, in order to provide specific actions or stdout/stderr
+    parsing when needed. See `execo.process.ProcessLifecycleHandler`
+    and `execo.process.ProcessOutputHandler`.
     """
 
     def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None,
@@ -129,11 +129,13 @@ class ProcessBase(object):
         :param timeout: timeout (in seconds, or None for no timeout)
           after which the process will automatically be sent a SIGTERM
 
-        :param stdout_handler: instance of `ProcessOutputHandler` for
-          handling activity on process stdout
+        :param stdout_handler: instance of
+          `execo.process.ProcessOutputHandler` for handling activity
+          on process stdout
 
-        :param stderr_handler: instance of `ProcessOutputHandler` for
-          handling activity on process stderr
+        :param stderr_handler: instance of
+          `execo.process.ProcessOutputHandler` for handling activity
+          on process stderr
 
         :param ignore_exit_code: if True, a process with a return code
           != 0 will still be considered ok
@@ -163,8 +165,8 @@ class ProcessBase(object):
           with self.stderr(). Default: True.
 
         :param process_lifecycle_handler: instance of
-          `ProcessLifecycleHandler` for being notified of process
-          lifecycle events.
+          `execo.process.ProcessLifecycleHandler` for being notified
+          of process lifecycle events.
         """
         self._started = False
         self._start_date = None
@@ -350,11 +352,11 @@ class ProcessBase(object):
         return self._stderr
 
     def stdout_handler(self):
-        """Return this `ProcessBase` stdout `ProcessOutputHandler`."""
+        """Return this process stdout `execo.process.ProcessOutputHandler`."""
         return self._stdout_handler
     
     def stderr_handler(self):
-        """Return this `ProcessBase` stderr `ProcessOutputHandler`."""
+        """Return this process stderr `execo.process.ProcessOutputHandler`."""
         return self._stderr_handler
 
     def _handle_stdout(self, string, eof = False, error = False):
@@ -393,7 +395,7 @@ class ProcessBase(object):
     def ok(self):
         """Check process is ok.
 
-        A `ProcessBase` is ok, if:
+        A process is ok, if:
 
         - it is not yet started or not yet ended
 
@@ -416,7 +418,7 @@ class ProcessBase(object):
     def finished_ok(self):
         """Check process has ran and is ok.
 
-        A `ProcessBase` is finished_ok if it has started and ended and
+        A process is finished_ok if it has started and ended and
         it is ok.
         """
         return self._started and self._ended and self.ok()
@@ -442,7 +444,7 @@ class ProcessBase(object):
         raise NotImplementedError
 
     def reset(self):
-        """Reinitialize a ProcessBase so that it can later be restarted.
+        """Reinitialize a process so that it can later be restarted.
 
         If it is running, this method will first kill it then wait for
         its termination before reseting;
@@ -468,7 +470,7 @@ class Process(ProcessBase):
     as various informations about the subprocess and its state can be
     accessed asynchronously.
 
-    Example usage of the `Process` class: run an iperf server, and
+    Example usage of the process class: run an iperf server, and
     connect to it with an iperf client:
 
     >>> server = Process('iperf -s', ignore_exit_code = True).start()
@@ -693,7 +695,8 @@ class Process(ProcessBase):
     def _timeout_kill(self):
         """Send SIGTERM to the subprocess, due to the reaching of its timeout.
 
-        This method is intended to be used by the `_Conductor` thread.
+        This method is intended to be used by the
+        `execo.conductor._Conductor` thread.
         
         If the subprocess already got a SIGTERM and is still there, it
         is directly killed with SIGKILL.
@@ -707,9 +710,10 @@ class Process(ProcessBase):
 
     @synchronized
     def _set_terminated(self, exit_code):
-        """Update `Process` state: set it to terminated.
+        """Update process state: set it to terminated.
 
-        This method is intended to be used by the `_Conductor` thread.
+        This method is intended to be used by the
+        `execo.conductor._Conductor` thread.
 
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
@@ -770,7 +774,7 @@ class SshProcess(Process):
     SshProcess depends on the ssh (or ssh-like) command behavior. With
     openssh, this can be obtained by passing options -tt (force tty
     creation), thus these are the default options in
-    ``default_connexion_params``.
+    ``execo.config.default_connexion_params``.
     """
 
     def __init__(self, host, remote_cmd, connexion_params = None, **kwargs):
@@ -811,7 +815,7 @@ class SshProcess(Process):
 
 class TaktukProcess(ProcessBase): #IGNORE:W0223
 
-    r"""Dummy process similar to `SshProcess`."""
+    r"""Dummy process similar to `execo.process.SshProcess`."""
 
     def __init__(self, host, remote_cmd, **kwargs):
         self._host = host
@@ -828,9 +832,10 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     @synchronized
     def start(self):
-        """Notify `TaktukProcess` of actual remote process start.
+        """Notify TaktukProcess of actual remote process start.
 
-        This method is intended to be used by `TaktukRemote`.
+        This method is intended to be used by
+        `execo.action.TaktukRemote`.
         """
         if self._started:
             raise ValueError, "unable to start an already started process"
@@ -845,9 +850,9 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     @synchronized
     def _set_terminated(self, exit_code = None, error = False, error_reason = None, timeouted = None, forced_kill = None):
-        """Update `TaktukProcess` state: set it to terminated.
+        """Update TaktukProcess state: set it to terminated.
 
-        This method is intended to be used by `TaktukRemote`.
+        This method is intended to be used by `execo.action.TaktukRemote`.
 
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).

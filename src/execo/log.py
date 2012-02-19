@@ -50,12 +50,12 @@ _ansi_styles = {
 """Definition of ansi escape sequences for colorized output."""
 
 def set_style(string, ansi_style):
-    """Enclose a string with ansi color escape codes if ``configuration['color_mode']`` is True.
+    """Enclose a string with ansi color escape codes if ``execo.config.configuration['color_mode']`` is True.
 
     :param string: the string to enclose
     
-    :param ansi_style: an iterable of ansi attributes identifiers (those
-      found in `_ansi_styles`)
+    :param ansi_style: an iterable of ansi attributes identifiers
+      (those found in `execo.log._ansi_styles`)
     """
     ansi_style = 'style_' + ansi_style
     if (configuration.has_key('color_mode')
