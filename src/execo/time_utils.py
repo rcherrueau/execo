@@ -54,7 +54,8 @@ def str_date_to_unixts(d):
 
     date string format can be:
 
-    - a numeric. In this case, convert with `numeric_date_to_unixts`
+    - a numeric. In this case, convert with
+      `execo.time_utils.numeric_date_to_unixts`
 
     - a string in format 'YYYY-MM-DD HH:MM:SS[.MS]'
     """
@@ -76,7 +77,8 @@ def str_duration_to_seconds(duration):
 
     duration string format can be:
 
-    - a numeric. In this case, convert with `numeric_duration_to_seconds`
+    - a numeric. In this case, convert with
+      `execo.time_utils.numeric_duration_to_seconds`
 
     - a string in format 'HH:MM:SS[.MS]'
     """
@@ -101,9 +103,10 @@ def get_seconds(duration):
 
       - `datetime.timedelta`
 
-      - string: see `str_duration_to_seconds`
+      - string: see `execo.time_utils.str_duration_to_seconds`
 
-      - numeric type: see `numeric_duration_to_seconds`
+      - numeric type: see
+        `execo.time_utils.numeric_duration_to_seconds`
     """
     if duration == None:
         return None
@@ -121,9 +124,9 @@ def get_unixts(d):
 
       - `datetime.datetime`
 
-      - string: see `str_date_to_unixts`
+      - string: see `execo.time_utils.str_date_to_unixts`
 
-      - numeric type: see `numeric_date_to_unixts`
+      - numeric type: see `execo.time_utils.numeric_date_to_unixts`
     """
     if d == None:
         return None
@@ -191,7 +194,7 @@ def format_date(d, showms = False):
     """Return a string with the formatted date (year, month, day, hour, min, sec, ms) for pretty printing.
 
     :param date: a date in one of the formats handled (or None) (see
-      `get_unixts`).
+      `execo.time_utils.get_unixts`).
 
     :param showms: whether to show ms or not. Default False.
     """
@@ -201,7 +204,7 @@ def format_duration(duration, showms = False):
     """Return a string with a formatted duration (days, hours, mins, secs, ms) for pretty printing.
 
     :param duration: a duration in one of the formats handled (or
-      None) (see `get_seconds`).
+      None) (see `execo.time_utils.get_seconds`).
 
     :param showms: whether to show ms or not. Default False.
     """
@@ -225,10 +228,10 @@ def sleep(delay = None, until = None):
     until the date.
 
     :param delay: the delay to sleep in one of the formats handled (or
-      None) (see `get_seconds`).
+      None) (see `execo.time_utils.get_seconds`).
 
     :param until: the date until which to sleep in one of the formats
-      handled (or None) (see `get_unixts`).
+      handled (or None) (see `execo.time_utils.get_unixts`).
     """
     delay = get_seconds(delay)
     until = get_unixts(until)
@@ -258,7 +261,7 @@ class Timer(object):
         """Sleep until the given amount of time has elapsed since the Timer's start.
 
         :param elapsed: the delay to sleep in one of the formats
-          handled (or None) (see `get_seconds`).
+          handled (or None) (see `execo.time_utils.get_seconds`).
         """
         elapsed = get_seconds(elapsed)
         really_elapsed = time.time() - self._start

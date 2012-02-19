@@ -30,15 +30,16 @@ def sort_reports(reports):
 
 class Report(object):
 
-    """Human-readable summary of one or more `Action`.
+    """Human-readable summary of one or more `execo.action.Action`.
 
-    A Report gathers the results of `Action` or (recursively) of other
-    `Report`. `Report.output` returns a formatted string with a
-    human-readable summary of all `Action` results.
+    A Report gathers the results of actions or (recursively) of other
+    reports. `execo.report.Report.output` returns a formatted string
+    with a human-readable summary of all actions results.
 
-    To be able to gather transparently results both from `Action` and
-    sub-`Report`, both `Action` and `Report` implement the
-    `Report.stats`, `Report.reports`, `Report.name` methods.
+    To be able to gather transparently results both from actions and
+    sub-reports, both `execo.action.Action` and `execo.report.Report`
+    implement the `execo.report.Report.stats`,
+    `execo.report.Report.reports`, `execo.report.Report.name` methods.
 
     >>> r = Report()
     >>> r
@@ -49,8 +50,9 @@ class Report(object):
 
     def __init__(self, reports = None, name = None):
         """
-        :param reports: a `Report`, an `Action`, or an iterable of
-          these, which will be added to this `Report`.
+        :param reports: a `execo.report.Report`, an
+          `execo.action.Action`, or an iterable of these, which will
+          be added to this report.
 
         :param name a name given to this report. If None, a default
           name will be given.
@@ -64,21 +66,21 @@ class Report(object):
             self.add(reports)
 
     def add(self, reports):
-        """Add some sub-`Report` or `Action` to this `Report`.
+        """Add some sub-`execo.report.Report` or `execo.action.Action` to this report.
         
-        :param reports: an iterable of `Report` or `Action`, which
-          will be added to this `Report`.
+        :param reports: an iterable of `execo.report.Report` or
+          `execo.action.Action`, which will be added to this report.
         """
         self._reports.update(reports)
 
     def reports(self):
-        """Return a sorted (by start date) copy of the list of `Report` or `Action` registered to this `Report`."""
+        """Return a sorted (by start date) copy of the list of `execo.report.Report` or `execo.action.Action` registered to this report."""
         reports = list(self._reports)
         sort_reports(reports)
         return reports
 
     def name(self):
-        """Return the `Report` name."""
+        """Return the report name."""
         return self._name
 
     @staticmethod
@@ -99,7 +101,7 @@ class Report(object):
             }
 
     def stats(self):
-        """Return a dict summarizing the statistics of all `Action` and sub-`Report` registered to this `Report`.
+        """Return a dict summarizing the statistics of all `execo.action.Action` and sub-`execo.report.Report` registered to this report.
 
         This summary dict contains the following metrics:
         

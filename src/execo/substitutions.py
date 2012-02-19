@@ -28,18 +28,19 @@ def remote_substitute(string, all_hosts, index, frame_context):
 
     :param string: the string onto which to perfom the substitution.
 
-    :param all_hosts: an iterable of `Host` which is the context into
-      which the substitution will be made. all_hosts[index] is the
-      `Host` to which this string applies.
-
-    :param index: the index in all_hosts of the `Host` to which this
+    :param all_hosts: an iterable of `execo.host.Host` which is the
+      context into which the substitution will be
+      made. all_hosts[index] is the `execo.host.Host` to which this
       string applies.
+
+    :param index: the index in all_hosts of the `execo.host.Host` to
+      which this string applies.
 
     :param frame_context: a tuple of mappings (globals, locals) in the
       context of which the expressions (if any) will be evaluated.
 
     - Replaces all occurences of the literal string ``{{{host}}}`` by
-      the `Host` address itself.
+      the `execo.host.Host` address itself.
 
     - Replaces all occurences of ``{{<expression>}}`` in the following
       way: ``<expression>`` must be a python expression, which will be

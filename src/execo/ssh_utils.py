@@ -23,21 +23,22 @@ def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion
 
     :param user: the user to connect with. If None, will try to get
       the user from the given connexion_params, or fallback to the
-      default user in `default_connexion_params`, or no user option at
-      all.
+      default user in `execo.config.default_connexion_params`, or no
+      user option at all.
 
     :param keyfile: the keyfile to connect with. If None, will try to
       get the keyfile from the given connexion_params, or fallback to
-      the default keyfile in `default_connexion_params`, or no keyfile
-      option at all.
+      the default keyfile in `execo.config.default_connexion_params`,
+      or no keyfile option at all.
 
     :param port: the port to connect to. If None, will try to get the
       port from the given connexion_params, or fallback to the default
-      port in `default_connexion_params`, or no port option at all.
+      port in `execo.config.default_connexion_params`, or no port
+      option at all.
         
     :param connexion_params: a dict similar to
-      `default_connexion_params`, whose values will override those in
-      `default_connexion_params`
+      `exeoc.config.default_connexion_params`, whose values will
+      override those in `execo.config.default_connexion_params`
     """
     ssh_scp_auth_options = ()
     
@@ -81,8 +82,8 @@ def _get_connector_command(connector_params_entry,
     Constructs the command line based on values of
     <connector_params_entry> and <connector_options_params_entry> in
     connexion_params, if any, or fallback to
-    `default_connexion_params`, and add authentification options got
-    from `get_ssh_scp_auth_options`
+    `execo.config.default_connexion_params`, and add authentification
+    options got from `execo.ssh_utils.get_ssh_scp_auth_options`
 
     :param connector_params_entry: name of field in connexion_params
       or default_connexion_params containing the connector executable
@@ -92,13 +93,14 @@ def _get_connector_command(connector_params_entry,
       connexion_params or default_connexion_params containing the
       connector options
 
-    :param user: see `get_ssh_scp_auth_options`
+    :param user: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param keyfile: see `get_ssh_scp_auth_options`
+    :param keyfile: see `execo.ssh_utils.get_ssh_scp_auth_options`
     
-    :param port: see `get_ssh_scp_auth_options`
+    :param port: see `execo.ssh_utils.get_ssh_scp_auth_options`
     
-    :param connexion_params: see `get_ssh_scp_auth_options`
+    :param connexion_params: see
+      `execo.ssh_utils.get_ssh_scp_auth_options`
     """
     command = ()
     
@@ -133,16 +135,17 @@ def get_ssh_command(user = None, keyfile = None, port = None, connexion_params =
 
     Constructs the command line based on values of 'ssh' and
     'ssh_options' in connexion_params, if any, or fallback to
-    `default_connexion_params`, and add authentification options got
-    from `get_ssh_scp_auth_options`
+    `execo.config.default_connexion_params`, and add authentification
+    options got from `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param user: see `get_ssh_scp_auth_options`
+    :param user: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param keyfile: see `get_ssh_scp_auth_options`
+    :param keyfile: see `execo.ssh_utils.get_ssh_scp_auth_options`
     
-    :param port: see `get_ssh_scp_auth_options`
+    :param port: see `execo.ssh_utils.get_ssh_scp_auth_options`
     
-    :param connexion_params: see `get_ssh_scp_auth_options`
+    :param connexion_params: see
+      `execo.ssh_utils.get_ssh_scp_auth_options`
     """
     return _get_connector_command('ssh',
                                   'ssh_options',
@@ -156,16 +159,17 @@ def get_scp_command(user = None, keyfile = None, port = None, connexion_params =
 
     Constructs the command line based on values of 'scp' and
     'scp_options' in connexion_params, if any, or fallback to
-    `default_connexion_params`, and add authentification options got
-    from `get_ssh_scp_auth_options`
+    `execo.config.default_connexion_params`, and add authentification
+    options got from `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param user: see `get_ssh_scp_auth_options`
+    :param user: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param keyfile: see `get_ssh_scp_auth_options`
+    :param keyfile: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param port: see `get_ssh_scp_auth_options`
+    :param port: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param connexion_params: see `get_ssh_scp_auth_options`
+    :param connexion_params: see
+      `execo.ssh_utils.get_ssh_scp_auth_options`
     """
     return _get_connector_command('scp',
                                   'scp_options',
@@ -179,16 +183,18 @@ def get_taktuk_connector_command(user = None, keyfile = None, port = None, conne
 
     Constructs the command line based on values of 'taktuk_connector'
     and 'taktuk_connector_options' in connexion_params, if any, or
-    fallback to `default_connexion_params`, and add authentification
-    options got from `get_ssh_scp_auth_options`
+    fallback to `execo.config.default_connexion_params`, and add
+    authentification options got from
+    `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param user: see `get_ssh_scp_auth_options`
+    :param user: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param keyfile: see `get_ssh_scp_auth_options`
+    :param keyfile: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param port: see `get_ssh_scp_auth_options`
+    :param port: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
-    :param connexion_params: see `get_ssh_scp_auth_options`
+    :param connexion_params: see
+      `execo.ssh_utils.get_ssh_scp_auth_options`
     """
     return _get_connector_command('taktuk_connector',
                                   'taktuk_connector_options',
@@ -198,7 +204,7 @@ def get_taktuk_connector_command(user = None, keyfile = None, port = None, conne
                                   connexion_params)
 
 def get_ssh_scp_pty_option(connexion_params):
-    """Based on given connexion_params or default_connexion_params, return a boolean suitable for pty option for Process creation."""
+    """Based on given connexion_params or default_connexion_params, return a boolean suitable for pty option for process creation."""
     if connexion_params != None and connexion_params.has_key('ssh_scp_pty'):
         return connexion_params['ssh_scp_pty']
     elif default_connexion_params != None and default_connexion_params.has_key('ssh_scp_pty'):
