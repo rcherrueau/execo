@@ -52,7 +52,8 @@ configuration = {
 
 - ``style_log_header``, ``style_log_level``, ``style_object_repr``,
   ``style_emph``, ``style_report_warn``, ``style_report_error``:
-  iterables of ansi attributes identifiers (those found in `_styles`)
+  iterables of ansi attributes identifiers (those found in
+  `execo.log._ansi_styles`)
 
 """
 
@@ -117,7 +118,7 @@ default_connexion_params = {
 """
 
 default_default_connexion_params = default_connexion_params.copy()
-"""An initial backup copy of `default_default_connexion_params`
+"""An initial backup copy of `execo.config.default_default_connexion_params`
 
 If needed, after modifying default_connexion_params, the ssh/scp
 defaults are still available in default_default_connexion_params.
