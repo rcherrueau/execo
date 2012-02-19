@@ -54,18 +54,28 @@ class ParamSweeper(object):
         return ( HashableDict(zip(self.parameters.keys(), values)) for
                  values in itertools.product(*self.parameters.values()) )
 
-__g5k_node_group_regex = re.compile("([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr")
-def __group_cluster_func(elmt):
-    m = __g5k_node_group_regex.match(elmt)
+__g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr$")
+def g5k_host_get_cluster(elmt):
+    m = __g5k_host_group_regex.match(elmt)
     return m.group(1)
-def __group_site_func(elmt):
-    m = __g5k_node_group_regex.match(elmt)
+def g5k_host_get_site(elmt):
+    m = __g5k_host_group_regex.match(elmt)
     return m.group(2)
 
 def group_nodes(nodes):
     grouped_nodes = {}
-    for site, site_nodes in itertools.groupby(nodes, __group_site_func):
+    for site, site_nodes in itertools.groupby(
+        sorted(nodes,
+               lambda n1, n2: cmp(
+                   g5k_host_get_site(n1),
+                   g5k_host_get_site(n2))),
+        g5k_host_get_site):
         grouped_nodes[site] = {}
-        for cluster, cluster_nodes in itertools.groupby(site_nodes, __group_cluster_func):
+        for cluster, cluster_nodes in itertools.groupby(
+            sorted(site_nodes,
+                   lambda n1, n2: cmp(
+                       g5k_host_get_cluster(n1),
+                       g5k_host_get_cluster(n2))),
+            g5k_host_get_cluster):
             grouped_nodes[site][cluster] = list(cluster_nodes)
     return grouped_nodes
