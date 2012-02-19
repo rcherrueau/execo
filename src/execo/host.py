@@ -28,7 +28,7 @@ class Host(object):
       remote connexion and authentification (with a ssh like remote
       connexion tool).
 
-    Has an intuitive comparison and hashing behavior: two `Host` with
+    Has an intuitive comparison and hashing behavior: two `execo.host.Host` with
     the same members (address, user, keyfile, port) will hash equally
     and will be seen as identical keys in a set or dict.
 
@@ -47,8 +47,9 @@ class Host(object):
 
     def __init__(self, address, user = False, keyfile = False, port = False):
         """
-        :param address: (string or `Host`) the host address or another
-          `Host` instance which will be copied into this new instance
+        :param address: (string or `execo.host.Host`) the host address
+          or another `execo.host.Host` instance which will be copied
+          into this new instance
 
         :param user: (string) optional user whith which to connect. If
           False (default value), means use the default user. If None,
@@ -102,9 +103,9 @@ class Host(object):
         return "Host(%s)" % (self._args())
 
 def get_hosts_list(hosts):
-    """Deep copy an iterable of `Host` to a list of `Host`."""
+    """Deep copy an iterable of `execo.host.Host` to a list of `execo.host.Host`."""
     return [ Host(host) for host in hosts ]
 
 def get_hosts_set(hosts):
-    """Deep copy an iterable of `Host` to a set of `Host`."""
+    """Deep copy an iterable of `execo.host.Host` to a set of `execo.host.Host`."""
     return set(get_hosts_list(hosts))
