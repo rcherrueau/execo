@@ -31,26 +31,26 @@ import time
 
 class ActionLifecycleHandler(object):
 
-    """Abstract handler for `Action` lifecycle."""
+    """Abstract handler for `execo.action.Action` lifecycle."""
 
     def start(self, action):
         """Handle `execo.action.Action`'s start.
 
-        :param action: The `Action` which starts.
+        :param action: The Action which starts.
         """
         pass
 
     def end(self, action):
         """Handle `execo.action.Action`'s end.
 
-        :param action: The `Action` which ends.
+        :param action: The Action which ends.
         """
         pass
 
     def reset(self, action):
         """Handle `execo.action.Action`'s reset.
 
-        :param action: the `Action` which is reset.
+        :param action: the Action which is reset.
         """
         pass
 
@@ -58,11 +58,13 @@ class Action(object):
 
     """Abstract base class. A set of parallel processes.
 
-    An `Action` can be started (`Action.start`), killed
-    (`Action.kill`). One can wait (`Action.wait`) for an `Action`, it
-    means waiting for all processes in the `Action` to finish. An
-    `Action` can be run (`Action.wait`), it means start it then wait
-    for it to complete.
+    An `execo.action.Action` can be started
+    (`execo.action.Action.start`), killed
+    (`execo.action.Action.kill`). One can wait
+    (`execo.action.Action.wait`) for an Action, it means waiting for
+    all processes in the Action to finish. An Action can be run
+    (`execo.action.Action.run`), it means start it then wait for it to
+    complete.
     """
 
     _wait_multiple_actions_condition = threading.Condition()
@@ -72,11 +74,10 @@ class Action(object):
                  ignore_timeout = False, log_timeout = True,
                  ignore_error = False, log_error = True):
         """
-        :param name: `Action` name, one will be generated if None
-          given
+        :param name: Action name, one will be generated if None given
 
-        :param timeout: timeout for all processes of this
-          `Action`. None means no timeout.
+        :param timeout: timeout for all processes of this Action. None
+          means no timeout.
 
         :param ignore_exit_code: if True, processes with return value
           != 0 will still be counted as ok.
@@ -171,7 +172,7 @@ class Action(object):
         return "<" + set_style(self.__class__.__name__, 'object_repr') + "(%s)>" % (", ".join(self._args() + self._infos()),)
 
     def name(self):
-        """Return the `Report` name."""
+        """Return the `execo.report.Report` name."""
         if self._name == None:
             return "%s 0x%08.8x" % (self.__class__.__name__, id(self))
         else:
@@ -180,8 +181,8 @@ class Action(object):
     def add_lifecycle_handler(self, handler):
         """Add a lifecycle handler.
 
-        An instance of `ActionLifecycleHandler` for being notified of
-        action lifecycle events.
+        An instance of `execo.action.ActionLifecycleHandler` for being
+        notified of action lifecycle events.
         """
         self._lifecycle_handler.append(handler)
 
@@ -250,7 +251,7 @@ class Action(object):
         return self
 
     def processes(self):
-        """Return an iterable of all `Process`."""
+        """Return an iterable of all `execo.process.Process`."""
         return ()
 
     def processes_hosts(self):
@@ -258,11 +259,11 @@ class Action(object):
         return dict()
 
     def started(self):
-        """Return whether this `Action` was started (boolean)."""
+        """Return whether this Action was started (boolean)."""
         return self._started
 
     def ended(self):
-        """Return whether all processes of this `Action` have ended (boolean)."""
+        """Return whether all processes of this Action have ended (boolean)."""
         return self._ended
 
     def error(self):
@@ -292,9 +293,10 @@ class Action(object):
         return self.started() and self.ended() and self.ok()
 
     def stats(self):
-        """Return a dict summarizing the statistics of all processes of this `Action`.
+        """Return a dict summarizing the statistics of all processes
+        of this Action.
 
-        see `Report.stats`.
+        see `execo.report.Report.stats`.
         """
         stats = Report.empty_stats()
         for process in self.processes():
@@ -325,18 +327,18 @@ class Action(object):
         return stats
 
     def reports(self):
-        """See `Report.reports`."""
+        """See `execo.report.Report.reports`."""
         return ()
 
 def wait_multiple_actions(actions, timeout = None):
     """Wait for any of the actions given to terminate.
 
-    :param actions: An iterable of `Action`.
+    :param actions: An iterable of `execo.action.Action`.
 
     :param timeout: Optional timeout in any type supported by
-      `get_seconds`.
+      `execo.time_utils.get_seconds`.
 
-    returns: iterable of `Action` which have terminated.
+    returns: iterable of `execo.action.Action` which have terminated.
     """
     timeout = get_seconds(timeout)
     if timeout != None:
@@ -353,12 +355,12 @@ def wait_multiple_actions(actions, timeout = None):
 def wait_all_actions(actions, timeout = None):
     """Wait for all of the actions given to terminate.
 
-    :param actions: An iterable of `Action`.
+    :param actions: An iterable of `execo.action.Action`.
 
     :param timeout: Optional timeout in any type supported by
-      `get_seconds`.
+      `execo.time_utils.get_seconds`.
 
-    returns: iterable of `Action` which have terminated.
+    returns: iterable of `execo.action.Action` which have terminated.
     """
     timeout = get_seconds(timeout)
     if timeout != None:
@@ -393,22 +395,23 @@ class ActionNotificationProcessLifecycleHandler(ProcessLifecycleHandler):
 
 class Remote(Action):
 
-    """Launch a command remotely on several `Host`, with ``ssh`` or a similar remote connexion tool.
+    """Launch a command remotely on several host, with ``ssh`` or a similar remote connexion tool.
 
     One ssh process is launched for each connexion.
     """
 
     def __init__(self, hosts, remote_cmd, connexion_params = None, **kwargs):
         """
-        :param hosts: iterable of `Host` to which to connect and run
-          the command.
+        :param hosts: iterable of `execo.host.Host` to which to
+          connect and run the command.
 
         :param remote_cmd: the command to run remotely. substitions
-          described in `remote_substitute` will be performed.
+          described in `execo.substitutions.remote_substitute` will be
+          performed.
 
         :param connexion_params: a dict similar to
-          `default_connexion_params` whose values will override those
-          in `default_connexion_params` for connexion.
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
         """
         super(Remote, self).__init__(**kwargs)
         self._remote_cmd = remote_cmd
@@ -604,7 +607,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
 
 class _TaktukLifecycleHandler(ProcessLifecycleHandler):
 
-    """Notify `TaktukProcess` of their real taktuk `Process` lifecyle."""
+    """Notify `execo.process.TaktukProcess` of their real taktuk process lifecyle."""
     
     def __init__(self, taktukremote):
         super(_TaktukLifecycleHandler, self).__init__()
@@ -632,12 +635,13 @@ class _TaktukLifecycleHandler(ProcessLifecycleHandler):
 
 class TaktukRemote(Action):
 
-    """Launch a command remotely on several `Host`, with ``taktuk``.
+    """Launch a command remotely on several host, with ``taktuk``.
 
     One taktuk instance is ran, which itself connects to hosts through
     an ``ssh`` tree.
 
-    Behavior should be identical to `Remote`. Current limitation are:
+    Behavior should be identical to `execo.action.Remote`. Current
+    limitation are:
 
     - we can provide per-host user with taktuk, but we cannot provide
       per-host port or keyfile, so a check is made that all hosts and
@@ -649,21 +653,21 @@ class TaktukRemote(Action):
       http://taktuk.gforge.inria.fr/taktuk.html#bugs. With ssh the
       workaround is to pass options -tt but passing these options to
       taktuk connector causes immediate closing of the connector upon
-      connexion, thus this option is not in default taktuk connector
-      options in ``default_connexion_params``.
+      connexion.
     """
 
     def __init__(self, hosts, remote_cmd, connexion_params = None, **kwargs):
         """
-        :param hosts: iterable of `Host` to which to connect and run
-          the command.
+        :param hosts: iterable of `execo.host.Host` to which to
+          connect and run the command.
 
         :param remote_cmd: the command to run remotely. substitions
-          described in `remote_substitute` will be performed.
+          described in `execo.substitutions.remote_substitute` will be
+          performed.
 
         :param connexion_params: a dict similar to
-          `default_connexion_params` whose values will override those
-          in `default_connexion_params` for connexion.
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
         """
         super(TaktukRemote, self).__init__(**kwargs)
         self._remote_cmd = remote_cmd
@@ -827,26 +831,27 @@ class TaktukRemote(Action):
 
 class Put(Remote):
 
-    """Copy local files to several remote `Host`, with ``scp`` or a similar connexion tool."""
+    """Copy local files to several remote host, with ``scp`` or a similar connexion tool."""
 
     def __init__(self, hosts, local_files, remote_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
-        :param hosts: iterable of `Host` onto which to copy the files.
+        :param hosts: iterable of `execo.host.Host` onto which to copy
+          the files.
 
         :param local_files: an iterable of string of file
-          paths. substitions described in `remote_substitute` will be
-          performed.
+          paths. substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
         
         :param remote_location: the directory on the remote hosts were
           the files will be copied. substitions described in
-          `remote_substitute` will be performed.
+          `execo.substitutions.remote_substitute` will be performed.
 
         :param create_dirs: boolean indicating if remote_location is a
           directory to be created
 
         :param connexion_params: a dict similar to
-          `default_connexion_params` whose values will override those
-          in `default_connexion_params` for connexion.
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
         """
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
@@ -901,26 +906,27 @@ class Put(Remote):
 
 class Get(Remote):
 
-    """Copy remote files from several remote `Host` to a local directory, with ``scp`` or a similar connexion tool."""
+    """Copy remote files from several remote host to a local directory, with ``scp`` or a similar connexion tool."""
 
     def __init__(self, hosts, remote_files, local_location = ".", create_dirs = False, connexion_params = None, **kwargs):
         """
-        :param hosts: iterable of `Host` from which to get the files.
+        :param hosts: iterable of `execo.host.Host` from which to get
+          the files.
 
         :param remote_files: an iterable of string of file
-          paths. substitions described in `remote_substitute` will be
-          performed.
+          paths. substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
 
         :param local_location: the local directory were the files will
-          be copied. substitions described in `remote_substitute` will
-          be performed.
+          be copied. substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
 
         :param create_dirs: boolean indicating if local_location is a
           directory to be created
 
         :param connexion_params: a dict similar to
-          `default_connexion_params` whose values will override those
-          in `default_connexion_params` for connexion.
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
         """
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
@@ -1032,26 +1038,28 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
 
 class TaktukPut(TaktukRemote):
 
-    """Copy local files to several remote `Host`, with ``taktuk``."""
+    """Copy local files to several remote host, with ``taktuk``."""
 
     def __init__(self, hosts, local_files, remote_location = ".", connexion_params = None, **kwargs):
         """
-        :param hosts: iterable of `Host` onto which to copy the files.
+        :param hosts: iterable of `execo.host.Host` onto which to copy
+          the files.
 
         :param local_files: an iterable of string of file
-          paths. substitions described in `remote_substitute` will not
-          be performed, but taktuk substitutions can be used (see
+          paths. substitions described in
+          `execo.substitutions.remote_substitute` will not be
+          performed, but taktuk substitutions can be used (see
           http://taktuk.gforge.inria.fr/taktuk.html#item_put__2a_src__2a__2a_dest__2a)
         
         :param remote_location: the directory on the remote hosts were
           the files will be copied. substitions described in
-          `remote_substitute` will not be performed, but taktuk
-          substitutions can be used (see
+          `execo.substitutions.remote_substitute` will not be
+          performed, but taktuk substitutions can be used (see
           http://taktuk.gforge.inria.fr/taktuk.html#item_put__2a_src__2a__2a_dest__2a)
 
         :param connexion_params: a dict similar to
-          `default_connexion_params` whose values will override those
-          in `default_connexion_params` for connexion.
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
         """
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
@@ -1181,25 +1189,28 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
 
 class TaktukGet(TaktukRemote):
 
-    """Copy remote files from several remote `Host` to a local directory, with ``taktuk``."""
+    """Copy remote files from several remote host to a local directory, with ``taktuk``."""
 
     def __init__(self, hosts, remote_files, local_location = ".", connexion_params = None, **kwargs):
         """
-        :param hosts: iterable of `Host` from which to get the files.
+        :param hosts: iterable of `execo.host.Host` from which to get
+          the files.
 
         :param remote_files: an iterable of string of file
-          paths. Substitions described in `remote_substitute` will not
-          be performed, but taktuk substitutions can be used (see
+          paths. Substitions described in
+          `execo.substitutions.remote_substitute` will not be
+          performed, but taktuk substitutions can be used (see
           http://taktuk.gforge.inria.fr/taktuk.html#item_get__2a_src__2a__2a_dest__2a)
 
         :param local_location: the local directory were the files will
-          be copied. Substitions described in `remote_substitute` will
-          not be performed, but taktuk substitutions can be used (see
+          be copied. Substitions described in
+          `execo.substitutions.remote_substitute` will not be
+          performed, but taktuk substitutions can be used (see
           http://taktuk.gforge.inria.fr/taktuk.html#item_get__2a_src__2a__2a_dest__2a)
 
         :param connexion_params: a dict similar to
-          `default_connexion_params` whose values will override those
-          in `default_connexion_params` for connexion.
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
         """
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
@@ -1353,9 +1364,9 @@ class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
 
 class ParallelActions(Action):
 
-    """An `Action` running several sub-`Action` in parallel.
+    """An `execo.action.Action` running several sub-Actions in parallel.
 
-    Will start, kill, wait, run every `Action` in parallel.
+    Will start, kill, wait, run every action in parallel.
     """
 
     def __init__(self, actions, **kwargs):
@@ -1395,7 +1406,7 @@ class ParallelActions(Action):
             return self._name
 
     def actions(self):
-        """Return an iterable of `Action` that this `ParallelActions` gathers."""
+        """Return an iterable of `execo.action.Action` that this ParallelActions gathers."""
         return self._actions
 
     def start(self):
@@ -1456,9 +1467,9 @@ class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
 
 class SequentialActions(Action):
 
-    """An `Action` running several sub-`Action` sequentially.
+    """An `execo.action.Action` running several sub-actions sequentially.
 
-    Will start, kill, wait, run every `Action` sequentially.
+    Will start, kill, wait, run every Action sequentially.
     """
 
     def __init__(self, actions, **kwargs):
@@ -1504,7 +1515,7 @@ class SequentialActions(Action):
             return self._name
 
     def actions(self):
-        """Return an iterable of `Action` that this `SequentialActions` gathers."""
+        """Return an iterable of `execo.action.Action` that this SequentialActions gathers."""
         return self._actions
 
     def start(self):
