@@ -214,7 +214,7 @@ class _Conductor(object):
         os.close(self.__wpipe)
 
     def add_process(self, process):
-        """Register a new `Process` to the conductor.
+        """Register a new `execo.process.Process` to the conductor.
 
         Intended to be called from main thread.
         """
@@ -222,7 +222,7 @@ class _Conductor(object):
         self.__wakeup()
 
     def update_process(self, process):
-        """Update `Process` to the conductor.
+        """Update `execo.process.Process` to the conductor.
 
         Intended to be called from main thread.
 
@@ -234,7 +234,7 @@ class _Conductor(object):
         self.__wakeup()
 
     def remove_process(self, process, exit_code = None):
-        """Remove a `Process` from the conductor.
+        """Remove a `execo.process.Process` from the conductor.
 
         Intended to be called from main thread.
         """
@@ -242,7 +242,7 @@ class _Conductor(object):
         self.__wakeup()
 
     def notify_process_terminated(self, pid, exit_code):
-        """Tell the conductor thread that a `Process` has terminated.
+        """Tell the conductor thread that a `execo.process.Process` has terminated.
 
         Intended to be called from the reaper thread.
         """
@@ -332,7 +332,7 @@ class _Conductor(object):
             process._set_terminated(exit_code = exit_code)
 
     def __get_next_timeout(self):
-        """Return the remaining time until the smallest timeout date of all registered `Process`."""
+        """Return the remaining time until the smallest timeout date of all registered `execo.process.Process`."""
         next_timeout = None
         if len(self.__timeline) != 0:
             self.__timeline.sort(key = lambda x: x[0])
@@ -340,7 +340,7 @@ class _Conductor(object):
         return next_timeout
 
     def __check_timeouts(self):
-        """Iterate all registered `Process` whose timeout is reached, kill them gently.
+        """Iterate all registered `execo.process.Process` whose timeout is reached, kill them gently.
 
         And remove them from the timeline.
         """
@@ -538,4 +538,4 @@ def enable_full_debug():
     _run_debug_thread()
 
 the_conductor = _Conductor().start()
-"""The **one and only** `_Conductor` instance."""
+"""The **one and only** `execo.conductor._Conductor` instance."""
