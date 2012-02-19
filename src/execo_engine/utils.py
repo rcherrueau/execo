@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import itertools
+import itertools, re
 
 class HashableDict(dict):
 
@@ -53,3 +53,19 @@ class ParamSweeper(object):
     def __iter__(self):
         return ( HashableDict(zip(self.parameters.keys(), values)) for
                  values in itertools.product(*self.parameters.values()) )
+
+__g5k_node_group_regex = re.compile("([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr")
+def __group_cluster_func(elmt):
+    m = __g5k_node_group_regex.match(elmt)
+    return m.group(1)
+def __group_site_func(elmt):
+    m = __g5k_node_group_regex.match(elmt)
+    return m.group(2)
+
+def group_nodes(nodes):
+    grouped_nodes = {}
+    for site, site_nodes in itertools.groupby(nodes, __group_site_func):
+        grouped_nodes[site] = {}
+        for cluster, cluster_nodes in itertools.groupby(site_nodes, __group_cluster_func):
+            grouped_nodes[site][cluster] = list(cluster_nodes)
+    return grouped_nodes
