@@ -1,8 +1,8 @@
 import threading, time
-from execo_engine import Engine
+from execo_engine import Sweep
 import execo, execo_g5k
 
-class bag_of_tasks_per_cluster(Engine):
+class bag_of_tasks_per_cluster(Sweep):
 
     def __init__(self):
         super(bag_of_tasks_per_cluster, self).__init__()

@@ -22,6 +22,7 @@ import optparse
 import os
 import sys
 import time
+import inspect
 import execo.log
 
 """execo run Engine template base."""
@@ -74,6 +75,13 @@ def _tee_fd(fileno, filename):
         os.close(pr)
         os.dup2(pw, fileno)
         os.close(pw)
+
+def run_meth_on_engine_ancestors(instance, method_name):
+    engine_ancestors = [ cls for cls in inspect.getmro(instance.__class__) if issubclass(cls, Engine) ]
+    for cls in engine_ancestors:
+        meth = cls.__dict__.get(method_name)
+        if meth is not None:
+            meth(instance)
 
 class Engine(object):
 
@@ -160,12 +168,13 @@ class Engine(object):
         self.result_dir = None
         # will contain the full path of the current experiment run result directory
 
-    def start(self):
-        """Start the experiment.
+    def _start(self):
+        """Start the engine.
 
-        Properly init the experiment Engine instance, then pass the
-        control to the overriden run() method of the requested
-        experiment Engine.
+        Properly initialize the experiment Engine instance, then call
+        the init() method of all subclasses, then pass the control to
+        the overridden run() method of the requested experiment
+        Engine.
         """
         del sys.argv[1]
         (self.options, self.args) = self.options_parser.parse_args()
@@ -185,6 +194,7 @@ class Engine(object):
                 self._redirect_outputs(self.options.merge_outputs)
         if self.options.continue_dir:
             self.logger.info("continue experiment in %s" % (self.options.continue_dir,))
+        run_meth_on_engine_ancestors(self, "init")
         self.run()
 
     # ------------------------------------------------------------------
@@ -208,6 +218,9 @@ class Engine(object):
         name in the current directory.
         """
         self.result_dir = os.path.abspath(self.run_name)
+
+    def init(self):
+        pass
 
     def run(self):
         """Experiment run method

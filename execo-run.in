@@ -48,4 +48,4 @@ module search path is:
     engine_module = __import__(module_name)
     engine_class = getattr(engine_module, class_name)
     engine_instance = engine_class()
-    engine_instance.start()
+    engine_instance._start()

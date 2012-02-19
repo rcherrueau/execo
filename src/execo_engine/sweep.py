@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from engine import Engine
-from param_sweeper import ParamSweeper
+from utils import ParamSweeper
 import threading, os.path, cPickle
 
 class Sweep(Engine):
@@ -27,50 +27,46 @@ class Sweep(Engine):
     def __init__(self):
         super(Sweep, self).__init__()
         self.__lock = threading.RLock()
-        self.__combinations = None
-        self.__done = None
-        self.__remaining_iter = None
+        self.__done = set()
+        self.__inprogress = set()
         self.__done_file = None
-        self.parameters = {}
 
-    def __update_remaining_iter(self):
-        with self.__lock:
-            remaining = self.__combinations.difference(self.__done)
-            self.__remaining_iter = iter(remaining)
+    def init(self):
+        self.__done_file = os.path.join(self.result_dir, "sweep_done")
+        if os.path.isfile(self.__done_file):
+            with open(self.__done_file, "r") as done_file:
+                self.__done = cPickle.load(done_file)
 
-    def __post_init(self):
-        with self.__lock:
-            if not self.__combinations:
-                self.__combinations = frozenset(ParamSweeper(self.parameters))
-                self.create_result_dir()
-                self.__done_file = os.path.join(self.result_dir, "sweep_done")
-                if os.path.isfile(self.__done_file):
-                    with open(self.__done_file, "r") as done_file:
-                        self.__done = cPickle.load(done_file)
-                else:
-                    self.__done = set()
-                self.__update_remaining_iter()
+    def __remaining(self, parameters):
+        return frozenset(ParamSweeper(parameters)).difference(self.__done).difference(self.__inprogress)
 
-    def next_xp(self):
+    def next_xp(self, parameters):
         with self.__lock:
-            self.__post_init()
             try:
-                return self.__remaining_iter.next()
+                xp = iter(self.__remaining(parameters)).next()
+                self.__inprogress.add(xp)
+                self.logger.info("new xp: %s. %i remaining, %i in progress" % (xp, self.num_xp_remaining(parameters), len(self.__inprogress)))
+                return xp
             except StopIteration:
+                self.logger.info("no new xp. %i remaining, %i in progress" % (self.num_xp_remaining(parameters), len(self.__inprogress)))
                 return None
 
-    def mark_xp_done(self, xp):
+    def xp_done(self, xp):
         with self.__lock:
-            self.__post_init()
             self.__done.add(xp)
-            self.__update_remaining_iter()
+            self.__inprogress.discard(xp)
+            self.logger.info("xp done: %s" % (xp,))
+            self.create_result_dir()
             with open(self.__done_file, "w") as done_file:
                 cPickle.dump(self.__done, done_file)
 
-    def num_xp_remaining(self):
+    def reset_xp(self):
         with self.__lock:
-            return len(self.__combinations.difference(self.__done))
+            self.__inprogress.clear()
 
-    def num_xp_total(self):
+    def num_xp_remaining(self, parameters):
         with self.__lock:
-            return len(self.__combinations)
+            return len(self.__remaining(parameters))
+
+    def num_xp_total(self, parameters):
+        return len(ParamSweeper(parameters))
