@@ -160,16 +160,17 @@ class OarSubmission(object):
 def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
     """Submit jobs.
 
-    :param job_specs: iterable of tuples (OarSubmission, site) with None
-      for local site
+    :param job_specs: iterable of tuples (execo_g5k.oar.OarSubmission,
+      site) with None for local site
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
 
     Returns a list of tuples (oarjob id, site), with site == None for
     local site. If submission error, oarjob id == None. The returned
@@ -247,11 +248,12 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
@@ -298,11 +300,12 @@ def get_current_oar_jobs(sites = None,
         
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
 
     :param abort_on_error: default False. If True, raises an exception
       on any error. If False, will returned the list of job got, even
@@ -366,11 +369,12 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     
     Hash returned may contain these keys:
 
@@ -437,9 +441,10 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     """Sleep until an oar job's start time.
 
     As long as the job isn't scheduled, wait_oar_job_start will sleep
-    / poll every `g5k_configuration['polling_interval']` seconds until
-    it is scheduled. Then, knowing its start date, it will sleep the
-    amount of time necessary to wait for the job start.
+    / poll every
+    `execo_g5k.config.g5k_configuration['polling_interval']` seconds
+    until it is scheduled. Then, knowing its start date, it will sleep
+    the amount of time necessary to wait for the job start.
 
     returns True if wait was successful, False otherwise (job
     cancelled, error)
@@ -452,7 +457,7 @@ def wait_oar_job_start(oar_job_id = None, site = None,
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is None (no
       timeout).
@@ -502,7 +507,7 @@ def wait_oar_job_start(oar_job_id = None, site = None,
         sleep(mymin(g5k_configuration['polling_interval'], countdown.remaining()))
     
 def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
-    """Return an iterable of `Host` containing the hosts of an oar job.
+    """Return an iterable of `execo.host.Host` containing the hosts of an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
@@ -512,11 +517,12 @@ def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params 
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
@@ -557,11 +563,12 @@ def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_param
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']

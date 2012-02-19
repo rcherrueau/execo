@@ -46,11 +46,11 @@ g5k_configuration = {
 - ``default_timeout``: default timeout for all calls to g5k services
   (except deployments).
 
-- ``check_deployed_command``: default shell command used by `deploy`
-  to check that the nodes are correctly deployed. This command should
-  return 0 if the node is correctly deployed, or another value
-  otherwise. The default checks that the root is not on the second
-  partition of the disk.
+- ``check_deployed_command``: default shell command used by
+  `execo_g5k.kadeploy.deploy` to check that the nodes are correctly
+  deployed. This command should return 0 if the node is correctly
+  deployed, or another value otherwise. The default checks that the
+  root is not on the second partition of the disk.
 
 - ``no_ssh_for_local_frontend``: if True, don't use ssh to issue g5k
   commands for local site. If False, always use ssh, both for remote
@@ -99,7 +99,7 @@ default_oarsh_oarcp_params = {
 # _ENDOF_ default_oarsh_oarcp_params
 """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
 
-See `execo.default_connexion_params`
+See `execo.config.default_connexion_params`
 """
 
 # _STARTOF_ default_frontend_connexion_params

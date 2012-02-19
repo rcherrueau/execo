@@ -56,11 +56,12 @@ def oargridsub(job_specs, reservation_date = None,
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
 
     Returns a tuple (oargrid_job_id, ssh_key), or (None, None) if
     error.
@@ -132,7 +133,7 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -173,11 +174,12 @@ def get_current_oargrid_jobs(start_between = None,
         
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
@@ -215,11 +217,12 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
 
     Hash returned contains these keys:
 
@@ -261,26 +264,28 @@ def wait_oargrid_job_start(oargrid_job_id = None, frontend_connexion_params = No
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     """
     sleep(until = get_oargrid_job_info(oargrid_job_id, frontend_connexion_params, timeout)['start_date'])
 
 def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, timeout = False):
-    """Return an iterable of `Host` containing the hosts of an oargrid job.
+    """Return an iterable of `execo.host.Host` containing the hosts of an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
-      means use ``g5k_configuration['default_timeout']``. None means no
-      timeout.
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']

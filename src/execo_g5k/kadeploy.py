@@ -36,7 +36,7 @@ class Deployment(object):
 
     members are:
 
-    - hosts: iterable of hosts on which to deploy.
+    - hosts: iterable of `execo.host.Host` on which to deploy.
 
     - env_file:
 
@@ -102,8 +102,8 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
     
     def __init__(self, kadeployer, out = False):
         """
-        :param kadeployer: the `Kadeployer` to which this
-          `ProcessOutputHandler` is attached.
+        :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
+          which this `execo.process.ProcessOutputHandler` is attached.
         """
         super(_KadeployStdoutHandler, self).__init__()
         self._kadeployer = kadeployer
@@ -144,8 +144,8 @@ class _KadeployStderrHandler(ProcessOutputHandler):
     
     def __init__(self, kadeployer, out = False):
         """
-        :param kadeployer: the `Kadeployer` to which this
-          `ProcessOutputHandler` is attached.
+        :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
+          which this `execo.process.ProcessOutputHandler` is attached.
         """
         super(_KadeployStderrHandler, self).__init__()
         self._kadeployer = kadeployer
@@ -169,7 +169,8 @@ class Kadeployer(Remote):
 
         :param frontend_connexion_params: connexion params for
           connecting to sites' frontends if needed. Values override
-          those in `default_frontend_connexion_params`.
+          those in
+          `execo_g5k.config.default_frontend_connexion_params`.
 
         :param out: if True, output kadeploy stdout / stderr to
           stdout.
@@ -266,26 +267,26 @@ class Kadeployer(Remote):
             return self._name
 
     def _add_good_host_address(self, host_address):
-        """Add a host to the deployed hosts list. Intended to be called from the `ProcessOutputHandler`."""
+        """Add a host to the deployed hosts list. Intended to be called from the `execo.process.ProcessOutputHandler`."""
         self._good_hosts.add(Host(host_address))
 
     def _add_bad_host_address(self, host_address):
-        """Add a host to the hosts not deployed list. Intended to be called from the `ProcessOutputHandler`."""
+        """Add a host to the hosts not deployed list. Intended to be called from the `execo.process.ProcessOutputHandler`."""
         self._bad_hosts.add(Host(host_address))
 
     def get_deployed_hosts(self):
         """Return an iterable of `Host` containing the deployed hosts.
 
-        this iterable won't be complete if `Kadeployer` has not
-        terminated.
+        this iterable won't be complete if
+        `execo_g5k.kadeploy.Kadeployer` has not terminated.
         """
         return list(self._good_hosts)
 
     def get_error_hosts(self):
         """Return an iterable of `Host` containing the hosts not deployed.
 
-        this iterable won't be complete if `Kadeployer` has not
-        terminated.
+        this iterable won't be complete if
+        `execo_g5k.kadeploy.Kadeployer` has not terminated.
         """
         return list(self._fhosts.difference(self._good_hosts))
 
@@ -314,13 +315,14 @@ def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout 
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
 
-    Returns a tuple (iterable of `Host` containing the deployed host,
-    iterable of `Host` containing the nodes not deployed).
+    Returns a tuple (iterable of `execo.host.Host` containing the
+    deployed host, iterable of `execo.host.Host` containing the nodes
+    not deployed).
     """
     kadeployer = Kadeployer(deployment,
                             out = out,
@@ -349,9 +351,9 @@ def deploy(deployment,
 
     - loop `num_tries` times:
 
-      - if `check_deployed_command` given, try to connect to these
+      - if ``check_deployed_command`` given, try to connect to these
         hosts using the supplied `connexion_params` (or the default
-        ones), and to execute `check_deployed_command`. If connexion
+        ones), and to execute ``check_deployed_command``. If connexion
         succeeds and the command returns 0, the host is assumed to be
         deployed, else it is assumed to be undeployed.
 
@@ -365,23 +367,23 @@ def deploy(deployment,
     returns a tuple with the list of deployed hosts and the list of
     undeployed hosts.
 
-    :param deployment: instance of Deployment class describing the
-      intended kadeployment.
+    :param deployment: instance of `execo.kadeploy.Deployment` class
+      describing the intended kadeployment.
 
     :param check_deployed_command: command to perform remotely to
       check node deployement. May be a String, True, False or None. If
       String: the actual command to be used (This command should
       return 0 if the node is correctly deployed, or another value
       otherwise). If True, the default command value will be used
-      (from `g5k_configuration`). If None or False, no check is made
-      and deployed/undeployed status will be taken from kadeploy's
-      output.
+      (from `execo_g5k.config.g5k_configuration`). If None or False,
+      no check is made and deployed/undeployed status will be taken
+      from kadeploy's output.
 
     :param node_connexion_params: a dict similar to
-      `execo.default_connexion_params` whose values will override
-      those in `execo.default_connexion_params` when connecting to
-      check node deployment with ``check_deployed_command`` (see
-      below).
+      `execo.config.default_connexion_params` whose values will
+      override those in `execo.config.default_connexion_params` when
+      connecting to check node deployment with
+      ``check_deployed_command`` (see below).
 
     :param num_tries: number of deploy tries
 
@@ -395,7 +397,7 @@ def deploy(deployment,
 
     :param frontend_connexion_params: connexion params for connecting
       to sites' frontends if needed. Values override those in
-      `default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connexion_params`.
 
     :param deploy_timeout: timeout for deployement. Default is None,
       which means no timeout.
@@ -405,7 +407,8 @@ def deploy(deployment,
 
     :param timeout: timeout for g5k operations, except deployment.
       Default is False, which means use
-      ``g5k_configuration['default_timeout']``. None means no timeout.
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
     """
 
     if timeout == False:
