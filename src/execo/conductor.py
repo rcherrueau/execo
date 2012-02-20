@@ -43,7 +43,7 @@ def _event_desc(event):
     desc = ""
     first = True
     for t in ('POLLIN', 'POLLPRI', 'POLLOUT', 'POLLERR', 'POLLHUP', 'POLLNVAL'):
-        if event & hasattr(select,t):
+        if event & select.__getattribute__(t):
             if not first: desc += '|'
             desc += t
             first = False
