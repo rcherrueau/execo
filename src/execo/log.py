@@ -58,9 +58,8 @@ def set_style(string, ansi_style):
       (those found in `execo.log._ansi_styles`)
     """
     ansi_style = 'style_' + ansi_style
-    if (configuration.has_key('color_mode')
-        and configuration['color_mode']
-        and configuration.has_key(ansi_style)):
+    if (configuration.get('color_mode')
+        and configuration.get(ansi_style)):
         style_seq = ""
         for attr in configuration[ansi_style]:
             style_seq += _ansi_styles[attr]
@@ -74,7 +73,4 @@ logger = logging.getLogger("execo")
 logger_handler = logging.StreamHandler(sys.stdout)
 logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
 logger.addHandler(logger_handler)
-if configuration.has_key('log_level'):
-    logger.setLevel(configuration['log_level'])
-else:
-    logger.setLevel(logging.WARNING)
+logger.setLevel(configuration.get('log_level'))

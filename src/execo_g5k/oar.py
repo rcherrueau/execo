@@ -178,7 +178,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
     parameter.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     processes = []
     for (spec, frontend) in job_specs:
         oarsub_cmdline = 'oarsub'
@@ -209,7 +209,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
             oarsub_cmdline += ' "sleep 31536000"'
         if frontend == None:
             frontend = default_frontend
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
+        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
             p = Process(oarsub_cmdline,
                         timeout = timeout,
                         pty = True)
@@ -257,13 +257,13 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
       means no timeout.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     processes = []
     for (job_id, frontend) in job_specs:
         oardel_cmdline = "oardel %i" % (job_id,)
         if frontend == None:
             frontend = default_frontend
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
+        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
             processes.append(Process(oardel_cmdline,
                                      timeout = timeout,
                                      log_exit_code = False,
@@ -313,7 +313,7 @@ def get_current_oar_jobs(frontends = None,
       if incomplete (some frontends may have failed to answer).
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     if start_between: start_between = [ get_unixts(t) for t in start_between ]
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
     processes = []
@@ -323,7 +323,7 @@ def get_current_oar_jobs(frontends = None,
     for frontend in frontends:
         if frontend == None:
             frontend = default_frontend
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
+        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
             p = Process(cmd,
                         timeout = timeout,
                         pty = True)
@@ -391,7 +391,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None, frontend_connexion_para
     But no info may be available as long as the job is not scheduled.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
@@ -400,7 +400,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None, frontend_connexion_para
     cmd = "oarstat -fj %i" % (oar_job_id,)
     if frontend == None:
         frontend = default_frontend
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
         process = Process(cmd,
                           timeout = timeout,
                           pty = True,
@@ -494,18 +494,18 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                 return True
         if infos.has_key('start_date'):
             if now >= infos['start_date']:
-                sleep(mymin(g5k_configuration['tiny_polling_interval'], countdown.remaining()))
+                sleep(mymin(g5k_configuration.get('tiny_polling_interval'), countdown.remaining()))
                 continue
             prediction = check_prediction_changed(prediction, infos, 'start_date')
-            if infos['start_date'] < now + g5k_configuration['polling_interval']:
+            if infos['start_date'] < now + g5k_configuration.get('polling_interval'):
                 sleep(until = mymin(infos['start_date'], now + countdown.remaining() if countdown.remaining() != None else None))
                 continue
         elif infos.has_key('scheduled_start'):
             prediction = check_prediction_changed(prediction, infos, 'scheduled_start')
-            if infos['scheduled_start'] < now + g5k_configuration['polling_interval']:
+            if infos['scheduled_start'] < now + g5k_configuration.get('polling_interval'):
                 sleep(until = mymin(infos['scheduled_start'], countdown.remaining()))
                 continue
-        sleep(mymin(g5k_configuration['polling_interval'], countdown.remaining()))
+        sleep(mymin(g5k_configuration.get('polling_interval'), countdown.remaining()))
     
 def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
     """Return an iterable of `execo.host.Host` containing the hosts of an oar job.
@@ -526,7 +526,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_par
       means no timeout.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
@@ -537,7 +537,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_par
     cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id}
     if frontend == None:
         frontend = default_frontend
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
         process = Process(cmd,
                           timeout = countdown.remaining(),
                           pty = True)
@@ -572,7 +572,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
       means no timeout.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
@@ -584,7 +584,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
     if frontend == None:
         frontend = default_frontend
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
         process = Process(cmd,
                           timeout = countdown.remaining(),
                           pty = True)

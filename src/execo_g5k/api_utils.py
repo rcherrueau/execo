@@ -66,7 +66,7 @@ def _get_g5k_api():
     """Get a singleton instance of a g5k api rest resource."""
     global _g5k_api #IGNORE:W0603
     if not _g5k_api:
-        _g5k_api = APIConnexion(g5k_api_params['api_uri'],
+        _g5k_api = APIConnexion(g5k_api_params.get('api_uri'),
                                 username = g5k_api_params.get('username'),
                                 password = g5k_api_params.get('password'))
     return _g5k_api

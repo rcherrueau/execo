@@ -67,7 +67,7 @@ def oargridsub(job_specs, reservation_date = None,
     error.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     oargridsub_cmdline = 'oargridsub'
     if additional_options != None:
         oargridsub_cmdline += ' %s' % (additional_options,)
@@ -97,7 +97,7 @@ def oargridsub(job_specs, reservation_date = None,
             oargridsub_cmdline += ':prop="%s"' % (spec.sql_properties,)
         if spec.name != None:
             oargridsub_cmdline += ':name="%s"' % (spec.name,)
-    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
         process = Process(oargridsub_cmdline,
                           timeout = timeout,
                           pty = True)
@@ -140,11 +140,11 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
       timeout.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     processes = []
     for job_id in job_ids:
         oargriddel_cmdline = "oargriddel %i" % (job_id,)
-        if g5k_configuration['no_ssh_for_local_frontend'] == True:
+        if g5k_configuration.get('no_ssh_for_local_frontend') == True:
             processes.append(Process(oargriddel_cmdline,
                                      timeout = timeout,
                                      log_exit_code = False,
@@ -182,11 +182,11 @@ def get_current_oargrid_jobs(start_between = None,
       means no timeout.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     if start_between: start_between = [ get_unixts(t) for t in start_between ]
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
     cmd = "oargridstat"
-    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
         process = Process(cmd,
                           timeout = timeout,
                           pty = True).run()
@@ -231,9 +231,9 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
     - ``walltime``: job's walltime in seconds
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     cmd = "oargridstat %i" % oargrid_job_id
-    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
         process = Process(cmd,
                           timeout = timeout,
                           pty = True)
@@ -288,9 +288,9 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
       means no timeout.
     """
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
     cmd = "oargridstat -wl %i" % oargrid_job_id
-    if g5k_configuration['no_ssh_for_local_frontend'] == True:
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
         process = Process(cmd,
                           timeout = timeout,
                           pty = True)

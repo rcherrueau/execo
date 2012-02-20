@@ -38,7 +38,7 @@ def get_default_frontend():
 default_frontend = get_default_frontend() or ""
 
 def _get_frontend_connexion_params(frontend_connexion_params):
-    params = default_frontend_connexion_params
+    params = default_frontend_connexion_params.copy()
     if frontend_connexion_params:
         params.update(frontend_connexion_params)
     return params

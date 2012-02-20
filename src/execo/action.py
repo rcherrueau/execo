@@ -721,11 +721,11 @@ class TaktukRemote(Action):
         check_default_port = None
         if self._connexion_params != None and self._connexion_params.has_key('keyfile'):
             check_default_keyfile = self._connexion_params['keyfile']
-        elif default_connexion_params != None and default_connexion_params.has_key('keyfile'):
+        elif default_connexion_params.get('keyfile'):
             check_default_keyfile = default_connexion_params['keyfile']
         if self._connexion_params != None and self._connexion_params.has_key('port'):
             check_default_port = self._connexion_params['port']
-        elif default_connexion_params != None and default_connexion_params.has_key('port'):
+        elif default_connexion_params.get('port'):
             check_default_port = default_connexion_params['port']
         check_keyfiles = set()
         check_ports = set()
@@ -755,19 +755,15 @@ class TaktukRemote(Action):
                 self._taktuk_cmdline += (self._connexion_params['taktuk'],)
             else:
                 raise ValueError, "invalid taktuk command in connexion_params %s" % (self._connexion_params,)
-        elif default_connexion_params != None and default_connexion_params.has_key('taktuk'):
-            if default_connexion_params['taktuk'] != None:
-                self._taktuk_cmdline += (default_connexion_params['taktuk'],)
-            else:
-                raise ValueError, "invalid taktuk command in default_connexion_params %s" % (default_connexion_params,)
+        elif default_connexion_params.get('taktuk'):
+            self._taktuk_cmdline += (default_connexion_params['taktuk'],)
         else:
             raise ValueError, "no taktuk command in default_connexion_params %s" % (default_connexion_params,)
         if self._connexion_params != None and self._connexion_params.has_key('taktuk_options'):
             if self._connexion_params['taktuk_options'] != None:
                 self._taktuk_cmdline += self._connexion_params['taktuk_options']
-        elif default_connexion_params != None and default_connexion_params.has_key('taktuk_options'):
-            if default_connexion_params['taktuk_options'] != None:
-                self._taktuk_cmdline += default_connexion_params['taktuk_options']
+        elif default_connexion_params.get('taktuk_options'):
+            self._taktuk_cmdline += default_connexion_params['taktuk_options']
         self._taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
                                  "-o", 'error="B $position # $line\\n"',
                                  "-o", 'status="C $position # $line\\n"',

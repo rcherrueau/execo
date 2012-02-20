@@ -64,19 +64,19 @@ class Deployment(object):
         self.other_options = other_options
 
     def _get_common_kadeploy_command_line(self):
-        cmd_line = g5k_configuration['kadeploy3']
-        cmd_line += " " + g5k_configuration['kadeploy3_options']
+        cmd_line = g5k_configuration.get('kadeploy3')
+        cmd_line += " " + g5k_configuration.get('kadeploy3_options')
         if self.env_file and self.env_name:
             raise ValueError, "Deployment cannot have both env_file and env_name"
         if (not self.env_file) and (not self.env_name):
-            if g5k_configuration.has_key('default_environment_name') and g5k_configuration.has_key('default_environment_file'):
-                raise Exception, "g5k_configuration cannot have both default_environment_name and default_environment_file"
-            if (not g5k_configuration.has_key('default_environment_name')) and (not g5k_configuration.has_key('default_environment_file')):
+            if g5k_configuration.get('default_env_name') and g5k_configuration.get('default_env_file'):
+                raise Exception, "g5k_configuration cannot have both default_env_name and default_env_file"
+            if (not g5k_configuration.get('default_env_name')) and (not g5k_configuration.get('default_env_file')):
                 raise Exception, "no environment name or file found"
-            if g5k_configuration.has_key('default_environment_name'):
-                cmd_line += " -e %s" % (g5k_configuration['default_environment_name'],)
-            elif g5k_configuration.has_key('default_environment_file'):
-                cmd_line += " -a %s" % (g5k_configuration['default_environment_file'],)
+            if g5k_configuration.get('default_env_name'):
+                cmd_line += " -e %s" % (g5k_configuration['default_env_name'],)
+            elif g5k_configuration.get('default_env_file'):
+                cmd_line += " -a %s" % (g5k_configuration['default_env_file'],)
         elif self.env_name:
             cmd_line += " -e %s" % (self.env_name,)
         elif self.env_file:
@@ -210,7 +210,7 @@ class Kadeployer(Remote):
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
                 kadeploy_command += " -m %s" % host.address
-            if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
+            if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
                 p = Process(kadeploy_command,
                             stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
@@ -411,13 +411,13 @@ def deploy(deployment,
     """
 
     if timeout == False:
-        timeout = g5k_configuration['default_timeout']
+        timeout = g5k_configuration.get('default_timeout')
 
     if check_enough_func == None:
         check_enough_func = lambda deployed, undeployed: len(undeployed) == 0
 
     if check_deployed_command == True:
-        check_deployed_command = g5k_configuration['check_deployed_command']
+        check_deployed_command = g5k_configuration.get('check_deployed_command')
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params): #IGNORE:W0613
         logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s" % (undeployed_hosts,))

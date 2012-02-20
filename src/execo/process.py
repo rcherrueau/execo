@@ -660,7 +660,7 @@ class Process(ProcessBase):
             if sig == signal.SIGTERM:
                 self._already_got_sigterm = True
                 if auto_sigterm_timeout == True:
-                    self._timeout_date = time.time() + configuration['kill_timeout']
+                    self._timeout_date = time.time() + configuration.get('kill_timeout')
                     the_conductor.update_process(self)
             if sig == signal.SIGKILL:
                 self._forced_kill = True
