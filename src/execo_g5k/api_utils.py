@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from execo_g5k.config import g5k_api_params
+from execo_g5k.config import g5k_configuration
 import httplib2
 import json
 
@@ -66,9 +66,9 @@ def _get_g5k_api():
     """Get a singleton instance of a g5k api rest resource."""
     global _g5k_api #IGNORE:W0603
     if not _g5k_api:
-        _g5k_api = APIConnexion(g5k_api_params.get('api_uri'),
-                                username = g5k_api_params.get('username'),
-                                password = g5k_api_params.get('password'))
+        _g5k_api = APIConnexion(g5k_configuration.get('api_uri'),
+                                username = g5k_configuration.get('username'),
+                                password = g5k_configuration.get('password'))
     return _g5k_api
 
 def get_g5k_sites():

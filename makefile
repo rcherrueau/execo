@@ -56,7 +56,6 @@ execo.conf.py.sample: execo.conf.py.sample.in src/execo/config.py src/execo_g5k/
 	$(call extract,src/execo_g5k/config.py,g5k_configuration) >> $@
 	$(call extract,src/execo_g5k/config.py,default_frontend_connexion_params) >> $@
 	$(call extract,src/execo_g5k/config.py,default_oarsh_oarcp_params) >> $@
-	$(call extract,src/execo_g5k/config.py,g5k_api_params) >> $@
 
 do_subst = sed -e 's,[@]prefix[@],$(PREFIX),g'
 
