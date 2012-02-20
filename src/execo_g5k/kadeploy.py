@@ -205,7 +205,7 @@ class Kadeployer(Remote):
                 sites[site].append(host)
             else:
                 sites[site] = [host]
-        self._processes = dict()
+        self._processes = list()
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(sites))
         for site in sites.keys():
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
@@ -239,7 +239,7 @@ class Kadeployer(Remote):
                                log_error = self._log_error,
                                process_lifecycle_handler = lifecycle_handler,
                                pty = True)
-            self._processes[p] = host
+            self._processes.append(p)
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()

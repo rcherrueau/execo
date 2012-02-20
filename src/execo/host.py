@@ -103,7 +103,10 @@ class Host(object):
         return "Host(%s)" % (self._args())
 
 def get_hosts_list(hosts):
-    """Deep copy an iterable of `execo.host.Host` to a list of `execo.host.Host`."""
+    """Deep copy an iterable of `execo.host.Host` to a list of `execo.host.Host`.
+
+    order is preserved
+    """
     return [ Host(host) for host in hosts ]
 
 def get_hosts_set(hosts):
