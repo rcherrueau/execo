@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import itertools, re
+import itertools, re, execo
 
 class HashableDict(dict):
 
@@ -55,14 +55,20 @@ class ParamSweeper(object):
                  values in itertools.product(*self.parameters.values()) )
 
 __g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr$")
-def g5k_host_get_cluster(elmt):
-    m = __g5k_host_group_regex.match(elmt)
+
+def g5k_host_get_cluster(host):
+    if isinstance(host, execo.Host):
+        host = host.address
+    m = __g5k_host_group_regex.match(host)
     return m.group(1)
-def g5k_host_get_site(elmt):
-    m = __g5k_host_group_regex.match(elmt)
+
+def g5k_host_get_site(host):
+    if isinstance(host, execo.Host):
+        host = host.address
+    m = __g5k_host_group_regex.match(host)
     return m.group(2)
 
-def group_nodes(nodes):
+def group_hosts(nodes):
     grouped_nodes = {}
     for site, site_nodes in itertools.groupby(
         sorted(nodes,
