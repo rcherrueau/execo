@@ -29,7 +29,7 @@ class HashableDict(dict):
         return hash(self.__key())
 
     def __eq__(self, other):
-        return self.__key() == other.__key()
+        return other and self.__key() == other.__key()
 
 class ParamSweeper(object):
     
