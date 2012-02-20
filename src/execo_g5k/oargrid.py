@@ -295,13 +295,13 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(local_site,
-                                  cmd,
-                                  connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
-                                  timeout = timeout,
-                                  pty = True))
+        process = SshProcess(Host(local_site),
+                             cmd,
+                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             timeout = timeout,
+                             pty = True)
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
-        return [ Host(host_address) for host_address in host_addresses ]
+        return list(set([ Host(host_address) for host_address in host_addresses ]))
     raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
