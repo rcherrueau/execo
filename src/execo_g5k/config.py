@@ -31,8 +31,7 @@ g5k_configuration = {
     'tiny_polling_interval' : 10,
     'default_frontend' : None,
     'api_uri': "https://api.grid5000.fr/2.0",
-    'username': None,
-    'password': None,
+    'api_username': None,
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
@@ -73,9 +72,7 @@ g5k_configuration = {
 
 - ``api_uri``: base uri for g5k api serverr.
 
-- ``username``: api username.
-
-- ``password``: api password.
+- ``api_username``: api username.
 """
 
 # _STARTOF_ default_oarsh_oarcp_params
