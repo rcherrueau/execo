@@ -424,9 +424,9 @@ class _Conductor(object):
                         if _fulldebug: logger.debug("event %s on fd %s, process %s" % (_event_desc(event), fd, process))
                         if event & select.POLLIN:
                             (string, eof) = _read_asmuch(fd)
-                            stream_handler_func(string, eof = eof)
-                            if eof:
-                                self.__remove_handle(fd)
+                            stream_handler_func(string, eof = False)
+                            #if eof:
+                            #    self.__remove_handle(fd)
                         if event & select.POLLHUP:
                             stream_handler_func('', eof = True)
                             self.__remove_handle(fd)
