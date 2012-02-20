@@ -533,8 +533,9 @@ _fulldebug = False
 def enable_full_debug():
     global _fulldebug #IGNORE:W0603
     _fulldebug = True
-    logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
-    logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
+    #logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
+    logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
+    #logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
     _run_debug_thread()
 
 the_conductor = _Conductor().start()
