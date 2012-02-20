@@ -17,11 +17,14 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import default_frontend_connexion_params
+from execo_g5k.config import g5k_configuration
 import re
 import socket
 
-def get_local_site():
-    """Return the name of the local site."""
+def get_default_frontend():
+    """Return the name of the default frontend."""
+    if g5k_configuration.get("default_frontend"):
+        return g5k_configuration["default_frontend"]
     try:
         localhost = socket.gethostname()
     except socket.error:
@@ -29,13 +32,10 @@ def get_local_site():
     mo = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", localhost)
     if mo:
         return mo.group(1)
-    else:
-        raise EnvironmentError, "unable to get local site name"
+    return None
 
-try:
-    local_site = get_local_site()
-except EnvironmentError:
-    local_site = ""
+
+default_frontend = get_default_frontend() or ""
 
 def _get_frontend_connexion_params(frontend_connexion_params):
     params = default_frontend_connexion_params

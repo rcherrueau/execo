@@ -24,7 +24,7 @@ from execo.log import set_style, logger
 from execo.process import ProcessOutputHandler, Process, SshProcess
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
-from utils import local_site, _get_frontend_connexion_params
+from utils import default_frontend, _get_frontend_connexion_params
 import copy
 import re
 import time
@@ -157,9 +157,9 @@ class _KadeployStderrHandler(ProcessOutputHandler):
 
 class Kadeployer(Remote):
 
-    """Deploy an environment with kadeploy3 on several nodes.
+    """Deploy an environment with kadeploy3 on several hosts.
 
-    Able to deploy in parallel to multiple Grid5000 sites.
+    Able to deploy in parallel to multiple frontends.
     """
 
     def __init__(self, deployment, frontend_connexion_params = None, out = False, **kwargs):
@@ -168,8 +168,7 @@ class Kadeployer(Remote):
           intended kadeployment.
 
         :param frontend_connexion_params: connexion params for
-          connecting to sites' frontends if needed. Values override
-          those in
+          connecting to frontends if needed. Values override those in
           `execo_g5k.config.default_frontend_connexion_params`.
 
         :param out: if True, output kadeploy stdout / stderr to
@@ -185,33 +184,33 @@ class Kadeployer(Remote):
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
         searchre3 = re.compile("^[^ \t\n\r\f\v\.]+$")
-        sites = dict()
+        frontends = dict()
         for host in self._fhosts:
-            site = None
+            frontend = None
             mo1 = searchre1.search(host.address)
             if mo1 != None:
-                site = mo1.group(1)
+                frontend = mo1.group(1)
             else:
                 mo2 = searchre2.search(host.address)
                 if mo2 != None:
-                    site = mo1.group(1)
+                    frontend = mo1.group(1)
                 else:
                     mo3 = searchre3.search(host.address)
                     if mo3 != None:
-                        site = local_site
+                        frontend = default_frontend
                     else:
-                        raise ValueError, "unknown grid5000 site for host %s" % host.address
-            if sites.has_key(site):
-                sites[site].append(host)
+                        raise ValueError, "unknown frontend for host %s" % host.address
+            if frontends.has_key(frontend):
+                frontends[frontend].append(host)
             else:
-                sites[site] = [host]
+                frontends[frontend] = [host]
         self._processes = list()
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(sites))
-        for site in sites.keys():
+        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(frontends))
+        for frontend in frontends.keys():
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
-            for host in sites[site]:
+            for host in frontends[frontend]:
                 kadeploy_command += " -m %s" % host.address
-            if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
+            if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
                 p = Process(kadeploy_command,
                             stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
@@ -225,7 +224,7 @@ class Kadeployer(Remote):
                             process_lifecycle_handler = lifecycle_handler,
                             pty = True)
             else:
-                p = SshProcess(Host(site),
+                p = SshProcess(Host(frontend),
                                kadeploy_command,
                                connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                stdout_handler = _KadeployStdoutHandler(self, out = self._out),
@@ -314,7 +313,7 @@ def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout 
     :param out: if True, output kadeploy stdout / stderr to stdout.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: deployment timeout. None (which is the default
@@ -396,7 +395,7 @@ def deploy(deployment,
     :param out: if True, output kadeploy stdout / stderr to stdout.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param deploy_timeout: timeout for deployement. Default is None,

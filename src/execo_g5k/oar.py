@@ -22,7 +22,7 @@ from execo.process import Process, SshProcess
 from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
 from execo.utils import comma_join
-from utils import local_site, _get_frontend_connexion_params
+from utils import default_frontend, _get_frontend_connexion_params
 import operator
 import os
 import re
@@ -161,10 +161,10 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
     """Submit jobs.
 
     :param job_specs: iterable of tuples (execo_g5k.oar.OarSubmission,
-      site) with None for local site
+      frontend) with None for default frontend
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
@@ -172,14 +172,15 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
 
-    Returns a list of tuples (oarjob id, site), with site == None for
-    local site. If submission error, oarjob id == None. The returned
-    list matches, in the same order, the job_specs parameter.
+    Returns a list of tuples (oarjob id, frontend), with frontend ==
+    None for default frontend. If submission error, oarjob id ==
+    None. The returned list matches, in the same order, the job_specs
+    parameter.
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     processes = []
-    for (spec, site) in job_specs:
+    for (spec, frontend) in job_specs:
         oarsub_cmdline = 'oarsub'
         if spec.additional_options != None:
             oarsub_cmdline += ' %s' % (spec.additional_options,)
@@ -206,21 +207,21 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
             oarsub_cmdline += ' "%s"' % (spec.command,)
         else:
             oarsub_cmdline += ' "sleep 31536000"'
-        if site == None:
-            site = local_site
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
+        if frontend == None:
+            frontend = default_frontend
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
             p = Process(oarsub_cmdline,
                         timeout = timeout,
                         pty = True)
-            p.site = site
+            p.frontend = frontend
             processes.append(p)
         else:
-            p = SshProcess(Host(site),
+            p = SshProcess(Host(frontend),
                            oarsub_cmdline,
                            connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                            timeout = timeout,
                            pty = True)
-            p.site = site
+            p.frontend = frontend
             processes.append(p)
     oar_job_ids = []
     if len(processes) == 0:
@@ -233,7 +234,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
             mo = re.search("^OAR_JOB_ID=(\d+)\s*$", process.stdout(), re.MULTILINE)
             if mo != None:
                 job_id = int(mo.group(1))
-        oar_job_ids.append((job_id, process.site))
+        oar_job_ids.append((job_id, process.frontend))
     return oar_job_ids
 
 def oardel(job_specs, frontend_connexion_params = None, timeout = False):
@@ -243,11 +244,11 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     deleted jobs, or jobs that you don't own. Those deletions will be
     ignored.
 
-    :param job_specs: iterable of tuples (job_id, site) with None for
-      local site
+    :param job_specs: iterable of tuples (job_id, frontend) with None
+      for default frontend
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
@@ -258,17 +259,17 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     processes = []
-    for (job_id, site) in job_specs:
+    for (job_id, frontend) in job_specs:
         oardel_cmdline = "oardel %i" % (job_id,)
-        if site == None:
-            site = local_site
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
+        if frontend == None:
+            frontend = default_frontend
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
             processes.append(Process(oardel_cmdline,
                                      timeout = timeout,
                                      log_exit_code = False,
                                      pty = True))
         else:
-            processes.append(SshProcess(Host(site),
+            processes.append(SshProcess(Host(frontend),
                                         oardel_cmdline,
                                         connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
@@ -277,7 +278,7 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     for process in processes: process.start()
     for process in processes: process.wait()
 
-def get_current_oar_jobs(sites = None,
+def get_current_oar_jobs(frontends = None,
                          start_between = None,
                          end_between = None,
                          frontend_connexion_params = None,
@@ -285,11 +286,11 @@ def get_current_oar_jobs(sites = None,
                          abort_on_error = False):
     """Return a list of current active oar job ids.
 
-    The list contains tuples (oarjob id, site).
+    The list contains tuples (oarjob id, frontend).
 
-    :param sites: an iterable of sites to connect to. A site with
-      value None means local site. If sites == None, means get current
-      oar jobs only for local site.
+    :param frontends: an iterable of frontends to connect to. A
+      frontend with value None means default frontend. If frontends ==
+      None, means get current oar jobs only for default frontend.
 
     :param start_between: a tuple (low, high) of endpoints. Filters
       and returns only jobs whose start date is in between these
@@ -299,7 +300,7 @@ def get_current_oar_jobs(sites = None,
       returns only jobs whose end date is in between these endpoints.
         
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is False, which
@@ -309,32 +310,32 @@ def get_current_oar_jobs(sites = None,
 
     :param abort_on_error: default False. If True, raises an exception
       on any error. If False, will returned the list of job got, even
-      if incomplete (some sites may have failed to answer).
+      if incomplete (some frontends may have failed to answer).
     """
     if timeout == False:
         timeout = g5k_configuration['default_timeout']
     if start_between: start_between = [ get_unixts(t) for t in start_between ]
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
     processes = []
-    if sites == None:
-        sites = [ None ]
+    if frontends == None:
+        frontends = [ None ]
     cmd = "oarstat -u"
-    for site in sites:
-        if site == None:
-            site = local_site
-        if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
+    for frontend in frontends:
+        if frontend == None:
+            frontend = default_frontend
+        if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
             p = Process(cmd,
                         timeout = timeout,
                         pty = True)
-            p.site = site
+            p.frontend = frontend
             processes.append(p)
         else:
-            p = SshProcess(Host(site),
+            p = SshProcess(Host(frontend),
                            cmd,
                            connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                            timeout = timeout,
                            pty = True)
-            p.site = site
+            p.frontend = frontend
             processes.append(p)
     oar_job_ids = []
     if len(processes) == 0:
@@ -345,30 +346,30 @@ def get_current_oar_jobs(sites = None,
         for process in processes:
             if process.ok():
                 jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
-                oar_job_ids.extend([ (int(jobid), process.site) for jobid in jobs ])
+                oar_job_ids.extend([ (int(jobid), process.frontend) for jobid in jobs ])
         if start_between or end_between:
             filtered_job_ids = []
-            for jobsite in oar_job_ids:
-                info = get_oar_job_info(jobsite[0], jobsite[1], frontend_connexion_params, timeout)
+            for jobfrontend in oar_job_ids:
+                info = get_oar_job_info(jobfrontend[0], jobfrontend[1], frontend_connexion_params, timeout)
                 if (_date_in_range(info['start_date'], start_between)
                     and _date_in_range(info['start_date'] + info['walltime'], end_between)):
-                    filtered_job_ids.append(jobsite)
+                    filtered_job_ids.append(jobfrontend)
             oar_job_ids = filtered_job_ids
         return oar_job_ids
     raise Exception, "error, list of current oar jobs: %s" % (processes,)
 
-def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False,
+def get_oar_job_info(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False,
                      log_exit_code = True, log_timeout = True, log_error = True):
     """Return a dict with informations about an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
       
-    :param site: the Grid5000 site of the oar job. If None given,
-      assume local oar job (only works if run on the local frontend).
+    :param frontend: the frontend of the oar job. If None given, use
+      default frontend
         
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -397,9 +398,9 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     cmd = "oarstat -fj %i" % (oar_job_id,)
-    if site == None:
-        site = local_site
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
+    if frontend == None:
+        frontend = default_frontend
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
         process = Process(cmd,
                           timeout = timeout,
                           pty = True,
@@ -407,7 +408,7 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
                           log_timeout = log_timeout,
                           log_error = log_error)
     else:
-        process = SshProcess(Host(site),
+        process = SshProcess(Host(frontend),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
@@ -434,7 +435,7 @@ def get_oar_job_info(oar_job_id = None, site = None, frontend_connexion_params =
         job_info['state'] = state_result.group(1)
     return job_info
 
-def wait_oar_job_start(oar_job_id = None, site = None,
+def wait_oar_job_start(oar_job_id = None, frontend = None,
                        frontend_connexion_params = None,
                        timeout = None,
                        prediction_callback = None):
@@ -452,11 +453,11 @@ def wait_oar_job_start(oar_job_id = None, site = None,
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
 
-    :param site: the Grid5000 site of the oar job. If None given,
-      assume local oar job (only works if run on the local frontend).
+    :param frontend: the frontend of the oar job. If None given, use
+      default frontend.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
     
     :param timeout: timeout for retrieving. Default is None (no
@@ -483,7 +484,7 @@ def wait_oar_job_start(oar_job_id = None, site = None,
 
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
-        infos = get_oar_job_info(oar_job_id, site, frontend_connexion_params, countdown.remaining(),
+        infos = get_oar_job_info(oar_job_id, frontend, frontend_connexion_params, countdown.remaining(),
                                  log_exit_code = False, log_timeout = False, log_error = False)
         now = time.time()
         if infos.has_key('state'):
@@ -506,17 +507,17 @@ def wait_oar_job_start(oar_job_id = None, site = None,
                 continue
         sleep(mymin(g5k_configuration['polling_interval'], countdown.remaining()))
     
-def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
+def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
     """Return an iterable of `execo.host.Host` containing the hosts of an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
 
-    :param site: the Grid5000 site of the oar job. If None given,
-      assume local oar job (only works if run on the local frontend).
+    :param frontend: the frontend of the oar job. If None given, use
+      default frontend.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -532,16 +533,16 @@ def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params 
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
-    wait_oar_job_start(oar_job_id, site, frontend_connexion_params, countdown.remaining())
+    wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
     cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id}
-    if site == None:
-        site = local_site
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
+    if frontend == None:
+        frontend = default_frontend
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
         process = Process(cmd,
                           timeout = countdown.remaining(),
                           pty = True)
     else:
-        process = SshProcess(Host(site),
+        process = SshProcess(Host(frontend),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = countdown.remaining(),
@@ -550,19 +551,19 @@ def get_oar_job_nodes(oar_job_id = None, site = None, frontend_connexion_params 
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         return [ Host(host_address) for host_address in host_addresses ]
-    raise Exception, "error retrieving nodes list for oar job %i on site %s: %s" % (oar_job_id, site, process)
+    raise Exception, "error retrieving nodes list for oar job %i on frontend %s: %s" % (oar_job_id, frontend, process)
     
-def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_params = None, timeout = False):
+def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
     """Return an iterable of IP addresses that OAR assigned to your reservation.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
 
-    :param site: the Grid5000 site of the oar job. If None given,
-      assume local oar job (only works if run on the local frontend).
+    :param frontend: the frontend of the oar job. If None given, use
+      default frontend.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -578,17 +579,17 @@ def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_param
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
-    wait_oar_job_start(oar_job_id, site, frontend_connexion_params, countdown.remaining())
+    wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
     # g5k-subnets -i -j $OAR_JOB_ID
     cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
-    if site == None:
-        site = local_site
-    if g5k_configuration['no_ssh_for_local_frontend'] == True and site == local_site:
+    if frontend == None:
+        frontend = default_frontend
+    if g5k_configuration['no_ssh_for_local_frontend'] == True and frontend == default_frontend:
         process = Process(cmd,
                           timeout = countdown.remaining(),
                           pty = True)
     else:
-        process = SshProcess(Host(site),
+        process = SshProcess(Host(frontend),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = countdown.remaining(),
@@ -597,4 +598,4 @@ def get_oar_job_subnets(oar_job_id = None, site = None, frontend_connexion_param
     if process.ok():
         subnet_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         return subnet_addresses
-    raise Exception, "error retrieving IPs list for oar job %i on site %s: %s" % (oar_job_id, site, process)
+    raise Exception, "error retrieving IPs list for oar job %i on frontend %s: %s" % (oar_job_id, frontend, process)

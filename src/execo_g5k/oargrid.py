@@ -22,7 +22,7 @@ from execo.process import Process, SshProcess
 from execo.time_utils import get_unixts, sleep
 from oar import format_oar_date, format_oar_duration, _date_in_range, \
     oar_date_to_unixts, oar_duration_to_seconds
-from utils import local_site, _get_frontend_connexion_params
+from utils import default_frontend, _get_frontend_connexion_params
 import os
 import re
 
@@ -55,7 +55,7 @@ def oargridsub(job_specs, reservation_date = None,
       command line.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -102,7 +102,7 @@ def oargridsub(job_specs, reservation_date = None,
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(local_site),
+        process = SshProcess(Host(default_frontend),
                              oargridsub_cmdline,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
@@ -132,7 +132,7 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
     :param job_ids: iterable of oar grid job ids.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -150,7 +150,7 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
                                      log_exit_code = False,
                                      pty = True))
         else:
-            processes.append(SshProcess(Host(local_site),
+            processes.append(SshProcess(Host(default_frontend),
                                         oargriddel_cmdline,
                                         connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
@@ -173,7 +173,7 @@ def get_current_oargrid_jobs(start_between = None,
       returns only jobs whose end date is in between these endpoints.
         
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -191,7 +191,7 @@ def get_current_oargrid_jobs(start_between = None,
                           timeout = timeout,
                           pty = True).run()
     else:
-        process = SshProcess(Host(local_site),
+        process = SshProcess(Host(default_frontend),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
@@ -216,7 +216,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
     :param oargrid_job_id: the oargrid job id.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -238,7 +238,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(local_site),
+        process = SshProcess(Host(default_frontend),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
@@ -263,7 +263,7 @@ def wait_oargrid_job_start(oargrid_job_id = None, frontend_connexion_params = No
     :param oargrid_job_id: the oargrid job id.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -279,7 +279,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
     :param oargrid_job_id: the oargrid job id.
 
     :param frontend_connexion_params: connexion params for connecting
-      to sites' frontends if needed. Values override those in
+      to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
@@ -295,7 +295,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(local_site),
+        process = SshProcess(Host(default_frontend),
                              cmd,
                              connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,

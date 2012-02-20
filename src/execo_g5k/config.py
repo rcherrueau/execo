@@ -29,6 +29,7 @@ g5k_configuration = {
     'no_ssh_for_local_frontend' : False,
     'polling_interval' : 60,
     'tiny_polling_interval' : 10,
+    'default_frontend' : None
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
@@ -64,6 +65,8 @@ g5k_configuration = {
   various operations, used for example when waiting for a job start,
   and start date of the job is over but the job is not yet in running
   state.
+
+- ``default_frontend``: address of default frontend.
 """
 
 # _STARTOF_ default_oarsh_oarcp_params
