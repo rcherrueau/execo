@@ -372,8 +372,9 @@ class _Conductor(object):
     def __handle_notify_process_terminated(self, pid, exit_code):
         # intended to be called from conductor thread
         # remove a process based on its pid (as reported by waitpid)
-        process = self.__pids[pid]
-        self.__handle_remove_process(process, exit_code)
+        process = self.__pids.get(pid)
+        if process:
+            self.__handle_remove_process(process, exit_code)
 
     def __remove_handle(self, fd):
         # remove a file descriptor both from our member(s) and from
