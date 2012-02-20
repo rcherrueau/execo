@@ -39,6 +39,9 @@ class ArgsOptionParser(optparse.OptionParser):
         """Add an arg_name to the arg_name list."""
         self.arguments.append((arg_name, description))
 
+    def num_arguments(self):
+        return len(self.arguments)
+
     def set_usage(self, usage):
         """Automatic generation of usage string with arguments."""
         if usage is None:
@@ -179,6 +182,9 @@ class Engine(object):
         del sys.argv[1]
         (self.options, self.args) = self.options_parser.parse_args()
         self.logger.setLevel(self.options.log_level)
+        if len(self.args) < self.options_parser.num_arguments():
+            self.options_parser.print_help(sys.stderr)
+            exit(1)
         self.setup_run_name()
         if self.options.continue_dir:
             if not os.path.isdir(self.options.continue_dir):
