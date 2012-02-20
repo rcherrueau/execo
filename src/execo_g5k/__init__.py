@@ -18,6 +18,8 @@
 
 """Tools and extensions to execo suitable for use in Grid5000."""
 
+from config import g5k_configuration, default_frontend_connexion_params, \
+  default_oarsh_oarcp_params, g5k_api_params
 from oar import OarSubmission, oarsub, oardel, get_current_oar_jobs, \
   get_oar_job_info, wait_oar_job_start, get_oar_job_nodes, \
   get_oar_job_subnets
