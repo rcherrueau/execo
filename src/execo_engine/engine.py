@@ -42,19 +42,6 @@ class ArgsOptionParser(optparse.OptionParser):
     def num_arguments(self):
         return len(self.arguments)
 
-    def set_usage(self, usage):
-        """Automatic generation of usage string with arguments."""
-        if usage is None:
-            self.usage = "%prog [options] <arguments>"
-            if len(self.arguments) > 0:
-                self.usage += "\narguments:\n"
-                for (argument, description) in self.arguments:
-                    self.usage += "  <%s> : %s\n" % (argument, description)
-        elif usage is optparse.SUPPRESS_USAGE:
-            self.usage = None
-        else:
-            self.usage = usage
-
 def _redirect_fd(fileno, filename):
     # create and open file filename, and redirect open file fileno to it
     f = os.open(filename, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0644)
@@ -160,7 +147,7 @@ class Engine(object):
         self.options_parser.add_option(
             "-c", dest = "continue_dir", default = None, metavar = "DIR",
             help = "continue experiment in DIR")
-        self.options_parser.set_description(self.__class__.__name__)
+        self.options_parser.set_description("engine: " + self.__class__.__name__)
         # default options parser configuration
         self.options = None
         # will contain the options given when the command line is parsed
