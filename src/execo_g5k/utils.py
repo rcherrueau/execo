@@ -21,23 +21,28 @@ from execo_g5k.config import g5k_configuration
 import re
 import socket
 
+__default_frontend = None
+__default_frontend_cached = False
 def get_default_frontend():
     """Return the name of the default frontend."""
-    if g5k_configuration.get("default_frontend"):
-        return g5k_configuration["default_frontend"]
-    try:
-        localhost = socket.gethostname()
-    except socket.error:
-        localhost = ""
-    mo = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", localhost)
-    if mo:
-        return mo.group(1)
-    return None
+    global __default_frontend, __default_frontend_cached #IGNORE:W0603
+    if not __default_frontend_cached:
+        __default_frontend_cached = True
+        if g5k_configuration.get("default_frontend"):
+            __default_frontend = g5k_configuration["default_frontend"]
+        else:
+            try:
+                localhost = socket.gethostname()
+            except socket.error:
+                localhost = ""
+            mo = re.search("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$", localhost)
+            if mo:
+                __default_frontend = mo.group(1)
+            else:
+                __default_frontend = None
+    return __default_frontend
 
-
-default_frontend = get_default_frontend() or ""
-
-def _get_frontend_connexion_params(frontend_connexion_params):
+def get_frontend_connexion_params(frontend_connexion_params):
     params = default_frontend_connexion_params.copy()
     if frontend_connexion_params:
         params.update(frontend_connexion_params)

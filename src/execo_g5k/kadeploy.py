@@ -24,7 +24,7 @@ from execo.log import set_style, logger
 from execo.process import ProcessOutputHandler, Process, SshProcess
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
-from utils import default_frontend, _get_frontend_connexion_params
+from utils import get_default_frontend, get_frontend_connexion_params
 import copy
 import re
 import time
@@ -197,7 +197,7 @@ class Kadeployer(Remote):
                 else:
                     mo3 = searchre3.search(host.address)
                     if mo3 != None:
-                        frontend = default_frontend
+                        frontend = get_default_frontend()
                     else:
                         raise ValueError, "unknown frontend for host %s" % host.address
             if frontends.has_key(frontend):
@@ -210,7 +210,7 @@ class Kadeployer(Remote):
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
                 kadeploy_command += " -m %s" % host.address
-            if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
+            if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
                 p = Process(kadeploy_command,
                             stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
@@ -226,7 +226,7 @@ class Kadeployer(Remote):
             else:
                 p = SshProcess(Host(frontend),
                                kadeploy_command,
-                               connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                               connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                                stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                                stderr_handler = _KadeployStderrHandler(self, out = self._out),
                                timeout = self._timeout,

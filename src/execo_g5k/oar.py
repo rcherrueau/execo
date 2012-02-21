@@ -22,7 +22,7 @@ from execo.process import Process, SshProcess
 from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
 from execo.utils import comma_join
-from utils import default_frontend, _get_frontend_connexion_params
+from utils import get_default_frontend, get_frontend_connexion_params
 import operator
 import os
 import re
@@ -208,8 +208,8 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
         else:
             oarsub_cmdline += ' "sleep 31536000"'
         if frontend == None:
-            frontend = default_frontend
-        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
+            frontend = get_default_frontend()
+        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
             p = Process(oarsub_cmdline,
                         timeout = timeout,
                         pty = True)
@@ -218,7 +218,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
         else:
             p = SshProcess(Host(frontend),
                            oarsub_cmdline,
-                           connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                           connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                            timeout = timeout,
                            pty = True)
             p.frontend = frontend
@@ -262,8 +262,8 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     for (job_id, frontend) in job_specs:
         oardel_cmdline = "oardel %i" % (job_id,)
         if frontend == None:
-            frontend = default_frontend
-        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
+            frontend = get_default_frontend()
+        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
             processes.append(Process(oardel_cmdline,
                                      timeout = timeout,
                                      log_exit_code = False,
@@ -271,7 +271,7 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
         else:
             processes.append(SshProcess(Host(frontend),
                                         oardel_cmdline,
-                                        connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                                        connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
                                         log_exit_code = False,
                                         pty = True))
@@ -322,8 +322,8 @@ def get_current_oar_jobs(frontends = None,
     cmd = "oarstat -u"
     for frontend in frontends:
         if frontend == None:
-            frontend = default_frontend
-        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
+            frontend = get_default_frontend()
+        if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
             p = Process(cmd,
                         timeout = timeout,
                         pty = True)
@@ -332,7 +332,7 @@ def get_current_oar_jobs(frontends = None,
         else:
             p = SshProcess(Host(frontend),
                            cmd,
-                           connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                           connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                            timeout = timeout,
                            pty = True)
             p.frontend = frontend
@@ -399,8 +399,8 @@ def get_oar_job_info(oar_job_id = None, frontend = None, frontend_connexion_para
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     cmd = "oarstat -fj %i" % (oar_job_id,)
     if frontend == None:
-        frontend = default_frontend
-    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
+        frontend = get_default_frontend()
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
         process = Process(cmd,
                           timeout = timeout,
                           pty = True,
@@ -410,7 +410,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None, frontend_connexion_para
     else:
         process = SshProcess(Host(frontend),
                              cmd,
-                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
                              pty = True,
                              log_exit_code = log_exit_code,
@@ -536,15 +536,15 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_par
     wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
     cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id}
     if frontend == None:
-        frontend = default_frontend
-    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
+        frontend = get_default_frontend()
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
         process = Process(cmd,
                           timeout = countdown.remaining(),
                           pty = True)
     else:
         process = SshProcess(Host(frontend),
                              cmd,
-                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = countdown.remaining(),
                              pty = True)
     process.run()
@@ -583,15 +583,15 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     # g5k-subnets -i -j $OAR_JOB_ID
     cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
     if frontend == None:
-        frontend = default_frontend
-    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == default_frontend:
+        frontend = get_default_frontend()
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
         process = Process(cmd,
                           timeout = countdown.remaining(),
                           pty = True)
     else:
         process = SshProcess(Host(frontend),
                              cmd,
-                             connexion_params = _get_frontend_connexion_params(frontend_connexion_params),
+                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = countdown.remaining(),
                              pty = True)
     process.run()
