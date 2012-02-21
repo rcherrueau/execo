@@ -136,14 +136,15 @@ def load_configuration(filename, dicts_confs):
     dict with the content of this dict. Does nothing if unable to open
     <file>.
     """
-    jailed_globals = {}
-    try:
-        execfile(filename, jailed_globals)
-    except Exception: #IGNORE:W0703
-        pass
-    for (dictio, conf) in dicts_confs:
-        if jailed_globals.has_key(conf):
-            dictio.update(jailed_globals[conf])
+    if os.path.isfile(filename):
+        jailed_globals = {}
+        try:
+            execfile(filename, jailed_globals)
+        except Exception: #IGNORE:W0703
+            print "ERROR while reading config file %s" % (filename,)
+        for (dictio, conf) in dicts_confs:
+            if jailed_globals.has_key(conf):
+                dictio.update(jailed_globals[conf])
 
 def get_user_config_filename():
     _user_conf_file = None
