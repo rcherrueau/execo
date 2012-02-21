@@ -6,12 +6,9 @@ Execo offers a Python API for local or remote, standalone or parallel,
 processes execution. It is especially well suited for scripting
 workflows of parallel/distributed operations on local or remote hosts:
 conducting experiments, performing automated tests, etc. The core
-python module is ``execo``. The ``execo_g5k`` module provides a set of
-tools and extensions to execo, to be used in Grid5000. The
-``g5k_api_tools`` module offers simple functions for dealing with the
-Grid5000 rest API. The ``g5k-deploy`` shell command builds upon these
-modules to deploy environments on grid5000 with a more user friendly
-interface than kadeploy.
+python package is ``execo``. The ``execo_g5k`` package provides a set
+of tools and extensions for Grid5000. The execo_engine package and
+execo-run script provide an extendable experiment engine.
 
 license
 =======
@@ -38,11 +35,13 @@ installation instructions
 links
 -----
 
-execo project page on INRIA Forge: http://gforge.inria.fr/projects/execo/
-
 execo home page on INRIA Forge: http://execo.gforge.inria.fr
 
-execo package download: http://execo.gforge.inria.fr/downloads or https://gforge.inria.fr/frs/?group_id=2901
+execo project page on INRIA Forge:
+http://gforge.inria.fr/projects/execo/
+
+execo package download: http://execo.gforge.inria.fr/downloads or
+https://gforge.inria.fr/frs/?group_id=2901
 
 execo code repository: git://scm.gforge.inria.fr/execo/execo.git
 
@@ -53,45 +52,35 @@ http://execo.gforge.inria.fr/epydoc/
 prerequisites
 -------------
 
-execo installation requires python (>= 2.6) and make (for debian 5.x,
-packages python, make)
+execo installation requires make, python (>= 2.6), python-httplib2 and
+optionnaly python-keyring.
 
-to use g5k_api_tools, python-simplejson
-(http://pypi.python.org/pypi/simplejson/) and python-restclient
-(http://pypi.python.org/pypi/py-restclient/1.3.3) are needed.
+building the documentation requires sphinx, graphviz and optionnaly
+epydoc.  documentation.
 
-to build the documentation, sphinx and graphviz are needed (for debian
-5.x, packages python-sphinx). Additionnaly, latex is needed for
-building latex documentation, and epydoc for building epydoc
-documentation.
-
-to connect to remote hosts, ssh, scp or similar connexion tools are
-needed. taktuk (http://taktuk.gforge.inria.fr/) is also needed if
-taktuk style actions are used (probably version >= 3.6).
+At runtime, connecting to remote hosts requires ssh, scp or similar
+connexion tools, and optionnaly taktuk (probably version >=
+3.6. http://taktuk.gforge.inria.fr/).
 
 installation
 ------------
 
-use the supplied makefile.
+makefile targets:
 
-main targets are:
+- build
 
-- build: to compile py files.
+- install. Pass option PREFIX=... for installing in a non-default
+  location (default PREFIX is /usr/local).
 
-- install: to install. Pass option PREFIX=... for installing in a
-  non-default location (default PREFIX is /usr/local).
+- doc: to build sphinx documentation
 
-- doc: to build doc. This target is an alias for sphinxdochtml. Other
-  documentation targets are sphinxdoclatex and epydoc
+- epydoc: to build epydoc documentation
 
 - check: to run unittests and doctests
 
-- clean: to clean everything
+- clean
 
 - dist: to create the execo package in dist/
-
-- epydoc: another generated documentation (requires python-epydoc
-  package)
 
 usage
 =====
