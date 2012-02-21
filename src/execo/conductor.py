@@ -16,9 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from execo.log import logger_handler
-from execo.time_utils import format_unixts
-from log import set_style, logger
+from log import set_style, logger, logger_handler
+from time_utils import format_unixts
 import Queue
 import errno
 import fcntl
@@ -32,7 +31,6 @@ import thread
 import threading
 import time
 import traceback
-import types
 
 # max number of bytes read when reading asynchronously from a pipe
 # (from _POSIX_SSIZE_MAX)
