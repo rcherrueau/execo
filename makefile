@@ -19,15 +19,12 @@ doc: sphinxdochtml
 
 cleandoc: cleansphinxdoc cleanepydoc
 
-sphinxdoccommon:
-	./g5k-deploy --help > doc/g5k-deploy.txt
-
-sphinxdochtml: sphinxdoccommon
+sphinxdochtml:
 	mkdir -p doc/_template
 	sphinx-build -b html doc doc/_build/html
 
 cleansphinxdoc:
-	rm -rf doc/_build/ doc/_template doc/_templates/ doc/g5k-deploy.txt
+	rm -rf doc/_build/ doc/_template doc/_templates/
 
 epydoc: epydoc/redirect.html
 
