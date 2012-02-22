@@ -1,17 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-import execo
-
-actions = [ execo.Local("ls -al ~"),
-            execo.Local("false"),
-            execo.Local("/dev/null"),
-            execo.Local("echo begin ; sleep 2 ; echo end"),
-            execo.Local("ping -c 2 localhost") ]
-
-map(execo.Local.start, actions)
-map(execo.Local.wait, actions)
-
-actions += [ execo.Local("uname -a") ]
-
-print execo.Report(actions).output()
+from execo import Local, Report
+actions = [ Local("ls -al ~"),
+            Local("false"),
+            Local("/dev/null"),
+            Local("portinouak"),
+            Local("echo begin ; sleep 2 ; echo end"),
+            Local("ping -c 2 localhost") ]
+[ action.start() for action in actions ]
+[ action.wait() for action in actions ]
+actions.append(Local("uname -a"))
+print Report(actions).output()
