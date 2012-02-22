@@ -234,7 +234,7 @@ def main():
     sys.stdout = xp_log
     sys.stderr = xp_log
     # update execo logger to these new stdout, stderr streams
-    execo.logger_handler = logging.StreamHandler(xp_log)
+    logger_handler = logging.StreamHandler(xp_log)
     execo.configuration['color_mode'] = False
     execo.set_log_level(logging.WARNING)
 

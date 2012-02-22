@@ -188,7 +188,7 @@ class Action(object):
 
     def _notify_terminated(self):
         with Action._wait_multiple_actions_condition:
-            logger.debug(set_style("got termination notification for:", 'emph') + " %s" % (self,))
+            logger.debug(set_style("got termination notification for:", 'emph') + " %s", self)
             for handler in self._lifecycle_handler:
                 handler.end(self)
             self._ended = True
@@ -202,7 +202,7 @@ class Action(object):
         if self._started:
             raise ValueError, "Actions may be started only once"
         self._started = True
-        logger.debug(set_style("start:", 'emph') + " %s" % (self,))
+        logger.debug(set_style("start:", 'emph') + " %s", self)
         for handler in self._lifecycle_handler:
             handler.start(self)
         return self
@@ -214,23 +214,23 @@ class Action(object):
         actually killed.
 
         return self"""
-        logger.debug(set_style("kill:", 'emph') + " %s" % (self,))
+        logger.debug(set_style("kill:", 'emph') + " %s", self)
         return self
     
     def wait(self, timeout = None):
         """Wait for all processes to complete.
 
         return self"""
-        logger.debug(set_style("start waiting:", 'emph') + " %s" % (self,))
+        logger.debug(set_style("start waiting:", 'emph') + " %s", self)
         self._end_event.wait(get_seconds(timeout))
-        logger.debug(set_style("end waiting:", 'emph') + " %s" % (self,))
+        logger.debug(set_style("end waiting:", 'emph') + " %s", self)
         return self
 
     def run(self, timeout = None):
         """Start all processes then wait for them to complete.
 
         return self"""
-        logger.debug(set_style("run:", 'emph') + " %s" % (self,))
+        logger.debug(set_style("run:", 'emph') + " %s", self)
         self.start()
         self.wait(timeout)
         return self
@@ -241,7 +241,7 @@ class Action(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting.
         """
-        logger.debug(set_style("reset:", 'emph') + " %s" % (self,))
+        logger.debug(set_style("reset:", 'emph') + " %s", self)
         if self._started and not self._ended:
             self.kill()
             self.wait()
@@ -380,9 +380,10 @@ class ActionNotificationProcessLifecycleHandler(ProcessLifecycleHandler):
 
     def end(self, process):
         self._terminated_processes += 1
-        logger.debug("%i/%i processes terminated in %s" % (self._terminated_processes,
-                                                           self._total_processes,
-                                                           self._action))
+        logger.debug("%i/%i processes terminated in %s",
+            self._terminated_processes,
+            self._total_processes,
+            self._action)
         if self._terminated_processes == self._total_processes:
             self._action._notify_terminated()
 
@@ -455,7 +456,7 @@ class Remote(Action):
     def start(self):
         retval = super(Remote, self).start()
         if len(self._processes) == 0:
-            logger.debug("%s contains 0 processes -> immediately terminated" % (self,))
+            logger.debug("%s contains 0 processes -> immediately terminated", self)
             self._notify_terminated()
         else:
             for process in self._processes:
@@ -485,7 +486,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         self._taktukaction = taktukaction
 
     def _log_unexpected_output(self, string):
-        logger.critical("%s: Taktuk unexpected output parsing. Please report this message. Line received:" % (self.__class__.__name__,))
+        logger.critical("%s: Taktuk unexpected output parsing. Please report this message. Line received:", self.__class__.__name__)
         logger.critical(self._describe_taktuk_output(string))
 
     def _describe_taktuk_output(self, string):
@@ -532,8 +533,8 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                 s += "empty string"
             return s
         except Exception, e: #IGNORE:W0703
-            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message." % (self.__class__.__name__, e))
-            logger.critical("line received = %s" % string.rstrip('\n'))
+            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
+            logger.critical("line received = %s", string.rstrip('\n'))
             return s
 
     def read_line(self, process, string, eof = False, error = False):
@@ -550,7 +551,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         #  default   "I $position # $type # $line"                             73     NO
         try:
             if len(string) > 0:
-                #logger.debug("taktuk: %s" % self._describe_taktuk_output(string))
+                #logger.debug("taktuk: %s", self._describe_taktuk_output(string))
                 header = ord(string[0])
                 (position, _, line) = string[2:].partition(" # ")
                 position = int(position)
@@ -595,8 +596,8 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                 else:
                     self._log_unexpected_output(string)
         except Exception, e: #IGNORE:W0703
-            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message." % (self.__class__.__name__, e))
-            logger.critical("line received = %s" % string.rstrip('\n'))
+            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
+            logger.critical("line received = %s", string.rstrip('\n'))
 
 class _TaktukLifecycleHandler(ProcessLifecycleHandler):
 
@@ -795,7 +796,7 @@ class TaktukRemote(Action):
     def start(self):
         retval = super(TaktukRemote, self).start()
         if len(self._processes) == 0:
-            logger.debug("%s contains 0 processes -> immediately terminated" % (self,))
+            logger.debug("%s contains 0 processes -> immediately terminated", self)
             self._notify_terminated()
         else:
             self._taktuk.start()
@@ -1017,8 +1018,8 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                 else:
                     self._log_unexpected_output(string)
         except Exception, e: #IGNORE:W0703
-            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message." % (self.__class__.__name__, e))
-            logger.critical("line received = %s" % string.rstrip('\n'))
+            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
+            logger.critical("line received = %s", string.rstrip('\n'))
 
 class TaktukPut(TaktukRemote):
 
@@ -1166,8 +1167,8 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                 else:
                     self._log_unexpected_output(string)
         except Exception, e: #IGNORE:W0703
-            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message." % (self.__class__.__name__, e))
-            logger.critical("line received = %s" % string.rstrip('\n'))
+            logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
+            logger.critical("line received = %s", string.rstrip('\n'))
 
 class TaktukGet(TaktukRemote):
 
@@ -1331,9 +1332,10 @@ class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
 
     def end(self, action):
         self._terminated_subactions += 1
-        logger.debug("%i/%i subactions terminated in %s" % (self._terminated_subactions,
-                                                            self._total_parallel_subactions,
-                                                            self._parallelaction))
+        logger.debug("%i/%i subactions terminated in %s",
+            self._terminated_subactions,
+            self._total_parallel_subactions,
+            self._parallelaction)
         if self._terminated_subactions == self._total_parallel_subactions:
             self._parallelaction._notify_terminated()
 
@@ -1426,9 +1428,10 @@ class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
         self._next_subaction = next_subaction
 
     def end(self, action):
-        logger.debug("%i/%i subactions terminated in %s" % (self._index,
-                                                            self._total,
-                                                            self._sequentialaction))
+        logger.debug("%i/%i subactions terminated in %s",
+            self._index,
+            self._total,
+            self._sequentialaction)
         if self._next_subaction:
             self._next_subaction.start()
         else:

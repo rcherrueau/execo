@@ -420,7 +420,7 @@ def deploy(deployment,
         check_deployed_command = g5k_configuration.get('check_deployed_command')
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params): #IGNORE:W0613
-        logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s" % (undeployed_hosts,))
+        logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s", undeployed_hosts)
         deployed_check = Remote(undeployed_hosts,
                                 check_deployed_command,
                                 connexion_params = node_connexion_params,
@@ -437,9 +437,9 @@ def deploy(deployment,
                          + set_style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
             if (process.ok()):
                 newly_deployed.append(process.host())
-                logger.info("OK %s" % process.host())
+                logger.info("OK %s", process.host())
             else:
-                logger.info("KO %s" % process.host())
+                logger.info("KO %s", process.host())
         return newly_deployed
 
     start_time = time.time()
@@ -463,7 +463,7 @@ def deploy(deployment,
     while (not check_enough_func(deployed_hosts, undeployed_hosts)
            and num_tries_done < num_tries):
         num_tries_done += 1
-        logger.info(set_style("try %i, deploying on:" % (num_tries_done,), 'emph') + " %s" % (undeployed_hosts,))
+        logger.info(set_style("try %i, deploying on:" % (num_tries_done,), 'emph') + " %s", undeployed_hosts)
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         (kadeploy_newly_deployed, _) = kadeploy(tmp_deployment,
@@ -478,10 +478,10 @@ def deploy(deployment,
         else:
             deployed_hosts.update(kadeploy_newly_deployed)
             undeployed_hosts.difference_update(kadeploy_newly_deployed)
-        logger.info(set_style("kadeploy reported newly deployed hosts:", 'emph') + "   %s" % (kadeploy_newly_deployed,))
-        logger.info(set_style("check reported newly deployed hosts:", 'emph') + "   %s" % (my_newly_deployed,))
-        logger.info(set_style("all deployed hosts:", 'emph') + "     %s" % (deployed_hosts,))
-        logger.info(set_style("still undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
+        logger.info(set_style("kadeploy reported newly deployed hosts:", 'emph') + "   %s", kadeploy_newly_deployed)
+        logger.info(set_style("check reported newly deployed hosts:", 'emph') + "   %s", my_newly_deployed)
+        logger.info(set_style("all deployed hosts:", 'emph') + "     %s", deployed_hosts)
+        logger.info(set_style("still undeployed hosts:", 'emph') + " %s", undeployed_hosts)
         elapsed = time.time() - last_time
         last_time = time.time()
         deploy_stats.append((elapsed,
@@ -491,20 +491,21 @@ def deploy(deployment,
                              len(deployed_hosts),
                              len(undeployed_hosts)))
 
-    logger.info(set_style("deploy finished", 'emph') + " in %i tries, %s" % (num_tries_done, format_seconds(time.time() - start_time)))
+    logger.info(set_style("deploy finished", 'emph') + " in %i tries, %s", num_tries_done, format_seconds(time.time() - start_time))
     logger.info("deploy  duration  attempted  deployed     deployed     total     total")
     logger.info("                  deploys    as reported  as reported  already   still")
     logger.info("                             by kadeploy  by check     deployed  undeployed")
     logger.info("---------------------------------------------------------------------------")
     for (deploy_index, deploy_stat) in enumerate(deploy_stats):
-        logger.info("#%-5.5s  %-8.8s  %-9.9s  %-11.11s  %-11.11s  %-8.8s  %-10.10s" % (deploy_index,
-                                                                                       format_seconds(deploy_stat[0]),
-                                                                                       deploy_stat[1],
-                                                                                       deploy_stat[2],
-                                                                                       deploy_stat[3],
-                                                                                       deploy_stat[4],
-                                                                                       deploy_stat[5]))
-    logger.info(set_style("deployed hosts:", 'emph') + " %s" % (deployed_hosts,))
-    logger.info(set_style("undeployed hosts:", 'emph') + " %s" % (undeployed_hosts,))
+        logger.info("#%-5.5s  %-8.8s  %-9.9s  %-11.11s  %-11.11s  %-8.8s  %-10.10s",
+            deploy_index,
+            format_seconds(deploy_stat[0]),
+            deploy_stat[1],
+            deploy_stat[2],
+            deploy_stat[3],
+            deploy_stat[4],
+            deploy_stat[5])
+    logger.info(set_style("deployed hosts:", 'emph') + " %s", deployed_hosts)
+    logger.info(set_style("undeployed hosts:", 'emph') + " %s", undeployed_hosts)
 
     return (deployed_hosts, undeployed_hosts)
