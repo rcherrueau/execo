@@ -16,5 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
+
+from log import logger
 from engine import Engine
-from sweep import Sweep
+from utils import ParamSweeper, g5k_host_get_cluster, g5k_host_get_site, group_hosts

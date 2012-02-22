@@ -16,14 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
+from log import logger
 from subprocess import MAXFD
-import logging
 import optparse
 import os
 import sys
 import time
 import inspect
-import execo.log
 
 """execo run Engine template base."""
 
@@ -88,11 +87,11 @@ class Engine(object):
         if merge_stdout_stderr:
             stdout_redir_filename = self.result_dir + "/stdout+stderr"
             stderr_redir_filename = self.result_dir + "/stdout+stderr"
-            self.logger.info("redirect stdout / stderr to %s" % (stdout_redir_filename,))
+            logger.info("redirect stdout / stderr to %s", stdout_redir_filename)
         else:
             stdout_redir_filename = self.result_dir + "/stdout"
             stderr_redir_filename = self.result_dir + "/stderr"
-            self.logger.info("redirect stdout / stderr to %s and %s" % (stdout_redir_filename, stderr_redir_filename))
+            logger.info("redirect stdout / stderr to %s and %s", stdout_redir_filename, stderr_redir_filename)
         sys.stdout.flush()
         sys.stderr.flush()
         _redirect_fd(1, stdout_redir_filename)
@@ -121,13 +120,11 @@ class Engine(object):
         # and 0 as the buffer size (unbuffered)
         sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
         if merge_stdout_stderr:
-            self.logger.info("dup stdout / stderr to %s" % (stdout_redir_filename,))
+            logger.info("dup stdout / stderr to %s", stdout_redir_filename)
         else:
-            self.logger.info("dup stdout / stderr to %s and %s" % (stdout_redir_filename, stderr_redir_filename))
+            logger.info("dup stdout / stderr to %s and %s", stdout_redir_filename, stderr_redir_filename)
             
     def __init__(self):
-        self.logger = logging.getLogger("execo." + self.__class__.__name__)
-        # the experiment logger
         self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.modules[self.__module__].__file__)))
         # full path of the Engine directory
         self.options_parser = ArgsOptionParser()
@@ -168,7 +165,7 @@ class Engine(object):
         """
         del sys.argv[1]
         (self.options, self.args) = self.options_parser.parse_args()
-        self.logger.setLevel(self.options.log_level)
+        logger.setLevel(self.options.log_level)
         if len(self.args) < self.options_parser.num_arguments():
             self.options_parser.print_help(sys.stderr)
             exit(1)
@@ -186,7 +183,7 @@ class Engine(object):
             elif self.options.output_mode == "redirect":
                 self._redirect_outputs(self.options.merge_outputs)
         if self.options.continue_dir:
-            self.logger.info("continue experiment in %s" % (self.options.continue_dir,))
+            logger.info("continue experiment in %s", self.options.continue_dir)
         run_meth_on_engine_ancestors(self, "init")
         self.run()
 
