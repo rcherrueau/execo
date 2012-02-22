@@ -192,11 +192,9 @@ class _Conductor(object):
         os.write(self.__wpipe, ".")
 
     def get_lock(self):
-        # TODO: document why and how the locking is done
         return self.__lock
 
     def get_condition(self):
-        # TODO: document why and how the locking is done
         return self.__condition
 
     def start(self):
