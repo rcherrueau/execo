@@ -72,7 +72,7 @@ class ParamSweeper(object):
                 self.__done = cPickle.load(done_file)
 
     def __remaining(self, parameters):
-        return frozenset(ParamSweeper(parameters)).difference(self.__done).difference(self.__inprogress)
+        return frozenset(sweeps(parameters)).difference(self.__done).difference(self.__inprogress)
 
     def get_next(self, parameters):
         with self.__lock:
@@ -84,7 +84,7 @@ class ParamSweeper(object):
                         self.__name, xp,
                         self.num_remaining(parameters),
                         len(self.__inprogress),
-                        len(ParamSweeper(parameters)))
+                        len(list(sweeps(parameters))))
                 return xp
             except StopIteration:
                 logger.info(
@@ -92,7 +92,7 @@ class ParamSweeper(object):
                         self.__name,
                         self.num_remaining(parameters),
                         len(self.__inprogress),
-                        len(ParamSweeper(parameters)))
+                        len(list(sweeps(parameters))))
                 return None
 
     def done(self, xp):
