@@ -289,7 +289,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
     """
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
-    cmd = "oargridstat -wl %i" % oargrid_job_id
+    cmd = "oargridstat -wl %i 2>/dev/null" % oargrid_job_id
     if g5k_configuration.get('no_ssh_for_local_frontend') == True:
         process = Process(cmd,
                           timeout = timeout,
