@@ -122,13 +122,15 @@ def g5k_host_get_cluster(host):
     if isinstance(host, execo.Host):
         host = host.address
     m = __g5k_host_group_regex.match(host)
-    return m.group(1)
+    if m: return m.group(1)
+    else: return None
 
 def g5k_host_get_site(host):
     if isinstance(host, execo.Host):
         host = host.address
     m = __g5k_host_group_regex.match(host)
-    return m.group(2)
+    if m: return m.group(2)
+    else: return None
 
 def group_hosts(nodes):
     grouped_nodes = {}
