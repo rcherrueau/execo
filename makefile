@@ -29,7 +29,7 @@ cleansphinxdoc:
 epydoc: epydoc/redirect.html
 
 epydoc/redirect.html: src
-	epydoc --docformat "restructuredtext en" -v --html --output=epydoc src/execo src/execo_g5k src/execo_engine
+	epydoc --docformat "restructuredtext en" --parse-only --html --output=epydoc src/execo src/execo_g5k src/execo_engine
 
 cleanepydoc:
 	rm -rf epydoc

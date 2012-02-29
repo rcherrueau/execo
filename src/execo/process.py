@@ -503,7 +503,7 @@ class Process(ProcessBase):
           choose based on pty.
 
         :param shell: whether or not to use a shell to run the
-          cmd. See `subprocess.Popen`
+          cmd. See ``subprocess.Popen``
 
         :param pty: open a pseudo tty and connect process's stdin and
           stdout to it (stderr is still connected as a pipe). Make

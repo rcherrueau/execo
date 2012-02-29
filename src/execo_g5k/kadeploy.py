@@ -351,10 +351,10 @@ def deploy(deployment,
     - loop `num_tries` times:
 
       - if ``check_deployed_command`` given, try to connect to these
-        hosts using the supplied `connexion_params` (or the default
-        ones), and to execute ``check_deployed_command``. If connexion
-        succeeds and the command returns 0, the host is assumed to be
-        deployed, else it is assumed to be undeployed.
+        hosts using the supplied `node_connexion_params` (or the
+        default ones), and to execute ``check_deployed_command``. If
+        connexion succeeds and the command returns 0, the host is
+        assumed to be deployed, else it is assumed to be undeployed.
 
       - optionnaly call user-supplied ``check_enough_func``, passing
         to it the list of deployed and undeployed hosts, to let user

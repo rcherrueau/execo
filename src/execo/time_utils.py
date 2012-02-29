@@ -24,16 +24,16 @@ import time
 _epoch = datetime.datetime (1970, 1, 1, 0, 0, 0, 0)
 
 def timedelta_to_seconds(td):
-    """Convert a `datetime.timedelta` to a number of seconds (float)."""
+    """Convert a ``datetime.timedelta`` to a number of seconds (float)."""
     return td.days * 86400 + td.seconds + td.microseconds / 1e6
 
 def datetime_to_unixts(dt):
-    """Convert a `datetime.datetime` to a unix timestamp (float)."""
+    """Convert a ``datetime.datetime`` to a unix timestamp (float)."""
     elapsed = dt - _epoch
     return timedelta_to_seconds(elapsed)
 
 def unixts_to_datetime(ts):
-    """Convert a unixts (int or float) to `datetime.datetime`."""
+    """Convert a unixts (int or float) to ``datetime.datetime``."""
     days = int(ts) / 86400
     seconds = int(ts) % 86400
     elapsed = datetime.timedelta(days, seconds)
@@ -101,7 +101,7 @@ def get_seconds(duration):
     :param duration: a duration in one of the supported types. if
       duration == None, returns None. Supported types
 
-      - `datetime.timedelta`
+      - ``datetime.timedelta``
 
       - string: see `execo.time_utils.str_duration_to_seconds`
 
@@ -122,7 +122,7 @@ def get_unixts(d):
     :param d: a date in one of the supported types. if date == None,
       returns None. Supported types
 
-      - `datetime.datetime`
+      - ``datetime.datetime``
 
       - string: see `execo.time_utils.str_date_to_unixts`
 

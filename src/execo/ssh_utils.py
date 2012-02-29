@@ -37,7 +37,7 @@ def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion
       option at all.
         
     :param connexion_params: a dict similar to
-      `exeoc.config.default_connexion_params`, whose values will
+      `execo.config.default_connexion_params`, whose values will
       override those in `execo.config.default_connexion_params`
     """
     ssh_scp_auth_options = ()

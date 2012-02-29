@@ -443,7 +443,7 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
 
     As long as the job isn't scheduled, wait_oar_job_start will sleep
     / poll every
-    `execo_g5k.config.g5k_configuration['polling_interval']` seconds
+    ``execo_g5k.config.g5k_configuration['polling_interval']`` seconds
     until it is scheduled. Then, knowing its start date, it will sleep
     the amount of time necessary to wait for the job start.
 
