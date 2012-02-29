@@ -429,7 +429,7 @@ class ProcessBase(object):
 
         This method will log process termination as needed.
         """
-        s = set_style("terminated:", 'emph') + " %s\n" % (self,)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
+        s = set_style("terminated:", 'emph') + " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
         if ((self._error and self._log_error)
             or (self._timeouted and self._log_timeout)
             or (self._exit_code != 0 and self._log_exit_code)):
@@ -449,7 +449,7 @@ class ProcessBase(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting;
         """
-        logger.debug(set_style("reset:", 'emph') + " %s", self)
+        logger.debug(set_style("reset:", 'emph') + " %s", str(self))
         if self._started and not self._ended:
             self.kill()
             self.wait()
@@ -599,7 +599,7 @@ class Process(ProcessBase):
         with self._lock:
             if self._started:
                 raise ValueError, "unable to start an already started process"
-            logger.debug(set_style("start:", 'emph') + " %s", self)
+            logger.debug(set_style("start:", 'emph') + " %s", str(self))
             self._started = True
             self._start_date = time.time()
             if self._timeout != None:
@@ -656,7 +656,7 @@ class Process(ProcessBase):
           SIGKILL if the subprocess is not yet terminated
         """
         if self._pid != None and not self._ended:
-            logger.debug(set_style("kill with signal %s:" % sig, 'emph') + " %s", self)
+            logger.debug(set_style("kill with signal %s:" % sig, 'emph') + " %s", str(self))
             if sig == signal.SIGTERM:
                 self._already_got_sigterm = True
                 if auto_sigterm_timeout == True:
@@ -680,9 +680,9 @@ class Process(ProcessBase):
                         # is a pty, we can close its master side, it should
                         # trigger a signal (SIGPIPE?) on the other side
                         os.close(self._ptymaster)
-                        logger.debug("EPERM for signal %s -> closing pty master side of %s", sig, self)
+                        logger.debug("EPERM for signal %s -> closing pty master side of %s", sig, str(self))
                     else:
-                        logger.debug(set_style("EPERM: unable to send signal", 'emph') + " to %s", self)
+                        logger.debug(set_style("EPERM: unable to send signal", 'emph') + " to %s", str(self))
                 elif e.errno == errno.ESRCH:
                     # process terminated so recently that self._ended
                     # has not been updated yet
@@ -718,7 +718,7 @@ class Process(ProcessBase):
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
         """
-        logger.debug("set terminated %s, exit_code=%s", self, exit_code)
+        logger.debug("set terminated %s, exit_code=%s", str(self), exit_code)
         self._exit_code = exit_code
         self._end_date = time.time()
         self._ended = True
@@ -751,7 +751,7 @@ class Process(ProcessBase):
                 return self
             if not self._started or self._pid == None:
                 raise ValueError, "Trying to wait a process which has not been started"
-            logger.debug(set_style("wait:", 'emph') + " %s", self)
+            logger.debug(set_style("wait:", 'emph') + " %s", str(self))
             timeout = get_seconds(timeout)
             if timeout != None:
                 end = time.time() + timeout 
@@ -759,7 +759,7 @@ class Process(ProcessBase):
                 the_conductor.get_condition().wait(timeout)
                 if timeout != None:
                     timeout = end - time.time()
-            logger.debug(set_style("wait finished:", 'emph') + " %s", self)
+            logger.debug(set_style("wait finished:", 'emph') + " %s", str(self))
         return self
 
     def run(self, timeout = None):
@@ -839,7 +839,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         """
         if self._started:
             raise ValueError, "unable to start an already started process"
-        logger.debug(set_style("start:", 'emph') + " %s", self)
+        logger.debug(set_style("start:", 'emph') + " %s", str(self))
         self._started = True
         self._start_date = time.time()
         if self._timeout != None:
@@ -859,7 +859,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         """
         if not self._started:
             self.start()
-        logger.debug("set terminated %s, exit_code=%s, error=%s", self, exit_code, error)
+        logger.debug("set terminated %s, exit_code=%s, error=%s", str(self), exit_code, error)
         if error != None:
             self._error = error
         if error_reason != None:

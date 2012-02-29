@@ -248,7 +248,7 @@ class _Conductor(object):
     def __handle_add_process(self, process):
         # intended to be called from conductor thread
         # register a process to conductor
-        if _fulldebug: logger.debug("add %s to %s", process, self)
+        if _fulldebug: logger.debug("add %s to %s", str(process), self)
         if process not in self.__processes:
             if not process.ended():
                 fileno_stdout = process.stdout_fd()
@@ -282,7 +282,7 @@ class _Conductor(object):
         # Currently: only update the timeout. This is related to the
         # way the system for forcing SIGKILL on processes not killing
         # cleanly is implemented.
-        if _fulldebug: logger.debug("update timeouts of %s in %s", process, self)
+        if _fulldebug: logger.debug("update timeouts of %s in %s", str(process), self)
         if process not in self.__processes:
             return  # this will frequently occur if the process kills
                     # quickly because the process will already be
@@ -294,7 +294,7 @@ class _Conductor(object):
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
         # unregister a Process from conductor
-        if _fulldebug: logger.debug("removing %s from %s", process, self)
+        if _fulldebug: logger.debug("removing %s from %s", str(process), self)
         if process not in self.__processes:
             raise ValueError, "trying to remove a process which was not yet added to conductor"
         self.__timeline = [ x for x in self.__timeline if x[1] != process ]
@@ -345,7 +345,7 @@ class _Conductor(object):
         for i in xrange(0, len(self.__timeline)):
             process = self.__timeline[i][1]
             if now >= process.timeout_date():
-                logger.debug("timeout on %s", process)
+                logger.debug("timeout on %s", str(process))
                 process._timeout_kill()
                 remove_in_timeline.append(i)
             else:
@@ -361,7 +361,7 @@ class _Conductor(object):
         exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
         while exit_pid != 0:
             process = self.__pids[exit_pid]
-            if _fulldebug: logger.debug("process pid %s terminated: %s", exit_pid, process)
+            if _fulldebug: logger.debug("process pid %s terminated: %s", exit_pid, str(process))
             self.__handle_remove_process(process, exit_code)
             exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
 
@@ -417,7 +417,7 @@ class _Conductor(object):
                 else:
                     if self.__fds.has_key(fd):
                         process, stream_handler_func = self.__fds[fd]
-                        if _fulldebug: logger.debug("event %s on fd %s, process %s", _event_desc(event), fd, process)
+                        if _fulldebug: logger.debug("event %s on fd %s, process %s", _event_desc(event), fd, str(process))
                         if event & select.POLLIN:
                             (string, eof) = _read_asmuch(fd)
                             stream_handler_func(string, eof = False)
@@ -509,7 +509,7 @@ def _run_debug_thread(interval = 10, processes = None):
         while True:
             time.sleep(interval)
             print >> sys.stderr
-            print >> sys.stderr, ">>>>> %s - number of threads = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1)
+            print >> sys.stderr, ">>>>> %s - number of threads = %s - conductor lock = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1, the_conductor.get_lock())
             print >> sys.stderr
             if processes != None:
                 for process in processes:
