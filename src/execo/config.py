@@ -127,7 +127,7 @@ defaults are still available in default_default_connexion_params.
 def load_configuration(filename, dicts_confs):
     """Update dicts with those found in file.
 
-    :param file: file to load dicts from
+    :param filename: file to load dicts from
     
     :param dicts_confs: an iterable of couples (dict, string)
 

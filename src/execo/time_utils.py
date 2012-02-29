@@ -119,8 +119,8 @@ def get_seconds(duration):
 def get_unixts(d):
     """Convert a date to a unix timestamp (float).
 
-    :param date: a date in one of the supported types. if date ==
-      None, returns None. Supported types
+    :param d: a date in one of the supported types. if date == None,
+      returns None. Supported types
 
       - `datetime.datetime`
 
@@ -193,7 +193,7 @@ def format_seconds(secs, showms = False):
 def format_date(d, showms = False):
     """Return a string with the formatted date (year, month, day, hour, min, sec, ms) for pretty printing.
 
-    :param date: a date in one of the formats handled (or None) (see
+    :param d: a date in one of the formats handled (or None) (see
       `execo.time_utils.get_unixts`).
 
     :param showms: whether to show ms or not. Default False.
