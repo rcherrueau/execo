@@ -21,11 +21,11 @@ from host import get_hosts_list
 from log import set_style, logger
 from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
     TaktukProcess, Process
-from report import Report, sort_reports
+from report import Report
 from ssh_utils import get_ssh_scp_pty_option, get_rewritten_host_address, \
     get_taktuk_connector_command, get_ssh_command, get_scp_command
 from substitutions import get_caller_context, remote_substitute
-from time_utils import get_seconds, format_unixts
+from time_utils import get_seconds, format_date
 import threading
 import time
 
@@ -149,9 +149,9 @@ class Action(object):
         # use in __str__ methods.
         stats = self.stats()
         return [ "started=%r" % (self._started,),
-                 "start_date=%r" % (format_unixts(stats['start_date']),),
+                 "start_date=%r" % (format_date(stats['start_date']),),
                  "ended=%r" % (self._ended,),
-                 "end_date=%r" % (format_unixts(stats['end_date']),),
+                 "end_date=%r" % (format_date(stats['end_date']),),
                  "num_processes=%r" % (stats['num_processes'],),
                  "num_started=%r" % (stats['num_started'],),
                  "num_ended=%r" % (stats['num_ended'],),
@@ -295,6 +295,7 @@ class Action(object):
         see `execo.report.Report.stats`.
         """
         stats = Report.empty_stats()
+        stats['name'] = self.name()
         for process in self.processes():
             if (stats['start_date'] == None
                 or (process.start_date() != None
@@ -321,10 +322,6 @@ class Action(object):
         if stats['num_processes'] > stats['num_ended']:
             stats['end_date'] = None
         return stats
-
-    def reports(self):
-        """See `execo.report.Report.reports`."""
-        return ()
 
 def wait_multiple_actions(actions, timeout = None):
     """Wait for any of the actions given to terminate.
@@ -1410,13 +1407,11 @@ class ParallelActions(Action):
             p.extend(action.processes())
         return p
 
-    def reports(self):
-        reports = list(self.actions())
-        sort_reports(reports)
-        return reports
-
     def stats(self):
-        return Report(self.actions()).stats()
+        stats = Report.empty_stats()
+        stats['sub_stats'] = [action.stats() for action in self.actions()]
+        Report.aggregate_stats(stats)
+        return stats
 
 class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
 
@@ -1513,10 +1508,8 @@ class SequentialActions(Action):
             p.extend(action.processes())
         return p
 
-    def reports(self):
-        reports = list(self.actions())
-        sort_reports(reports)
-        return reports
-
     def stats(self):
-        return Report(self.actions()).stats()
+        stats = Report.empty_stats()
+        stats['sub_stats'] = [action.stats() for action in self.actions()]
+        Report.aggregate_stats(stats)
+        return stats

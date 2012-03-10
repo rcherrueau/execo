@@ -1,13 +1,21 @@
 #!/usr/bin/env python
 
 from execo import Local, Report
-actions = [ Local("ls -al ~"),
-            Local("false"),
-            Local("/dev/null"),
-            Local("portinouak"),
-            Local("echo begin ; sleep 2 ; echo end"),
-            Local("ping -c 2 localhost") ]
+import json
+
+actions = []
+for i in range(50):
+    actions.extend([ Local("ls -al ~"),
+                     Local("false"),
+                     Local("/dev/null"),
+                     Local("portinouak"),
+                     Local("echo begin ; sleep 2 ; echo end"),
+                     Local("ping -c 2 localhost") ])
 [ action.start() for action in actions ]
 [ action.wait() for action in actions ]
-actions.append(Local("uname -a"))
-print Report(actions).output()
+#actions.append(Local("uname -a"))
+r = Report(actions)
+
+print r.to_string(wide = True, brief = False)
+
+print json.dumps(r.stats(), indent = 2)
