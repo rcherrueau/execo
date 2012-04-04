@@ -19,4 +19,4 @@
 
 from log import logger
 from engine import Engine
-from utils import ParamSweeper, g5k_host_get_cluster, g5k_host_get_site, group_hosts
+from utils import ParamSweeper

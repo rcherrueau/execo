@@ -26,3 +26,4 @@ from oar import OarSubmission, oarsub, oardel, get_current_oar_jobs, \
 from oargrid import oargridsub, oargriddel, get_current_oargrid_jobs, \
   get_oargrid_job_info, wait_oargrid_job_start, get_oargrid_job_nodes
 from kadeploy import Deployment, Kadeployer, kadeploy, deploy
+from utils import g5k_host_get_cluster, g5k_host_get_site, group_hosts
