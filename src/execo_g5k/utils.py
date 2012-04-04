@@ -18,6 +18,8 @@
 
 from config import default_frontend_connexion_params
 from execo_g5k.config import g5k_configuration
+import execo
+import itertools
 import re
 import socket
 
@@ -47,3 +49,37 @@ def get_frontend_connexion_params(frontend_connexion_params):
     if frontend_connexion_params:
         params.update(frontend_connexion_params)
     return params
+
+__g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr$")
+
+def g5k_host_get_cluster(host):
+    if isinstance(host, execo.Host):
+        host = host.address
+    m = __g5k_host_group_regex.match(host)
+    if m: return m.group(1)
+    else: return None
+
+def g5k_host_get_site(host):
+    if isinstance(host, execo.Host):
+        host = host.address
+    m = __g5k_host_group_regex.match(host)
+    if m: return m.group(2)
+    else: return None
+
+def group_hosts(nodes):
+    grouped_nodes = {}
+    for site, site_nodes in itertools.groupby(
+        sorted(nodes,
+               lambda n1, n2: cmp(
+                   g5k_host_get_site(n1),
+                   g5k_host_get_site(n2))),
+        g5k_host_get_site):
+        grouped_nodes[site] = {}
+        for cluster, cluster_nodes in itertools.groupby(
+            sorted(site_nodes,
+                   lambda n1, n2: cmp(
+                       g5k_host_get_cluster(n1),
+                       g5k_host_get_cluster(n2))),
+            g5k_host_get_cluster):
+            grouped_nodes[site][cluster] = list(cluster_nodes)
+    return grouped_nodes

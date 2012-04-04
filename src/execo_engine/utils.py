@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import itertools, re, threading, os, cPickle, execo
+import itertools, threading, os, cPickle
 from log import logger
 
 class HashableDict(dict):
@@ -115,37 +115,3 @@ class ParamSweeper(object):
 
     def num_total(self, parameters):
         return len(ParamSweeper(parameters))
-
-__g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr$")
-
-def g5k_host_get_cluster(host):
-    if isinstance(host, execo.Host):
-        host = host.address
-    m = __g5k_host_group_regex.match(host)
-    if m: return m.group(1)
-    else: return None
-
-def g5k_host_get_site(host):
-    if isinstance(host, execo.Host):
-        host = host.address
-    m = __g5k_host_group_regex.match(host)
-    if m: return m.group(2)
-    else: return None
-
-def group_hosts(nodes):
-    grouped_nodes = {}
-    for site, site_nodes in itertools.groupby(
-        sorted(nodes,
-               lambda n1, n2: cmp(
-                   g5k_host_get_site(n1),
-                   g5k_host_get_site(n2))),
-        g5k_host_get_site):
-        grouped_nodes[site] = {}
-        for cluster, cluster_nodes in itertools.groupby(
-            sorted(site_nodes,
-                   lambda n1, n2: cmp(
-                       g5k_host_get_cluster(n1),
-                       g5k_host_get_cluster(n2))),
-            g5k_host_get_cluster):
-            grouped_nodes[site][cluster] = list(cluster_nodes)
-    return grouped_nodes
