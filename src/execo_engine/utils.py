@@ -40,7 +40,7 @@ class sweeps(object):
     values, will iterate over the cartesian product of all parameters
     combinations. For example:
     
-    >>> ps = ParamSweeper({
+    >>> ps = sweeps({
     ...   "param1": [ 0, 1 ],
     ...   "param2": [ "a", "b", "c" ]
     ...   })
