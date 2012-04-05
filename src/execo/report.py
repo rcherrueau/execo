@@ -29,24 +29,11 @@ class Report(object):
 
     A Report gathers the results of actions or (recursively) of other
     reports.
-
-    To be able to gather transparently results both from actions and
-    sub-reports, both `execo.action.Action` and `execo.report.Report`
-    implement the `execo.report.Report.stats`,
-    `execo.report.Report.reports`, `execo.report.Report.name` methods.
-
-    >>> r = Report()
-    >>> r
-    <Report(<0 entries>, name='Report')>
-    >>> sorted(r.stats().items())
-    [('end_date', None), ('num_ended', 0), ('num_errors', 0), ('num_forced_kills', 0), ('num_non_zero_exit_codes', 0), ('num_ok', 0), ('num_processes', 0), ('num_started', 0), ('num_timeouts', 0), ('start_date', None)]
     """
 
     def __init__(self, stats_objects = None, name = None):
         """
-        :param reports: a `execo.report.Report`, an
-          `execo.action.Action`, or an iterable of these, which will
-          be added to this report.
+        :param stats_objects:
 
         :param name a name given to this report. If None, a default
           name will be given.
@@ -61,8 +48,7 @@ class Report(object):
     def add(self, stats_objects):
         """Add some sub-`execo.report.Report` or `execo.action.Action` to this report.
         
-        :param reports: an iterable of `execo.report.Report` or
-          `execo.action.Action`, which will be added to this report.
+        :param stats_objects:
         """
         self._stats['sub_stats'].extend([o.stats() for o in stats_objects])
 
