@@ -41,6 +41,32 @@ class ArgsOptionParser(optparse.OptionParser):
     def num_arguments(self):
         return len(self.arguments)
 
+    def format_arguments(self, formatter=None):
+        if formatter is None:
+            formatter = self.formatter
+        result = []
+        result.append(formatter.format_heading("Arguments"))
+        formatter.indent()
+        for argument in self.arguments:
+            result.append(formatter._format_text("%s: %s" % (argument[0], argument[1])))
+            result.append("\n")
+        formatter.dedent()
+        result.append("\n")
+        return "".join(result)
+
+    def format_help(self, formatter=None):
+        if formatter is None:
+            formatter = self.formatter
+        result = []
+        if self.usage:
+            result.append(self.get_usage() + "\n")
+        if self.description:
+            result.append(self.format_description(formatter) + "\n")
+        result.append(self.format_arguments(formatter))
+        result.append(self.format_option_help(formatter))
+        result.append(self.format_epilog(formatter))
+        return "".join(result)
+
 def _redirect_fd(fileno, filename):
     # create and open file filename, and redirect open file fileno to it
     f = os.open(filename, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0644)
