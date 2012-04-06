@@ -208,6 +208,7 @@ class Engine(object):
                 self._copy_outputs(self.options.merge_outputs)
             elif self.options.output_mode == "redirect":
                 self._redirect_outputs(self.options.merge_outputs)
+        logger.info("command line arguments: %s" % (sys.argv,))
         if self.options.continue_dir:
             logger.info("continue experiment in %s", self.options.continue_dir)
         run_meth_on_engine_ancestors(self, "init")
