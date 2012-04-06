@@ -32,28 +32,62 @@ class HashableDict(dict):
     def __eq__(self, other):
         return other and self.__key() == other.__key()
 
-class sweeps(object):
+def sweeps(parameters):
+
+    """Generates all combinations of parameters.
     
-    """Iterable over all possible combinations of parameters.
-    
-    Given a a directory associating parameters and the list of their
+    Given a a dict associating parameters and the list of their
     values, will iterate over the cartesian product of all parameters
-    combinations. For example:
-    
-    >>> ps = sweeps({
-    ...   "param1": [ 0, 1 ],
-    ...   "param2": [ "a", "b", "c" ]
-    ...   })
-    >>> list(ps)
-    [{'param2': 'a', 'param1': 0}, {'param2': 'a', 'param1': 1}, {'param2': 'b', 'param1': 0}, {'param2': 'b', 'param1': 1}, {'param2': 'c', 'param1': 0}, {'param2': 'c', 'param1': 1}]
+    combinations. In the given parameters, if instead of a list of
+    values a dict is given, then will use the keys of the dict as
+    possible values, and the values of the dict as parameters for a
+    recursive sub-sweep.
+
+    The returned list contains HashableDict instead of dict so that
+    parameters combinations can be used as dict keys (but don't modify
+    them in such cases)
+
+    Examples:
+
+    >>> sweeps({
+    ...     "param 1": ["a", "b"],
+    ...     "param 2": [1, 2]
+    ...     })
+    [{'param 1': 'a', 'param 2': 1}, {'param 1': 'a', 'param 2': 2}, {'param 1': 'b', 'param 2': 1}, {'param 1': 'b', 'param 2': 2}]
+
+    >>> sweeps({
+    ...     "param 1": ["a", "b"],
+    ...     "param 2": {
+    ...         1: {
+    ...             "param 1 1": [ "x", "y" ],
+    ...             "param 1 2": [ 0.0, 1.0 ]
+    ...             },
+    ...         2: {
+    ...             "param 2 1": [ -10, 10 ]
+    ...             }
+    ...         }
+    ...     })
+    [{'param 1 2': 0.0, 'param 1 1': 'x', 'param 1': 'a', 'param 2': 1}, {'param 1 2': 0.0, 'param 1 1': 'y', 'param 1': 'a', 'param 2': 1}, {'param 1 2': 1.0, 'param 1 1': 'x', 'param 1': 'a', 'param 2': 1}, {'param 1 2': 1.0, 'param 1 1': 'y', 'param 1': 'a', 'param 2': 1}, {'param 2 1': -10, 'param 1': 'a', 'param 2': 2}, {'param 2 1': 10, 'param 1': 'a', 'param 2': 2}, {'param 1 2': 0.0, 'param 1 1': 'x', 'param 1': 'b', 'param 2': 1}, {'param 1 2': 0.0, 'param 1 1': 'y', 'param 1': 'b', 'param 2': 1}, {'param 1 2': 1.0, 'param 1 1': 'x', 'param 1': 'b', 'param 2': 1}, {'param 1 2': 1.0, 'param 1 1': 'y', 'param 1': 'b', 'param 2': 1}, {'param 2 1': -10, 'param 1': 'b', 'param 2': 2}, {'param 2 1': 10, 'param 1': 'b', 'param 2': 2}]
     """
 
-    def __init__(self, parameters):
-        self.parameters = parameters
-
-    def __iter__(self):
-        return ( HashableDict(zip(self.parameters.keys(), values)) for
-                 values in itertools.product(*self.parameters.values()) )
+    result = [HashableDict()]
+    for key, val in parameters.items():
+        newresult = []
+        for i in result:
+            if isinstance(val, dict):
+                for subkey, subval in val.items():
+                    for subcombs in sweeps(subval):
+                        subresult = HashableDict(i)
+                        subresult.update({key: subkey})
+                        subresult.update(subcombs)
+                        newresult.append(subresult)
+            else:
+                for j in val:
+                    subresult = HashableDict(i)
+                    subresult.update({key: j})
+                    newresult.append(subresult)
+        result = newresult
+    return result
 
 class ParamSweeper(object):
 
