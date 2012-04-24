@@ -93,10 +93,15 @@ class ParamSweeper(object):
 
     """Threadsafe and persistent iteration over parameter combinations."""
 
-    def __init__(self, persistence_file, name = None):
+    def __init__(self, parameters, persistence_file, name = None):
         self.__lock = threading.RLock()
+        self.__parameters = parameters
+        self.__sweeps = sweeps(self.__parameters)
         self.__done = set()
+        self.__skipped = set()
         self.__inprogress = set()
+        self.__remaining = frozenset()
+        self.__update_remaining()
         self.__done_file = persistence_file
         self.__name = name
         if not self.__name:
@@ -105,47 +110,71 @@ class ParamSweeper(object):
             with open(self.__done_file, "r") as done_file:
                 self.__done = cPickle.load(done_file)
 
-    def __remaining(self, parameters):
-        return frozenset(sweeps(parameters)).difference(self.__done).difference(self.__inprogress)
+    def __update_remaining(self):
+        self.__remaining = frozenset(self.__sweeps).difference(self.__done).difference(self.__skipped).difference(self.__inprogress)
 
-    def get_next(self, parameters):
+    def __str__(self):
+        return "%s <%i total, %i remaining, %i skipped, %i in progress>" % (
+            self.__name,
+            self.num_total(),
+            self.num_remaining(),
+            self.num_skipped(),
+            self.num_inprogress())
+
+    def set_parameters(self, parameters):
+        with self.__lock:
+            self.__parameters = parameters
+            self.__sweeps = sweeps(self.__parameters)
+            self.__update_remaining()
+
+    def get_next(self):
         with self.__lock:
             try:
-                xp = iter(self.__remaining(parameters)).next()
+                xp = iter(self.__remaining).next()
                 self.__inprogress.add(xp)
-                logger.info(
-                    "%s new xp: %s. %i remaining, %i in progress, %i total",
-                        self.__name, xp,
-                        self.num_remaining(parameters),
-                        len(self.__inprogress),
-                        len(list(sweeps(parameters))))
+                self.__update_remaining()
+                logger.info("%s new xp: %s", self.__name, xp)
+                logger.info(self)
                 return xp
             except StopIteration:
-                logger.info(
-                    "%s no new xp. %i remaining, %i in progress, %i total",
-                        self.__name,
-                        self.num_remaining(parameters),
-                        len(self.__inprogress),
-                        len(list(sweeps(parameters))))
+                logger.info("%s no new xp", self.__name)
+                logger.info(self)
                 return None
 
     def done(self, xp):
         with self.__lock:
             self.__done.add(xp)
             self.__inprogress.discard(xp)
-            logger.info("%s xp done: %s",
-                self.__name, xp)
             with open(self.__done_file, "w") as done_file:
                 cPickle.dump(self.__done, done_file)
+            self.__update_remaining()
+            logger.info("%s xp done: %s", self.__name, xp)
+            logger.info(self)
+
+    def skip(self, xp):
+        with self.__lock:
+            self.__skipped.add(xp)
+            self.__inprogress.discard(xp)
+            self.__update_remaining()
+            logger.info("%s xp skipped: %s", self.__name, xp)
+            logger.info(self)
 
     def reset(self):
         with self.__lock:
-            logger.info("%s reset", self.__name)
             self.__inprogress.clear()
+            self.__skipped.clear()
+            self.__update_remaining()
+            logger.info("%s reset", self.__name)
+            logger.info(self)
 
-    def num_remaining(self, parameters):
-        with self.__lock:
-            return len(self.__remaining(parameters))
+    def num_total(self):
+        return len(self.__sweeps)
 
-    def num_total(self, parameters):
-        return len(ParamSweeper(parameters))
+    def num_skipped(self):
+        return len(self.__skipped)
+
+    def num_remaining(self):
+        return len(self.__remaining)
+
+    def num_inprogress(self):
+        return len(self.__inprogress)
