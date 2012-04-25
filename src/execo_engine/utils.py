@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import itertools, threading, os, cPickle
+import threading, os, cPickle
 from log import logger
 
 class HashableDict(dict):
@@ -32,7 +32,7 @@ class HashableDict(dict):
     def __eq__(self, other):
         return other and self.__key() == other.__key()
 
-def sweeps(parameters):
+def sweep(parameters):
 
     """Generates all combinations of parameters.
     
@@ -49,13 +49,13 @@ def sweeps(parameters):
 
     Examples:
 
-    >>> sweeps({
+    >>> sweep({
     ...     "param 1": ["a", "b"],
     ...     "param 2": [1, 2]
     ...     })
     [{'param 1': 'a', 'param 2': 1}, {'param 1': 'a', 'param 2': 2}, {'param 1': 'b', 'param 2': 1}, {'param 1': 'b', 'param 2': 2}]
 
-    >>> sweeps({
+    >>> sweep({
     ...     "param 1": ["a", "b"],
     ...     "param 2": {
     ...         1: {
@@ -76,7 +76,7 @@ def sweeps(parameters):
         for i in result:
             if isinstance(val, dict):
                 for subkey, subval in val.items():
-                    for subcombs in sweeps(subval):
+                    for subcombs in sweep(subval):
                         subresult = HashableDict(i)
                         subresult.update({key: subkey})
                         subresult.update(subcombs)
@@ -93,10 +93,9 @@ class ParamSweeper(object):
 
     """Threadsafe and persistent iteration over parameter combinations."""
 
-    def __init__(self, parameters, persistence_file, name = None):
+    def __init__(self, sweeps, persistence_file, name = None):
         self.__lock = threading.RLock()
-        self.__parameters = parameters
-        self.__sweeps = sweeps(self.__parameters)
+        self.__sweeps = sweeps
         self.__done = set()
         self.__skipped = set()
         self.__inprogress = set()
@@ -121,10 +120,9 @@ class ParamSweeper(object):
             self.num_skipped(),
             self.num_inprogress())
 
-    def set_parameters(self, parameters):
+    def set_sweeps(self, sweeps):
         with self.__lock:
-            self.__parameters = parameters
-            self.__sweeps = sweeps(self.__parameters)
+            self.__sweeps = sweeps
             self.__update_remaining()
 
     def get_next(self):

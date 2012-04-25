@@ -19,4 +19,4 @@
 
 from log import logger
 from engine import Engine
-from utils import sweeps, ParamSweeper
+from utils import sweep, ParamSweeper
