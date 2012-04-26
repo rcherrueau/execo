@@ -189,8 +189,8 @@ class Engine(object):
         the overridden run() method of the requested experiment
         Engine.
         """
-        del sys.argv[1]
         (self.options, self.args) = self.options_parser.parse_args()
+        del self.args[0]
         logger.setLevel(self.options.log_level)
         if len(self.args) < self.options_parser.num_arguments():
             self.options_parser.print_help(sys.stderr)
