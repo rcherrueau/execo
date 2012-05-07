@@ -113,12 +113,13 @@ class ParamSweeper(object):
         self.__remaining = frozenset(self.__sweeps).difference(self.__done).difference(self.__skipped).difference(self.__inprogress)
 
     def __str__(self):
-        return "%s <%i total, %i remaining, %i skipped, %i in progress>" % (
+        return "%s <%i total, %i done, %i skipped, %i in progress, %i remaining>" % (
             self.__name,
             self.num_total(),
-            self.num_remaining(),
+            self.num_done(),
             self.num_skipped(),
-            self.num_inprogress())
+            self.num_inprogress(),
+            self.num_remaining())
 
     def set_sweeps(self, sweeps):
         with self.__lock:
@@ -128,33 +129,33 @@ class ParamSweeper(object):
     def get_next(self):
         with self.__lock:
             try:
-                xp = iter(self.__remaining).next()
-                self.__inprogress.add(xp)
+                combination = iter(self.__remaining).next()
+                self.__inprogress.add(combination)
                 self.__update_remaining()
-                logger.info("%s new xp: %s", self.__name, xp)
+                logger.info("%s new combination: %s", self.__name, combination)
                 logger.info(self)
-                return xp
+                return combination
             except StopIteration:
-                logger.info("%s no new xp", self.__name)
+                logger.info("%s no new combination", self.__name)
                 logger.info(self)
                 return None
 
-    def done(self, xp):
+    def done(self, combination):
         with self.__lock:
-            self.__done.add(xp)
-            self.__inprogress.discard(xp)
+            self.__done.add(combination)
+            self.__inprogress.discard(combination)
             with open(self.__done_file, "w") as done_file:
                 cPickle.dump(self.__done, done_file)
             self.__update_remaining()
-            logger.info("%s xp done: %s", self.__name, xp)
+            logger.info("%s combination done: %s", self.__name, combination)
             logger.info(self)
 
-    def skip(self, xp):
+    def skip(self, combination):
         with self.__lock:
-            self.__skipped.add(xp)
-            self.__inprogress.discard(xp)
+            self.__skipped.add(combination)
+            self.__inprogress.discard(combination)
             self.__update_remaining()
-            logger.info("%s xp skipped: %s", self.__name, xp)
+            logger.info("%s combination skipped: %s", self.__name, combination)
             logger.info(self)
 
     def reset(self):
@@ -176,3 +177,6 @@ class ParamSweeper(object):
 
     def num_inprogress(self):
         return len(self.__inprogress)
+
+    def num_done(self):
+        return self.num_total() - (self.num_remaining() + self.num_inprogress()) - self.num_skipped()
