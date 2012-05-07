@@ -72,6 +72,7 @@ def sweep(parameters):
 
     result = [HashableDict()]
     for key, val in parameters.items():
+        if len(val) == 0: continue
         newresult = []
         for i in result:
             if isinstance(val, dict):
