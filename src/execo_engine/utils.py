@@ -101,7 +101,6 @@ class ParamSweeper(object):
         self.__skipped = set()
         self.__inprogress = set()
         self.__remaining = frozenset()
-        self.__update_remaining()
         self.__done_file = persistence_file
         self.__name = name
         if not self.__name:
@@ -109,6 +108,7 @@ class ParamSweeper(object):
         if os.path.isfile(self.__done_file):
             with open(self.__done_file, "r") as done_file:
                 self.__done = cPickle.load(done_file)
+        self.__update_remaining()
 
     def __update_remaining(self):
         self.__remaining = frozenset(self.__sweeps).difference(self.__done).difference(self.__skipped).difference(self.__inprogress)
@@ -180,4 +180,4 @@ class ParamSweeper(object):
         return len(self.__inprogress)
 
     def num_done(self):
-        return self.num_total() - (self.num_remaining() + self.num_inprogress()) - self.num_skipped()
+        return self.num_total() - (self.num_remaining() + self.num_inprogress() + self.num_skipped())
