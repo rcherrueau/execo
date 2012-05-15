@@ -443,7 +443,7 @@ class Remote(Action):
 
     def name(self):
         if self._name == None:
-            return "%s %s on %i hosts" % (self.__class__.__name__, self._remote_cmd, len(self._hosts))
+            return "%s on %i hosts: %s" % (self.__class__.__name__, len(self._hosts), self._remote_cmd)
         else:
             return self._name
 
