@@ -117,9 +117,9 @@ class ProcessBase(object):
     """
 
     def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None,
-                 ignore_exit_code = False, log_exit_code = True,
-                 ignore_timeout = False, log_timeout = True,
-                 ignore_error = False, log_error = True,
+                 ignore_exit_code = False, log_exit_code = None,
+                 ignore_timeout = False, log_timeout = None,
+                 ignore_error = False, log_error = None,
                  default_stdout_handler = True, default_stderr_handler = True,
                  process_lifecycle_handler = None):
         """
@@ -188,9 +188,18 @@ class ProcessBase(object):
         self._ignore_exit_code = ignore_exit_code
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
-        self._log_exit_code = log_exit_code
-        self._log_timeout = log_timeout
-        self._log_error = log_error
+        if log_exit_code != None:
+            self._log_exit_code = log_exit_code
+        else:
+            self._log_exit_code = not ignore_exit_code
+        if log_timeout != None:
+            self._log_timeout = log_timeout
+        else:
+            self._log_timeout = not ignore_timeout
+        if log_error != None:
+            self._log_error = log_error
+        else:
+            self._log_error = not ignore_error
         self._stdout_handler = stdout_handler
         self._stderr_handler = stderr_handler
         self._default_stdout_handler = default_stdout_handler
