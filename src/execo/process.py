@@ -188,18 +188,9 @@ class ProcessBase(object):
         self._ignore_exit_code = ignore_exit_code
         self._ignore_timeout = ignore_timeout
         self._ignore_error = ignore_error
-        if log_exit_code != None:
-            self._log_exit_code = log_exit_code
-        else:
-            self._log_exit_code = not ignore_exit_code
-        if log_timeout != None:
-            self._log_timeout = log_timeout
-        else:
-            self._log_timeout = not ignore_timeout
-        if log_error != None:
-            self._log_error = log_error
-        else:
-            self._log_error = not ignore_error
+        self._log_exit_code = log_exit_code
+        self._log_timeout = log_timeout
+        self._log_error = log_error
         self._stdout_handler = stdout_handler
         self._stderr_handler = stderr_handler
         self._default_stdout_handler = default_stdout_handler
@@ -246,9 +237,9 @@ class ProcessBase(object):
         if self._ignore_exit_code != False: kwargs.append("ignore_exit_code=%r" % (self._ignore_exit_code,))
         if self._ignore_timeout != False: kwargs.append("ignore_timeout=%r" % (self._ignore_timeout,))
         if self._ignore_error != False: kwargs.append("ignore_error=%r" % (self._ignore_error,))
-        if self._log_exit_code != True: kwargs.append("log_exit_code=%r" % (self._log_exit_code,))
-        if self._log_timeout != True: kwargs.append("log_timeout=%r" % (self._log_timeout,))
-        if self._log_error != True: kwargs.append("log_error=%r" % (self._log_error,))
+        if self._log_exit_code != None: kwargs.append("log_exit_code=%r" % (self._log_exit_code,))
+        if self._log_timeout != None: kwargs.append("log_timeout=%r" % (self._log_timeout,))
+        if self._log_error != None: kwargs.append("log_error=%r" % (self._log_error,))
         if self._default_stdout_handler != True: kwargs.append("default_stdout_handler=%r" % (self._default_stdout_handler,))
         if self._default_stderr_handler != True: kwargs.append("default_stderr_handler=%r" % (self._default_stderr_handler,))
         if self._process_lifecycle_handler: kwargs.append("process_lifecycle_handler=%r" % (self._process_lifecycle_handler,))
@@ -439,9 +430,9 @@ class ProcessBase(object):
         This method will log process termination as needed.
         """
         s = set_style("terminated:", 'emph') + " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
-        if ((self._error and self._log_error)
-            or (self._timeouted and self._log_timeout)
-            or (self._exit_code != 0 and self._log_exit_code)):
+        if ((self._error and (self._log_error if self._log_error != None else not self._ignore_error))
+            or (self._timeouted and (self._log_timeout if self._log_timeout != None else not self._ignore_timeout))
+            or (self._exit_code != 0 and (self._log_exit_code if self._log_exit_code != None else not self._ignore_exit_code))):
             logger.warning(s)
         else:
             logger.debug(s)
