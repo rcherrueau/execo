@@ -25,6 +25,7 @@ from time_utils import format_unixts, get_seconds
 from utils import compact_output
 import errno
 import os
+import re
 import signal
 import subprocess
 import threading
@@ -458,6 +459,16 @@ class ProcessBase(object):
         self._common_reset()
         return self
 
+def killtree(pid, sig):
+    try:
+        s = subprocess.Popen(("ps", "--ppid", str(pid)), stdout=subprocess.PIPE).communicate()[0]
+        child_pids = re.findall("^\s*\d+\s+", s, re.MULTILINE)
+        for child_pid in child_pids:
+            killtree(int(child_pid), sig)
+    except subprocess.CalledProcessError:
+        pass
+    os.kill(pid, sig)
+
 class Process(ProcessBase):
 
     r"""Handle an operating system process.
@@ -493,7 +504,12 @@ class Process(ProcessBase):
     True
     """
 
-    def __init__(self, cmd, close_stdin = None, shell = True, pty = False, **kwargs):
+    def __init__(self, cmd,
+                 close_stdin = None,
+                 shell = True,
+                 pty = False,
+                 kill_subprocesses = True,
+                 **kwargs):
         """
         :param cmd: string or tuple containing the command and args to
           run.
@@ -510,6 +526,9 @@ class Process(ProcessBase):
           process a session leader. If lacking permissions to send
           signals to the process, try to simulate sending control
           characters to its pty.
+
+        :param kill_subprocesses: if True, signals are also sent to
+          subprocesses.
         """
         super(Process, self).__init__(cmd, **kwargs)
         self._process = None
@@ -526,6 +545,7 @@ class Process(ProcessBase):
                 self._close_stdin = True
         else:
             self._close_stdin = close_stdin
+        self._kill_subprocesses = kill_subprocesses
 
     def _common_reset(self):
         super(Process, self)._common_reset()
@@ -543,6 +563,7 @@ class Process(ProcessBase):
         if self._close_stdin: kwargs.append("close_stdin=%r" % (self._close_stdin,))
         if self._shell != True: kwargs.append("shell=%r" % (self._shell,))
         if self._pty != False: kwargs.append("pty=%r" % (self._pty,))
+        if self._kill_subprocesses != True: kwargs.append("kill_subprocesses=%r" % (self._kill_subprocesses,)) 
         return kwargs
 
     def _infos(self):
@@ -665,7 +686,10 @@ class Process(ProcessBase):
             if sig == signal.SIGKILL:
                 self._forced_kill = True
             try:
-                os.kill(self._pid, sig)
+                if self._kill_subprocesses:
+                    killtree(self._pid, sig)
+                else:
+                    os.kill(self._pid, sig)
             except OSError, e:
                 if e.errno == errno.EPERM:
                     if (self._pty
