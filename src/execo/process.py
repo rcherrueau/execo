@@ -550,6 +550,8 @@ class Process(ProcessBase):
         else:
             self._close_stdin = close_stdin
         self._kill_subprocesses = kill_subprocesses
+        if self._shell == False and isinstance(self._cmd, str):
+            self._cmd = shlex.split(self._cmd)
 
     def _common_reset(self):
         super(Process, self)._common_reset()
@@ -621,10 +623,6 @@ class Process(ProcessBase):
         """Start the subprocess."""
         # not synchronized: instead, self._lock managed explicitely to
         # avoid deadlock with conductor lock
-        if self._shell == False and isinstance(self._cmd, str):
-            tmp_cmd = shlex.split(self._cmd)
-        else:
-            tmp_cmd = self._cmd
         with self._lock:
             if self._started:
                 raise ValueError, "unable to start an already started process"
@@ -644,7 +642,7 @@ class Process(ProcessBase):
                 # called before the process has been registered to the
                 # conductor
                 if self._pty:
-                    self._process = subprocess.Popen(tmp_cmd,
+                    self._process = subprocess.Popen(self._cmd,
                                                      stdin = self._ptyslave,
                                                      stdout = self._ptyslave,
                                                      stderr = subprocess.PIPE,
@@ -652,7 +650,7 @@ class Process(ProcessBase):
                                                      shell = self._shell,
                                                      preexec_fn = os.setsid)
                 else:
-                    self._process = subprocess.Popen(tmp_cmd,
+                    self._process = subprocess.Popen(self._cmd,
                                                      stdin = subprocess.PIPE,
                                                      stdout = subprocess.PIPE,
                                                      stderr = subprocess.PIPE,
