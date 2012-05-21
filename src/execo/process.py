@@ -464,7 +464,7 @@ def _get_childs(pid):
     childs = []
     try:
         s = subprocess.Popen(("ps", "--ppid", str(pid)), stdout=subprocess.PIPE).communicate()[0]
-        tmp_childs = re.findall("^\s*(\d+)\s+", s, re.MULTILINE)
+        tmp_childs = [ int(c) for c in re.findall("^\s*(\d+)\s+", s, re.MULTILINE) ]
         childs.extend(tmp_childs)
         for child in tmp_childs:
             childs.extend(_get_childs(child))
