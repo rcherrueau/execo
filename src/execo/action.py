@@ -780,7 +780,6 @@ class TaktukRemote(Action):
         #handler = _TaktukRemoteOutputHandler(self)
         self._taktuk = Process(self._taktuk_cmdline,
                                timeout = self._timeout,
-                               shell = False,
                                stdout_handler = self._taktuk_stdout_output_handler,
                                stderr_handler = self._taktuk_stderr_output_handler,
                                #default_stdout_handler = False,
@@ -1273,7 +1272,6 @@ class Local(Action):
         self._cmd = cmd
         self._process = Process(self._cmd,
                                 timeout = self._timeout,
-                                shell = True,
                                 ignore_exit_code = self._ignore_exit_code,
                                 log_exit_code = self._log_exit_code,
                                 ignore_timeout = self._ignore_timeout,

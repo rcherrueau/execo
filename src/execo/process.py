@@ -30,6 +30,7 @@ import signal
 import subprocess
 import threading
 import time
+import shlex
 
 class ProcessLifecycleHandler(object):
 
@@ -459,15 +460,17 @@ class ProcessBase(object):
         self._common_reset()
         return self
 
-def killtree(pid, sig):
+def _get_childs(pid):
+    childs = []
     try:
         s = subprocess.Popen(("ps", "--ppid", str(pid)), stdout=subprocess.PIPE).communicate()[0]
-        child_pids = re.findall("^\s*\d+\s+", s, re.MULTILINE)
-        for child_pid in child_pids:
-            killtree(int(child_pid), sig)
-    except subprocess.CalledProcessError:
+        tmp_childs = re.findall("^\s*(\d+)\s+", s, re.MULTILINE)
+        childs.extend(tmp_childs)
+        for child in tmp_childs:
+            childs.extend(_get_childs(child))
+    except OSError:
         pass
-    os.kill(pid, sig)
+    return childs
 
 class Process(ProcessBase):
 
@@ -506,9 +509,9 @@ class Process(ProcessBase):
 
     def __init__(self, cmd,
                  close_stdin = None,
-                 shell = True,
+                 shell = False,
                  pty = False,
-                 kill_subprocesses = True,
+                 kill_subprocesses = None,
                  **kwargs):
         """
         :param cmd: string or tuple containing the command and args to
@@ -528,7 +531,8 @@ class Process(ProcessBase):
           characters to its pty.
 
         :param kill_subprocesses: if True, signals are also sent to
-          subprocesses.
+          subprocesses. If None, automatically decide based on
+          shell = True/False. 
         """
         super(Process, self).__init__(cmd, **kwargs)
         self._process = None
@@ -561,9 +565,9 @@ class Process(ProcessBase):
     def _kwargs(self):
         kwargs = []
         if self._close_stdin: kwargs.append("close_stdin=%r" % (self._close_stdin,))
-        if self._shell != True: kwargs.append("shell=%r" % (self._shell,))
+        if self._shell != False: kwargs.append("shell=%r" % (self._shell,))
         if self._pty != False: kwargs.append("pty=%r" % (self._pty,))
-        if self._kill_subprocesses != True: kwargs.append("kill_subprocesses=%r" % (self._kill_subprocesses,)) 
+        if self._kill_subprocesses != None: kwargs.append("kill_subprocesses=%r" % (self._kill_subprocesses,)) 
         return kwargs
 
     def _infos(self):
@@ -617,6 +621,10 @@ class Process(ProcessBase):
         """Start the subprocess."""
         # not synchronized: instead, self._lock managed explicitely to
         # avoid deadlock with conductor lock
+        if self._shell == False and isinstance(self._cmd, str):
+            tmp_cmd = shlex.split(self._cmd)
+        else:
+            tmp_cmd = self._cmd
         with self._lock:
             if self._started:
                 raise ValueError, "unable to start an already started process"
@@ -636,7 +644,7 @@ class Process(ProcessBase):
                 # called before the process has been registered to the
                 # conductor
                 if self._pty:
-                    self._process = subprocess.Popen(self._cmd,
+                    self._process = subprocess.Popen(tmp_cmd,
                                                      stdin = self._ptyslave,
                                                      stdout = self._ptyslave,
                                                      stderr = subprocess.PIPE,
@@ -644,7 +652,7 @@ class Process(ProcessBase):
                                                      shell = self._shell,
                                                      preexec_fn = os.setsid)
                 else:
-                    self._process = subprocess.Popen(self._cmd,
+                    self._process = subprocess.Popen(tmp_cmd,
                                                      stdin = subprocess.PIPE,
                                                      stdout = subprocess.PIPE,
                                                      stderr = subprocess.PIPE,
@@ -685,11 +693,14 @@ class Process(ProcessBase):
                     the_conductor.update_process(self)
             if sig == signal.SIGKILL:
                 self._forced_kill = True
+            if (self._kill_subprocesses == True
+                or (self._kill_subprocesses == None
+                    and self._shell == True)):
+                additionnal_processes_to_kill = _get_childs(self._pid)
+            else:
+                additionnal_processes_to_kill = []
             try:
-                if self._kill_subprocesses:
-                    killtree(self._pid, sig)
-                else:
-                    os.kill(self._pid, sig)
+                os.kill(self._pid, sig)
             except OSError, e:
                 if e.errno == errno.EPERM:
                     if (self._pty
@@ -713,6 +724,14 @@ class Process(ProcessBase):
                     pass
                 else:
                     raise e
+            for p in additionnal_processes_to_kill:
+                try:
+                    os.kill(p, sig)
+                except OSError, e:
+                    if e.errno == errno.EPERM or e.errno == errno.ESRCH:
+                        pass
+                    else:
+                        raise e
         return self
 
     @synchronized
@@ -811,7 +830,7 @@ class SshProcess(Process):
                                     connexion_params)
                     + (get_rewritten_host_address(host.address, connexion_params),)
                     + (remote_cmd,))
-        super(SshProcess, self).__init__(real_cmd, shell = False, **kwargs)
+        super(SshProcess, self).__init__(real_cmd, **kwargs)
 
     def _args(self):
         return [ repr(self._host),
