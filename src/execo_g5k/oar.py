@@ -190,7 +190,11 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
         if os.environ.has_key('OAR_JOB_KEY_FILE'):
             oarsub_cmdline += ' -k -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
         if spec.job_type != None:
-            oarsub_cmdline += ' -t "%s"' % (spec.job_type,)
+            if hasattr(spec.job_type,"__iter__"):
+                for t in spec.job_type:
+                    oarsub_cmdline += ' -t "%s"' % (t,)
+            else:
+                oarsub_cmdline += ' -t "%s"' % (spec.job_type,)
         if spec.sql_properties != None:
             oarsub_cmdline += ' -p "%s"' % (spec.sql_properties,)
         if spec.queue != None:
