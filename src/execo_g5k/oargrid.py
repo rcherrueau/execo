@@ -68,26 +68,26 @@ def oargridsub(job_specs, reservation_date = None,
     """
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
-    oargridsub_cmdline = 'oargridsub'
-    if additional_options != None:
-        oargridsub_cmdline += ' %s' % (additional_options,)
-    oargridsub_cmdline += ' -v'
-    if reservation_date:
-        oargridsub_cmdline += ' -s "%s" ' % (format_oar_date(reservation_date),)
+    oargridsub_cmdline = 'oargridsub -v'
     if os.environ.has_key('OAR_JOB_KEY_FILE'):
         oargridsub_cmdline += ' -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
+    if reservation_date:
+        oargridsub_cmdline += ' -s "%s"' % (format_oar_date(reservation_date),)
     if queue != None:
-        oargridsub_cmdline += '-q "%s" ' % (queue,)
+        oargridsub_cmdline += ' -q "%s"' % (queue,)
     if job_type != None:
-        oargridsub_cmdline += '-t "%s" ' % (job_type,)
+        oargridsub_cmdline += ' -t "%s"' % (job_type,)
     if walltime != None:
-        oargridsub_cmdline += '-w "%s" ' % (format_oar_duration(walltime),)
+        oargridsub_cmdline += ' -w "%s"' % (format_oar_duration(walltime),)
     if directory != None:
-        oargridsub_cmdline += '-d "%s" ' % (directory,)
+        oargridsub_cmdline += ' -d "%s"' % (directory,)
+    if additional_options != None:
+        oargridsub_cmdline += ' %s' % (additional_options,)
     firstclusteralias = True
     for (spec, clusteralias) in job_specs:
         if firstclusteralias:
             firstclusteralias = False
+            oargridsub_cmdline += ' '
         else:
             oargridsub_cmdline += ','
         oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
