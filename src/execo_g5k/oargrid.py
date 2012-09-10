@@ -90,7 +90,7 @@ def oargridsub(job_specs, reservation_date = None,
             firstclusteralias = False
         else:
             oargridsub_cmdline += ','
-            oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
+        oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
         if spec.job_type != None:
             oargridsub_cmdline += ':type="%s"' % (spec.job_type,)
         if spec.sql_properties != None:
