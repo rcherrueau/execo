@@ -147,6 +147,11 @@ def _get_milliseconds_suffix(secs):
         ms_suffix = ".%03i" % msecs
     return ms_suffix
 
+def _zone2822(timetuple):
+    dst = timetuple[8]
+    offs = (time.timezone, time.timezone, time.altzone)[1 + dst]
+    return '%+.2d%.2d' % (offs / -3600, abs(offs / 60) % 60)
+
 def format_unixts(secs, showms = False):
     """Return a string with the formatted date (year, month, day, hour, min, sec, ms) for pretty printing.
 
@@ -160,8 +165,7 @@ def format_unixts(secs, showms = False):
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     if showms:
         formatted_time += _get_milliseconds_suffix(secs)
-    timezone = time.strftime("%z", t)
-    if timezone != "": formatted_time += " " + timezone
+    formatted_time += " " + _zone2822(t)
     return formatted_time
 
 def format_seconds(secs, showms = False):
