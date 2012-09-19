@@ -187,8 +187,11 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
         oarsub_cmdline += ' -l %s' % (spec.resources,)
         if spec.walltime != None:
             oarsub_cmdline += ',walltime=%s' % (format_oar_duration(spec.walltime),)
-        if os.environ.has_key('OAR_JOB_KEY_FILE'):
-            oarsub_cmdline += ' -k -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
+        key = g5k_configuration.get('oar_job_key_file')
+        if key == None:
+            key = os.environ.get('OAR_JOB_KEY_FILE')
+        if key != None:
+            oarsub_cmdline += ' -k -i %s' % (key,)
         if spec.job_type != None:
             if hasattr(spec.job_type,"__iter__"):
                 for t in spec.job_type:

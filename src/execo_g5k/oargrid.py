@@ -69,8 +69,11 @@ def oargridsub(job_specs, reservation_date = None,
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     oargridsub_cmdline = 'oargridsub -v'
-    if os.environ.has_key('OAR_JOB_KEY_FILE'):
-        oargridsub_cmdline += ' -i %s' % (os.environ['OAR_JOB_KEY_FILE'],)
+    key = g5k_configuration.get('oar_job_key_file')
+    if key == None:
+        key = os.environ.get('OAR_JOB_KEY_FILE')
+    if key != None:
+        oargridsub_cmdline += ' -i %s' % (key,)
     if reservation_date:
         oargridsub_cmdline += ' -s "%s"' % (format_oar_date(reservation_date),)
     if queue != None:

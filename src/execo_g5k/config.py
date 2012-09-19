@@ -32,6 +32,7 @@ g5k_configuration = {
     'default_frontend' : None,
     'api_uri': "https://api.grid5000.fr/2.0",
     'api_username': None,
+    'oar_job_key_file': None,
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
@@ -73,6 +74,9 @@ g5k_configuration = {
 - ``api_uri``: base uri for g5k api serverr.
 
 - ``api_username``: api username.
+
+- ``oar_job_key_file``: ssh key to use for oar. If defined, takes
+  precedence over environment variable OAR_JOB_KEY_FILE.
 """
 
 # _STARTOF_ default_oarsh_oarcp_params
