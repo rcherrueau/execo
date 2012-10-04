@@ -224,8 +224,8 @@ class Kadeployer(Remote):
                             process_lifecycle_handler = lifecycle_handler,
                             pty = True)
             else:
-                p = SshProcess(Host(frontend),
-                               kadeploy_command,
+                p = SshProcess(kadeploy_command,
+                               host = Host(frontend),
                                connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                                stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                                stderr_handler = _KadeployStderrHandler(self, out = self._out),

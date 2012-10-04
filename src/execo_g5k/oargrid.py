@@ -105,8 +105,8 @@ def oargridsub(job_specs, reservation_date = None,
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(get_default_frontend()),
-                             oargridsub_cmdline,
+        process = SshProcess(oargridsub_cmdline,
+                             host = Host(get_default_frontend()),
                              connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
                              pty = True)
@@ -153,8 +153,8 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
                                      log_exit_code = False,
                                      pty = True))
         else:
-            processes.append(SshProcess(Host(get_default_frontend()),
-                                        oargriddel_cmdline,
+            processes.append(SshProcess(oargriddel_cmdline,
+                                        host = Host(get_default_frontend()),
                                         connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                                         timeout = timeout,
                                         log_exit_code = False,
@@ -194,8 +194,8 @@ def get_current_oargrid_jobs(start_between = None,
                           timeout = timeout,
                           pty = True).run()
     else:
-        process = SshProcess(Host(get_default_frontend()),
-                             cmd,
+        process = SshProcess(cmd,
+                             host = Host(get_default_frontend()),
                              connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
                              pty = True).run()
@@ -241,8 +241,8 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(get_default_frontend()),
-                             cmd,
+        process = SshProcess(cmd,
+                             host = Host(get_default_frontend()),
                              connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
                              pty = True)
@@ -298,8 +298,8 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
                           timeout = timeout,
                           pty = True)
     else:
-        process = SshProcess(Host(get_default_frontend()),
-                             cmd,
+        process = SshProcess(cmd,
+                             host = Host(get_default_frontend()),
                              connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = timeout,
                              pty = True)

@@ -415,8 +415,8 @@ class Remote(Action):
         self._processes = list()
         self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
-            p = SshProcess(host,
-                           remote_substitute(cmd, self._hosts, index, self._caller_context),
+            p = SshProcess(remote_substitute(cmd, self._hosts, index, self._caller_context),
+                           host = host,
                            connexion_params = connexion_params,
                            timeout = self._timeout,
                            ignore_exit_code = self._ignore_exit_code,
@@ -688,8 +688,8 @@ class TaktukRemote(Action):
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
-            p = TaktukProcess(host,
-                              remote_substitute(self._cmd, self._hosts, index, self._caller_context),
+            p = TaktukProcess(remote_substitute(self._cmd, self._hosts, index, self._caller_context),
+                              host = host,
                               timeout = self._timeout,
                               ignore_exit_code = self._ignore_exit_code,
                               log_exit_code = self._log_exit_code,
@@ -1077,8 +1077,8 @@ class TaktukPut(TaktukRemote):
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for host in self._hosts:
-            process = TaktukProcess(host,
-                                    "",
+            process = TaktukProcess("",
+                                    host = host,
                                     timeout = self._timeout,
                                     ignore_exit_code = self._ignore_exit_code,
                                     log_exit_code = self._log_exit_code,
@@ -1226,8 +1226,8 @@ class TaktukGet(TaktukRemote):
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for host in self._hosts:
-            process = TaktukProcess(host,
-                                    "",
+            process = TaktukProcess("",
+                                    host = host,
                                     timeout = self._timeout,
                                     ignore_exit_code = self._ignore_exit_code,
                                     log_exit_code = self._log_exit_code,
