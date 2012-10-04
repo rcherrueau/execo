@@ -29,6 +29,8 @@ class Factory:
         if kwargs.get("host") != None:
             return SshProcess(*args, **kwargs)
         else:
+            del kwargs["host"]
+            if "connexion_params" in kwargs: del kwargs["connexion_params"]
             return Process(*args, **kwargs)
 
     def remote(self, *args, **kwargs):
