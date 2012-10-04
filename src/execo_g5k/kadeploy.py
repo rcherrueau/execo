@@ -19,11 +19,13 @@
 from config import g5k_configuration
 from execo.action import Remote, ActionNotificationProcessLifecycleHandler, \
     Action
+from execo.factory import get_process, get_remote
 from execo.host import get_hosts_set, Host
 from execo.log import set_style, logger
-from execo.process import ProcessOutputHandler, Process, SshProcess
+from execo.process import ProcessOutputHandler
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
+from execo_g5k.utils import get_frontend_to_connect
 from utils import get_default_frontend, get_frontend_connexion_params
 import copy
 import re
@@ -209,9 +211,10 @@ class Kadeployer(Remote):
         for frontend in frontends.keys():
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
-                kadeploy_command += " -m %s" % host.address
-            if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
-                p = Process(kadeploy_command,
+                kadeploy_command += " -m %s" % (host.address,)
+            p = get_process(kadeploy_command,
+                            host = get_frontend_to_connect(frontend),
+                            connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                             stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
                             timeout = self._timeout,
@@ -223,21 +226,6 @@ class Kadeployer(Remote):
                             log_error = self._log_error,
                             process_lifecycle_handler = lifecycle_handler,
                             pty = True)
-            else:
-                p = SshProcess(kadeploy_command,
-                               host = Host(frontend),
-                               connexion_params = get_frontend_connexion_params(frontend_connexion_params),
-                               stdout_handler = _KadeployStdoutHandler(self, out = self._out),
-                               stderr_handler = _KadeployStderrHandler(self, out = self._out),
-                               timeout = self._timeout,
-                               ignore_exit_code = self._ignore_exit_code,
-                               log_exit_code = self._log_exit_code,
-                               ignore_timeout = self._ignore_timeout,
-                               log_timeout = self._log_timeout,
-                               ignore_error = self._ignore_error,
-                               log_error = self._log_error,
-                               process_lifecycle_handler = lifecycle_handler,
-                               pty = True)
             self._processes.append(p)
 
     def _common_reset(self):
@@ -421,13 +409,13 @@ def deploy(deployment,
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params): #IGNORE:W0613
         logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s", undeployed_hosts)
-        deployed_check = Remote(undeployed_hosts,
-                                check_deployed_command,
-                                connexion_params = node_connexion_params,
-                                log_exit_code = False,
-                                log_timeout = False,
-                                log_error = False,
-                                timeout = check_timeout)
+        deployed_check = get_remote(undeployed_hosts,
+                                    check_deployed_command,
+                                    connexion_params = node_connexion_params,
+                                    log_exit_code = False,
+                                    log_timeout = False,
+                                    log_error = False,
+                                    timeout = check_timeout)
         deployed_check.run()
         newly_deployed = list()
         for process in deployed_check.processes():

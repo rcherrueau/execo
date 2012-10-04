@@ -44,6 +44,14 @@ def get_default_frontend():
                 __default_frontend = None
     return __default_frontend
 
+def get_frontend_to_connect(frontend = None):
+    """Given a frontend name, or None, and based on the global configuration, returns the frontend to connect to or None."""
+    if frontend == None:
+        frontend = get_default_frontend()
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
+        frontend = None
+    return frontend
+
 def get_frontend_connexion_params(frontend_connexion_params):
     params = default_frontend_connexion_params.copy()
     if frontend_connexion_params:

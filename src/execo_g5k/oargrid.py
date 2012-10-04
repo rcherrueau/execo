@@ -17,12 +17,12 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import g5k_configuration
+from execo.factory import get_process
 from execo.host import Host
-from execo.process import Process, SshProcess
 from execo.time_utils import get_unixts, sleep
+from execo_g5k.utils import get_frontend_to_connect, get_frontend_connexion_params
 from oar import format_oar_date, format_oar_duration, _date_in_range, \
     oar_date_to_unixts, oar_duration_to_seconds
-from utils import get_default_frontend, get_frontend_connexion_params
 import os
 import re
 
@@ -100,16 +100,11 @@ def oargridsub(job_specs, reservation_date = None,
             oargridsub_cmdline += ':prop="%s"' % (spec.sql_properties,)
         if spec.name != None:
             oargridsub_cmdline += ':name="%s"' % (spec.name,)
-    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
-        process = Process(oargridsub_cmdline,
+    process = get_process(oargridsub_cmdline,
+                          host = Host(get_frontend_to_connect()),
+                          connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                           timeout = timeout,
                           pty = True)
-    else:
-        process = SshProcess(oargridsub_cmdline,
-                             host = Host(get_default_frontend()),
-                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
-                             timeout = timeout,
-                             pty = True)
     process.run()
     job_id = None
     ssh_key = None
@@ -146,19 +141,12 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for job_id in job_ids:
-        oargriddel_cmdline = "oargriddel %i" % (job_id,)
-        if g5k_configuration.get('no_ssh_for_local_frontend') == True:
-            processes.append(Process(oargriddel_cmdline,
+        processes.append(get_process("oargriddel %i" % (job_id,),
+                                     host = Host(get_frontend_to_connect()),
+                                     connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                                      timeout = timeout,
                                      log_exit_code = False,
                                      pty = True))
-        else:
-            processes.append(SshProcess(oargriddel_cmdline,
-                                        host = Host(get_default_frontend()),
-                                        connexion_params = get_frontend_connexion_params(frontend_connexion_params),
-                                        timeout = timeout,
-                                        log_exit_code = False,
-                                        pty = True))
     for process in processes: process.start()
     for process in processes: process.wait()
 
@@ -188,17 +176,11 @@ def get_current_oargrid_jobs(start_between = None,
         timeout = g5k_configuration.get('default_timeout')
     if start_between: start_between = [ get_unixts(t) for t in start_between ]
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
-    cmd = "oargridstat"
-    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
-        process = Process(cmd,
+    process = get_process("oargridstat",
+                          host = Host(get_frontend_to_connect()),
+                          connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                           timeout = timeout,
                           pty = True).run()
-    else:
-        process = SshProcess(cmd,
-                             host = Host(get_default_frontend()),
-                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
-                             timeout = timeout,
-                             pty = True).run()
     if process.ok():
         jobs = re.findall("Reservation # (\d+):", process.stdout(), re.MULTILINE)
         oargrid_job_ids = [ int(j) for j in jobs ]
@@ -235,17 +217,11 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
     """
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
-    cmd = "oargridstat %i" % oargrid_job_id
-    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
-        process = Process(cmd,
+    process = get_process("oargridstat %i" % (oargrid_job_id,),
+                          host = Host(get_frontend_to_connect()),
+                          connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                           timeout = timeout,
                           pty = True)
-    else:
-        process = SshProcess(cmd,
-                             host = Host(get_default_frontend()),
-                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
-                             timeout = timeout,
-                             pty = True)
     process.run()
     if process.ok():
         job_info = dict()
@@ -292,17 +268,11 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
     """
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
-    cmd = "oargridstat -wl %i 2>/dev/null" % oargrid_job_id
-    if g5k_configuration.get('no_ssh_for_local_frontend') == True:
-        process = Process(cmd,
+    process = get_process("oargridstat -wl %i 2>/dev/null" % (oargrid_job_id,),
+                          host = Host(get_frontend_to_connect()),
+                          connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                           timeout = timeout,
                           pty = True)
-    else:
-        process = SshProcess(cmd,
-                             host = Host(get_default_frontend()),
-                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
-                             timeout = timeout,
-                             pty = True)
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
