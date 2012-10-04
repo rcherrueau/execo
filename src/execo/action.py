@@ -251,7 +251,7 @@ class Action(object):
         return self
 
     def processes(self):
-        """Return an iterable of all `execo.process.Process`."""
+        """Return an iterable of all `execo.process.ProcessBase`."""
         return ()
 
     def started(self):
