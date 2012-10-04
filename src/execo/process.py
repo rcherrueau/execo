@@ -818,7 +818,7 @@ class SshProcess(Process):
     ``execo.config.default_connexion_params``.
     """
 
-    def __init__(self, host, remote_cmd, connexion_params = None, **kwargs):
+    def __init__(self, remote_cmd, host = None, connexion_params = None, **kwargs):
         self._host = host
         self._remote_cmd = remote_cmd
         self._connexion_params = connexion_params

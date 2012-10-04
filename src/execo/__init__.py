@@ -31,3 +31,5 @@ from action import Action, wait_multiple_actions, wait_all_actions, \
   Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet, Local, \
   ParallelActions, SequentialActions
 from report import Report
+from factory import SSH, SCP, TAKTUK, Factory, get_process, \
+     get_fileput, get_fileget

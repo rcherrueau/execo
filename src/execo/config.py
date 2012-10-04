@@ -19,10 +19,14 @@
 import logging
 import os
 import sys
+from factory import SSH, SCP
 
 # _STARTOF_ configuration
 configuration = {
     'log_level': logging.WARNING,
+    'remote_tool': SSH,
+    'fileput_tool': SCP,
+    'fileget_tool': SCP,
     'compact_output_threshold': 4096,
     'kill_timeout': 5,
     'color_mode': os.isatty(sys.stdout.fileno())
@@ -38,6 +42,13 @@ configuration = {
 """Global execo configuration parameters.
 
 - ``log_level``: the log level (see module `logging`)
+
+- ``remote_tool``: default tool to use when instanciating remote
+  processes
+
+- ``fileput_tool``: default tool to use to put files remotely
+
+- ``fileget_tool``: default tool to use to get remote files
 
 - ``compact_output_threshold``: only beginning and end of stdout /
   stderr are displayed when their size is greater than this
