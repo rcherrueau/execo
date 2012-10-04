@@ -561,7 +561,8 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_par
     raise Exception, "error retrieving nodes list for oar job %i on frontend %s: %s" % (oar_job_id, frontend, process)
     
 def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
-    """Return an iterable of IP addresses that OAR assigned to your reservation.
+    """Return a tuple containing an iterable of IP addresses and a dict containing the
+    subnet parameters, that OAR assigned to your reservation.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
@@ -591,18 +592,40 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
     if frontend == None:
         frontend = get_default_frontend()
+    # g5k-subnets -i -j $OAR_JOB_ID
+    # Get ip adresses
+    cmd_ip = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
     if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
-        process = Process(cmd,
+        process_ip = Process(cmd_ip,
                           timeout = countdown.remaining(),
                           pty = True)
     else:
-        process = SshProcess(Host(frontend),
-                             cmd,
+        process_ip = SshProcess(Host(frontend),
+                             cmd_ip,
                              connexion_params = get_frontend_connexion_params(frontend_connexion_params),
                              timeout = countdown.remaining(),
                              pty = True)
-    process.run()
-    if process.ok():
-        subnet_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
-        return subnet_addresses
-    raise Exception, "error retrieving IPs list for oar job %i on frontend %s: %s" % (oar_job_id, frontend, process)
+    process_ip.run()
+    # Get network parameters
+    cmd_net = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -a -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
+    if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
+        process_net = Process(cmd_net,
+                          timeout = countdown.remaining(),
+                          pty = True)
+    else:
+        process_net = SshProcess(Host(frontend),
+                             cmd_net,
+                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                             timeout = countdown.remaining(),
+                             pty = True)
+    process_net.run()
+    
+    if process_net.ok() and process_ip.ok():
+        subnet_addresses = re.findall("(\S+)", process_ip.stdout(), re.MULTILINE)
+        net_stdout =  process_net.stdout()
+        network_params = net_stdout.split('\t')
+#	print type(network_params)
+#	print len(network_params)
+#	print network_params
+        return (subnet_addresses, {"netmask": network_params[2], "broadcast": network_params[1], "gateway": network_params[3]})
+    raise Exception, "error retrieving IPs list for oar job %i on frontend %s: %s" % (oar_job_id, frontend, process_ip)
