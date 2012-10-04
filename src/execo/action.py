@@ -394,21 +394,21 @@ class Remote(Action):
     One ssh process is launched for each connexion.
     """
 
-    def __init__(self, hosts, remote_cmd, connexion_params = None, **kwargs):
+    def __init__(self, cmd, hosts, connexion_params = None, **kwargs):
         """
-        :param hosts: iterable of `execo.host.Host` to which to
-          connect and run the command.
-
-        :param remote_cmd: the command to run remotely. substitions
+        :param cmd: the command to run remotely. substitions
           described in `execo.substitutions.remote_substitute` will be
           performed.
+
+        :param hosts: iterable of `execo.host.Host` to which to
+          connect and run the command.
 
         :param connexion_params: a dict similar to
           `execo.config.default_connexion_params` whose values will
           override those in default_connexion_params for connexion.
         """
         super(Remote, self).__init__(**kwargs)
-        self._remote_cmd = remote_cmd
+        self._cmd = cmd
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
@@ -416,7 +416,7 @@ class Remote(Action):
         self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             p = SshProcess(host,
-                           remote_substitute(remote_cmd, self._hosts, index, self._caller_context),
+                           remote_substitute(cmd, self._hosts, index, self._caller_context),
                            connexion_params = connexion_params,
                            timeout = self._timeout,
                            ignore_exit_code = self._ignore_exit_code,
@@ -431,7 +431,7 @@ class Remote(Action):
 
     def _args(self):
         return [ repr(self._hosts),
-                 repr(self._remote_cmd) ] + Action._args(self) + Remote._kwargs(self)
+                 repr(self._cmd) ] + Action._args(self) + Remote._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
@@ -443,7 +443,7 @@ class Remote(Action):
 
     def name(self):
         if self._name == None:
-            return "%s on %i hosts: %s" % (self.__class__.__name__, len(self._hosts), self._remote_cmd)
+            return "%s on %i hosts: %s" % (self.__class__.__name__, len(self._hosts), self._cmd)
         else:
             return self._name
 
@@ -647,12 +647,12 @@ class TaktukRemote(Action):
       connexion.
     """
 
-    def __init__(self, hosts, remote_cmd, connexion_params = None, **kwargs):
+    def __init__(self, cmd, hosts, connexion_params = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` to which to
           connect and run the command.
 
-        :param remote_cmd: the command to run remotely. substitions
+        :param cmd: the command to run remotely. substitions
           described in `execo.substitutions.remote_substitute` will be
           performed.
 
@@ -661,7 +661,7 @@ class TaktukRemote(Action):
           override those in default_connexion_params for connexion.
         """
         super(TaktukRemote, self).__init__(**kwargs)
-        self._remote_cmd = remote_cmd
+        self._cmd = cmd
         self._connexion_params = connexion_params
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
@@ -675,7 +675,7 @@ class TaktukRemote(Action):
 
     def _args(self):
         return [ repr(self._hosts),
-                 repr(self._remote_cmd) ] + Action._args(self) + TaktukRemote._kwargs(self)
+                 repr(self._cmd) ] + Action._args(self) + TaktukRemote._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
@@ -689,7 +689,7 @@ class TaktukRemote(Action):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             p = TaktukProcess(host,
-                              remote_substitute(self._remote_cmd, self._hosts, index, self._caller_context),
+                              remote_substitute(self._cmd, self._hosts, index, self._caller_context),
                               timeout = self._timeout,
                               ignore_exit_code = self._ignore_exit_code,
                               log_exit_code = self._log_exit_code,

@@ -818,21 +818,21 @@ class SshProcess(Process):
     ``execo.config.default_connexion_params``.
     """
 
-    def __init__(self, remote_cmd, host = None, connexion_params = None, **kwargs):
+    def __init__(self, cmd, host = None, connexion_params = None, **kwargs):
         self._host = host
-        self._remote_cmd = remote_cmd
+        self._cmd = cmd
         self._connexion_params = connexion_params
         real_cmd = (get_ssh_command(host.user,
                                     host.keyfile,
                                     host.port,
                                     connexion_params)
                     + (get_rewritten_host_address(host.address, connexion_params),)
-                    + (remote_cmd,))
+                    + (cmd,))
         super(SshProcess, self).__init__(real_cmd, **kwargs)
 
     def _args(self):
         return [ repr(self._host),
-                 repr(self._remote_cmd) ] + Process._kwargs(self) + SshProcess._kwargs(self)
+                 repr(self._cmd) ] + Process._kwargs(self) + SshProcess._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
@@ -844,7 +844,7 @@ class SshProcess(Process):
 
     def remote_cmd(self):
         """Return the command line executed remotely through ssh."""
-        return self._remote_cmd
+        return self._cmd
 
     def host(self):
         """Return the remote host."""
