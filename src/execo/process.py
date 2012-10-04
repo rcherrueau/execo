@@ -858,14 +858,14 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     r"""Dummy process similar to `execo.process.SshProcess`."""
 
-    def __init__(self, host, remote_cmd, **kwargs):
+    def __init__(self, cmd, host = None, **kwargs):
         self._host = host
-        self._remote_cmd = remote_cmd
-        super(TaktukProcess, self).__init__(remote_cmd, **kwargs)
+        self._cmd = cmd
+        super(TaktukProcess, self).__init__(cmd, **kwargs)
 
     def _args(self):
         return [ repr(self._host),
-                 repr(self._remote_cmd) ] + ProcessBase._kwargs(self)
+                 repr(self._cmd) ] + ProcessBase._kwargs(self)
 
     def host(self):
         """Return the remote host."""
