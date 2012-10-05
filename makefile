@@ -44,7 +44,7 @@ clean: cleandoc
 dist: doc
 	python setup.py sdist
 
-extract = ( sed -n '/^\# _STARTOF_ $(2)/,/^\# _ENDOF_ $(2)/p' $(1) | grep -v ^\# | sed 's/^\(.*\)$$/\# \1/' ; echo )
+extract = ( sed -n '/^\# _STARTOF_ $(2)/,/^\# _ENDOF_ $(2)/p' $(1) | grep -v ^\# | python -c 'import sys, textwrap; print textwrap.dedent(sys.stdin.read())' | sed 's/^\(.*\)$$/\# \1/' ; echo )
 
 execo.conf.py.sample: execo.conf.py.sample.in src/execo/config.py src/execo_g5k/config.py
 	cp $< $@
