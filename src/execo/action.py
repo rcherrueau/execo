@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import default_connexion_params
+from execo.config import make_connexion_params
 from host import get_hosts_list
 from log import set_style, logger
 from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
@@ -715,16 +715,9 @@ class TaktukRemote(Action):
         # we can provide per-host user with taktuk, but we cannot
         # provide per-host port or keyfile, so check that all hosts
         # and connexion_params have the same port / keyfile (or None)
-        check_default_keyfile = None
-        check_default_port = None
-        if self._connexion_params != None and self._connexion_params.has_key('keyfile'):
-            check_default_keyfile = self._connexion_params['keyfile']
-        elif default_connexion_params.get('keyfile'):
-            check_default_keyfile = default_connexion_params['keyfile']
-        if self._connexion_params != None and self._connexion_params.has_key('port'):
-            check_default_port = self._connexion_params['port']
-        elif default_connexion_params.get('port'):
-            check_default_port = default_connexion_params['port']
+        actual_connexion_params = make_connexion_params(self._connexion_params)
+        check_default_port = actual_connexion_params['port']
+        check_default_keyfile = actual_connexion_params['keyfile']
         check_keyfiles = set()
         check_ports = set()
         hosts_with_explicit_user = set()
@@ -748,20 +741,8 @@ class TaktukRemote(Action):
         if len(check_ports) == 1:
             global_port = list(check_ports)[0]
         self._gen_taktukprocesses()
-        if self._connexion_params != None and self._connexion_params.has_key('taktuk'):
-            if self._connexion_params['taktuk'] != None:
-                self._taktuk_cmdline += (self._connexion_params['taktuk'],)
-            else:
-                raise ValueError, "invalid taktuk command in connexion_params %s" % (self._connexion_params,)
-        elif default_connexion_params.get('taktuk'):
-            self._taktuk_cmdline += (default_connexion_params['taktuk'],)
-        else:
-            raise ValueError, "no taktuk command in default_connexion_params %s" % (default_connexion_params,)
-        if self._connexion_params != None and self._connexion_params.has_key('taktuk_options'):
-            if self._connexion_params['taktuk_options'] != None:
-                self._taktuk_cmdline += self._connexion_params['taktuk_options']
-        elif default_connexion_params.get('taktuk_options'):
-            self._taktuk_cmdline += default_connexion_params['taktuk_options']
+        self._taktuk_cmdline += (actual_connexion_params['taktuk'],)
+        self._taktuk_cmdline += actual_connexion_params['taktuk_options']
         self._taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
                                  "-o", 'error="B $position # $line\\n"',
                                  "-o", 'status="C $position # $line\\n"',

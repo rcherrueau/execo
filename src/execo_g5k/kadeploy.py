@@ -19,14 +19,16 @@
 from config import g5k_configuration
 from execo.action import Remote, ActionNotificationProcessLifecycleHandler, \
     Action
+from execo.config import make_connexion_params
 from execo.factory import get_process, get_remote
 from execo.host import get_hosts_set, Host
 from execo.log import set_style, logger
 from execo.process import ProcessOutputHandler
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
+from execo_g5k.config import default_frontend_connexion_params
 from execo_g5k.utils import get_frontend_to_connect
-from utils import get_default_frontend, get_frontend_connexion_params
+from utils import get_default_frontend
 import copy
 import re
 import time
@@ -214,7 +216,8 @@ class Kadeployer(Remote):
                 kadeploy_command += " -m %s" % (host.address,)
             p = get_process(kadeploy_command,
                             host = get_frontend_to_connect(frontend),
-                            connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                            connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                     default_frontend_connexion_params),
                             stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
                             timeout = self._timeout,

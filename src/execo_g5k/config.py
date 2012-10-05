@@ -79,74 +79,82 @@ g5k_configuration = {
   precedence over environment variable OAR_JOB_KEY_FILE.
 """
 
+def make_default_oarsh_oarcp_params():
 # _STARTOF_ default_oarsh_oarcp_params
-default_oarsh_oarcp_params = {
-    'user':        None,
-    'keyfile':     None,
-    'port':        None,
-    'ssh':         'oarsh',
-    'scp':         'oarcp',
-    'taktuk':      'taktuk',
-    'ssh_options': ( '-tt',
-                     '-o', 'BatchMode=yes',
-                     '-o', 'PasswordAuthentication=no',
-                     '-o', 'StrictHostKeyChecking=no',
-                     '-o', 'UserKnownHostsFile=/dev/null',
-                     '-o', 'ConnectTimeout=20' ),
-    'scp_options': ( '-o', 'BatchMode=yes',
-                     '-o', 'PasswordAuthentication=no',
-                     '-o', 'StrictHostKeyChecking=no',
-                     '-o', 'UserKnownHostsFile=/dev/null',
-                     '-o', 'ConnectTimeout=20',
-                     '-rp' ),
-    'taktuk_options': ( '-s', ),
-    'taktuk_connector': 'oarsh',
-    'taktuk_connector_options': ( '-o', 'BatchMode=yes',
-                                  '-o', 'PasswordAuthentication=no',
-                                  '-o', 'StrictHostKeyChecking=no',
-                                  '-o', 'UserKnownHostsFile=/dev/null',
-                                  '-o', 'ConnectTimeout=20'),
-    'ssh_scp_pty': True,
-    'host_rewrite_func': lambda host: host
-    }
+    default_oarsh_oarcp_params = {
+        'user':        None,
+        'keyfile':     None,
+        'port':        None,
+        'ssh':         'oarsh',
+        'scp':         'oarcp',
+        'taktuk':      'taktuk',
+        'ssh_options': ( '-tt',
+                         '-o', 'BatchMode=yes',
+                         '-o', 'PasswordAuthentication=no',
+                         '-o', 'StrictHostKeyChecking=no',
+                         '-o', 'UserKnownHostsFile=/dev/null',
+                         '-o', 'ConnectTimeout=20' ),
+        'scp_options': ( '-o', 'BatchMode=yes',
+                         '-o', 'PasswordAuthentication=no',
+                         '-o', 'StrictHostKeyChecking=no',
+                         '-o', 'UserKnownHostsFile=/dev/null',
+                         '-o', 'ConnectTimeout=20',
+                         '-rp' ),
+        'taktuk_options': ( '-s', ),
+        'taktuk_connector': 'oarsh',
+        'taktuk_connector_options': ( '-o', 'BatchMode=yes',
+                                      '-o', 'PasswordAuthentication=no',
+                                      '-o', 'StrictHostKeyChecking=no',
+                                      '-o', 'UserKnownHostsFile=/dev/null',
+                                      '-o', 'ConnectTimeout=20'),
+        'ssh_scp_pty': True,
+        'host_rewrite_func': lambda host: host
+        }
 # _ENDOF_ default_oarsh_oarcp_params
-"""A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
+    """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
 
-See `execo.config.default_connexion_params`
-"""
+    See `execo.config.make_default_connexion_params`
+    """
+    return default_oarsh_oarcp_params
 
+default_oarsh_oarcp_params = make_default_oarsh_oarcp_params()
+
+def make_default_frontend_connexion_params():
 # _STARTOF_ default_frontend_connexion_params
-default_frontend_connexion_params = {
-    'user':        None,
-    'keyfile':     None,
-    'port':        None,
-    'ssh':         'ssh',
-    'scp':         'scp',
-    'taktuk':      'taktuk',
-    'ssh_options': ( '-tt',
-                     '-o', 'BatchMode=yes',
-                     '-o', 'PasswordAuthentication=no',
-                     '-o', 'StrictHostKeyChecking=no',
-                     '-o', 'UserKnownHostsFile=/dev/null',
-                     '-o', 'ConnectTimeout=20' ),
-    'scp_options': ( '-o', 'BatchMode=yes',
-                     '-o', 'PasswordAuthentication=no',
-                     '-o', 'StrictHostKeyChecking=no',
-                     '-o', 'UserKnownHostsFile=/dev/null',
-                     '-o', 'ConnectTimeout=20',
-                     '-rp' ),
-    'taktuk_options': ( '-s', ),
-    'taktuk_connector': 'ssh',
-    'taktuk_connector_options': ( '-o', 'BatchMode=yes',
-                                  '-o', 'PasswordAuthentication=no',
-                                  '-o', 'StrictHostKeyChecking=no',
-                                  '-o', 'UserKnownHostsFile=/dev/null',
-                                  '-o', 'ConnectTimeout=20'),
-    'ssh_scp_pty': False,
-    'host_rewrite_func': lambda host: host + ".grid5000.fr"
-    }
+    default_frontend_connexion_params = {
+        'user':        None,
+        'keyfile':     None,
+        'port':        None,
+        'ssh':         'ssh',
+        'scp':         'scp',
+        'taktuk':      'taktuk',
+        'ssh_options': ( '-tt',
+                         '-o', 'BatchMode=yes',
+                         '-o', 'PasswordAuthentication=no',
+                         '-o', 'StrictHostKeyChecking=no',
+                         '-o', 'UserKnownHostsFile=/dev/null',
+                         '-o', 'ConnectTimeout=20' ),
+        'scp_options': ( '-o', 'BatchMode=yes',
+                         '-o', 'PasswordAuthentication=no',
+                         '-o', 'StrictHostKeyChecking=no',
+                         '-o', 'UserKnownHostsFile=/dev/null',
+                         '-o', 'ConnectTimeout=20',
+                         '-rp' ),
+        'taktuk_options': ( '-s', ),
+        'taktuk_connector': 'ssh',
+        'taktuk_connector_options': ( '-o', 'BatchMode=yes',
+                                      '-o', 'PasswordAuthentication=no',
+                                      '-o', 'StrictHostKeyChecking=no',
+                                      '-o', 'UserKnownHostsFile=/dev/null',
+                                      '-o', 'ConnectTimeout=20'),
+        'ssh_scp_pty': False,
+        'host_rewrite_func': lambda host: host + ".grid5000.fr"
+        }
 # _ENDOF_ default_frontend_connexion_params
-"""Default connexion params when connecting to a Grid5000 frontend."""
+    """Default connexion params when connecting to a Grid5000 frontend."""
+    return default_frontend_connexion_params
+
+default_frontend_connexion_params = make_default_frontend_connexion_params()
 
 load_configuration(
   get_user_config_filename(),

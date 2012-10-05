@@ -17,12 +17,14 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import g5k_configuration
+from execo.config import make_connexion_params
 from execo.factory import get_process
 from execo.host import Host
 from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
 from execo.utils import comma_join
-from execo_g5k.utils import get_frontend_to_connect, get_frontend_connexion_params
+from execo_g5k.config import default_frontend_connexion_params
+from execo_g5k.utils import get_frontend_to_connect
 import operator
 import os
 import re
@@ -216,7 +218,8 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
             oarsub_cmdline += ' "sleep 31536000"'
         p = get_process(oarsub_cmdline,
                         host = Host(get_frontend_to_connect(frontend)),
-                        connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                        connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                 default_frontend_connexion_params),
                         timeout = timeout,
                         pty = True)
         p.frontend = frontend
@@ -260,7 +263,8 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     for (job_id, frontend) in job_specs:
         processes.append(get_process("oardel %i" % (job_id,),
                                      host = Host(get_frontend_to_connect(frontend)),
-                                     connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                                     connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                              default_frontend_connexion_params),
                                      timeout = timeout,
                                      log_exit_code = False,
                                      pty = True))
@@ -311,7 +315,8 @@ def get_current_oar_jobs(frontends = None,
     for frontend in frontends:
         p = get_process("oarstat -u",
                         host = Host(get_frontend_to_connect(frontend)),
-                        connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                        connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                 default_frontend_connexion_params),
                         timeout = timeout,
                         pty = True)
         p.frontend = frontend
@@ -378,7 +383,8 @@ def get_oar_job_info(oar_job_id = None, frontend = None, frontend_connexion_para
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     process = get_process("oarstat -fj %i" % (oar_job_id,),
                           host = Host(get_frontend_to_connect(frontend)),
-                          connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                          connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                   default_frontend_connexion_params),
                           timeout = timeout,
                           pty = True,
                           log_exit_code = log_exit_code,
@@ -504,7 +510,8 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_par
     wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
     process = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
                           host = Host(get_frontend_to_connect(frontend)),
-                          connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                          connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                   default_frontend_connexion_params),
                           timeout = countdown.remaining(),
                           pty = True)
     process.run()
@@ -547,14 +554,16 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     # Get ip adresses
     process_ip = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
                              host = Host(get_frontend_to_connect(frontend)),
-                             connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                             connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                      default_frontend_connexion_params),
                              timeout = countdown.remaining(),
                              pty = True)
     process_ip.run()
     # Get network parameters
     process_net = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -a -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
                               host = Host(get_frontend_to_connect(frontend)),
-                              connexion_params = get_frontend_connexion_params(frontend_connexion_params),
+                              connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                       default_frontend_connexion_params),
                               timeout = countdown.remaining(),
                               pty = True)
     process_net.run()

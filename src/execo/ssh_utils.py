@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import default_connexion_params
+from execo.config import make_connexion_params
 
 def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion_params = None):
     """Return tuple with ssh / scp authentifications options.
@@ -41,30 +41,22 @@ def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion
       override those in `execo.config.default_connexion_params`
     """
     ssh_scp_auth_options = ()
-    
+    actual_connexion_params = make_connexion_params(connexion_params)
+
     if user != None:
         ssh_scp_auth_options += ("-o", "User=%s" % (user,))
-    elif connexion_params != None and connexion_params.has_key('user'):
-        if connexion_params['user'] != None:
-            ssh_scp_auth_options += ("-o", "User=%s" % (connexion_params['user'],))
-    elif default_connexion_params.get('user'):
-        ssh_scp_auth_options += ("-o", "User=%s" % (default_connexion_params['user'],))
+    elif actual_connexion_params.get('user'):
+        ssh_scp_auth_options += ("-o", "User=%s" % (actual_connexion_params['user'],))
             
     if keyfile != None:
         ssh_scp_auth_options += ("-i", str(keyfile))
-    elif connexion_params != None and connexion_params.has_key('keyfile'):
-        if connexion_params['keyfile'] != None:
-            ssh_scp_auth_options += ("-i", str(connexion_params['keyfile']))
-    elif default_connexion_params.get('keyfile'):
-        ssh_scp_auth_options += ("-i", str(default_connexion_params['keyfile']))
+    elif actual_connexion_params.get('keyfile'):
+        ssh_scp_auth_options += ("-i", str(actual_connexion_params['keyfile']))
             
     if port != None:
         ssh_scp_auth_options += ("-o", "Port=%i" % port)
-    elif connexion_params != None and connexion_params.has_key('port'):
-        if connexion_params['port'] != None:
-            ssh_scp_auth_options += ("-o", "Port=%i" % connexion_params['port'])
-    elif default_connexion_params.get('port'):
-        ssh_scp_auth_options += ("-o", "Port=%i" % default_connexion_params['port'])
+    elif actual_connexion_params.get('port'):
+        ssh_scp_auth_options += ("-o", "Port=%i" % actual_connexion_params['port'])
             
     return ssh_scp_auth_options
 
@@ -100,25 +92,9 @@ def _get_connector_command(connector_params_entry,
       `execo.ssh_utils.get_ssh_scp_auth_options`
     """
     command = ()
-    
-    if connexion_params != None and connexion_params.has_key(connector_params_entry):
-        if connexion_params[connector_params_entry] != None:
-            command += (connexion_params[connector_params_entry],)
-        else:
-            raise ValueError, "invalid connector command %s in connexion_params %s" % (connector_params_entry,
-                                                                                       connexion_params,)
-    elif default_connexion_params.get(connector_params_entry):
-        command += (default_connexion_params[connector_params_entry],)
-    else:
-        raise ValueError, "no connector command %s in default_connexion_params %s" % (connector_params_entry,
-                                                                                      default_connexion_params,)
-    
-    if connexion_params != None and connexion_params.has_key(connector_options_params_entry):
-        if connexion_params[connector_options_params_entry] != None:
-            command += connexion_params[connector_options_params_entry]
-    elif default_connexion_params.get(connector_options_params_entry):
-        command += default_connexion_params[connector_options_params_entry]
-            
+    actual_connexion_params = make_connexion_params(connexion_params)
+    command += (actual_connexion_params[connector_params_entry],)
+    command += actual_connexion_params[connector_options_params_entry]
     command += get_ssh_scp_auth_options(user, keyfile, port, connexion_params)
     return command
 
@@ -197,18 +173,10 @@ def get_taktuk_connector_command(user = None, keyfile = None, port = None, conne
 
 def get_ssh_scp_pty_option(connexion_params):
     """Based on given connexion_params or default_connexion_params, return a boolean suitable for pty option for process creation."""
-    if connexion_params != None and connexion_params.has_key('ssh_scp_pty'):
-        return connexion_params['ssh_scp_pty']
-    elif default_connexion_params.get('ssh_scp_pty'):
-        return default_connexion_params['ssh_scp_pty']
-    else:
-        return False
+    return (make_connexion_params(connexion_params).get('ssh_scp_pty') or False)
 
 def get_rewritten_host_address(host_addr, connexion_params):
     """Based on given connexion_params or default_connexion_params, return a rewritten host address."""
-    if connexion_params != None and connexion_params.has_key('host_rewrite_func'):
-        return connexion_params['host_rewrite_func'](host_addr)
-    elif default_connexion_params.get('host_rewrite_func'):
-        return default_connexion_params['host_rewrite_func'](host_addr)
-    else:
-        return host_addr
+    func = make_connexion_params(connexion_params).get('host_rewrite_func')
+    if func: return func(host_addr)
+    else: return host_addr

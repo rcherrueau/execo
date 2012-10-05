@@ -52,12 +52,6 @@ def get_frontend_to_connect(frontend = None):
         frontend = None
     return frontend
 
-def get_frontend_connexion_params(frontend_connexion_params):
-    params = default_frontend_connexion_params.copy()
-    if frontend_connexion_params:
-        params.update(frontend_connexion_params)
-    return params
-
 __g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr$")
 
 def g5k_host_get_cluster(host):

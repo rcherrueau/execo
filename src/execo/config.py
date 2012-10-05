@@ -71,72 +71,75 @@ configuration = {
 
 """
 
+def make_default_connexion_params():
 # _STARTOF_ default_connexion_params
-default_connexion_params = {
-    'user':        None,
-    'keyfile':     None,
-    'port':        None,
-    'ssh':         'ssh',
-    'scp':         'scp',
-    'taktuk':      'taktuk',
-    'ssh_options': ( '-tt',
-                     '-o', 'BatchMode=yes',
-                     '-o', 'PasswordAuthentication=no',
-                     '-o', 'StrictHostKeyChecking=no',
-                     '-o', 'UserKnownHostsFile=/dev/null',
-                     '-o', 'ConnectTimeout=20' ),
-    'scp_options': ( '-o', 'BatchMode=yes',
-                     '-o', 'PasswordAuthentication=no',
-                     '-o', 'StrictHostKeyChecking=no',
-                     '-o', 'UserKnownHostsFile=/dev/null',
-                     '-o', 'ConnectTimeout=20',
-                     '-rp' ),
-    'taktuk_options': ( '-s', ),
-    'taktuk_connector': 'ssh',
-    'taktuk_connector_options': ( '-o', 'BatchMode=yes',
-                                  '-o', 'PasswordAuthentication=no',
-                                  '-o', 'StrictHostKeyChecking=no',
-                                  '-o', 'UserKnownHostsFile=/dev/null',
-                                  '-o', 'ConnectTimeout=20'),
-    'ssh_scp_pty': False,
-    'host_rewrite_func': lambda host: host
-    }
+    default_connexion_params = {
+        'user':        None,
+        'keyfile':     None,
+        'port':        None,
+        'ssh':         'ssh',
+        'scp':         'scp',
+        'taktuk':      'taktuk',
+        'ssh_options': ( '-tt',
+                         '-o', 'BatchMode=yes',
+                         '-o', 'PasswordAuthentication=no',
+                         '-o', 'StrictHostKeyChecking=no',
+                         '-o', 'UserKnownHostsFile=/dev/null',
+                         '-o', 'ConnectTimeout=20' ),
+        'scp_options': ( '-o', 'BatchMode=yes',
+                         '-o', 'PasswordAuthentication=no',
+                         '-o', 'StrictHostKeyChecking=no',
+                         '-o', 'UserKnownHostsFile=/dev/null',
+                         '-o', 'ConnectTimeout=20',
+                         '-rp' ),
+        'taktuk_options': ( '-s', ),
+        'taktuk_connector': 'ssh',
+        'taktuk_connector_options': ( '-o', 'BatchMode=yes',
+                                      '-o', 'PasswordAuthentication=no',
+                                      '-o', 'StrictHostKeyChecking=no',
+                                      '-o', 'UserKnownHostsFile=/dev/null',
+                                      '-o', 'ConnectTimeout=20'),
+        'ssh_scp_pty': False,
+        'host_rewrite_func': lambda host: host
+        }
 # _ENDOF_ default_connexion_params
-"""Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
+    """Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
 
-- ``user``: the user to connect with.
+    - ``user``: the user to connect with.
 
-- ``keyfile``: the keyfile to connect with.
+    - ``keyfile``: the keyfile to connect with.
 
-- ``port``: the port to connect to.
+    - ``port``: the port to connect to.
 
-- ``ssh``: the ssh or ssh-like command.
+    - ``ssh``: the ssh or ssh-like command.
 
-- ``scp``: the scp or scp-like command.
+    - ``scp``: the scp or scp-like command.
 
-- ``taktuk``: the taktuk command.
+    - ``taktuk``: the taktuk command.
 
-- ``ssh_options``: options passed to ssh.
+    - ``ssh_options``: options passed to ssh.
 
-- ``scp_options``: options passed to scp.
+    - ``scp_options``: options passed to scp.
 
-- ``taktuk_options``: options passed to taktuk.
+    - ``taktuk_options``: options passed to taktuk.
 
-- ``taktuk_connector``: the ssh-like connector command for taktuk.
+    - ``taktuk_connector``: the ssh-like connector command for taktuk.
 
-- ``taktuk_connector_options``: options passed to taktuk_connector.
+    - ``taktuk_connector_options``: options passed to taktuk_connector.
 
-- ``ssh_scp_pty``: allocate a pty for ssh/scp.
+    - ``ssh_scp_pty``: allocate a pty for ssh/scp.
 
-- ``host_rewrite_func``: function called to rewrite hosts addresses.
-"""
+    - ``host_rewrite_func``: function called to rewrite hosts addresses.
+    """
+    return default_connexion_params
 
-default_default_connexion_params = default_connexion_params.copy()
-"""An initial backup copy of `execo.config.default_default_connexion_params`
+default_connexion_params = make_default_connexion_params()
 
-If needed, after modifying default_connexion_params, the ssh/scp
-defaults are still available in default_default_connexion_params.
-"""
+def make_connexion_params(connexion_params = None, default_connexion_params = None):
+    return_params = make_default_connexion_params()
+    if default_connexion_params: return_params.update(default_connexion_params)
+    if connexion_params: return_params.update(connexion_params)
+    return return_params
 
 def load_configuration(filename, dicts_confs):
     """Update dicts with those found in file.
