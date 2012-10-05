@@ -17,6 +17,8 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from execo.config import make_connexion_params
+from execo.factory import get_process
+from execo.host import Host
 from host import get_hosts_list
 from log import set_style, logger
 from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
@@ -759,13 +761,18 @@ class TaktukRemote(Action):
         self._gen_taktuk_commands(hosts_with_explicit_user)
         self._taktuk_cmdline += ("quit",)
         #handler = _TaktukRemoteOutputHandler(self)
-        self._taktuk = Process(self._taktuk_cmdline,
-                               timeout = self._timeout,
-                               stdout_handler = self._taktuk_stdout_output_handler,
-                               stderr_handler = self._taktuk_stderr_output_handler,
-                               #default_stdout_handler = False,
-                               #default_stderr_handler = False,
-                               process_lifecycle_handler = _TaktukLifecycleHandler(self))
+        taktuk_gateway = None
+        if actual_connexion_params.get('taktuk_gateway'):
+            taktuk_gateway = Host(actual_connexion_params['taktuk_gateway'])
+        self._taktuk = get_process(self._taktuk_cmdline,
+                                   host = taktuk_gateway,
+                                   connexion_params = actual_connexion_params['taktuk_gateway_connexion_params'],
+                                   timeout = self._timeout,
+                                   stdout_handler = self._taktuk_stdout_output_handler,
+                                   stderr_handler = self._taktuk_stderr_output_handler,
+                                   #default_stdout_handler = False,
+                                   #default_stderr_handler = False,
+                                   process_lifecycle_handler = _TaktukLifecycleHandler(self))
 
     def processes(self):
         return list(self._processes)
