@@ -1,10 +1,7 @@
-from config import configuration
-from process import Process, SshProcess
 from action import Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet
-
-SSH = 0
-SCP = 1
-TAKTUK = 2
+from config import configuration
+from execo.config import SSH, TAKTUK, SCP
+from process import Process, SshProcess
 
 class Factory:
 
