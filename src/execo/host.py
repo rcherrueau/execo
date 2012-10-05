@@ -78,6 +78,8 @@ class Host(object):
         if port != False: self.port = port
 
     def __eq__(self, other):
+        if not other or not isinstance(other, Host):
+            return False
         return (self.address == other.address and
                 self.user == other.user and
                 self.keyfile == other.keyfile and

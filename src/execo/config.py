@@ -19,10 +19,7 @@
 import logging
 import os
 import sys
-
-SSH = 0
-SCP = 1
-TAKTUK = 2
+from factory import SSH, SCP
 
 # _STARTOF_ configuration
 configuration = {
