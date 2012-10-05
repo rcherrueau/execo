@@ -3,7 +3,7 @@
 # This file is part of Execo, released under the GNU Lesser Public
 # License, version 3 or later.
 
-import execo, unittest, resource, shutil, os
+import execo, unittest, resource, shutil
 
 workdir = '/tmp/execo.unittests.tmp'
 test_hosts = [ execo.Host('graal.ens-lyon.fr'), execo.Host('g5k'), execo.Host('rennes.g5k') ]
@@ -25,7 +25,7 @@ class Test_functions(unittest.TestCase):
 class Test_Process(unittest.TestCase):
 
     def setUp(self):
-        (soft, hard) = resource.getrlimit(resource.RLIMIT_NOFILE)
+        (soft, _) = resource.getrlimit(resource.RLIMIT_NOFILE)
         self.max_processes = int(soft/2) - 20
         # Process, by default, close stdin, so a Process consumes 2
         # file descriptors (stdout, stderr). Thus, we should be able
@@ -33,7 +33,7 @@ class Test_Process(unittest.TestCase):
 
     def test_process_states(self):
         # basic test of Process state before and after being ran
-        processes = [ execo.Process('echo test', timeout = 10) for i in xrange(0, self.max_processes) ]
+        processes = [ execo.Process('echo test', timeout = 10) for _ in xrange(0, self.max_processes) ]
         for p in processes:
             self.assertEqual(p.cmd(), 'echo test', str(p))
             self.assertEqual(p.started(), False, str(p))
@@ -71,10 +71,10 @@ class Test_Process(unittest.TestCase):
         # run a lot of Process (close to the max possible, given file
         # descriptor limits) several times, to ensure previous file
         # descriptors resources are cleanly released
-        for t in xrange(0, 3):
+        for _ in xrange(0, 3):
             processes = None # ensure cleaning processes to avoid a
                              # not enough file descriptors error
-            processes = [ execo.Process('echo start ; echo done') for i in xrange(0, self.max_processes) ]
+            processes = [ execo.Process('echo start ; echo done') for _ in xrange(0, self.max_processes) ]
             map(execo.Process.start, processes)
             map(execo.Process.wait, processes)
             for p in processes:
@@ -89,7 +89,7 @@ class Test_Process(unittest.TestCase):
         processes = [ execo.Process('echo start ; sleep 50 ; echo done',
                                     timeout = timeout,
                                     ignore_exit_code = True,
-                                    ignore_timeout = True) for i in xrange(0, self.max_processes) ]
+                                    ignore_timeout = True) for _ in xrange(0, self.max_processes) ]
         t = execo.Timer().start()
         map(execo.Process.start, processes)
         map(execo.Process.wait, processes)

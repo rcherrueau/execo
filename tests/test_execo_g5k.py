@@ -8,11 +8,11 @@ import simplejson # http://pypi.python.org/pypi/simplejson/
 import restclient # http://pypi.python.org/pypi/py-restclient/1.2.2
 
 def get_g5k_api():
-  return restclient.Resource('https://api.grid5000.fr', transport=restclient.transport.HTTPLib2Transport())
+    return restclient.Resource('https://api.grid5000.fr', transport=restclient.transport.HTTPLib2Transport())
 
 def get_g5k_sites():
-  sites = simplejson.loads(get_g5k_api().get('/sid/grid5000/sites', headers={'Accept': 'application/json'}))
-  return [site['uid'] for site in sites['items']]
+    sites = simplejson.loads(get_g5k_api().get('/sid/grid5000/sites', headers={'Accept': 'application/json'}))
+    return [site['uid'] for site in sites['items']]
 
 g5k_sites = get_g5k_sites()
 
