@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import default_frontend_connexion_params
+from execo.host import Host
 from execo_g5k.config import g5k_configuration
 import execo
 import itertools
@@ -44,12 +44,14 @@ def get_default_frontend():
                 __default_frontend = None
     return __default_frontend
 
-def get_frontend_to_connect(frontend = None):
+def get_frontend_host(frontend = None):
     """Given a frontend name, or None, and based on the global configuration, returns the frontend to connect to or None."""
     if frontend == None:
         frontend = get_default_frontend()
     if g5k_configuration.get('no_ssh_for_local_frontend') == True and frontend == get_default_frontend():
         frontend = None
+    if frontend:
+        frontend = Host(frontend)
     return frontend
 
 __g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+\.([a-zA-Z]+)\.grid5000\.fr$")

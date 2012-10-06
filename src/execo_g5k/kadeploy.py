@@ -28,7 +28,7 @@ from execo.time_utils import format_seconds
 from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connexion_params
 from execo_g5k.factory import frontend_factory
-from execo_g5k.utils import get_frontend_to_connect
+from execo_g5k.utils import get_frontend_host
 from utils import get_default_frontend
 import copy
 import re
@@ -216,7 +216,7 @@ class Kadeployer(Remote):
             for host in frontends[frontend]:
                 kadeploy_command += " -m %s" % (host.address,)
             p = frontend_factory.process(kadeploy_command,
-                                         host = get_frontend_to_connect(frontend),
+                                         host = get_frontend_host(frontend),
                                          connexion_params = make_connexion_params(frontend_connexion_params,
                                                                                   default_frontend_connexion_params),
                                          stdout_handler = _KadeployStdoutHandler(self, out = self._out),

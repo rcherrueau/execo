@@ -22,7 +22,7 @@ from execo.host import Host
 from execo.time_utils import get_unixts, sleep
 from execo_g5k.config import default_frontend_connexion_params
 from execo_g5k.factory import frontend_factory
-from execo_g5k.utils import get_frontend_to_connect
+from execo_g5k.utils import get_frontend_host
 from oar import format_oar_date, format_oar_duration, _date_in_range, \
     oar_date_to_unixts, oar_duration_to_seconds
 import os
@@ -103,7 +103,7 @@ def oargridsub(job_specs, reservation_date = None,
         if spec.name != None:
             oargridsub_cmdline += ':name="%s"' % (spec.name,)
     process = frontend_factory.process(oargridsub_cmdline,
-                                       host = Host(get_frontend_to_connect()),
+                                       host = get_frontend_host(),
                                        connexion_params = make_connexion_params(frontend_connexion_params,
                                                                                 default_frontend_connexion_params),
                                        timeout = timeout,
@@ -145,7 +145,7 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
     processes = []
     for job_id in job_ids:
         processes.append(frontend_factory.process("oargriddel %i" % (job_id,),
-                                                  host = Host(get_frontend_to_connect()),
+                                                  host = get_frontend_host(),
                                                   connexion_params = make_connexion_params(frontend_connexion_params,
                                                                                            default_frontend_connexion_params),
                                                   timeout = timeout,
@@ -181,7 +181,7 @@ def get_current_oargrid_jobs(start_between = None,
     if start_between: start_between = [ get_unixts(t) for t in start_between ]
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
     process = frontend_factory.process("oargridstat",
-                                       host = Host(get_frontend_to_connect()),
+                                       host = get_frontend_host(),
                                        connexion_params = make_connexion_params(frontend_connexion_params,
                                                                                 default_frontend_connexion_params),
                                        timeout = timeout,
@@ -223,7 +223,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     process = frontend_factory.process("oargridstat %i" % (oargrid_job_id,),
-                                       host = Host(get_frontend_to_connect()),
+                                       host = get_frontend_host(),
                                        connexion_params = make_connexion_params(frontend_connexion_params,
                                                                                 default_frontend_connexion_params),
                                        timeout = timeout,
@@ -275,7 +275,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     process = frontend_factory.process("oargridstat -wl %i 2>/dev/null" % (oargrid_job_id,),
-                                       host = Host(get_frontend_to_connect()),
+                                       host = get_frontend_host(),
                                        connexion_params = make_connexion_params(frontend_connexion_params,
                                                                                 default_frontend_connexion_params),
                                        timeout = timeout,
