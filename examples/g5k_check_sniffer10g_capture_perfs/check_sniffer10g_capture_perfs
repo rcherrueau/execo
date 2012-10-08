@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
 from __future__ import with_statement
-import optparse, sys, time, os, logging, re, fileinput, commands
-import execo, execo_g5k # http://graal.ens-lyon.fr/~mimbert/execo/doc/
+import commands
+import execo
+import execo_g5k # http://graal.ens-lyon.fr/~mimbert/execo/doc/
+import logging
+import optparse
+import os
+import re
+import sys
+import time
 
 connect_params = {'user': 'root'}
 script_name = os.path.basename(__file__)
@@ -71,17 +78,17 @@ def gen_traffic_and_capture(xp_name,
     script_copy = execo.Put(sources,
                             local_files = ("%s/config-pktgen" % (script_dir,),),
                             connexion_params = connect_params)
-    pktgen_config = execo.Remote(sources,
-                                 "./config-pktgen -c 0 -p %i config {{[host.address for host in targets]}}" % (pktgen_packet_size,),
+    pktgen_config = execo.Remote("./config-pktgen -c 0 -p %i config {{[host.address for host in targets]}}" % (pktgen_packet_size,),
+                                 sources,
                                  connexion_params = connect_params)
-    pktgen_start = execo.Remote(sources,
-                                "nohup ./config-pktgen -d 2 start %i > %s 2>&1 &" % (duration, pktgen_log),
+    pktgen_start = execo.Remote("nohup ./config-pktgen -d 2 start %i > %s 2>&1 &" % (duration, pktgen_log),
+                                sources,
                                 connexion_params = connect_params)
     gargantua = execo.Host('gargantua')
-    capture_start = execo.Remote([gargantua],
-                                 "killall snf-capture ; nohup snf-capture/snf-capture -t%i -d 50 -w %s -s 52 -fnseclibpcap >%s 2>&1 &" % (int(duration / 20), capture_file, capture_log))
-    capture_stop = execo.Remote([gargantua],
-                                "killall snf-capture")
+    capture_start = execo.Remote("killall snf-capture ; nohup snf-capture/snf-capture -t%i -d 50 -w %s -s 52 -fnseclibpcap >%s 2>&1 &" % (int(duration / 20), capture_file, capture_log),
+                                 [gargantua])
+    capture_stop = execo.Remote("killall snf-capture",
+                                [gargantua])
                                 
     get_pktgen_logs = execo.Get(sources,
                                 local_location = "%s/{{{host}}}" % (log_dir,),
@@ -93,13 +100,13 @@ def gen_traffic_and_capture(xp_name,
                                  remote_files = (capture_log,),
                                  create_dirs = False)
 
-    remove_captures = execo.Remote([gargantua],
-                                   "rm -f %s %s" % (capture_file, capture_log))
+    remove_captures = execo.Remote("rm -f %s %s" % (capture_file, capture_log),
+                                   [gargantua],)
 
-    get_mirroring_counter_1 = execo.Remote([gargantua],
-                                          "snmpget -Os -c public -v 2c little-ego 1.3.6.1.2.1.31.1.1.1.10.9001")
-    get_mirroring_counter_2 = execo.Remote([gargantua],
-                                          "snmpget -Os -c public -v 2c little-ego 1.3.6.1.2.1.31.1.1.1.10.9001")
+    get_mirroring_counter_1 = execo.Remote("snmpget -Os -c public -v 2c little-ego 1.3.6.1.2.1.31.1.1.1.10.9001",
+                                           [gargantua])
+    get_mirroring_counter_2 = execo.Remote("snmpget -Os -c public -v 2c little-ego 1.3.6.1.2.1.31.1.1.1.10.9001",
+                                           [gargantua])
 
     report.add([script_copy,
                 get_pktgen_logs,
@@ -206,7 +213,7 @@ def main():
     # parse command line
     parser = optparse.OptionParser(
         usage = "usage: %prog <oargrid job id> <transfer duration in seconds> <list of num sources> <list of packet sizes>\n  (lists are comma separated)")
-    (options, args) = parser.parse_args()
+    (_, args) = parser.parse_args()
     if len(args) != 4:
         parser.print_help()
         sys.exit(1)
@@ -234,9 +241,9 @@ def main():
     sys.stdout = xp_log
     sys.stderr = xp_log
     # update execo logger to these new stdout, stderr streams
-    logger_handler = logging.StreamHandler(xp_log)
+    # logger_handler = logging.StreamHandler(xp_log)
     execo.configuration['color_mode'] = False
-    execo.set_log_level(logging.WARNING)
+    execo.logger.setLevel(logging.WARNING)
 
     # print infos about xp
     print "-- xp: %s" % (xp_name,)
@@ -268,14 +275,17 @@ def main():
 
     # deploy needed hosts
     print "-- deploy hosts (at least %i sources and %i targets)" % (highest_num_sources, highest_num_sources)
-    (deployed_hosts, error_hosts, all_hosts) = execo_g5k.prepare_deployed_xp(
+    deployment = execo_g5k.Deployment(
         hosts = job_hosts,
-        connexion_params = connect_params,
-        #environment_name = 'lenny-x64-base',
         environment_file = '/home/lyon/mimbert/images/sid-x64-damien-1.0.13_091028.dsc',
-        check_enough_func = lambda deployed_hosts, undeployed_hosts: prepare_xp_check_enough_func(deployed_hosts,
-                                                                                                  undeployed_hosts,
-                                                                                                  highest_num_sources))
+        )
+    (deployed_hosts, error_hosts) = execo_g5k.deploy(
+        deployment,
+        node_connexion_params = connect_params,
+        check_enough_func = lambda deployed_hosts, undeployed_hosts:
+                                prepare_xp_check_enough_func(deployed_hosts,
+                                                             undeployed_hosts,
+                                                             highest_num_sources))
     print "   %i undeployed hosts: %s" % (len(error_hosts), error_hosts)
     print "   %i deployed hosts: %s" % (len(deployed_hosts), deployed_hosts)
     (sources, targets) = classify_hosts(deployed_hosts)
