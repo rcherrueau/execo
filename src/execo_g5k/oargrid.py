@@ -122,7 +122,7 @@ def oargridsub(job_specs, reservation_date = None,
     if job_id != None:
         return (job_id, ssh_key)
     else:
-        raise ProcessesFailed, [process]
+        return (None, None)
 
 def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
     """Delete oargrid jobs.
