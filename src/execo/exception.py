@@ -4,8 +4,7 @@ class ProcessesFailed(Exception):
 		self._processes = processes
 
 	def __str__(self):
-		s = "<ProcessesFailed - failed process(es)::"
+		s = "<ProcessesFailed> - failed process(es):\n"
 		for p in self._processes:
-			s += "  " + p.dump() + "\n"
-		s += ">\n"
+			s += " " + p.dump() + "\n"
 		return s
