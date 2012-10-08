@@ -20,13 +20,12 @@ from config import g5k_configuration
 from execo.config import make_connexion_params
 from execo.exception import ProcessesFailed
 from execo.host import Host
+from execo.process import get_process
 from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
 from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connexion_params
-from execo_g5k.factory import frontend_factory
 from execo_g5k.utils import get_frontend_host
-import operator
 import os
 import re
 import time
@@ -221,12 +220,12 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
             oarsub_cmdline += ' "%s"' % (spec.command,)
         else:
             oarsub_cmdline += ' "sleep 31536000"'
-        p = frontend_factory.process(oarsub_cmdline,
-                                     host = get_frontend_host(frontend),
-                                     connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                              default_frontend_connexion_params),
-                                     timeout = timeout,
-                                     pty = True)
+        p = get_process(oarsub_cmdline,
+                        host = get_frontend_host(frontend),
+                        connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                 default_frontend_connexion_params),
+                        timeout = timeout,
+                        pty = True)
         p.frontend = frontend
         processes.append(p)
     oar_job_ids = []
@@ -272,13 +271,13 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for (job_id, frontend) in job_specs:
-        processes.append(frontend_factory.process("oardel %i" % (job_id,),
-                                                  host = get_frontend_host(frontend),
-                                                  connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                                           default_frontend_connexion_params),
-                                                  timeout = timeout,
-                                                  log_exit_code = False,
-                                                  pty = True))
+        processes.append(get_process("oardel %i" % (job_id,),
+                                     host = get_frontend_host(frontend),
+                                     connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                              default_frontend_connexion_params),
+                                     timeout = timeout,
+                                     log_exit_code = False,
+                                     pty = True))
     for process in processes: process.start()
     for process in processes: process.wait()
 
@@ -324,12 +323,12 @@ def get_current_oar_jobs(frontends = None,
     if frontends == None:
         frontends = [ None ]
     for frontend in frontends:
-        p = frontend_factory.process("oarstat -u",
-                                     host = get_frontend_host(frontend),
-                                     connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                              default_frontend_connexion_params),
-                                     timeout = timeout,
-                                     pty = True)
+        p = get_process("oarstat -u",
+                        host = get_frontend_host(frontend),
+                        connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                 default_frontend_connexion_params),
+                        timeout = timeout,
+                        pty = True)
         p.frontend = frontend
         processes.append(p)
     oar_job_ids = []
@@ -400,15 +399,15 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
-    process = frontend_factory.process("oarstat -fj %i" % (oar_job_id,),
-                                       host = get_frontend_host(frontend),
-                                       connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                                default_frontend_connexion_params),
-                                       timeout = timeout,
-                                       pty = True,
-                                       log_exit_code = log_exit_code,
-                                       log_timeout = log_timeout,
-                                       log_error = log_error)
+    process = get_process("oarstat -fj %i" % (oar_job_id,),
+                          host = get_frontend_host(frontend),
+                          connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                   default_frontend_connexion_params),
+                          timeout = timeout,
+                          pty = True,
+                          log_exit_code = log_exit_code,
+                          log_timeout = log_timeout,
+                          log_error = log_error)
     process.run()
     job_info = dict()
     start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
@@ -532,12 +531,12 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
     wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
-    process = frontend_factory.process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
-                                       host = get_frontend_host(frontend),
-                                       connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                                default_frontend_connexion_params),
-                                       timeout = countdown.remaining(),
-                                       pty = True)
+    process = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
+                          host = get_frontend_host(frontend),
+                          connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                   default_frontend_connexion_params),
+                          timeout = countdown.remaining(),
+                          pty = True)
     process.run()
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
@@ -577,20 +576,20 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     #cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
     # g5k-subnets -i -j $OAR_JOB_ID
     # Get ip adresses
-    process_ip = frontend_factory.process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
-                                          host = get_frontend_host(frontend),
-                                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                                   default_frontend_connexion_params),
-                                          timeout = countdown.remaining(),
-                                          pty = True)
+    process_ip = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
+                             host = get_frontend_host(frontend),
+                             connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                      default_frontend_connexion_params),
+                             timeout = countdown.remaining(),
+                             pty = True)
     process_ip.run()
     # Get network parameters
-    process_net = frontend_factory.process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -a -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
-                                           host = get_frontend_host(frontend),
-                                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                                    default_frontend_connexion_params),
-                                           timeout = countdown.remaining(),
-                                           pty = True)
+    process_net = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -a -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
+                              host = get_frontend_host(frontend),
+                              connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                       default_frontend_connexion_params),
+                              timeout = countdown.remaining(),
+                              pty = True)
     process_net.run()
     
     if process_net.ok() and process_ip.ok():

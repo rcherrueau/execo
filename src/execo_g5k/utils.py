@@ -16,12 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
+from execo.action import ActionFactory
+from execo.config import SSH, SCP
 from execo.host import Host
 from execo_g5k.config import g5k_configuration
 import execo
 import itertools
 import re
 import socket
+
+frontend_factory = ActionFactory(remote_tool = SSH,
+                                 fileput_tool = SCP,
+                                 fileget_tool = SCP)
 
 __default_frontend = None
 __default_frontend_cached = False

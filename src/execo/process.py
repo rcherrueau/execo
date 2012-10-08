@@ -920,3 +920,11 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         self._log_terminated()
         if self._process_lifecycle_handler != None:
             self._process_lifecycle_handler.end(self)
+
+def get_process(*args, **kwargs):
+    if kwargs.get("host") != None:
+        return SshProcess(*args, **kwargs)
+    else:
+        del kwargs["host"]
+        if "connexion_params" in kwargs: del kwargs["connexion_params"]
+        return Process(*args, **kwargs)

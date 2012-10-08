@@ -18,16 +18,14 @@
 
 from config import g5k_configuration
 from execo.action import Remote, ActionNotificationProcessLifecycleHandler, \
-    Action
+    Action, get_remote
 from execo.config import make_connexion_params
-from execo.factory import get_remote
 from execo.host import get_hosts_set, Host
 from execo.log import set_style, logger
-from execo.process import ProcessOutputHandler
+from execo.process import ProcessOutputHandler, get_process
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connexion_params
-from execo_g5k.factory import frontend_factory
 from execo_g5k.utils import get_frontend_host
 from utils import get_default_frontend
 import copy
@@ -215,21 +213,21 @@ class Kadeployer(Remote):
             kadeploy_command = self._deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
                 kadeploy_command += " -m %s" % (host.address,)
-            p = frontend_factory.process(kadeploy_command,
-                                         host = get_frontend_host(frontend),
-                                         connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                                  default_frontend_connexion_params),
-                                         stdout_handler = _KadeployStdoutHandler(self, out = self._out),
-                                         stderr_handler = _KadeployStderrHandler(self, out = self._out),
-                                         timeout = self._timeout,
-                                         ignore_exit_code = self._ignore_exit_code,
-                                         log_exit_code = self._log_exit_code,
-                                         ignore_timeout = self._ignore_timeout,
-                                         log_timeout = self._log_timeout,
-                                         ignore_error = self._ignore_error,
-                                         log_error = self._log_error,
-                                         process_lifecycle_handler = lifecycle_handler,
-                                         pty = True)
+            p = get_process(kadeploy_command,
+                            host = get_frontend_host(frontend),
+                            connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                     default_frontend_connexion_params),
+                            stdout_handler = _KadeployStdoutHandler(self, out = self._out),
+                            stderr_handler = _KadeployStderrHandler(self, out = self._out),
+                            timeout = self._timeout,
+                            ignore_exit_code = self._ignore_exit_code,
+                            log_exit_code = self._log_exit_code,
+                            ignore_timeout = self._ignore_timeout,
+                            log_timeout = self._log_timeout,
+                            ignore_error = self._ignore_error,
+                            log_error = self._log_error,
+                            process_lifecycle_handler = lifecycle_handler,
+                            pty = True)
             self._processes.append(p)
 
     def _common_reset(self):
