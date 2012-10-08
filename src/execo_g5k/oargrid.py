@@ -18,6 +18,7 @@
 
 from config import g5k_configuration
 from execo.config import make_connexion_params
+from execo.exception import ProcessesFailed
 from execo.host import Host
 from execo.time_utils import get_unixts, sleep
 from execo_g5k.config import default_frontend_connexion_params
@@ -121,7 +122,7 @@ def oargridsub(job_specs, reservation_date = None,
     if job_id != None:
         return (job_id, ssh_key)
     else:
-        return (None, None)
+        raise ProcessesFailed, [process]
 
 def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
     """Delete oargrid jobs.
@@ -198,7 +199,8 @@ def get_current_oargrid_jobs(start_between = None,
                     filtered_job_ids.append(job)
             oargrid_job_ids = filtered_job_ids
         return oargrid_job_ids
-    raise Exception, "error, list of current oargrid jobs: %s" % (process,)
+    else:
+        raise ProcessesFailed, [process]
 
 def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
@@ -229,18 +231,16 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
                                        timeout = timeout,
                                        pty = True)
     process.run()
-    if process.ok():
-        job_info = dict()
-        start_date_result = re.search("start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)", process.stdout(), re.MULTILINE)
-        if start_date_result:
-            start_date = oar_date_to_unixts(start_date_result.group(1))
-            job_info['start_date'] = start_date
-        walltime_result = re.search("walltime : (\d+:\d?\d:\d?\d)", process.stdout(), re.MULTILINE)
-        if walltime_result:
-            walltime = oar_duration_to_seconds(walltime_result.group(1))
-            job_info['walltime'] = walltime
-        return job_info
-    raise Exception, "error retrieving info for oargrid job %i: %s" % (oargrid_job_id, process)
+    job_info = dict()
+    start_date_result = re.search("start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)", process.stdout(), re.MULTILINE)
+    if start_date_result:
+        start_date = oar_date_to_unixts(start_date_result.group(1))
+        job_info['start_date'] = start_date
+    walltime_result = re.search("walltime : (\d+:\d?\d:\d?\d)", process.stdout(), re.MULTILINE)
+    if walltime_result:
+        walltime = oar_duration_to_seconds(walltime_result.group(1))
+        job_info['walltime'] = walltime
+    return job_info
 
 def wait_oargrid_job_start(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Sleep until an oargrid job's start time.
@@ -284,4 +284,5 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         return list(set([ Host(host_address) for host_address in host_addresses ]))
-    raise Exception, "error retrieving nodes list for oargrid job %i: %s" % (oargrid_job_id, process)
+    else:
+        raise ProcessesFailed, [process]

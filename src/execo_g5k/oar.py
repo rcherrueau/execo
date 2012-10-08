@@ -18,6 +18,7 @@
 
 from config import g5k_configuration
 from execo.config import make_connexion_params
+from execo.exception import ProcessesFailed
 from execo.host import Host
 from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
@@ -159,7 +160,7 @@ class OarSubmission(object):
         if self.command != None: s = comma_join(s, "command=%r" % (self.command,))
         return "OarSubmission(%s)" % (s,)
 
-def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
+def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_on_error = False):
     """Submit jobs.
 
     :param job_specs: iterable of tuples (execo_g5k.oar.OarSubmission,
@@ -169,10 +170,14 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
     
-    :param timeout: timeout for retrieving. Default is False, which
+    :param timeout: timeout for submitting. Default is False, which
       means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
+
+    :param abort_on_error: default False. If True, raises an exception
+      on any error. If False, will returned the list of job got, even
+      if incomplete (some frontends may have failed to answer).
 
     Returns a list of tuples (oarjob id, frontend), with frontend ==
     None for default frontend. If submission error, oarjob id ==
@@ -229,14 +234,20 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False):
         return oar_job_ids
     for process in processes: process.start()
     for process in processes: process.wait()
+    failed_processes = []
     for process in processes:
         job_id = None
         if process.ok():
             mo = re.search("^OAR_JOB_ID=(\d+)\s*$", process.stdout(), re.MULTILINE)
             if mo != None:
                 job_id = int(mo.group(1))
+        if job_id == None:
+            failed_processes.append(process)
         oar_job_ids.append((job_id, process.frontend))
-    return oar_job_ids
+    if len(failed_processes) > 0 and abort_on_error:
+        raise ProcessesFailed, failed_processes
+    else:
+        return oar_job_ids
 
 def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     """Delete oar jobs.
@@ -252,7 +263,7 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
     
-    :param timeout: timeout for retrieving. Default is False, which
+    :param timeout: timeout for deleting. Default is False, which
       means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
@@ -326,23 +337,31 @@ def get_current_oar_jobs(frontends = None,
         return oar_job_ids
     for process in processes: process.start()
     for process in processes: process.wait()
-    if reduce(operator.and_, [ p.ok() for p in processes ]) or not abort_on_error:
-        for process in processes:
-            if process.ok():
-                jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
-                oar_job_ids.extend([ (int(jobid), process.frontend) for jobid in jobs ])
+    failed_processes = []
+    for process in processes:
+        if process.ok():
+            jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
+            oar_job_ids.extend([ (int(jobid), process.frontend) for jobid in jobs ])
+        else:
+            failed_processes.append(process)
+    if len(failed_processes) > 0 and abort_on_error:
+        raise ProcessesFailed, failed_processes
+    else:
         if start_between or end_between:
             filtered_job_ids = []
             for jobfrontend in oar_job_ids:
-                info = get_oar_job_info(jobfrontend[0], jobfrontend[1], frontend_connexion_params, timeout)
+                info = get_oar_job_info(jobfrontend[0], jobfrontend[1],
+                                        frontend_connexion_params, timeout,
+                                        log_exit_code = False, log_timeout = False,
+                                        log_error = False)
                 if (_date_in_range(info['start_date'], start_between)
                     and _date_in_range(info['start_date'] + info['walltime'], end_between)):
                     filtered_job_ids.append(jobfrontend)
             oar_job_ids = filtered_job_ids
         return oar_job_ids
-    raise Exception, "error, list of current oar jobs: %s" % (processes,)
 
-def get_oar_job_info(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False,
+def get_oar_job_info(oar_job_id = None, frontend = None,
+                     frontend_connexion_params = None, timeout = False,
                      log_exit_code = True, log_timeout = True, log_error = True):
     """Return a dict with informations about an oar job.
 
@@ -440,6 +459,9 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     :param prediction_callback: function taking a unix timestamp as
       parameter. This function will be called each time oar job start
       prediction changes.
+
+    :param abort_on_error: default False. If True, raises an exception
+      on any error.
     """
 
     prediction = None
@@ -458,8 +480,9 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
 
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
-        infos = get_oar_job_info(oar_job_id, frontend, frontend_connexion_params, countdown.remaining(),
-                                 log_exit_code = False, log_timeout = False, log_error = False)
+        infos = get_oar_job_info(oar_job_id, frontend, frontend_connexion_params,
+                                 countdown.remaining(), log_exit_code = False,
+                                 log_timeout = False, log_error = False)
         now = time.time()
         if infos.has_key('state'):
             if infos['state'] == "Terminated" or infos['state'] == "Error":
@@ -481,7 +504,8 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                 continue
         sleep(mymin(g5k_configuration.get('polling_interval'), countdown.remaining()))
     
-def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
+def get_oar_job_nodes(oar_job_id = None, frontend = None,
+                      frontend_connexion_params = None, timeout = False):
     """Return an iterable of `execo.host.Host` containing the hosts of an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -518,7 +542,8 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None, frontend_connexion_par
     if process.ok():
         host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
         return [ Host(host_address) for host_address in host_addresses ]
-    raise Exception, "error retrieving nodes list for oar job %i on frontend %s: %s" % (oar_job_id, frontend, process)
+    else:
+        raise ProcessesFailed, [process]
     
 def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
     """Return a tuple containing an iterable of IP addresses and a dict containing the
@@ -575,5 +600,8 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
 #	print type(network_params)
 #	print len(network_params)
 #	print network_params
-        return (subnet_addresses, {"netmask": network_params[2], "broadcast": network_params[1], "gateway": network_params[3]})
-    raise Exception, "error retrieving IPs list for oar job %i on frontend %s: %s" % (oar_job_id, frontend, process_ip)
+        return (subnet_addresses, {"netmask": network_params[2],
+                                   "broadcast": network_params[1],
+                                   "gateway": network_params[3]})
+    else:
+        raise ProcessesFailed, [ p for p in [process_net, process_ip] if not p.ok() ]

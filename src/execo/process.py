@@ -271,6 +271,10 @@ class ProcessBase(object):
         # implemented once for all subclasses
         return "<" + set_style(self.__class__.__name__, 'object_repr') + "(%s)>" % (", ".join(self._args() + self._infos()),)
 
+    @synchronized
+    def dump(self):
+        return " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
+
     def cmd(self):
         """Return the process command line."""
         return self._cmd
@@ -431,7 +435,7 @@ class ProcessBase(object):
 
         This method will log process termination as needed.
         """
-        s = set_style("terminated:", 'emph') + " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
+        s = set_style("terminated:", 'emph') + self.dump()
         if ((self._error and (self._log_error if self._log_error != None else not self._ignore_error))
             or (self._timeouted and (self._log_timeout if self._log_timeout != None else not self._ignore_timeout))
             or (self._exit_code != 0 and (self._log_exit_code if self._log_exit_code != None else not self._ignore_exit_code))):
