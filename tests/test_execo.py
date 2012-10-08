@@ -11,7 +11,7 @@ test_hosts = [ execo.Host('graal.ens-lyon.fr'), execo.Host('g5k'), execo.Host('r
 class Test_functions(unittest.TestCase):
 
     def test_format_time(self):
-        self.assertEqual(execo.format_unixts(1260000000), '2009-12-05_09:00:00_CET')
+        self.assertEqual(execo.format_date(1260000000), '2009-12-05_09:00:00_CET')
 
     def test_format_duration(self):
         self.assertEqual(execo.format_duration(126045), '1d11h0m45s')
@@ -134,7 +134,7 @@ class Test_Process(unittest.TestCase):
 class Test_Action(unittest.TestCase):
 
     def test_Remote(self):
-        remote = execo.Remote(test_hosts, 'true').run()
+        remote = execo.Remote('true', test_hosts).run()
         stats = remote.stats()
         self.assertEqual(stats['num_started'], len(test_hosts), str(remote))
         self.assertEqual(stats['num_ended'], len(test_hosts), str(remote))
@@ -143,7 +143,7 @@ class Test_Action(unittest.TestCase):
     def test_Get(self):
         remote_filename = workdir + '/test_get'
         local_location = workdir + '/test_get/{{{host}}}'
-        remote = execo.Remote(test_hosts, 'mkdir -p ' + workdir + ' ; echo {{{host}}} > ' + remote_filename).run()
+        remote = execo.Remote('mkdir -p ' + workdir + ' ; echo {{{host}}} > ' + remote_filename, test_hosts).run()
         stats = remote.stats()
         self.assertEqual(stats['num_started'], len(test_hosts), str(remote))
         self.assertEqual(stats['num_ended'], len(test_hosts), str(remote))
@@ -160,7 +160,7 @@ class Test_Action(unittest.TestCase):
             f.close()
             self.assertEqual(content, host.address + '\n')
         shutil.rmtree(workdir, True)
-        remote = execo.Remote(test_hosts, 'rm -rf ' + remote_filename).run()
+        remote = execo.Remote('rm -rf ' + remote_filename, test_hosts).run()
         stats = remote.stats()
         self.assertEqual(stats['num_started'], len(test_hosts), str(remote))
         self.assertEqual(stats['num_ended'], len(test_hosts), str(remote))
@@ -179,12 +179,12 @@ class Test_Action(unittest.TestCase):
         self.assertEqual(stats['num_started'], len(test_hosts), str(put))
         self.assertEqual(stats['num_ended'], len(test_hosts), str(put))
         self.assertEqual(stats['num_ok'], len(test_hosts), str(put))
-        remote = execo.Remote(test_hosts, 'if [ `<' + remote_location + '` == "toto" ] ; then true ; else false ; fi').run()
+        remote = execo.Remote('if [ `<' + remote_location + '` == "toto" ] ; then true ; else false ; fi', test_hosts).run()
         stats = remote.stats()
         self.assertEqual(stats['num_started'], len(test_hosts), str(remote))
         self.assertEqual(stats['num_ended'], len(test_hosts), str(remote))
         self.assertEqual(stats['num_ok'], len(test_hosts), str(remote))
-        remote = execo.Remote(test_hosts, 'rm ' + remote_location).run()
+        remote = execo.Remote('rm ' + remote_location, test_hosts).run()
         stats = remote.stats()
         self.assertEqual(stats['num_started'], len(test_hosts), str(remote))
         self.assertEqual(stats['num_ended'], len(test_hosts), str(remote))
