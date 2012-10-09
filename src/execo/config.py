@@ -105,41 +105,41 @@ def make_default_connexion_params():
         'host_rewrite_func': lambda host: host
         }
 # _ENDOF_ default_connexion_params
-    """Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
-
-    - ``user``: the user to connect with.
-
-    - ``keyfile``: the keyfile to connect with.
-
-    - ``port``: the port to connect to.
-
-    - ``ssh``: the ssh or ssh-like command.
-
-    - ``scp``: the scp or scp-like command.
-
-    - ``taktuk``: the taktuk command.
-
-    - ``ssh_options``: options passed to ssh.
-
-    - ``scp_options``: options passed to scp.
-
-    - ``taktuk_options``: options passed to taktuk.
-
-    - ``taktuk_connector``: the ssh-like connector command for taktuk.
-
-    - ``taktuk_connector_options``: options passed to taktuk_connector.
-
-    - ``taktuk_gateway``: hostname or `Host` instance on which to launch the taktuk command.
-
-    - ``taktuk_gateway_connexion_params``: connexion parameters (if needed) to connect to taktuk_gateway.
-
-    - ``ssh_scp_pty``: allocate a pty for ssh/scp.
-
-    - ``host_rewrite_func``: function called to rewrite hosts addresses.
-    """
     return default_connexion_params
 
 default_connexion_params = make_default_connexion_params()
+"""Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
+
+- ``user``: the user to connect with.
+
+- ``keyfile``: the keyfile to connect with.
+
+- ``port``: the port to connect to.
+
+- ``ssh``: the ssh or ssh-like command.
+
+- ``scp``: the scp or scp-like command.
+
+- ``taktuk``: the taktuk command.
+
+- ``ssh_options``: options passed to ssh.
+
+- ``scp_options``: options passed to scp.
+
+- ``taktuk_options``: options passed to taktuk.
+
+- ``taktuk_connector``: the ssh-like connector command for taktuk.
+
+- ``taktuk_connector_options``: options passed to taktuk_connector.
+
+- ``taktuk_gateway``: hostname or `Host` instance on which to launch the taktuk command.
+
+- ``taktuk_gateway_connexion_params``: connexion parameters (if needed) to connect to taktuk_gateway.
+
+- ``ssh_scp_pty``: allocate a pty for ssh/scp.
+
+- ``host_rewrite_func``: function called to rewrite hosts addresses.
+"""
 
 def make_connexion_params(connexion_params = None, default_connexion_params = None):
     return_params = make_default_connexion_params()

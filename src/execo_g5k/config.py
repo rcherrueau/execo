@@ -113,13 +113,13 @@ def make_default_oarsh_oarcp_params():
         'host_rewrite_func': lambda host: host
         }
 # _ENDOF_ default_oarsh_oarcp_params
-    """A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
-
-    See `execo.config.make_default_connexion_params`
-    """
     return default_oarsh_oarcp_params
 
 default_oarsh_oarcp_params = make_default_oarsh_oarcp_params()
+"""A convenient, predefined connexion paramaters dict with oarsh / oarcp configuration.
+
+See `execo.config.make_default_connexion_params`
+"""
 
 def make_default_frontend_connexion_params():
 # _STARTOF_ default_frontend_connexion_params
@@ -155,10 +155,10 @@ def make_default_frontend_connexion_params():
         'host_rewrite_func': lambda host: host + ".grid5000.fr"
         }
 # _ENDOF_ default_frontend_connexion_params
-    """Default connexion params when connecting to a Grid5000 frontend."""
     return default_frontend_connexion_params
 
 default_frontend_connexion_params = make_default_frontend_connexion_params()
+"""Default connexion params when connecting to a Grid5000 frontend."""
 
 load_configuration(
   get_user_config_filename(),
