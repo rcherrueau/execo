@@ -24,6 +24,20 @@ SSH = 0
 SCP = 1
 TAKTUK = 2
 
+def checktty(f):
+    try:
+        if (get_ipython().__class__.__name__ == 'ZMQInteractiveShell'
+            and f.__class__.__module__ == 'IPython.zmq.iostream'
+            and f.__class__.__name__ == 'OutStream'):
+            return True
+    except NameError:
+        pass
+    if hasattr(f, 'isatty'):
+        return f.isatty()
+    if hasattr(f, 'fileno'):
+        return os.isatty(f.fileno())
+    return False
+
 # _STARTOF_ configuration
 configuration = {
     'log_level': logging.WARNING,
@@ -32,8 +46,8 @@ configuration = {
     'fileget_tool': SCP,
     'compact_output_threshold': 4096,
     'kill_timeout': 5,
-    'color_mode': os.isatty(sys.stdout.fileno())
-                  and os.isatty(sys.stderr.fileno()),
+    'color_mode': checktty(sys.stdout)
+                  and checktty(sys.stderr),
     'style_log_header': ('yellow',),
     'style_log_level' : ('magenta',),
     'style_object_repr': ('blue', 'bold'),
