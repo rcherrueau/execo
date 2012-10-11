@@ -179,8 +179,9 @@ def load_configuration(filename, dicts_confs):
         jailed_globals = {}
         try:
             execfile(filename, jailed_globals)
-        except Exception: #IGNORE:W0703
-            print "ERROR while reading config file %s" % (filename,)
+        except Exception, exc: #IGNORE:W0703
+            print "ERROR while reading config file %s:" % (filename,)
+            print exc
         for (dictio, conf) in dicts_confs:
             if jailed_globals.has_key(conf):
                 dictio.update(jailed_globals[conf])
