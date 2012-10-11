@@ -116,7 +116,7 @@ def make_default_connexion_params():
         'taktuk_gateway': None,
         'taktuk_gateway_connexion_params': None,
         'ssh_scp_pty': False,
-        'host_rewrite_func': lambda host: host
+        'host_rewrite_func': None
         }
 # _ENDOF_ default_connexion_params
     return default_connexion_params

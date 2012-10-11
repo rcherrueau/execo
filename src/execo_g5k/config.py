@@ -110,7 +110,7 @@ def make_default_oarsh_oarcp_params():
         'taktuk_gateway': None,
         'taktuk_gateway_connexion_params': None,
         'ssh_scp_pty': True,
-        'host_rewrite_func': lambda host: host
+        'host_rewrite_func': None
         }
 # _ENDOF_ default_oarsh_oarcp_params
     return default_oarsh_oarcp_params
