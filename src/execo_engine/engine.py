@@ -153,6 +153,28 @@ class Engine(object):
 
     - `execo_engine.engine.Engine.setup_result_dir`
 
+    A typical, non-reusable engine would override
+    `execo_engine.engine.Engine.init`, adding options / arguments to
+    `execo_engine.engine.Engine.options_parser`, and override
+    `execo_engine.engine.Engine.run`, putting all the experiment code
+    inside it, being sure that all initializations are done when
+    ``run`` is called: results directory is initialized and created
+    (possibly reusing a previous results directory, to restart from a
+    previously stopped experiment), log level is set, stdout / stderr
+    are redirected as needed, and options and arguments are in
+    `execo_engine.engine.Engine.options` and
+    `execo_engine.engine.Engine.args`.
+
+    A typical usage of a `execo_engine.utils.ParamSweeper` in an
+    engine would be to intialize one at the beggining of
+    `execo_engine.engine.Engine.run`, using a persistence file in the
+    results directory. example code::
+
+     def run(self):
+         sweeps = sweep({<parameters and their values>})
+         sweeper = ParamSweeper(sweeps, os.path.join(self.result_dir, "sweeps"))
+         [...]
+
     """
 
     def _create_result_dir(self):
