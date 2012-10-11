@@ -102,14 +102,13 @@ class Engine(object):
 
     """Base class for execo Engine."""
 
-    def create_result_dir(self):
+    def _create_result_dir(self):
         if not os.path.isdir(self.result_dir):
             os.makedirs(self.result_dir)
 
     def _redirect_outputs(self, merge_stdout_stderr):
         """Redirects, and optionnaly merge, stdout and stderr to file(s) in experiment directory."""
 
-        self.create_result_dir()
         if merge_stdout_stderr:
             stdout_redir_filename = self.result_dir + "/stdout+stderr"
             stderr_redir_filename = self.result_dir + "/stdout+stderr"
@@ -130,7 +129,6 @@ class Engine(object):
     def _copy_outputs(self, merge_stdout_stderr):
         """Copy, and optionnaly merge, stdout and stderr to file(s) in experiment directory."""
 
-        self.create_result_dir()
         if merge_stdout_stderr:
             stdout_redir_filename = self.result_dir + "/stdout+stderr"
             stderr_redir_filename = self.result_dir + "/stdout+stderr"
@@ -203,6 +201,7 @@ class Engine(object):
             self.result_dir = self.options.continue_dir
         else:
             self.setup_result_dir()
+        self._create_result_dir()
         if self.options.output_mode:
             if self.options.output_mode == "copy":
                 self._copy_outputs(self.options.merge_outputs)
