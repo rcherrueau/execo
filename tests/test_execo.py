@@ -72,8 +72,7 @@ class Test_Process(unittest.TestCase):
         # descriptor limits) several times, to ensure previous file
         # descriptors resources are cleanly released
         for _ in xrange(0, 3):
-            processes = None # ensure cleaning processes to avoid a
-                             # not enough file descriptors error
+            processes = None # ensure cleaning processes to avoid a not enough file descriptors error
             processes = [ execo.Process('echo start ; echo done') for _ in xrange(0, self.max_processes) ]
             map(execo.Process.start, processes)
             map(execo.Process.wait, processes)

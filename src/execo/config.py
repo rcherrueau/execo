@@ -26,7 +26,7 @@ TAKTUK = 2
 
 def checktty(f):
     try:
-        if (get_ipython().__class__.__name__ == 'ZMQInteractiveShell'
+        if (get_ipython().__class__.__name__ == 'ZMQInteractiveShell' #@UndefinedVariable
             and f.__class__.__module__ == 'IPython.zmq.iostream'
             and f.__class__.__name__ == 'OutStream'):
             return True
