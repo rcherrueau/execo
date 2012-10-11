@@ -155,9 +155,11 @@ default_connexion_params = make_default_connexion_params()
 - ``host_rewrite_func``: function called to rewrite hosts addresses.
 """
 
-def make_connexion_params(connexion_params = None, default_connexion_params = None):
+def make_connexion_params(connexion_params = None, default_params = None):
     return_params = make_default_connexion_params()
-    if default_connexion_params: return_params.update(default_connexion_params)
+    if default_params == None:
+        default_params = default_connexion_params
+    return_params.update(default_params)
     if connexion_params: return_params.update(connexion_params)
     return return_params
 
