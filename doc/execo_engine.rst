@@ -8,7 +8,7 @@ Overview
 ========
 
 The `execo_engine` module provides tools for the development of
-experiment.
+experiments.
 
 Parameter sweeping
 ==================
