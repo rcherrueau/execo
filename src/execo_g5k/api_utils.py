@@ -39,24 +39,25 @@ _g5k = None
 a dict whose keys are sites, whose values are dict whose keys are
 clusters, whose values are hosts.
 """
+
 __api_password = None
-def get_api_password():
+def _get_api_password():
+    username = g5k_configuration.get('api_username')
     global __api_password
-    if not __api_password and g5k_configuration.get('api_username'):
+    if not __api_password and username:
         try:
             import keyring
-            __api_password = keyring.get_password("grid5000_api", g5k_configuration.get('api_username'))
+            __api_password = keyring.get_password("grid5000_api", username)
         except ImportError:
             # only use keyring if available
             pass
         if not __api_password:
             import getpass
             __api_password = getpass.getpass(
-                "Grid5000 API authentication password for user %s" % (
-                    g5k_configuration.get('api_username'),))
+                "Grid5000 API authentication password for user %s" % (username,))
             try:
                 import keyring
-                keyring.set_password("grid5000_api", g5k_configuration.get('api_username'), __api_password)
+                keyring.set_password("grid5000_api", username, __api_password)
             except ImportError:
                 # only use keyring if available
                 pass
@@ -90,7 +91,7 @@ def _get_g5k_api():
     if not _g5k_api:
         _g5k_api = APIConnexion(g5k_configuration.get('api_uri'),
                                 username = g5k_configuration.get('api_username'),
-                                password = get_api_password())
+                                password = _get_api_password())
     return _g5k_api
 
 def get_g5k_sites():
