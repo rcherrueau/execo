@@ -458,9 +458,6 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     :param prediction_callback: function taking a unix timestamp as
       parameter. This function will be called each time oar job start
       prediction changes.
-
-    :param abort_on_error: default False. If True, raises an exception
-      on any error.
     """
 
     prediction = None
@@ -545,8 +542,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
         raise ProcessesFailed, [process]
     
 def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
-    """Return a tuple containing an iterable of IP addresses and a dict containing the
-    subnet parameters, that OAR assigned to your reservation.
+    """Return a tuple containing an iterable of IP addresses and a dict containing the subnet parameters that OAR assigned to your reservation, with keys 'netmask', 'broadcast', 'gateway'.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.

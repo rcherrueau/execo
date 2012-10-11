@@ -61,15 +61,17 @@ configuration = {
 - ``log_level``: the log level (see module `logging`)
 
 - ``remote_tool``: default tool to use when instanciating remote
-  processes
+  processes. Can be `execo.config.SSH` or `execo.config.TAKTUK`
 
-- ``fileput_tool``: default tool to use to put files remotely
+- ``fileput_tool``: default tool to use to put files remotely. Can be
+  `execo.config.SCP` or `execo.config.TAKTUK`
 
-- ``fileget_tool``: default tool to use to get remote files
+- ``fileget_tool``: default tool to use to get remote files. Can be
+  `execo.config.SCP` or `execo.config.TAKTUK`
 
 - ``compact_output_threshold``: only beginning and end of stdout /
-  stderr are displayed when their size is greater than this
-  threshold. 0 for no threshold
+  stderr are displayed by `execo.process.ProcessBase.dump` when their
+  size is greater than this threshold. 0 for no threshold
 
 - ``kill_timeout``: number of seconds to wait after a clean SIGTERM
   kill before assuming that the process is not responsive and killing
@@ -136,23 +138,28 @@ default_connexion_params = make_default_connexion_params()
 
 - ``taktuk``: the taktuk command.
 
-- ``ssh_options``: options passed to ssh.
+- ``ssh_options``: tuple of options passed to ssh.
 
-- ``scp_options``: options passed to scp.
+- ``scp_options``: tuple of options passed to scp.
 
-- ``taktuk_options``: options passed to taktuk.
+- ``taktuk_options``: tuple of options passed to taktuk.
 
 - ``taktuk_connector``: the ssh-like connector command for taktuk.
 
-- ``taktuk_connector_options``: options passed to taktuk_connector.
+- ``taktuk_connector_options``: tuple of options passed to
+  taktuk_connector.
 
-- ``taktuk_gateway``: hostname or `Host` instance on which to launch the taktuk command.
+- ``taktuk_gateway``: hostname or `execo.host.Host` instance on which
+  to launch the taktuk command.
 
-- ``taktuk_gateway_connexion_params``: connexion parameters (if needed) to connect to taktuk_gateway.
+- ``taktuk_gateway_connexion_params``: connexion parameters (if
+  needed) to connect to taktuk_gateway.
 
-- ``ssh_scp_pty``: allocate a pty for ssh/scp.
+- ``ssh_scp_pty``: boolean. Wether to allocate or not a pty for
+  ssh/scp.
 
-- ``host_rewrite_func``: function called to rewrite hosts addresses.
+- ``host_rewrite_func``: function called to rewrite hosts
+  addresses. Takes a host address, returns a host address.
 """
 
 def make_connexion_params(connexion_params = None, default_params = None):

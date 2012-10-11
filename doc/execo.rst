@@ -25,9 +25,17 @@ stderr, and of handling the lifecycle of the process. This allows
 writing easily code in a style appropriate for conducting several
 processes in parallel.
 
+You can automatically instanciate the right class
+`execo.process.Process` or `execo.process.SshProcess` with the
+"factory" function `execo.process.get_process`.
+
 `execo.process.ProcessBase` and `execo.process.TaktukProcess` are used
 internally and should probably not be used, unless for developing code
 similar to `execo.action.TaktukRemote`.
+
+get_process
+-----------
+.. autofunction:: execo.process.get_process
 
 ProcessBase
 -----------
@@ -86,9 +94,11 @@ communication tree, thus is more scalable. `Put` and `Get` are actions
 for copying files or directories to or from groups of hosts. The copy
 is performed with scp or a similar tool. `execo.action.TaktukPut` and
 `execo.action.TaktukGet` also copy files or directories to or from
-groups of hosts, using taktuk. A `execo.action.Local` is a local
-process (it is a very lightweight `execo.action.Action` on top of a
-single `execo.Process.Process` instance).
+groups of hosts, using taktuk (see taktuk documentation about
+limitations of using taktuk for file transfers). A
+`execo.action.Local` is a local process (it is a very lightweight
+`execo.action.Action` on top of a single `execo.Process.Process`
+instance).
 
 `execo.action.Remote`, `execo.action.TaktukRemote`,
 `execo.action.Get`, `execo.action.TaktukGet`, `execo.action.Put`,
@@ -98,13 +108,19 @@ their tasks. These hosts are passed as an iterable of instances of
 address, and may have a ssh port, a ssh keyfile, a ssh user, if
 needed.
 
+A configurable `execo.action.ActionFactory` can be created to choose
+which kind of actions to instanciate, ``ssh``/``scp`` or
+``taktuk``. Functions `execo.action.get_remote`,
+`execo.action.get_fileput`, `execo.action.get_fileget` use a default
+`execo.action.ActionFactory`.
+
 As an example of the usage of the `execo.action.Remote` class, let's
 launch some commands on a few remote hosts::
 
-  a = Remote(hosts=(Host('nancy'), Host('Rennes')),
-             cmd='whoami ; uname -a').start()
-  b = Remote(hosts=(Host('lille'), Host('sophia')),
-             cmd='cd ~/project ; make clean ; make').start()
+  a = Remote(cmd='whoami ; uname -a',
+             hosts=(Host('nancy'), Host('Rennes'))).start()
+  b = Remote(cmd='cd ~/project ; make clean ; make'
+             hosts=(Host('lille'), Host('sophia'))).start()
   a.wait()
   # do something else....
   b.wait()
@@ -194,6 +210,24 @@ wait_all_actions
 ----------------
 .. autofunction:: execo.action.wait_all_actions
 
+ActionFactory
+-------------
+.. autoclass:: execo.action.ActionFactory
+   :members:
+
+get_remote
+----------
+.. autofunction:: execo.action.get_remote
+
+get_fileput
+-----------
+.. autofunction:: execo.action.get_fileput
+
+get_fileget
+-----------
+.. autofunction:: execo.action.get_fileget
+
+
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
 
@@ -259,6 +293,12 @@ Report
 Timer
 -----
 .. autoclass:: execo.time_utils.Timer
+   :members:
+   :show-inheritance:
+
+Exceptions
+==========
+.. autoclass:: execo.exception.ProcessesFailed
    :members:
    :show-inheritance:
 
@@ -328,6 +368,9 @@ variables `execo.config.configuration`,
 `configuration` and `default_connexion_params` in the file
 ``~/.execo.conf.py``
 
+configuration
+-------------
+
 The `configuration` dict contains global configuration parameters.
 
 .. autodata:: execo.config.configuration
@@ -338,6 +381,9 @@ Its default values are:
    :start-after: # _STARTOF_ configuration
    :end-before: # _ENDOF_ configuration
    :language: python
+
+default_connexion_params
+------------------------
 
 The `default_connexion_params` dict contains default parameters for
 remote connexions.

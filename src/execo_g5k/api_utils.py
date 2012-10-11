@@ -16,20 +16,26 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from execo_g5k.config import g5k_configuration
-import httplib2
-import json
+"""Functions for wrapping the grid5000 REST API. The functions which
+query the reference api cache their results for the life of the
+module.
 
-"""Tools for using grid5000.
-
-- Functions for wrapping the grid5000 rest api. The functions which
-  query the reference api cache their results for the life of the
-  module.
-
-- Miscellaneous functions.
+All queries to the Grid5000 REST API are done with or without
+credentials, depending on key ``api_username`` of
+`execo_g5k.config.g5k_configuration`. If credentials are used, the
+password is interactively asked and if the keyring module is
+available, the password will then be stored in the keyring through
+this module and will not be asked in subsequent executions. (the
+keyring python module allows to access the system keyring services
+like gnome-keyring or kwallet. If a password needs to be changed, do
+it from the keyring GUI).
 
 This module is currently not thread-safe.
 """
+
+from execo_g5k.config import g5k_configuration
+import httplib2
+import json
 
 _g5k_api = None
 """Internal singleton instance of the g5k api rest resource."""

@@ -39,7 +39,7 @@ g5k_configuration = {
 
 - ``kadeploy3``: kadeploy3 command.
 
-- ``kadeploy3_options``: common kadeploy3 command line options.
+- ``kadeploy3_options``: a string with kadeploy3 command line options.
 
 - ``default_env_name``: a default environment name to use for
   deployments (as registered to kadeploy3).
@@ -65,7 +65,7 @@ g5k_configuration = {
   operations, eg. wait oar job start.
 
 - ``tiny_polling_interval``: small time interval between pollings for
-  various operations, used for example when waiting for a job start,
+  various operations. Used for example when waiting for a job start,
   and start date of the job is over but the job is not yet in running
   state.
 
@@ -73,7 +73,9 @@ g5k_configuration = {
 
 - ``api_uri``: base uri for g5k api serverr.
 
-- ``api_username``: api username.
+- ``api_username``: username to use for requests to the Grid5000 REST
+  API. If None, no credentials will be used, which is fine when
+  running on a Grid5000 frontend.
 
 - ``oar_job_key_file``: ssh key to use for oar. If defined, takes
   precedence over environment variable OAR_JOB_KEY_FILE.

@@ -1501,8 +1501,20 @@ class SequentialActions(Action):
         return stats
 
 class ActionFactory:
+    """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
 
     def __init__(self, remote_tool = None, fileput_tool = None, fileget_tool = None):
+        """
+        :param remote_tool: can be `execo.config.SSH` or
+          `execo.config.TAKTUK`
+
+        :param fileput_tool: can be `execo.config.SCP` or
+          `execo.config.TAKTUK`
+
+        :param fileget_tool: can be `execo.config.SCP` or
+          `execo.config.TAKTUK`
+        """
+
         if remote_tool == None:
             remote_tool = configuration.get("remote_tool")
         if remote_tool not in [SSH, TAKTUK]:
@@ -1520,18 +1532,21 @@ class ActionFactory:
         self.fileget_tool = fileget_tool
 
     def remote(self, *args, **kwargs):
+        """Instanciates a `execo.action.Remote` or `execo.action.TaktukRemote`"""
         if self.remote_tool == SSH:
             return Remote(*args, **kwargs)
         elif self.remote_tool == TAKTUK:
             return TaktukRemote(*args, **kwargs)
 
     def fileput(self, *args, **kwargs):
+        """Instanciates a `execo.action.Put` or `execo.action.TaktukPut`"""
         if self.fileput_tool == SCP:
             return Put(*args, **kwargs)
         elif self.fileput_tool == TAKTUK:
             return TaktukPut(*args, **kwargs)
 
     def fileget(self, *args, **kwargs):
+        """Instanciates a `execo.action.Get` or `execo.action.TaktukGet`"""
         if self.fileget_tool == SCP:
             return Get(*args, **kwargs)
         elif self.fileget_tool == TAKTUK:
@@ -1540,10 +1555,13 @@ class ActionFactory:
 _default_action_factory = ActionFactory()
 
 def get_remote(*args, **kwargs):
+    """Instanciates a `execo.action.Remote` or `execo.action.TaktukRemote` with the default factory"""
     return _default_action_factory.remote(*args, **kwargs)
 
 def get_fileput(*args, **kwargs):
+    """Instanciates a `execo.action.Put` or `execo.action.TaktukPut` with the default factory"""
     return _default_action_factory.fileput(*args, **kwargs)
 
 def get_fileget(*args, **kwargs):
+    """Instanciates a `execo.action.Get` or `execo.action.TaktukGet` with the default factory"""
     return _default_action_factory.fileget(*args, **kwargs)

@@ -4,16 +4,17 @@
 
 .. automodule:: execo_g5k
 
-To use execo_g5k, your code must be run from grid5000. Passwordless,
-public-key based authentification must be used (either with
-appropriate public / private specific g5k keys shared on all your home
-directories, or with an appropriate ssh-agent forwarding
-configuration).
+To use execo_g5k, passwordless, public-key based authentification must
+be used (either with appropriate public / private specific g5k keys
+shared on all your home directories, or with an appropriate ssh-agent
+forwarding configuration).
 
-The code can be run from a frontend or from g5k nodes (in the latter
-case, of course, you would explicitely refer to the local g5k by name,
-and the node running the code needs to be able to connect to all
-frontends)
+The code can be run from a frontend, from a computer outside of
+Grid5000 (for this you need an appropriate configuration, see section
+`Running from outside Grid5000`_) or from g5k nodes (in this case, you
+need to explicitely refer to the local Grid5000 site / frontend by
+name, and the node running the code needs to be able to connect to all
+involved frontends)
 
 OAR functions
 =============
@@ -120,6 +121,35 @@ oar_duration_to_seconds
 -----------------------
 .. autofunction:: execo_g5k.oar.oar_duration_to_seconds
 
+Grid5000 API utilities
+======================
+
+.. automodule:: execo_g5k.api_utils
+
+get_g5k_sites
+-------------
+.. autofunction:: get_g5k_sites
+
+get_site_clusters
+-----------------
+.. autofunction:: get_site_clusters
+
+get_cluster_hosts
+-----------------
+.. autofunction:: get_cluster_hosts
+
+get_g5k_clusters
+----------------
+.. autofunction:: get_g5k_clusters
+
+get_g5k_hosts
+-------------
+.. autofunction:: get_g5k_hosts
+
+get_cluster_site
+----------------
+.. autofunction:: get_cluster_site
+
 Configuration
 =============
 
@@ -176,20 +206,24 @@ one has to retrieve these keys and explicitely use them for connecting
 to the jobs, which is painfull. Another possibility is to tell
 oar/oargrid to use specific keys. Oar can automatically use the key
 pointed to by the environement variable ``OAR_JOB_KEY_FILE`` if it is
-defined. Oargrid does not automatically do this, but execo takes care
-of telling oargrid to use the key pointed to by ``OAR_JOB_KEY_FILE``
-if it is defined. So the most convenient way to use execo/oar/oargrid,
-is to set ``OAR_JOB_KEY_FILE`` in your ``~/.profile`` to point to your
-internal Grid5000 ssh key and export this environment variable.
+defined. Oargrid does not automatically use this key, but execo also
+takes care of explicitely telling oargrid to use it if it is
+defined. So the most convenient way to use execo/oar/oargrid, is to
+set ``OAR_JOB_KEY_FILE`` in your ``~/.profile`` to point to your
+internal Grid5000 ssh key and export this environment variable, or use
+the ``oar_job_key_file`` in `execo_g5k.config.g5k_configuration`.
 
 Running from another host than a frontend
 =========================================
 
-Note that when running a script from another host than a frontend,
-everything will work except oarsh/oarcp connexions, since these
-executables only exist on frontends. One may imagine a solution
-through the setup of an ssh proxying and an alias, as described in the
-next section, but i never tried it.
+Note that when running a script from another host than a frontend
+(from a node or from your laptop outside Grid5000), everything will
+work except ``oarsh`` / ``oarcp`` connexions, since these executables
+only exist on frontends. In this case you can still connect by using
+``ssh`` / ``scp`` as user ``oar`` on port 6667 (ie. use
+``connexion_params = {'user': 'oar', 'port': 6667}``). This is the
+port where an oar-specific ssh server is listening. This server will
+then change user from oar to the user currently owning the node.
 
 Running from outside Grid5000
 =============================
@@ -201,19 +235,16 @@ First, in ``~/.ssh/config``, declare aliases for g5k connexion
 (through the access machine). For example, here is an alias ``g5k``
 for connecting through the lyon access::
 
- Host g5k lyon.g5k
-   ProxyCommand ssh access.lyon.grid5000.fr "nc -q 0 frontend  %p"
-   StrictHostKeyChecking no
- Host *.g5k
-   ProxyCommand ssh access.lyon.grid5000.fr "nc -q 0 `basename %h .g5k` %p"
-   StrictHostKeyChecking no
+ Host *.g5k g5k
+   ProxyCommand ssh access.grid5000.fr "nc -q 0 `echo %h | sed -ne 's/\.g5k$//p;s/^g5k$/lyon/p'` %p"
 
 Then in ``~/.execo.conf.py`` put this code::
 
  import re
 
  default_connexion_params = {
-     'host_rewrite_func': lambda host: re.sub("\.grid5000\.fr$", ".g5k", host)
+     'host_rewrite_func': lambda host: re.sub("\.grid5000\.fr$", ".g5k", host),
+     'taktuk_gateway': 'g5k'
      }
 
 
@@ -223,24 +254,11 @@ Then in ``~/.execo.conf.py`` put this code::
 
  g5k_api_params = {
      'username': '<username>',
-     'password': '<password>',
      }
-
-TODO: Putting the password in this file is very bad from a security
-point of view, but it works. One may ``chmod 600 ~/.execo.conf.py``,
-but it's only an illusion of security (nfs is easily compromised). The
-solution would be to store the password in a keystore (gnome, kde?),
-or asking it on the command line or in a dialog when needed.
 
 Now, every time execo tries to connect to a host, the host name is
 rewritten as to be reached through the Grid5000 ssh proxy connexion
 alias, and the same for the frontends.
-
-This won't work, though, for taktuk actions (because the first level
-of the taktuk connexion tree will work, but not the lower levels) or
-oarsh/oarcp connexions (because oarsh/oarcp are not installed outside
-grid5000, or even if they were, you don't have the oarsh private keys,
-only user oar on grid5000 frontends have it).
 
 The perfect grid5000 connexion configuration
 ============================================
@@ -265,10 +283,10 @@ The perfect grid5000 connexion configuration
 
 * Connexions should then work directly with oarsh/oarcp if you use
   `execo_g5k.config.default_oarsh_oarcp_params` connexion
-  parameters. Connexions should work directly with ssh (for nodes
-  reserved with the allow_classic_ssh option). For deployed nodes,
-  connexions should work directly (option -k passed to kadeploy3 by
-  default).
+  parameters. Connexions should also work directly with ssh for nodes
+  reserved with the ``allow_classic_ssh`` option. Finally, for
+  deployed nodes, connexions should work directly because option
+  ``-k`` is passed to kadeploy3 by default.
 
 TODO: Currently, due to an ongoing bug or misconfiguration (see
 https://www.grid5000.fr/cgi-bin/bugzilla3/show_bug.cgi?id=3302), oar

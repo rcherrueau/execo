@@ -922,6 +922,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self._process_lifecycle_handler.end(self)
 
 def get_process(*args, **kwargs):
+    """Instanciates a `execo.process.Process` or `execo.process.SshProcess`, depending on the existence of host keyword argument"""
     if kwargs.get("host") != None:
         return SshProcess(*args, **kwargs)
     else:

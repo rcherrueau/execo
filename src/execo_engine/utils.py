@@ -35,15 +35,31 @@ class HashableDict(dict):
 def sweep(parameters):
 
     """Generates all combinations of parameters.
-    
-    Given a a dict associating parameters and the list of their
-    values, will iterate over the cartesian product of all parameters
-    combinations. In the given parameters, if instead of a list of
-    values a dict is given, then will use the keys of the dict as
-    possible values, and the values of the dict as parameters for a
-    recursive sub-sweep.
 
-    The returned list contains HashableDict instead of dict so that
+    The aim of this function is, given a list of experiment parameters
+    (named factors), and for each parameter (factor), the list of
+    their possible values (named levels), to generate the cartesian
+    product of all parameter values (called a full factorial design in
+    *The Art Of Computer Systems Performance Analysis, R. Jain, Wiley
+    1991*).
+
+    More formally: given a a dict associating factors as keys and the
+    list of their possible levels as values, this function will return
+    a list of dict corresponding to all cartesian product of all level
+    combinations. Each dict in the returned list associates the
+    factors as keys, and one of its possible levels as value.
+
+    In the given factors dict, if for a factor X (key), the value
+    associated is a dict instead of a list of levels, then it will use
+    the keys of the sub-dict as levels for the factor X, and the
+    values of the sub-dict must also be some dict for factor / levels
+    combinations which will be explored only for the corresponding
+    levels of factor X. This is kind of recursive sub-sweep and it
+    allows to explore some factor / level combinations only for some
+    levels of a given factor.
+
+    The returned list contains `execo_engine.utils.HashableDict`
+    instead of dict, which is a simple subclass of dict, so that
     parameters combinations can be used as dict keys (but don't modify
     them in such cases)
 
@@ -92,9 +108,57 @@ def sweep(parameters):
 
 class ParamSweeper(object):
 
-    """Threadsafe and persistent iteration over parameter combinations."""
+    """Threadsafe and persistent iterable container to iterate over a list of experiment parameters (or whatever, actually).
+
+    The aim of this class is to provide a convenient way to iterate
+    over several experiment configurations (or anything else). It is
+    an iterable container with the following characteristics:
+
+    - each element of the iterable has three states:
+
+      - *todo*
+
+      - *done*
+
+      - *skipped*
+
+    - at beginning, each element is in state *todo*
+
+    - client code can mark any element *done* or *skipped*
+
+    - when iterating over it, you always get the next item in *todo*
+      state
+
+    - this container is threadsafe
+
+    - this container has automatic persistence of the element states
+      *done* (but not state *skipped*) to disk: If later you
+      instanciate a container with the same persistence file (path to
+      this file is given to constructor), then the elements of the
+      container will be taken from the constructor argument, but those
+      marked *done* in the last stored in the persistent file will be
+      marked *done*
+
+    This container is intended to be used in the following way: at the
+    beginning of the experiment, you initialize a ParamSweeper with
+    the list of experiment configurations (which can result from a
+    call to `execo_engine.utils.sweep`, but not necessarily) and a
+    filename for the persistence. During execution, you request
+    (possibly from several threads) new experiment configurations with
+    `execo_engine.utils.ParamSweeper.get_next`, mark them *done* or
+    *skipped* with `execo_engine.utils.ParamSweeper.done` and
+    `execo_engine.utils.ParamSweeper.skip`. At a later date, you can
+    relaunch the same script, it will continue from where it left,
+    also retrying the skipped configurations. This works well when
+    used with `execo_engine.engine.Engine` startup option ``-c``
+    (continue experiment in a given directory).
+    """
 
     def __init__(self, sweeps, persistence_file, name = None):
+        """:param sweeps: what to iterate on
+
+        :param persistence_file: path to persistence file
+        """
         self.__lock = threading.RLock()
         self.__sweeps = sweeps
         self.__done = set()
@@ -123,11 +187,13 @@ class ParamSweeper(object):
             self.num_remaining())
 
     def set_sweeps(self, sweeps):
+        """Change the list of what to iterate on"""
         with self.__lock:
             self.__sweeps = sweeps
             self.__update_remaining()
 
     def get_next(self):
+        """Return the next element which is *todo*. Returns None if reached end."""
         with self.__lock:
             try:
                 combination = iter(self.__remaining).next()
@@ -142,6 +208,7 @@ class ParamSweeper(object):
                 return None
 
     def done(self, combination):
+        """mark the given element *done*"""
         with self.__lock:
             self.__done.add(combination)
             self.__inprogress.discard(combination)
@@ -152,6 +219,7 @@ class ParamSweeper(object):
             logger.info(self)
 
     def skip(self, combination):
+        """mark the given element *skipped*"""
         with self.__lock:
             self.__skipped.add(combination)
             self.__inprogress.discard(combination)
@@ -160,6 +228,7 @@ class ParamSweeper(object):
             logger.info(self)
 
     def reset(self):
+        """reset container: iteration will start from beginning, state *skipped* are forgotten, state *done* are **not** forgotten"""
         with self.__lock:
             self.__inprogress.clear()
             self.__skipped.clear()
@@ -168,16 +237,21 @@ class ParamSweeper(object):
             logger.info(self)
 
     def num_total(self):
+        """returns the total number of elements"""
         return len(self.__sweeps)
 
     def num_skipped(self):
+        """returns the current number of *skipped* elements"""
         return len(self.__skipped)
 
     def num_remaining(self):
+        """returns the current number of *todo* elements"""
         return len(self.__remaining)
 
     def num_inprogress(self):
+        """returns the current number of elements which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*"""
         return len(self.__inprogress)
 
     def num_done(self):
+        """returns the current number of *done* elements"""
         return self.num_total() - (self.num_remaining() + self.num_inprogress() + self.num_skipped())

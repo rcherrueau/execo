@@ -24,11 +24,13 @@ import sys
 import time
 import inspect
 
-"""execo run Engine template base."""
-
 class ArgsOptionParser(optparse.OptionParser):
 
-    """optparse.OptionParser subclass which keeps tracks of arguments for proper help string generation."""
+    """optparse.OptionParser subclass which keeps tracks of arguments for proper help string generation.
+
+    This class is a rather quick and dirty hack. Using ``argparse``
+    would be better but it's only available in python 2.7.
+    """
 
     def __init__(self, *args, **kwargs):
         self.arguments = []
@@ -39,6 +41,7 @@ class ArgsOptionParser(optparse.OptionParser):
         self.arguments.append((arg_name, description))
 
     def num_arguments(self):
+        """Returns the number of expected arguments."""
         return len(self.arguments)
 
     def format_arguments(self, formatter=None):
@@ -100,9 +103,60 @@ def run_meth_on_engine_ancestors(instance, method_name):
 
 class Engine(object):
 
-    """Base class for execo Engine."""
+    """Basic class for execo Engine.
+
+    Subclass it to develop your own engines, possibly reusable.
+
+    This class offers basic facilities:
+
+    - central handling of options and arguments
+
+    - automatic experiment directory creation
+
+    - various ways to handle stdout / stderr
+
+    - support for continuing a previously stopped experiment
+
+    - log level selection
+
+    The instanciation of the class is done with the ``execo-run``
+    command line tool. The name of the engine (the name of the class
+    inheriting from `execo_engine.engine.Engine`) is given as first
+    argument to ``execo-run``, which will try to instanciate the class
+    from file ``<classname>.py`` in the search path (run ``execo-run``
+    without arguments to see the search path). Further arguments are
+    passed to the engine's option parser.
+
+    A subclass of Engine can access the following member variables
+    which are automatically defined and initialized at the right time
+    by the base class `execo_engine.engine.Engine`:
+
+    - `execo_engine.engine.Engine.result_dir`
+
+    - `execo_engine.engine.Engine.options_parser`
+
+    - `execo_engine.engine.Engine.options`
+
+    - `execo_engine.engine.Engine.args`
+
+    - `execo_engine.engine.Engine.run_name`
+
+    - `execo_engine.engine.Engine.result_dir`
+
+    A subclass of Engine can override the following methods:
+
+    - `execo_engine.engine.Engine.init`
+
+    - `execo_engine.engine.Engine.run`
+
+    - `execo_engine.engine.Engine.setup_run_name`
+
+    - `execo_engine.engine.Engine.setup_result_dir`
+
+    """
 
     def _create_result_dir(self):
+        """Ensure the engine's result dir exists. Create it if needed."""
         if not os.path.isdir(self.result_dir):
             os.makedirs(self.result_dir)
 
@@ -150,9 +204,15 @@ class Engine(object):
             
     def __init__(self):
         self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.modules[self.__module__].__file__)))
-        # full path of the Engine directory
+        """Full path of the engine directory. Available to client
+        code, should not be modified (why would you want?)
+        """
         self.options_parser = ArgsOptionParser()
-        # command line option parser
+        """An instance of
+        `execo_engine.engine.ArgsOptionParser`. Subclasses of
+        `execo_engine.engine.Engine` can register options and args to
+        this options parser in `execo_engine.engine.Engine.init`.
+        """
         self.options_parser.add_option(
             "-l", dest = "log_level", type = "int", default = 20,
             help = "log level (10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICAL). Default = %default")
@@ -169,15 +229,30 @@ class Engine(object):
             "-c", dest = "continue_dir", default = None, metavar = "DIR",
             help = "continue experiment in DIR")
         self.options_parser.set_description("engine: " + self.__class__.__name__)
-        # default options parser configuration
         self.options = None
-        # will contain the options given when the command line is parsed
+        """Options given on the command line. Available after the
+        command line has been parsed, in
+        `execo_engine.engine.Engine.run` (not in
+        `execo_engine.engine.Engine.init`)
+        """
         self.args = None
-        # will contain the arguments given when the command line is parsed
+        """Arguments given on the command line. Available after the
+        command line has been parsed, in
+        `execo_engine.engine.Engine.run` (not in
+        `execo_engine.engine.Engine.init`)
+        """
         self.run_name = None
-        # will contain the name of the current experiment run
+        """Name of the current experiment. If you want to modify it,
+        override `execo_engine.engine.Engine.setup_run_name`
+        """
         self.result_dir = None
-        # will contain the full path of the current experiment run result directory
+        """full path to the current engine's execution results
+        directory, where results should be written, where stdout /
+        stderr are output, where `execo_engine.utils.ParamSweeper`
+        persistence files should be written, and where more generally
+        any file pertaining to a particular execution of the
+        experiment should be located.
+        """
 
     def _start(self):
         """Start the engine.
@@ -223,7 +298,11 @@ class Engine(object):
     def setup_run_name(self):
         """Set the experiment run name.
 
-        Default implementation: concatenation of class name and date.
+        Default implementation: concatenation of class name and
+        date. Override this method to change the name of the
+        experiment. This method is called before
+        `execo_engine.engine.Engine.run` and
+        `execo_engine.engine.Engine.init`
         """
         self.run_name = self.__class__.__name__ + "_" + time.strftime("%Y%m%d_%H%M%S_%z")
 
@@ -231,11 +310,31 @@ class Engine(object):
         """Set the experiment run result directory name.
 
         Default implementation: subdirectory with the experiment run
-        name in the current directory.
+        name in the current directory. Override this method to change
+        the name of the result directory. This method is called before
+        `execo_engine.engine.Engine.run` and
+        `execo_engine.engine.Engine.init`. Note that if option ``-c``
+        is given to the engine, the name given on command line will
+        take precedence, and this method won't be called.
         """
         self.result_dir = os.path.abspath(self.run_name)
 
     def init(self):
+        """Experiment init method
+
+        Override this method with the experiment init code. Default
+        implementation does nothing.
+
+        The base class `execo_engine.engine.Engine` takes care that
+        all `execo_engine.engine.Engine.init` methods of its subclass
+        hierarchy are called, in the order ancestor method before
+        subclass method. This order is chosen so that generic engines
+        inheriting from `execo_engine.engine.Engine` can easily
+        implement common functionnalities. For example a generic
+        engine can declare its own options and arguments in ``init``,
+        which will be executed before a particular experiment subclass
+        ``init`` method.
+        """
         pass
 
     def run(self):
@@ -243,5 +342,15 @@ class Engine(object):
 
         Override this method with the experiment code. Default
         implementation does nothing.
+
+        The base class `execo_engine.engine.Engine` takes care that
+        all `execo_engine.engine.Engine.run` methods of its subclass
+        hierarchy are called, in the order ancestor method before
+        subclass method. This order is chosen so that generic engines
+        inheriting from `execo_engine.engine.Engine` can easily
+        implement common functionnalities. For example a generic
+        engine can prepare an experiment environment in its ``run``
+        method, which will be executed before a particular experiment
+        subclass ``run`` method.
         """
         pass

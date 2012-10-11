@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-"""Tools and extensions to execo suitable for use in Grid5000."""
+"""Execo extension and tools for Grid5000."""
 
 from config import g5k_configuration, default_frontend_connexion_params, \
   default_oarsh_oarcp_params
