@@ -40,6 +40,11 @@ Engine
 Misc
 ====
 
+logger
+------
+Default and convenient logger for engines.
+Inherits its properties from the execo logger.
+
 HashableDict
 ------------
 .. autoclass:: execo_engine.utils.HashableDict
