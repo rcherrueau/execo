@@ -211,7 +211,7 @@ class Engine(object):
         if self.options.continue_dir:
             logger.info("continue experiment in %s", self.options.continue_dir)
         run_meth_on_engine_ancestors(self, "init")
-        self.run()
+        run_meth_on_engine_ancestors(self, "run")
 
     # ------------------------------------------------------------------
     #
