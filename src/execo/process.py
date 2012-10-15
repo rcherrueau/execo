@@ -823,6 +823,21 @@ class SshProcess(Process):
     """
 
     def __init__(self, cmd, host = None, connexion_params = None, **kwargs):
+        """:param host: `execo.host.Host` to connect to
+
+        :param connexion_params: connexion parameters
+
+        :param kwargs: passed to `execo.process.Process`. Special case
+          for keyword argument ``pty``: if this keyword argument is
+          not given, use the ``pty`` field of the connexion params,
+          else use the ``pty`` keyword argument, which takes
+          precedence. This allows setting default pty behaviors in
+          connexion_params shared by various remote processes (this
+          was motivated by allowing
+          `execo_g5k.config.default_oarsh_oarcp_params` to set pty to
+          True, because oarsh/oarcp are run sudo which forbids to send
+          signals).
+        """
         self._host = host
         self._cmd = cmd
         self._connexion_params = connexion_params
@@ -832,6 +847,8 @@ class SshProcess(Process):
                                     connexion_params)
                     + (get_rewritten_host_address(host.address, connexion_params),)
                     + (cmd,))
+        if not 'pty' in kwargs:
+            kwargs['pty'] = make_connexion_params(connexion_params).get('pty')
         super(SshProcess, self).__init__(real_cmd, **kwargs)
 
     def _args(self):
