@@ -165,7 +165,7 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple frontends.
     """
 
-    def __init__(self, deployment, frontend_connexion_params = None, out = False, **kwargs):
+    def __init__(self, deployment, frontend_connexion_params = None, out = False, name = None, **kwargs):
         """
         :param deployment: instance of Deployment class describing the
           intended kadeployment.
@@ -176,13 +176,18 @@ class Kadeployer(Remote):
 
         :param out: if True, output kadeploy stdout / stderr to
           stdout.
+
+        :param name: action's name
+
+        :param kwargs: passed to the instanciated processes.
         """
-        super(Remote, self).__init__(**kwargs)
+        super(Remote, self).__init__(name = name)
         self._good_hosts = set()
         self._bad_hosts = set()
         self._frontend_connexion_params = frontend_connexion_params
         self._deployment = deployment
         self._out = out
+        self._kwargs = kwargs
         self._fhosts = get_hosts_set(deployment.hosts)
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
@@ -219,15 +224,9 @@ class Kadeployer(Remote):
                                                                      default_frontend_connexion_params),
                             stdout_handler = _KadeployStdoutHandler(self, out = self._out),
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
-                            timeout = self._timeout,
-                            ignore_exit_code = self._ignore_exit_code,
-                            log_exit_code = self._log_exit_code,
-                            ignore_timeout = self._ignore_timeout,
-                            log_timeout = self._log_timeout,
-                            ignore_error = self._ignore_error,
-                            log_error = self._log_error,
                             process_lifecycle_handler = lifecycle_handler,
-                            pty = True)
+                            pty = True,
+                            **self._kwargs)
             self._processes.append(p)
 
     def _common_reset(self):
@@ -242,6 +241,7 @@ class Kadeployer(Remote):
         kwargs = []
         if self._frontend_connexion_params: kwargs.append("frontend_connexion_params=%r" % (self._frontend_connexion_params,))
         if self._out: kwargs.append("out=%r" % (self._out,))
+        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
