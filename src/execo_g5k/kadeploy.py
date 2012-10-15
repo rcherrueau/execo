@@ -279,14 +279,14 @@ class Kadeployer(Remote):
         """
         return list(self._fhosts.difference(self._good_hosts))
 
-    def error(self):
-        error = super(Kadeployer, self).error()
+    def ok(self):
+        ok = super(Kadeployer, self).ok()
         if self.ended():
             if len(self._good_hosts.intersection(self._bad_hosts)) != 0:
-                error = True
+                ok = False
             if len(self._good_hosts.union(self._bad_hosts).symmetric_difference(self._fhosts)) != 0:
-                error = True
-        return error
+                ok = False
+        return False
 
     def reset(self):
         retval = super(Kadeployer, self).reset()

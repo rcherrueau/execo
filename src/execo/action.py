@@ -264,27 +264,13 @@ class Action(object):
         """Return whether all processes of this Action have ended (boolean)."""
         return self._ended
 
-    def error(self):
-        """Return a boolean indicating if one or more process failed.
-
-        A process failed if it went in error (unless ignore_error flag
-        was given), if it timeouted (unless ignore_timeout flag was
-        given), if its exit_code is != 0 (unless ignore_exit_code flag
-        was given).
-        """
-        error = False
-        for process in self.processes():
-            if ((process.error() and not self._ignore_error)
-                or (process.timeouted() and not self._ignore_timeout)
-                or (not self._ignore_exit_code
-                    and process.exit_code() != None
-                    and process.exit_code() != 0)):
-                error = True
-        return error
-
     def ok(self):
-        """Not in error."""
-        return not self.error()
+        """Returns a boolean indicating if all processes are ok.
+
+        refer to `execo.process.Process.ok` for detailed semantics of
+        being ok for a process.
+        """
+        return all([process.ok() for process in self.processes()])
 
     def finished_ok(self):
         """Action has started, ended, and is not in error."""
