@@ -229,8 +229,8 @@ class Action(object):
     def ok(self):
         """Returns a boolean indicating if all processes are ok.
 
-        refer to `execo.process.Process.ok` for detailed semantics of
-        being ok for a process.
+        refer to `execo.process.ProcessBase.ok` for detailed semantics
+        of being ok for a process.
         """
         return all([process.ok() for process in self.processes()])
 
