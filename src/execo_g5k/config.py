@@ -153,7 +153,7 @@ def make_default_frontend_connexion_params():
                                       '-o', 'ConnectTimeout=20'),
         'taktuk_gateway': None,
         'taktuk_gateway_connexion_params': None,
-        'pty': False,
+        'pty': True,
         'host_rewrite_func': lambda host: host + ".grid5000.fr"
         }
 # _ENDOF_ default_frontend_connexion_params
