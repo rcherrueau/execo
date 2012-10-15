@@ -56,7 +56,7 @@ execo installation requires make, python (>= 2.6), python-httplib2 and
 optionnaly python-keyring.
 
 building the documentation requires sphinx, graphviz and optionnaly
-epydoc.  documentation.
+epydoc.
 
 At runtime, connecting to remote hosts requires ssh, scp or similar
 connexion tools, and optionnaly taktuk (probably version >=
