@@ -18,6 +18,7 @@
 
 from conductor import synchronized, the_conductor
 from config import configuration
+from execo.config import make_connexion_params
 from log import set_style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
@@ -26,11 +27,11 @@ from utils import compact_output
 import errno
 import os
 import re
+import shlex
 import signal
 import subprocess
 import threading
 import time
-import shlex
 
 class ProcessLifecycleHandler(object):
 
