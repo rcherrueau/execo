@@ -111,7 +111,7 @@ def make_default_oarsh_oarcp_params():
                                       '-o', 'ConnectTimeout=20'),
         'taktuk_gateway': None,
         'taktuk_gateway_connexion_params': None,
-        'ssh_scp_pty': True,
+        'pty': True,
         'host_rewrite_func': None
         }
 # _ENDOF_ default_oarsh_oarcp_params
@@ -153,7 +153,7 @@ def make_default_frontend_connexion_params():
                                       '-o', 'ConnectTimeout=20'),
         'taktuk_gateway': None,
         'taktuk_gateway_connexion_params': None,
-        'ssh_scp_pty': False,
+        'pty': False,
         'host_rewrite_func': lambda host: host + ".grid5000.fr"
         }
 # _ENDOF_ default_frontend_connexion_params

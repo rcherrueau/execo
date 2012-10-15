@@ -117,7 +117,7 @@ def make_default_connexion_params():
                                       '-o', 'ConnectTimeout=20'),
         'taktuk_gateway': None,
         'taktuk_gateway_connexion_params': None,
-        'ssh_scp_pty': False,
+        'pty': False,
         'host_rewrite_func': None
         }
 # _ENDOF_ default_connexion_params
@@ -155,7 +155,7 @@ default_connexion_params = make_default_connexion_params()
 - ``taktuk_gateway_connexion_params``: connexion parameters (if
   needed) to connect to taktuk_gateway.
 
-- ``ssh_scp_pty``: boolean. Wether to allocate or not a pty for
+- ``pty``: boolean. Wether to allocate or not a pty for
   ssh/scp.
 
 - ``host_rewrite_func``: function called to rewrite hosts

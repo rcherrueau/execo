@@ -173,7 +173,7 @@ def get_taktuk_connector_command(user = None, keyfile = None, port = None, conne
 
 def get_ssh_scp_pty_option(connexion_params):
     """Based on given connexion_params or default_connexion_params, return a boolean suitable for pty option for process creation."""
-    return (make_connexion_params(connexion_params).get('ssh_scp_pty') or False)
+    return (make_connexion_params(connexion_params).get('pty') or False)
 
 def get_rewritten_host_address(host_addr, connexion_params):
     """Based on given connexion_params or default_connexion_params, return a rewritten host address."""
