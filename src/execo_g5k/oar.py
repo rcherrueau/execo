@@ -190,7 +190,12 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
         oarsub_cmdline = 'oarsub'
         if spec.additional_options != None:
             oarsub_cmdline += ' %s' % (spec.additional_options,)
-        oarsub_cmdline += ' -l %s' % (spec.resources,)
+        if hasattr(spec.resources, '__iter__'):
+            resources = spec.resources
+        else:
+            resources = (spec.resources,)
+        for r in resources:
+            oarsub_cmdline += ' -l %s' % (r,)
         if spec.walltime != None:
             oarsub_cmdline += ',walltime=%s' % (format_oar_duration(spec.walltime),)
         key = g5k_configuration.get('oar_job_key_file')
