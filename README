@@ -5,9 +5,10 @@ Readme / documentation for the execo package
 Execo offers a Python API for local or remote, standalone or parallel,
 processes execution. It is especially well suited for scripting
 workflows of parallel/distributed operations on local or remote hosts:
-conducting experiments, performing automated tests, etc. The core
-python package is ``execo``. The ``execo_g5k`` package provides a set
-of tools and extensions for Grid5000. The ``execo_engine`` package and
+automate a scientific workflow, conducting computer science
+experiments, performing automated tests, etc. The core python package
+is ``execo``. The ``execo_g5k`` package provides a set of tools and
+extensions for Grid5000. The ``execo_engine`` package and
 ``execo-run`` script provide an extendable experiment engine.
 
 license
