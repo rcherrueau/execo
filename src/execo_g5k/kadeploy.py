@@ -411,8 +411,8 @@ def deploy(deployment,
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params): #IGNORE:W0613
         logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s", undeployed_hosts)
-        deployed_check = get_remote(undeployed_hosts,
-                                    check_deployed_command,
+        deployed_check = get_remote(check_deployed_command,
+                                    undeployed_hosts,
                                     connexion_params = node_connexion_params,
                                     log_exit_code = False,
                                     log_timeout = False,
