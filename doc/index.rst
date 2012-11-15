@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 3
 
    readme
+   tutorial
    execo
    execo_g5k
    execo_engine
