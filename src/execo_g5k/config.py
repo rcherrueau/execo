@@ -27,7 +27,7 @@ g5k_configuration = {
     'default_timeout': 900,
     'check_deployed_command': "! (mount | grep -E '^/dev/[[:alpha:]]+2 on / ')",
     'no_ssh_for_local_frontend' : False,
-    'polling_interval' : 60,
+    'polling_interval' : 20,
     'tiny_polling_interval' : 10,
     'default_frontend' : None,
     'api_uri': "https://api.grid5000.fr/2.0",
