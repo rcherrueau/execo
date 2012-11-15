@@ -465,11 +465,11 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
       prediction changes.
     """
 
-    prediction = None
-    def check_prediction_changed(prediction, infos, key):
+    def check_prediction_changed(prediction, new_prediction):
+        print "check_prediction_changed(%s, %s)" % (prediction, new_prediction)
         old_prediction = prediction
-        prediction = infos[key]
-        if old_prediction == None or prediction != old_prediction:
+        prediction = new_prediction
+        if prediction != old_prediction:
             if prediction_callback != None:
                 prediction_callback(prediction)
         return prediction
@@ -479,12 +479,21 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
         if b == None: return a
         return min(a, b)
 
+    prediction = None
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
+        print "getting job infos"
         infos = get_oar_job_info(oar_job_id, frontend, frontend_connexion_params,
                                  countdown.remaining(), log_exit_code = False,
                                  log_timeout = False, log_error = False)
+        print "infos = %s" % (infos,)
         now = time.time()
+        if infos.has_key('start_date') or infos.has_key('scheduled_start'):
+            if infos.has_key('start_date'):
+                new_prediction = infos['start_date']
+            elif infos.has_key('scheduled_start'):
+                new_prediction = infos['start_date']
+            prediction = check_prediction_changed(prediction, new_prediction)
         if infos.has_key('state'):
             if infos['state'] == "Terminated" or infos['state'] == "Error":
                 return False
@@ -494,14 +503,9 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
             if now >= infos['start_date']:
                 sleep(mymin(g5k_configuration.get('tiny_polling_interval'), countdown.remaining()))
                 continue
-            prediction = check_prediction_changed(prediction, infos, 'start_date')
-            if infos['start_date'] < now + g5k_configuration.get('polling_interval'):
-                sleep(until = mymin(infos['start_date'], now + countdown.remaining() if countdown.remaining() != None else None))
-                continue
-        elif infos.has_key('scheduled_start'):
-            prediction = check_prediction_changed(prediction, infos, 'scheduled_start')
-            if infos['scheduled_start'] < now + g5k_configuration.get('polling_interval'):
-                sleep(until = mymin(infos['scheduled_start'], countdown.remaining()))
+        if infos.has_key('start_date') or infos.has_key('scheduled_start'):
+            if new_prediction < now + g5k_configuration.get('polling_interval'):
+                sleep(until = mymin(new_prediction, now + countdown.remaining() if countdown.remaining() != None else None))
                 continue
         sleep(mymin(g5k_configuration.get('polling_interval'), countdown.remaining()))
     
