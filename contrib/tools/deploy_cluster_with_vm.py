@@ -163,7 +163,7 @@ for host in DeployedHosts:
 			"--size "+str(options.hdd_size)+"Gb  --memory "+str(options.memory_size)+"Mb --swap "+str(options.memory_size)+"Mb --image full  "+ \
 			"--ip "+str(ip_list[i_vm+i_host*options.n_vm])+" --netmask "+netmask+" --gateway "+gateway+" --broadcast "+broadcast+" --bridge $BRIDGE;"
 		create_vm.append(execo.Remote(cmd_create_vm,[host],connexion_params={'user': 'root'}))	
-		log+='      - vm-'+str(i_vm)+' on '+host.address+'\n'
+		log+='      - vm-'+str(i_vm+i_host*options.n_vm)+' on '+host.address+'\n'
 	i_host+=1
 dual_output(log,f)
 execo.ParallelActions(create_vm).run()
@@ -187,11 +187,11 @@ for host in DeployedHosts:
 	list_vm.append(execo.Remote(cmd_list,[host],connexion_params={'user': 'root'}))
 
 actionlist=execo.ParallelActions(list_vm).run() 
-report=execo.Report()
-report.add([actionlist])
-print report.output()	
-#f.write(report.to_string(wide=True))
 
+for action in [actionlist]:
+	for p in action.processes():
+		log=p.host()+'\n'+p.stdout()
+		dual_output(log,f) 
 
 f.close()
 
