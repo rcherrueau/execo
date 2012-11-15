@@ -189,7 +189,7 @@ class Report(object):
             output += "-------------------------------------------------------------------------------\n"
         def format_line(stats, indent):
             result = ""
-            indented_name = " " * indent + stats.get('name')
+            indented_name = " " * indent + "%s" % (stats.get('name'),)
             length = ""
             if stats.get('start_date') and stats.get('end_date'):
                 length = format_duration(stats['end_date'] - stats['start_date'])
