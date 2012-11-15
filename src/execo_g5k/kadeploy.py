@@ -286,7 +286,7 @@ class Kadeployer(Remote):
                 ok = False
             if len(self._good_hosts.union(self._bad_hosts).symmetric_difference(self._fhosts)) != 0:
                 ok = False
-        return False
+        return ok
 
     def reset(self):
         retval = super(Kadeployer, self).reset()
