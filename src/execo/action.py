@@ -365,7 +365,7 @@ class Remote(Action):
         super(Remote, self).__init__(name = name)
         self._cmd = cmd
         self._connexion_params = connexion_params
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
@@ -375,7 +375,7 @@ class Remote(Action):
                            host = host,
                            connexion_params = connexion_params,
                            process_lifecycle_handler = self._process_lifecycle_handler,
-                           **self._kwargs)
+                           **self._other_kwargs)
             self._processes.append(p)
 
     def _args(self):
@@ -385,7 +385,7 @@ class Remote(Action):
     def _kwargs(self):
         kwargs = []
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -621,7 +621,7 @@ class TaktukRemote(Action):
         super(TaktukRemote, self).__init__(name = name)
         self._cmd = cmd
         self._connexion_params = connexion_params
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         self._caller_context = get_caller_context()
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
@@ -639,7 +639,7 @@ class TaktukRemote(Action):
     def _kwargs(self):
         kwargs = []
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -651,7 +651,7 @@ class TaktukRemote(Action):
             p = TaktukProcess(remote_substitute(self._cmd, self._hosts, index, self._caller_context),
                               host = host,
                               process_lifecycle_handler = lifecycle_handler,
-                              **self._kwargs)
+                              **self._other_kwargs)
             self._processes.append(p)
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
@@ -790,7 +790,7 @@ class Put(Remote):
         self._remote_location = remote_location
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
@@ -802,7 +802,7 @@ class Put(Remote):
             p = Process(real_command,
                         shell = True,
                         process_lifecycle_handler = lifecycle_handler,
-                        **self._kwargs)
+                        **self._other_kwargs)
             self._processes.append(p)
 
     def _args(self):
@@ -814,7 +814,7 @@ class Put(Remote):
         if self._remote_location: kwargs.append("remote_location=%r" % (self._remote_location,))
         if self._create_dirs: kwargs.append("create_dirs=%r" % (self._create_dirs,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -866,7 +866,7 @@ class Get(Remote):
         self._local_location = local_location
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
@@ -881,7 +881,7 @@ class Get(Remote):
             p = Process(real_command,
                         shell = True,
                         process_lifecycle_handler = lifecycle_handler,
-                        **self._kwargs)
+                        **self._other_kwargs)
             self._processes.append(p)
 
     def _args(self):
@@ -893,7 +893,7 @@ class Get(Remote):
         if self._local_location: kwargs.append("local_location=%r" % (self._local_location,))
         if self._create_dirs: kwargs.append("create_dirs=%r" % (self._create_dirs,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -1001,7 +1001,7 @@ class TaktukPut(TaktukRemote):
         self._local_files = local_files
         self._remote_location = remote_location
         self._connexion_params = connexion_params
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
         self._taktuk_common_init()
@@ -1014,7 +1014,7 @@ class TaktukPut(TaktukRemote):
         kwargs = []
         if self._remote_location: kwargs.append("remote_location=%r" % (self._remote_location,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -1032,7 +1032,7 @@ class TaktukPut(TaktukRemote):
             process = TaktukProcess("",
                                     host = host,
                                     process_lifecycle_handler = lifecycle_handler,
-                                    **self._kwargs)
+                                    **self._other_kwargs)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1154,7 +1154,7 @@ class TaktukGet(TaktukRemote):
         self._remote_files = remote_files
         self._local_location = local_location
         self._connexion_params = connexion_params
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         self._taktuk_stdout_output_handler = _TaktukGetOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
         self._taktuk_common_init()
@@ -1167,7 +1167,7 @@ class TaktukGet(TaktukRemote):
         kwargs = []
         if self._local_location: kwargs.append("local_location=%r" % (self._local_location,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -1185,7 +1185,7 @@ class TaktukGet(TaktukRemote):
             process = TaktukProcess("",
                                     host = host,
                                     process_lifecycle_handler = lifecycle_handler,
-                                    **self._kwargs)
+                                    **self._other_kwargs)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1225,17 +1225,17 @@ class Local(Action):
         """
         super(Local, self).__init__(name = name)
         self._cmd = cmd
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         self._process = Process(self._cmd,
                                 process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1),
-                                **self._kwargs)
+                                **self._other_kwargs)
 
     def _args(self):
         return [ repr(self._cmd) ] + Action._args(self) + Local._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):

@@ -187,7 +187,7 @@ class Kadeployer(Remote):
         self._frontend_connexion_params = frontend_connexion_params
         self._deployment = deployment
         self._out = out
-        self._kwargs = kwargs
+        self._other_kwargs = kwargs
         self._fhosts = get_hosts_set(deployment.hosts)
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
@@ -226,7 +226,7 @@ class Kadeployer(Remote):
                             stderr_handler = _KadeployStderrHandler(self, out = self._out),
                             process_lifecycle_handler = lifecycle_handler,
                             pty = True,
-                            **self._kwargs)
+                            **self._other_kwargs)
             self._processes.append(p)
 
     def _common_reset(self):
@@ -241,7 +241,7 @@ class Kadeployer(Remote):
         kwargs = []
         if self._frontend_connexion_params: kwargs.append("frontend_connexion_params=%r" % (self._frontend_connexion_params,))
         if self._out: kwargs.append("out=%r" % (self._out,))
-        for (k, v) in self._kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
         return kwargs
 
     def _infos(self):
