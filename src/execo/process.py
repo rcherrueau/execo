@@ -19,6 +19,7 @@
 from conductor import synchronized, the_conductor
 from config import configuration
 from execo.config import make_connexion_params
+from execo.host import Host
 from log import set_style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
@@ -839,14 +840,14 @@ class SshProcess(Process):
           True, because oarsh/oarcp are run sudo which forbids to send
           signals).
         """
-        self._host = host
+        self._host = Host(host)
         self._cmd = cmd
         self._connexion_params = connexion_params
-        real_cmd = (get_ssh_command(host.user,
-                                    host.keyfile,
-                                    host.port,
+        real_cmd = (get_ssh_command(self._host.user,
+                                    self._host.keyfile,
+                                    self._host.port,
                                     connexion_params)
-                    + (get_rewritten_host_address(host.address, connexion_params),)
+                    + (get_rewritten_host_address(self._host.address, connexion_params),)
                     + (cmd,))
         if not 'pty' in kwargs:
             kwargs['pty'] = make_connexion_params(connexion_params).get('pty')
@@ -881,7 +882,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
     r"""Dummy process similar to `execo.process.SshProcess`."""
 
     def __init__(self, cmd, host = None, **kwargs):
-        self._host = host
+        self._host = Host(host)
         self._cmd = cmd
         super(TaktukProcess, self).__init__(cmd, **kwargs)
 
