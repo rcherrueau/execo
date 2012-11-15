@@ -466,7 +466,6 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     """
 
     def check_prediction_changed(prediction, new_prediction):
-        print "check_prediction_changed(%s, %s)" % (prediction, new_prediction)
         old_prediction = prediction
         prediction = new_prediction
         if prediction != old_prediction:
@@ -482,11 +481,9 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     prediction = None
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
-        print "getting job infos"
         infos = get_oar_job_info(oar_job_id, frontend, frontend_connexion_params,
                                  countdown.remaining(), log_exit_code = False,
                                  log_timeout = False, log_error = False)
-        print "infos = %s" % (infos,)
         now = time.time()
         if infos.has_key('start_date') or infos.has_key('scheduled_start'):
             if infos.has_key('start_date'):
