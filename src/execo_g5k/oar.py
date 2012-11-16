@@ -489,7 +489,7 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
             if infos.has_key('start_date'):
                 new_prediction = infos['start_date']
             elif infos.has_key('scheduled_start'):
-                new_prediction = infos['start_date']
+                new_prediction = infos['scheduled_start']
             prediction = check_prediction_changed(prediction, new_prediction)
         if infos.has_key('state'):
             if infos['state'] == "Terminated" or infos['state'] == "Error":
