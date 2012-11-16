@@ -71,21 +71,20 @@ class Report(object):
             'sub_stats': [],
             }
 
-    @staticmethod
-    def aggregate_stats(stats):
-        stats['start_date'] = None
+    def aggregate_stats(self):
+        aggstats = self._stats.copy()
         no_end_date = False
-        for stats2 in stats['sub_stats']:
-            for k in stats2.keys():
+        for substats in self._stats['sub_stats']:
+            for k in substats.keys():
                 if k == 'start_date':
-                    if (stats2[k] != None
-                        and (stats[k] == None or stats2[k] < stats[k])):
-                        stats[k] = stats2[k]
+                    if (substats[k] != None
+                        and (aggstats[k] == None or substats[k] < aggstats[k])):
+                        aggstats[k] = substats[k]
                 elif k == 'end_date':
-                    if stats2[k] == None:
+                    if substats[k] == None:
                         no_end_date = True
-                    elif stats[k] == None or stats2[k] > stats[k]:
-                        stats[k] = stats2[k]
+                    elif aggstats[k] == None or substats[k] > aggstats[k]:
+                        aggstats[k] = substats[k]
                 elif k in [
                     'num_processes',
                     'num_started',
@@ -97,9 +96,10 @@ class Report(object):
                     'num_ok',
                     'num_finished_ok'
                     ]:
-                    stats[k] += stats2[k]
+                    aggstats[k] += substats[k]
         if no_end_date:
-            stats['end_date'] = None
+            aggstats['end_date'] = None
+        return aggstats
 
     def stats(self):
         """Return a dict summarizing the statistics of all `execo.action.Action` and sub-`execo.report.Report` registered to this report.
@@ -146,8 +146,7 @@ class Report(object):
         - ``num_finished_ok``: number of processes which started,
           ended, and are ok.
         """
-        Report.aggregate_stats(self._stats)
-        return self._stats
+        return self.aggregate_stats()
 
     def __repr__(self):
         return "<Report(<%i entries>, name=%r)>" % (len(self._stats['sub_stats']), self._stats['name'])
