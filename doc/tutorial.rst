@@ -66,8 +66,39 @@ Processes
   - ConnexionParams: connexion parameters, ssh options, ssh path,
     keyfile, port, user, etc.
 
-Process example
----------------
+Process examples
+................
+
+Local process
+'''''''''''''
+
+List all files in the root directory::
+
+ from execo import *
+ process = Process("ls /")
+ process.run()
+ print "process:\n%s" + str(process)
+ print "process stdout:\n" + process.stdout()
+ print "process stderr:\n" + process.stderr()
+
+In this example, the ls process was directly spawned, not using a
+subshell. We can ask for a subshell with option ``shell = True`` if we
+need a full shell environment (for example to expand environment
+variables or use pipes). For example, to find all files in /tmp
+belonging to me::
+
+ process = Process("find /tmp -user $USERNAME", shell = True).run()
+
+In this example, a warning log was likely displayed, because if you
+are not root, there are probably some directories in /tmp that find
+could not visit (lack of permissions) and find does not return 0 in
+this case. The default behavior of execo is to issue warning logs when
+processes are in error, do not return 0, or timeout. If needed we can
+instruct execo to ignore the exit code of specific processes by
+passing option ``ignore_exit_code = True`` to process instanciation.
+
+Remote process over ssh
+'''''''''''''''''''''''
 
 On one host *host1* Start an `execo.process.SshProcess` *process_A*
 running an iperf server, then wait 5 seconds, then on another host
@@ -76,7 +107,7 @@ iperf client, then wait wait for *process_B* termination, then kill
 *process_A*::
 
  from execo import *
- process_A = SshProcess("./iperf -s", "host1")
+ process_A = SshProcess("./iperf -s", "host1", ignore_exit_code = True)
  process_B = SshProcess("./iperf -c host1", "host2")
  process_A.start()
  sleep(1)
@@ -84,11 +115,62 @@ iperf client, then wait wait for *process_B* termination, then kill
  process_B.wait()
  process_A.kill()
 
-when running this example, the killing of process_A triggers a warning
-log on the console, since this process terminates with a non-zero exit
-code (it's normal since we have killed it). For situations where we
-now that it's normal, we can instruct execo to ignore the exit code by
-passing option ``ignore_exit_code = True`` to process instanciation.
+In this example we ignore the exit code of *process_A* because we know
+we kill it at the end, so it always has a non-zero exit code
+
+This example also shows the asynchronous control of processes: while a
+process is running (the iperf server), the code can do something else
+(run the iperf client), and later get back control of the first
+process (waiting for it, or as in this example killing it).
+
+Actions
+-------
+
+- `execo.action.Action`: abstraction of a set of parallel
+  Process. Asynchronous lifecycle handling:
+
+  - start, kill, wait
+
+  - access to individual Process
+
+  - callbacks
+
+  - timeout
+
+  - errors
+
+- `execo.action.Local`: A set of parallel local Process
+
+- `execo.action.Remote`: A set of parallel remote SshProcess
+
+- `execo.action.TaktukRemote`: Same as Remote but using taktuk instead
+  of plain ssh
+
+- `execo.action.Put`, `execo.action.Get`: send files or get files in
+  parallel to/from remote hosts
+
+- `execo.action.TaktukPut`, `execo.action.TaktukGet`: same using
+  taktuk
+
+- `execo.action.Report`: aggregates the results of several Action and
+  pretty-prints summary reports
+
+Remote example
+..............
+
+Run iperf client and server simultaneously on two hosts, to generate
+traffic in both directions::
+
+ from execo import *
+ hosts = [ "host1", "host2" ]
+ targets = list(reversed(hosts))
+ servers = Remote("./iperf -s", hosts, ignore_exit_code = True)
+ clients = Remote("./iperf -c {{targets}}", hosts)
+ servers.start()
+ sleep(1)
+ clients.run()
+ servers.kill()
+ print Report([ servers, clients ]).to_string()
 
 Interactive usage
 =================
