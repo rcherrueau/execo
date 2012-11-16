@@ -33,55 +33,6 @@ adapt for other shells)::
 You can put these two lines in your ``~/.profile`` to have your
 environment setup automatically in all shells.
 
-.. _tutorial-configuration:
-
-Configuration
-=============
-
-Execo reads configuration file ``~/.execo.conf.py``. A sample
-configuration file ``execo.conf.py.sample`` is created in execo source
-package directory when execo is built. This file can be used as a
-canvas to overide some particular configuration variables. See
-detailed documentation in :ref:`execo-configuration`.
-
-For example, if you use ssh with a proxycommand to connect directly to
-grid5000 servers or nodes from outside, as described in
-https://www.grid5000.fr/mediawiki/index.php/SSH#Using_SSH_with_ssh_proxycommand_setup_to_access_hosts_inside_Grid.275000
-the following configuration will allow to connect to grid5000 with
-execo from outside. Note that
-``g5k_configuration['oar_job_key_file']`` is indeed the path to the
-key *inside* grid5000, because it is used at reservation time and oar
-must have access to it. ``default_oarsh_oarcp_params['keyfile']`` is
-the path to the same key *outside* grid5000, because it is used to
-connect to the nodes from outside::
-
- import re
-
- def host_rewrite_func(host):
-     return re.sub("\.grid5000\.fr$", ".g5k", host)
-
- def frontend_rewrite_func(host):
-     return host + ".g5k"
-
- g5k_configuration = {
-     'oar_job_key_file': 'path/to/ssh/key/inside/grid5000',
-     'default_frontend' : 'lyon',
-     'api_username' : 'g5k_username'
-     }
-
- default_connexion_params = {'host_rewrite_func': host_rewrite_func}
- default_frontend_connexion_params = {'host_rewrite_func': frontend_rewrite_func}
-
- default_oarsh_oarcp_params = {
-     'user':        "oar",
-     'keyfile':     "path/to/ssh/key/outside/grid5000",
-     'port':        6667,
-     'ssh':         'ssh',
-     'scp':         'scp',
-     'taktuk_connector': 'ssh',
-     'host_rewrite_func': host_rewrite_func,
-     }
-
 execo
 =====
 
@@ -241,22 +192,6 @@ given to Get, Put, patterns are automatically substituted:
   mapping between the sequence of command lines run on the hosts and
   the sequence ``<expression>``. See :ref:`execo-substitutions`.
 
-Processes and actions factories
-...............................
-
-Processes and actions can be instanciated directly, but it can be more
-convenient to use the factory methods `execo.process.get_process`
-`execo.action.get_remote`, `execo.action.get_fileput`,
-`execo.action.get_fileget` to instanciate the right objects:
-
-- `execo.process.get_process` instanciates a Process or SshProcess
-  depending on the presence of argument host different from None.
-
-- `execo.action.get_remote`, `execo.action.get_fileput`,
-  `execo.action.get_fileget` instanciate ssh or taktuk based
-  instances, depending on configuration variables "remote_tool",
-  "fileput_tool", "fileget_tool"
-
 execo_g5k
 =========
 
@@ -361,3 +296,71 @@ delete the directory, on all frontends simultaneously::
 If ssh proxycommand and execo configuration are configured as
 described in :ref:`tutorial-configuration`, this example can be run
 from outside grid5000.
+
+More advanced usages
+====================
+
+.. _tutorial-configuration:
+
+Configuration of execo, execo_g5k
+---------------------------------
+
+Execo reads configuration file ``~/.execo.conf.py``. A sample
+configuration file ``execo.conf.py.sample`` is created in execo source
+package directory when execo is built. This file can be used as a
+canvas to overide some particular configuration variables. See
+detailed documentation in :ref:`execo-configuration`.
+
+For example, if you use ssh with a proxycommand to connect directly to
+grid5000 servers or nodes from outside, as described in
+https://www.grid5000.fr/mediawiki/index.php/SSH#Using_SSH_with_ssh_proxycommand_setup_to_access_hosts_inside_Grid.275000
+the following configuration will allow to connect to grid5000 with
+execo from outside. Note that
+``g5k_configuration['oar_job_key_file']`` is indeed the path to the
+key *inside* grid5000, because it is used at reservation time and oar
+must have access to it. ``default_oarsh_oarcp_params['keyfile']`` is
+the path to the same key *outside* grid5000, because it is used to
+connect to the nodes from outside::
+
+ import re
+
+ def host_rewrite_func(host):
+     return re.sub("\.grid5000\.fr$", ".g5k", host)
+
+ def frontend_rewrite_func(host):
+     return host + ".g5k"
+
+ g5k_configuration = {
+     'oar_job_key_file': 'path/to/ssh/key/inside/grid5000',
+     'default_frontend' : 'lyon',
+     'api_username' : 'g5k_username'
+     }
+
+ default_connexion_params = {'host_rewrite_func': host_rewrite_func}
+ default_frontend_connexion_params = {'host_rewrite_func': frontend_rewrite_func}
+
+ default_oarsh_oarcp_params = {
+     'user':        "oar",
+     'keyfile':     "path/to/ssh/key/outside/grid5000",
+     'port':        6667,
+     'ssh':         'ssh',
+     'scp':         'scp',
+     'taktuk_connector': 'ssh',
+     'host_rewrite_func': host_rewrite_func,
+     }
+
+Processes and actions factories
+-------------------------------
+
+Processes and actions can be instanciated directly, but it can be more
+convenient to use the factory methods `execo.process.get_process`
+`execo.action.get_remote`, `execo.action.get_fileput`,
+`execo.action.get_fileget` to instanciate the right objects:
+
+- `execo.process.get_process` instanciates a Process or SshProcess
+  depending on the presence of argument host different from None.
+
+- `execo.action.get_remote`, `execo.action.get_fileput`,
+  `execo.action.get_fileget` instanciate ssh or taktuk based
+  instances, depending on configuration variables "remote_tool",
+  "fileput_tool", "fileget_tool"
