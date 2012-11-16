@@ -228,6 +228,8 @@ get_fileget
 .. autofunction:: execo.action.get_fileget
 
 
+.. _execo-substitutions:
+
 substitutions for Remote, TaktukRemote, Get, Put
 ------------------------------------------------
 
@@ -358,6 +360,8 @@ logger
 .. data:: execo.log.logger
 
   The execo logger.
+
+.. _execo-configuration:
 
 Configuration
 =============

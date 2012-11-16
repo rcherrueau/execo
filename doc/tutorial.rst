@@ -2,6 +2,10 @@
 execo tutorial
 **************
 
+In this tutorial, the code can be executed from python source files,
+but it can also be run interactively in a python shell, such as
+``ipython``, which is very convenient to inspect the execo objects.
+
 Installation
 ============
 
@@ -29,7 +33,56 @@ adapt for other shells)::
 You can put these two lines in your ``~/.profile`` to have your
 environment setup automatically in all shells.
 
-Execo
+.. _tutorial-configuration:
+
+Configuration
+=============
+
+Execo reads configuration file ``~/.execo.conf.py``. A sample
+configuration file ``execo.conf.py.sample`` is created in execo source
+package directory when execo is built. This file can be used as a
+canvas to overide some particular configuration variables. See
+detailed documentation in :ref:`execo-configuration`.
+
+For example, if you use ssh with a proxycommand to connect directly to
+grid5000 servers or nodes from outside, as described in
+https://www.grid5000.fr/mediawiki/index.php/SSH#Using_SSH_with_ssh_proxycommand_setup_to_access_hosts_inside_Grid.275000
+the following configuration will allow to connect to grid5000 with
+execo from outside. Note that g5k_configuration['oar_job_key_file'] is
+indeed the path to the key *inside* grid5000, because it is used at
+reservation time and oar must have access to
+it. default_oarsh_oarcp_params['keyfile'] is the path to the same key
+*outside* grid5000, because it is used to connect to the nodes from
+outside::
+
+ import re
+
+ def host_rewrite_func(host):
+     return re.sub("\.grid5000\.fr$", ".g5k", host)
+
+ def frontend_rewrite_func(host):
+     return host + ".g5k"
+
+ g5k_configuration = {
+     'oar_job_key_file': 'path/to/ssh/key/inside/grid5000',
+     'default_frontend' : 'lyon',
+     'api_username' : 'g5k_username'
+     }
+
+ default_connexion_params = {'host_rewrite_func': host_rewrite_func}
+ default_frontend_connexion_params = {'host_rewrite_func': frontend_rewrite_func}
+
+ default_oarsh_oarcp_params = {
+     'user':        "oar",
+     'keyfile':     "path/to/ssh/key/outside/grid5000",
+     'port':        6667,
+     'ssh':         'ssh',
+     'scp':         'scp',
+     'taktuk_connector': 'ssh',
+     'host_rewrite_func': host_rewrite_func,
+     }
+
+execo
 =====
 
 Core module. Handles launching of several operating system level
@@ -152,7 +205,7 @@ Actions
 - `execo.action.TaktukPut`, `execo.action.TaktukGet`: same using
   taktuk
 
-- `execo.action.Report`: aggregates the results of several Action and
+- `execo.report.Report`: aggregates the results of several Action and
   pretty-prints summary reports
 
 Remote example
@@ -169,8 +222,142 @@ traffic in both directions::
  servers.start()
  sleep(1)
  clients.run()
- servers.kill()
+ servers.kill().wait()
  print Report([ servers, clients ]).to_string()
 
-Interactive usage
-=================
+In this example, the iperf client command line shows the usage of
+*substitutions*: In the command line given for Remote and in pathes
+given to Get, Put, patterns are automatically substituted:
+
+- all occurences of the literal string ``{{{host}}}`` are substituted by
+  the address of the Host to which execo connects to.
+
+- all occurences of ``{{<expression>}}`` are substituted in the
+  following way: ``<expression>`` must be a python expression, which
+  will be evaluated in the context (globals and locals) where the
+  expression is declared, and which must return a
+  sequence. ``{{<expression>}}`` will be replaced by
+  ``<expression>[index % len(<expression>)]``. In short, it is a
+  mapping between the sequence of command lines run on the hosts and
+  the sequence ``<expression>``. See :ref:`execo-substitutions`.
+
+Processes and actions factories
+...............................
+
+Processes and actions can be instanciated directly, but it can be more
+convenient to use the factory methods `execo.process.get_process`
+`execo.action.get_remote`, `execo.action.get_fileput`,
+`execo.action.get_fileget` to instanciate the right objects:
+
+- `execo.process.get_process` instanciates a Process or SshProcess
+  depending on the presence of argument host different from None.
+
+- `execo.action.get_remote`, `execo.action.get_fileput`,
+  `execo.action.get_fileget` instanciate ssh or taktuk based
+  instances, depending on configuration variables "remote_tool",
+  "fileput_tool", "fileget_tool"
+
+execo_g5k
+=========
+
+execo_g5k is a layer built on top of execo. It's purpose is to provide
+a convenient API to use Grid5000 services:
+
+- oar
+
+  - oarsub, oardel
+
+  - get current oar jobs
+
+  - wait oar job start, get oar job nodes
+
+- oargrid
+
+  - oargridsub, oargriddel
+
+  - get current oargrid jobs
+
+  - wait oargrid job start, get oargrid job nodes
+
+- kadeploy3
+
+  - kadeploy: basic deployment
+
+  - deploy: kadeploy on steroids: automatically avoids to deploy
+    already deployed nodes, handles retries on top of kadeploy,
+    callbacks to allow dynamically deciding when we have enough nodes
+    (even for complex topologies)
+
+To use execo on grid5000, you need to install it inside grid5000, for
+example on a frontend. execo dependencies are installed on grid5000
+frontends.
+
+oarsub example
+--------------
+
+Run iperf servers on a group of 4 hosts on one cluster, and iperf
+clients on a group of 4 hosts on another cluster. Each client targets
+a different server. We get nodes with an OAR submissions, and delete
+the OAR job afterwards::
+
+ from execo import *
+ from execo_g5k import *
+ import itertools
+ jobs = oarsub([
+   ( OarSubmission(resources = "/cluster=2/nodes=4"), "nancy")
+ ])
+ nodes = []
+ wait_oar_job_start(jobs[0][0], jobs[0][1])
+ nodes = get_oar_job_nodes(jobs[0][0], jobs[0][1])
+ # group nodes by cluster
+ sources, targets = [ list(n) for c, n in itertools.groupby(
+   sorted(nodes,
+          lambda n1, n2: cmp(
+            g5k_host_get_cluster(n1),
+            g5k_host_get_cluster(n2))),
+   g5k_host_get_cluster) ]
+ servers = Remote("iperf -s",
+                  targets,
+                  connexion_params = default_oarsh_oarcp_params,
+                  ignore_exit_code = True)
+ clients = Remote("iperf -c {{[t.address for t in targets]}}",
+                  sources,
+                  connexion_params = default_oarsh_oarcp_params)
+ servers.start()
+ sleep(1)
+ clients.run()
+ servers.kill().wait()
+ print Report([ servers, clients ]).to_string()
+ oardel([(jobs[0][0], jobs[0][1])])
+
+execo_g5k.api_utils
+-------------------
+
+This module is not automatically imported when importing execo_g5k (to
+allow using execo_g5k without the httplib2 dependency), so you have to
+import it explicitely.
+
+It provides various useful function which deal with the Grid5000 API.
+
+For example, to work interactively on all grid5000 frontends at the
+same time: Here we create a directory, copy a file inside it, then
+delete the directory, on all frontends simultaneously::
+
+ from execo import *
+ from execo_g5k import *
+ from execo_g5k.api_utils import *
+ sites = get_g5k_sites()
+ Remote("mkdir -p execo_tutorial/",
+        sites,
+        connexion_params = default_frontend_connexion_params).run()
+ Put(sites,
+     ["~/.profile"],
+     "execo_tutorial/",
+     connexion_params = default_frontend_connexion_params).run()
+ Remote("rm -r execo_tutorial/",
+        sites,
+        connexion_params = default_frontend_connexion_params).run()
+
+If ssh proxycommand and execo configuration are configured as
+described in :ref:`tutorial-configuration`, this example can be run
+from outside grid5000.
