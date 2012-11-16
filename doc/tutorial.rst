@@ -48,12 +48,12 @@ For example, if you use ssh with a proxycommand to connect directly to
 grid5000 servers or nodes from outside, as described in
 https://www.grid5000.fr/mediawiki/index.php/SSH#Using_SSH_with_ssh_proxycommand_setup_to_access_hosts_inside_Grid.275000
 the following configuration will allow to connect to grid5000 with
-execo from outside. Note that g5k_configuration['oar_job_key_file'] is
-indeed the path to the key *inside* grid5000, because it is used at
-reservation time and oar must have access to
-it. default_oarsh_oarcp_params['keyfile'] is the path to the same key
-*outside* grid5000, because it is used to connect to the nodes from
-outside::
+execo from outside. Note that
+``g5k_configuration['oar_job_key_file']`` is indeed the path to the
+key *inside* grid5000, because it is used at reservation time and oar
+must have access to it. ``default_oarsh_oarcp_params['keyfile']`` is
+the path to the same key *outside* grid5000, because it is used to
+connect to the nodes from outside::
 
  import re
 
