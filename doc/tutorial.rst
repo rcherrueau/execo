@@ -85,21 +85,20 @@ List all files in the root directory::
  print "process stdout:\n" + process.stdout()
  print "process stderr:\n" + process.stderr()
 
-In this example, the ls process was directly spawned, not using a
-subshell. We can ask for a subshell with option ``shell = True`` if we
-need a full shell environment (for example to expand environment
-variables or use pipes). For example, to find all files in /tmp
-belonging to me::
+The ``ls`` process was directly spawned, not using a subshell. Use
+option ``shell = True`` if a full shell environment is needed (e.g. to
+expand environment variables or to use pipes). To find all files
+in /tmp belonging to me::
 
  process = Process("find /tmp -user $USERNAME", shell = True).run()
 
-In this example, a warning log was likely displayed, because if you
-are not root, there are probably some directories in /tmp that find
-could not visit (lack of permissions) and find does not return 0 in
+Here a warning log was probably displayed, because if you are not
+root, there are probably some directories in ``/tmp`` that ``find``
+could not visit (lack of permissions), ``find`` does not return 0 in
 this case. The default behavior of execo is to issue warning logs when
 processes are in error, do not return 0, or timeout. If needed we can
-instruct execo to ignore the exit code of specific processes by
-passing option ``ignore_exit_code = True`` to process instanciation.
+instruct execo to ignore the exit code with option ``ignore_exit_code
+= True``.
 
 Remote process over ssh
 '''''''''''''''''''''''
@@ -119,10 +118,10 @@ iperf client, then wait wait for *process_B* termination, then kill
  process_B.wait()
  process_A.kill()
 
-In this example we ignore the exit code of *process_A* because we know
-we kill it at the end, so it always has a non-zero exit code
+We ignore the exit code of *process_A* because it is killed at the
+end, thus it always has a non-zero exit code
 
-This example also shows the asynchronous control of processes: while a
+This example shows the asynchronous control of processes: while a
 process is running (the iperf server), the code can do something else
 (run the iperf client), and later get back control of the first
 process (waiting for it, or as in this example killing it).
@@ -162,8 +161,8 @@ Actions
 Remote example
 ..............
 
-Run iperf client and server simultaneously on two hosts, to generate
-traffic in both directions::
+Run an iperf client and server simultaneously on two hosts, to
+generate traffic in both directions::
 
  from execo import *
  hosts = [ "host1", "host2" ]
@@ -176,9 +175,9 @@ traffic in both directions::
  servers.kill().wait()
  print Report([ servers, clients ]).to_string()
 
-In this example, the iperf client command line shows the usage of
-*substitutions*: In the command line given for Remote and in pathes
-given to Get, Put, patterns are automatically substituted:
+The iperf client command line shows the usage of *substitutions*: In
+the command line given for Remote and in pathes given to Get, Put,
+patterns are automatically substituted:
 
 - all occurences of the literal string ``{{{host}}}`` are substituted by
   the address of the Host to which execo connects to.
@@ -195,8 +194,8 @@ given to Get, Put, patterns are automatically substituted:
 execo_g5k
 =========
 
-execo_g5k is a layer built on top of execo. It's purpose is to provide
-a convenient API to use Grid5000 services:
+A layer built on top of execo. It's purpose is to provide a convenient
+API to use Grid5000 services:
 
 - oar
 
@@ -218,10 +217,10 @@ a convenient API to use Grid5000 services:
 
   - kadeploy: basic deployment
 
-  - deploy: kadeploy on steroids: automatically avoids to deploy
-    already deployed nodes, handles retries on top of kadeploy,
-    callbacks to allow dynamically deciding when we have enough nodes
-    (even for complex topologies)
+  - deploy: clever kadeploy: automatically avoids to deploy already
+    deployed nodes, handles retries on top of kadeploy, callbacks to
+    allow dynamically deciding when we have enough nodes (even for
+    complex topologies)
 
 To use execo on grid5000, you need to install it inside grid5000, for
 example on a frontend. execo dependencies are installed on grid5000
@@ -269,7 +268,7 @@ execo_g5k.api_utils
 -------------------
 
 This module is not automatically imported when importing execo_g5k (to
-allow using execo_g5k without the httplib2 dependency), so you have to
+allow using execo_g5k without the httplib2 dependency), you have to
 import it explicitely.
 
 It provides various useful function which deal with the Grid5000 API.
