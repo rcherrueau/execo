@@ -252,8 +252,8 @@ Then in ``~/.execo.conf.py`` put this code::
      'host_rewrite_func': lambda host: host + ".g5k"
      }
 
- g5k_api_params = {
-     'username': '<username>',
+ g5k_configuration = {
+     'api_username': '<g5k_username>',
      }
 
 Now, every time execo tries to connect to a host, the host name is
