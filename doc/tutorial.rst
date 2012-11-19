@@ -305,7 +305,8 @@ Execo reads configuration file ``~/.execo.conf.py``. A sample
 configuration file ``execo.conf.py.sample`` is created in execo source
 package directory when execo is built. This file can be used as a
 canvas to overide some particular configuration variables. See
-detailed documentation in :ref:`execo-configuration`.
+detailed documentation in :ref:`execo-configuration` and
+:ref:`execo_g5k-perfect_configuration`.
 
 For example, if you use ssh with a proxycommand to connect directly to
 grid5000 servers or nodes from outside, as described in

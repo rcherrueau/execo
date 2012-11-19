@@ -260,6 +260,8 @@ Now, every time execo tries to connect to a host, the host name is
 rewritten as to be reached through the Grid5000 ssh proxy connexion
 alias, and the same for the frontends.
 
+.. _execo_g5k-perfect_configuration:
+
 The perfect grid5000 connexion configuration
 ============================================
 
