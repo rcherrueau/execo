@@ -267,9 +267,7 @@ the OAR job afterwards::
 execo_g5k.api_utils
 -------------------
 
-This module is not automatically imported when importing execo_g5k (to
-allow using execo_g5k without the httplib2 dependency), you have to
-import it explicitely.
+This module is automatically imported only if httplib2 is available.
 
 It provides various useful function which deal with the Grid5000 API.
 
@@ -279,7 +277,6 @@ delete the directory, on all frontends simultaneously::
 
  from execo import *
  from execo_g5k import *
- from execo_g5k.api_utils import *
  sites = get_g5k_sites()
  Remote("mkdir -p execo_tutorial/",
         sites,

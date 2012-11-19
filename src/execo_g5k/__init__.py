@@ -27,3 +27,9 @@ from oargrid import oargridsub, oargriddel, get_current_oargrid_jobs, \
   get_oargrid_job_info, wait_oargrid_job_start, get_oargrid_job_nodes
 from kadeploy import Deployment, Kadeployer, kadeploy, deploy
 from utils import g5k_host_get_cluster, g5k_host_get_site, group_hosts
+try:
+    from api_utils import get_g5k_sites, get_site_clusters, \
+      get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, get_cluster_site
+except ImportError:
+    # probably if httplib2 is not installed.
+    pass
