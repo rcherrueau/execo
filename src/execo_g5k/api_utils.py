@@ -78,8 +78,14 @@ class APIConnexion:
             }
         if headers:
             self.headers.update(headers)
-        self.http = httplib2.Http(timeout = timeout,
-                                  disable_ssl_certificate_validation = True)
+        try:
+            self.http = httplib2.Http(timeout = timeout,
+                                      disable_ssl_certificate_validation = True)
+        except TypeError:
+            # probably caused by old httplib2 without option
+            # disable_ssl_certificate_validation, try
+            # without it
+            self.http = httplib2.Http(timeout = timeout)
         if username and password:
             self.http.add_credentials(username, password)
 
