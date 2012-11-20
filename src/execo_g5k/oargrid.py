@@ -242,6 +242,37 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
         job_info['walltime'] = walltime
     return job_info
 
+def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
+    """Return a list of tuples (oar job id, site), the list of individual oar jobs which make an oargrid job.
+
+    :param oargrid_job_id: the oargrid job id.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to frontends if needed. Values override those in
+      `execo_g5k.config.default_frontend_connexion_params`.
+
+    :param timeout: timeout for retrieving. Default is False, which
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
+    """
+    if timeout == False:
+        timeout = g5k_configuration.get('default_timeout')
+    process = get_process("oargridstat %i" % (oargrid_job_id,),
+                          host = get_frontend_host(),
+                          connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                   default_frontend_connexion_params),
+                          timeout = timeout,
+                          pty = True)
+    process.run()
+    if process.ok():
+        job_specs = []
+        for m in re.finditer("^\t(\w+) --> (\d+)", process.stdout(), re.MULTILINE):
+            job_specs.append((int(m.group(2)), m.group(1)))
+        return job_specs
+    else:
+        raise ProcessesFailed, [process]
+
 def wait_oargrid_job_start(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
     """Sleep until an oargrid job's start time.
 

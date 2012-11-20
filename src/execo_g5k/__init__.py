@@ -24,7 +24,8 @@ from oar import OarSubmission, oarsub, oardel, get_current_oar_jobs, \
   get_oar_job_info, wait_oar_job_start, get_oar_job_nodes, \
   get_oar_job_subnets
 from oargrid import oargridsub, oargriddel, get_current_oargrid_jobs, \
-  get_oargrid_job_info, wait_oargrid_job_start, get_oargrid_job_nodes
+  get_oargrid_job_info, get_oargrid_job_oar_jobs, wait_oargrid_job_start, \
+  get_oargrid_job_nodes
 from kadeploy import Deployment, Kadeployer, kadeploy, deploy
 from utils import g5k_host_get_cluster, g5k_host_get_site, group_hosts
 try:

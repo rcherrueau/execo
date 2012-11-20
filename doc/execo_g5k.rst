@@ -71,6 +71,10 @@ get_oargrid_job_info
 --------------------
 .. autofunction:: execo_g5k.oargrid.get_oargrid_job_info
 
+get_oargrid_job_oar_jobs
+------------------------
+.. autofunction:: execo_g5k.oargrid.get_oargrid_job_oar_jobs
+
 wait_oargrid_job_start
 ----------------------
 .. autofunction:: execo_g5k.oargrid.wait_oargrid_job_start
