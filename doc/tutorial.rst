@@ -113,27 +113,29 @@ Remote process over ssh
 '''''''''''''''''''''''
 
 On one host *host1* Start an `execo.process.SshProcess` *process_A*
-running an iperf server, then wait 5 seconds, then on another host
-*host2* start an `execo.process.SshProcess` *process_B* running an
-iperf client, then wait wait for *process_B* termination, then kill
+running a listening netcat, then wait 1 seconds, then on another host
+*host2* start an `execo.process.SshProcess` *process_B* running netcat
+sender, then wait wait for *process_B* termination, then kill
 *process_A*::
 
  from execo import *
- process_A = SshProcess("./iperf -s", "host1", ignore_exit_code = True)
- process_B = SshProcess("./iperf -c host1", "host2")
+ process_A = SshProcess("nc -l -p 6543", "<host1>")
+ process_B = SshProcess("echo 'hi there!' | nc -i 1 -q 0 <host1> 6543", "<host2>")
  process_A.start()
- sleep(1)
- process_B.start()
- process_B.wait()
- process_A.kill()
+ process_B.run()
+ process_A.wait()
+ print process_A.stdout()
 
-We ignore the exit code of *process_A* because it is killed at the
-end, thus it always has a non-zero exit code
+The netcat option ``-i 1`` is important in this example because as
+process_A and process_B are started almost simultaneously, we want to
+introduce a little delay (1 second) before process_B tries to connect
+to process_A, to be sure that process_A has finished its
+initialization and is ready to receive incoming connexions.
 
 This example shows the asynchronous control of processes: while a
-process is running (the iperf server), the code can do something else
-(run the iperf client), and later get back control of the first
-process (waiting for it, or as in this example killing it).
+process is running (the netcat receiver), the code can do something
+else (run the netcat sender), and later get back control of the first
+process, waiting for it (it could also kill it).
 
 Actions
 -------
@@ -183,6 +185,9 @@ generate traffic in both directions::
  clients.run()
  servers.kill().wait()
  print Report([ servers, clients ]).to_string()
+
+We ignore the exit code of servers because they are killed at the end,
+thus they always have a non-zero exit code.
 
 The iperf client command line shows the usage of *substitutions*: In
 the command line given for Remote and in pathes given to Get, Put,
