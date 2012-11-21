@@ -379,8 +379,8 @@ class Remote(Action):
             self._processes.append(p)
 
     def _args(self):
-        return [ repr(self._hosts),
-                 repr(self._cmd) ] + Action._args(self) + Remote._kwargs(self)
+        return [ repr(self._cmd),
+                 repr(self._hosts) ] + Action._args(self) + Remote._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
@@ -633,8 +633,8 @@ class TaktukRemote(Action):
         self._taktuk_common_init()
 
     def _args(self):
-        return [ repr(self._hosts),
-                 repr(self._cmd) ] + Action._args(self) + TaktukRemote._kwargs(self)
+        return [ repr(self._cmd),
+                 repr(self._hosts) ] + Action._args(self) + TaktukRemote._kwargs(self)
 
     def _kwargs(self):
         kwargs = []

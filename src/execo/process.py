@@ -841,7 +841,7 @@ class SshProcess(Process):
           signals).
         """
         self._host = Host(host)
-        self._cmd = cmd
+        self._remote_cmd = cmd
         self._connexion_params = connexion_params
         real_cmd = (get_ssh_command(self._host.user,
                                     self._host.keyfile,
@@ -854,8 +854,8 @@ class SshProcess(Process):
         super(SshProcess, self).__init__(real_cmd, **kwargs)
 
     def _args(self):
-        return [ repr(self._host),
-                 repr(self._cmd) ] + Process._kwargs(self) + SshProcess._kwargs(self)
+        return [ repr(self._remote_cmd),
+                 repr(self._host) ] + Process._kwargs(self) + SshProcess._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
@@ -883,12 +883,12 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     def __init__(self, cmd, host = None, **kwargs):
         self._host = Host(host)
-        self._cmd = cmd
+        self._remote_cmd = cmd
         super(TaktukProcess, self).__init__(cmd, **kwargs)
 
     def _args(self):
-        return [ repr(self._host),
-                 repr(self._cmd) ] + ProcessBase._kwargs(self)
+        return [ repr(self._remote_cmd),
+                 repr(self._host) ] + ProcessBase._kwargs(self)
 
     def host(self):
         """Return the remote host."""
