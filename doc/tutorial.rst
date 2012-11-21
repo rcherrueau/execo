@@ -172,25 +172,23 @@ Actions
 Remote example
 ..............
 
-Run an iperf client and server simultaneously on two hosts, to
+Run a netcat client and server simultaneously on two hosts, to
 generate traffic in both directions::
 
  from execo import *
- hosts = [ "host1", "host2" ]
+ hosts = [ "<host1>", "<host2>" ]
  targets = list(reversed(hosts))
- servers = Remote("./iperf -s", hosts, ignore_exit_code = True)
- clients = Remote("./iperf -c {{targets}}", hosts)
+ servers = Remote("nc -l -p 6543", hosts)
+ clients = Remote("dd if=/dev/zero bs=1000 count=125 | nc -i 1 -q 0 {{targets}} 6543", hosts)
  servers.start()
- sleep(1)
  clients.run()
- servers.kill().wait()
+ servers.wait()
  print Report([ servers, clients ]).to_string()
+ for s in servers.processes() + clients.processes():
+   print "%s\nstdout:\n%s\nstderr:\n%s" % (s, s.stdout(), s.stderr())
 
-We ignore the exit code of servers because they are killed at the end,
-thus they always have a non-zero exit code.
-
-The iperf client command line shows the usage of *substitutions*: In
-the command line given for Remote and in pathes given to Get, Put,
+The netcat command line on clients shows the usage of *substitutions*:
+In the command line given for Remote and in pathes given to Get, Put,
 patterns are automatically substituted:
 
 - all occurences of the literal string ``{{{host}}}`` are substituted by
@@ -277,6 +275,9 @@ the OAR job afterwards::
  servers.kill().wait()
  print Report([ servers, clients ]).to_string()
  oardel([(jobs[0][0], jobs[0][1])])
+
+We ignore the exit code of servers because they are killed at the end,
+thus they always have a non-zero exit code.
 
 execo_g5k.api_utils
 -------------------
