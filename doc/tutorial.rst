@@ -178,14 +178,18 @@ generate traffic in both directions::
  from execo import *
  hosts = [ "<host1>", "<host2>" ]
  targets = list(reversed(hosts))
- servers = Remote("nc -l -p 6543", hosts)
- clients = Remote("dd if=/dev/zero bs=1000 count=125 | nc -i 1 -q 0 {{targets}} 6543", hosts)
+ servers = Remote("nc -l -p 6543 > /dev/null", hosts)
+ clients = Remote("dd if=/dev/zero bs=50000 count=125 | nc -q 0 {{targets}} 6543", hosts)
  servers.start()
+ sleep(1)
  clients.run()
  servers.wait()
  print Report([ servers, clients ]).to_string()
  for s in servers.processes() + clients.processes():
    print "%s\nstdout:\n%s\nstderr:\n%s" % (s, s.stdout(), s.stderr())
+
+This time we sleep for 1 second after starting the servers to make
+sure again that they are ready to receive incoming connexions.
 
 The netcat command line on clients shows the usage of *substitutions*:
 In the command line given for Remote and in pathes given to Get, Put,
