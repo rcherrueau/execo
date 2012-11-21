@@ -14,18 +14,27 @@ distributions): ``make``, ``python`` (>= 2.6), ``python-httplib2`` and
 optionnaly ``python-keyring``. You also need ``ssh`` and optionnaly
 ``taktuk``.
 
-To install execo: In this tutorial it is shown how to install execo in
-subdirectory ``.local/`` of your home, allowing installation on
-computers where you are not root or when you don't want to mix
-manually installed packages with packages managed by your distribution
-package manager::
+In this tutorial it is shown how to install execo in subdirectory
+``.local/`` of your home, allowing installation on computers where you
+are not root or when you don't want to mix manually installed packages
+with packages managed by your distribution package manager.
+
+Install from a release tar.gz package::
+
+ $ wget http://execo.gforge.inria.fr/downloads/execo-2.0.tar.gz
+ $ tar xzf execo-2.0.tar.gz
+ $ cd execo-2.0/
+ $ make install PREFIX=$HOME/.local
+
+Or install from source repository if you want the very latest
+version::
 
  $ git clone git://scm.gforge.inria.fr/execo/execo.git
  $ cd execo
  $ make install PREFIX=$HOME/.local
 
-To add this directory to python search path (i assume bash shell here,
-adapt for other shells)::
+To add directory ``~/.local/`` to python search path (i assume bash
+shell here, adapt for other shells)::
 
  $ PYTHONHOMEPATH="$HOME/.local/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
  $ export PYTHONPATH="$PYTHONHOMEPATH${PYTHONPATH:+:${PYTHONPATH}}"
