@@ -120,11 +120,15 @@ sender, then wait wait for *process_B* termination, then kill
 
  from execo import *
  process_A = SshProcess("nc -l -p 6543", "<host1>")
- process_B = SshProcess("echo 'hi there!' | nc -i 1 -q 0 <host1> 6543", "<host2>")
+ process_B = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>")
  process_A.start()
+ sleep(1)
  process_B.run()
  process_A.wait()
  print process_A.stdout()
+
+We sleep for 1 second after starting the servers to make sure that
+they are ready to receive incoming connexions.
 
 The netcat option ``-i 1`` is important in this example because as
 process_A and process_B are started almost simultaneously, we want to
@@ -187,9 +191,6 @@ generate traffic in both directions::
  print Report([ servers, clients ]).to_string()
  for s in servers.processes() + clients.processes():
    print "%s\nstdout:\n%s\nstderr:\n%s" % (s, s.stdout(), s.stderr())
-
-This time we sleep for 1 second after starting the servers to make
-sure again that they are ready to receive incoming connexions.
 
 The netcat command line on clients shows the usage of *substitutions*:
 In the command line given for Remote and in pathes given to Get, Put,
