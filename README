@@ -36,19 +36,19 @@ installation instructions
 links
 -----
 
-execo home page on INRIA Forge: http://execo.gforge.inria.fr
+- home page:  http://execo.gforge.inria.fr
 
-execo project page on INRIA Forge:
-http://gforge.inria.fr/projects/execo/
+- project page on INRIA Forge: http://gforge.inria.fr/projects/execo/
 
-execo package download: http://execo.gforge.inria.fr/downloads or
-https://gforge.inria.fr/frs/?group_id=2901
+- package download: http://execo.gforge.inria.fr/downloads or
+  https://gforge.inria.fr/frs/?group_id=2901
 
-execo code repository: git://scm.gforge.inria.fr/execo/execo.git
+- code repository: git://scm.gforge.inria.fr/execo/execo.git
 
-execo documentation:
-http://execo.gforge.inria.fr/doc/
-http://execo.gforge.inria.fr/epydoc/
+- tutorial: http://execo.gforge.inria.fr/doc/tutorial.html
+
+- documentation: http://execo.gforge.inria.fr/doc/
+  http://execo.gforge.inria.fr/epydoc/
 
 prerequisites
 -------------
