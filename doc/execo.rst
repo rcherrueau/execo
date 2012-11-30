@@ -202,9 +202,9 @@ ActionLifecycleHandler
    :members:
    :show-inheritance:
 
-wait_multiple_actions
+wait_any_actions
 ---------------------
-.. autofunction:: execo.action.wait_multiple_actions
+.. autofunction:: execo.action.wait_any_actions
 
 wait_all_actions
 ----------------

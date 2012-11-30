@@ -273,7 +273,7 @@ class Action(object):
             stats['end_date'] = None
         return stats
 
-def wait_multiple_actions(actions, timeout = None):
+def wait_any_actions(actions, timeout = None):
     """Wait for any of the actions given to terminate.
 
     :param actions: An iterable of `execo.action.Action`.
