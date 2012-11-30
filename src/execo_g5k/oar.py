@@ -159,6 +159,47 @@ class OarSubmission(object):
         if self.command != None: s = comma_join(s, "command=%r" % (self.command,))
         return "OarSubmission(%s)" % (s,)
 
+def get_oarsub_commandline(job_spec):
+    oarsub_cmdline = 'oarsub'
+    if job_spec.additional_options != None:
+        oarsub_cmdline += ' %s' % (job_spec.additional_options,)
+    if hasattr(job_spec.resources, '__iter__'):
+        resources = job_spec.resources
+    else:
+        resources = (job_spec.resources,)
+    for r in resources:
+        oarsub_cmdline += ' -l %s' % (r,)
+    if job_spec.walltime != None:
+        oarsub_cmdline += ',walltime=%s' % (format_oar_duration(job_spec.walltime),)
+    key = g5k_configuration.get('oar_job_key_file')
+    if key == None:
+        key = os.environ.get('OAR_JOB_KEY_FILE')
+    if key != None:
+        oarsub_cmdline += ' -k -i %s' % (key,)
+    if job_spec.job_type != None:
+        if hasattr(job_spec.job_type,"__iter__"):
+            for t in job_spec.job_type:
+                oarsub_cmdline += ' -t "%s"' % (t,)
+        else:
+            oarsub_cmdline += ' -t "%s"' % (job_spec.job_type,)
+    if job_spec.sql_properties != None:
+        oarsub_cmdline += ' -p "%s"' % (job_spec.sql_properties,)
+    if job_spec.queue != None:
+        oarsub_cmdline += ' -q "%s"' % (job_spec.queue,)
+    if job_spec.reservation_date != None:
+        oarsub_cmdline += ' -r "%s"' % (format_oar_date(job_spec.reservation_date),)
+    if job_spec.directory != None:
+        oarsub_cmdline += ' -d "%s"' % (job_spec.directory,)
+    if job_spec.project != None:
+        oarsub_cmdline += ' --project "%s"' % (job_spec.project,)
+    if job_spec.name != None:
+        oarsub_cmdline += ' -n "%s"' % (job_spec.name,)
+    if job_spec.command != None:
+        oarsub_cmdline += ' "%s"' % (job_spec.command,)
+    else:
+        oarsub_cmdline += ' "sleep 31536000"'
+    return oarsub_cmdline
+
 def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_on_error = False):
     """Submit jobs.
 
@@ -187,44 +228,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for (spec, frontend) in job_specs:
-        oarsub_cmdline = 'oarsub'
-        if spec.additional_options != None:
-            oarsub_cmdline += ' %s' % (spec.additional_options,)
-        if hasattr(spec.resources, '__iter__'):
-            resources = spec.resources
-        else:
-            resources = (spec.resources,)
-        for r in resources:
-            oarsub_cmdline += ' -l %s' % (r,)
-        if spec.walltime != None:
-            oarsub_cmdline += ',walltime=%s' % (format_oar_duration(spec.walltime),)
-        key = g5k_configuration.get('oar_job_key_file')
-        if key == None:
-            key = os.environ.get('OAR_JOB_KEY_FILE')
-        if key != None:
-            oarsub_cmdline += ' -k -i %s' % (key,)
-        if spec.job_type != None:
-            if hasattr(spec.job_type,"__iter__"):
-                for t in spec.job_type:
-                    oarsub_cmdline += ' -t "%s"' % (t,)
-            else:
-                oarsub_cmdline += ' -t "%s"' % (spec.job_type,)
-        if spec.sql_properties != None:
-            oarsub_cmdline += ' -p "%s"' % (spec.sql_properties,)
-        if spec.queue != None:
-            oarsub_cmdline += ' -q "%s"' % (spec.queue,)
-        if spec.reservation_date != None:
-            oarsub_cmdline += ' -r "%s"' % (format_oar_date(spec.reservation_date),)
-        if spec.directory != None:
-            oarsub_cmdline += ' -d "%s"' % (spec.directory,)
-        if spec.project != None:
-            oarsub_cmdline += ' --project "%s"' % (spec.project,)
-        if spec.name != None:
-            oarsub_cmdline += ' -n "%s"' % (spec.name,)
-        if spec.command != None:
-            oarsub_cmdline += ' "%s"' % (spec.command,)
-        else:
-            oarsub_cmdline += ' "sleep 31536000"'
+        oarsub_cmdline = get_oarsub_commandline(spec)
         p = get_process(oarsub_cmdline,
                         host = get_frontend_host(frontend),
                         connexion_params = make_connexion_params(frontend_connexion_params,

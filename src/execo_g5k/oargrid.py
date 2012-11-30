@@ -29,6 +29,44 @@ from oar import format_oar_date, format_oar_duration, _date_in_range, \
 import os
 import re
 
+def get_oargridsub_commandline(job_specs, reservation_date = None,
+                               walltime = None, job_type = None,
+                               queue = None, directory = None,
+                               additional_options = None):
+    oargridsub_cmdline = 'oargridsub -v'
+    key = g5k_configuration.get('oar_job_key_file')
+    if key == None:
+        key = os.environ.get('OAR_JOB_KEY_FILE')
+    if key != None:
+        oargridsub_cmdline += ' -i %s' % (key,)
+    if reservation_date:
+        oargridsub_cmdline += ' -s "%s"' % (format_oar_date(reservation_date),)
+    if queue != None:
+        oargridsub_cmdline += ' -q "%s"' % (queue,)
+    if job_type != None:
+        oargridsub_cmdline += ' -t "%s"' % (job_type,)
+    if walltime != None:
+        oargridsub_cmdline += ' -w "%s"' % (format_oar_duration(walltime),)
+    if directory != None:
+        oargridsub_cmdline += ' -d "%s"' % (directory,)
+    if additional_options != None:
+        oargridsub_cmdline += ' %s' % (additional_options,)
+    firstclusteralias = True
+    for (spec, clusteralias) in job_specs:
+        if firstclusteralias:
+            firstclusteralias = False
+            oargridsub_cmdline += ' '
+        else:
+            oargridsub_cmdline += ','
+        oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
+        if spec.job_type != None:
+            oargridsub_cmdline += ':type="%s"' % (spec.job_type,)
+        if spec.sql_properties != None:
+            oargridsub_cmdline += ':prop="%s"' % (spec.sql_properties,)
+        if spec.name != None:
+            oargridsub_cmdline += ':name="%s"' % (spec.name,)
+    return oargridsub_cmdline
+
 def oargridsub(job_specs, reservation_date = None,
                walltime = None, job_type = None,
                queue = None, directory = None,
@@ -71,38 +109,9 @@ def oargridsub(job_specs, reservation_date = None,
     """
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
-    oargridsub_cmdline = 'oargridsub -v'
-    key = g5k_configuration.get('oar_job_key_file')
-    if key == None:
-        key = os.environ.get('OAR_JOB_KEY_FILE')
-    if key != None:
-        oargridsub_cmdline += ' -i %s' % (key,)
-    if reservation_date:
-        oargridsub_cmdline += ' -s "%s"' % (format_oar_date(reservation_date),)
-    if queue != None:
-        oargridsub_cmdline += ' -q "%s"' % (queue,)
-    if job_type != None:
-        oargridsub_cmdline += ' -t "%s"' % (job_type,)
-    if walltime != None:
-        oargridsub_cmdline += ' -w "%s"' % (format_oar_duration(walltime),)
-    if directory != None:
-        oargridsub_cmdline += ' -d "%s"' % (directory,)
-    if additional_options != None:
-        oargridsub_cmdline += ' %s' % (additional_options,)
-    firstclusteralias = True
-    for (spec, clusteralias) in job_specs:
-        if firstclusteralias:
-            firstclusteralias = False
-            oargridsub_cmdline += ' '
-        else:
-            oargridsub_cmdline += ','
-        oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
-        if spec.job_type != None:
-            oargridsub_cmdline += ':type="%s"' % (spec.job_type,)
-        if spec.sql_properties != None:
-            oargridsub_cmdline += ':prop="%s"' % (spec.sql_properties,)
-        if spec.name != None:
-            oargridsub_cmdline += ':name="%s"' % (spec.name,)
+    oargridsub_cmdline = get_oargridsub_commandline(job_specs, reservation_date,
+                                                    walltime, job_type, queue,
+                                                    directory, additional_options)
     process = get_process(oargridsub_cmdline,
                           host = get_frontend_host(),
                           connexion_params = make_connexion_params(frontend_connexion_params,
