@@ -1,0 +1,115 @@
+<deployment>
+  <site id="reims">
+    <cluster id="stremi">
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      <host id="stremi-2">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-3" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-4" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-5" cpu="2"/>
+      </host>
+      <host id="stremi-1">
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-0" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-1" cpu="2"/>
+        <vm mem="1024" ip="X.X.X.X" hdd="20" id="vm-2" cpu="2"/>
+      </host>
+      
+    
+      
+      
+    </cluster>
+  </site>
+</deployment>
