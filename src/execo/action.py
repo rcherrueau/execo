@@ -719,7 +719,7 @@ class TaktukRemote(Action):
         self._taktuk = get_process(self._taktuk_cmdline,
                                    host = taktuk_gateway,
                                    connexion_params = actual_connexion_params['taktuk_gateway_connexion_params'],
-                                   timeout = self._kwargs.get('timeout'),
+                                   timeout = self._other_kwargs.get('timeout'),
                                    stdout_handler = self._taktuk_stdout_output_handler,
                                    stderr_handler = self._taktuk_stderr_output_handler,
                                    #default_stdout_handler = False,
