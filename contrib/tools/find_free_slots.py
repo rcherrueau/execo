@@ -107,11 +107,11 @@ class g5k_find_free_slots(object):
 		self.walltime=walltime
 		h, m, s = walltime.split(':')
 		self.duration=int(DT.timedelta(hours=int(h), minutes=int(m), seconds=int(s)+10).total_seconds())
-		self.logger.info('** From \033[1m%s\033[0m to \033[1m%s\033[0m', 
+		self.logger.info('From \033[1m%s\033[0m to \033[1m%s\033[0m', 
 			self.startdate.strftime("%Y-%m-%d %H:%M"), self.enddate.strftime("%Y-%m-%d %H:%M"))
 
 	def compute_hosts_planning(self):
-		self.logger.info('** Computing hosts planning ...')
+		self.logger.info('Computing hosts planning ...')
 		self.hosts_plannings={}		
 		
 		for site in self.xml.findall('site'):
@@ -189,7 +189,7 @@ class g5k_find_free_slots(object):
 		
 	
 	def compute_freeslots(self):
-		self.logger.info('** Computing grid, sites and clusters plannings ...')
+		self.logger.info('Computing grid, sites and clusters plannings ...')
 		self.freeslots={}
 		for res_id, n_nodes in self.resources.iteritems():
 			self.freeslots[res_id]=[]
@@ -223,7 +223,7 @@ class g5k_find_free_slots(object):
 			
 	
 	def get_windows_ok(self):
-		self.logger.info('** Determining all free slots for your reservation ...')
+		self.logger.info('Determining all free slots for your reservation ...')
 		n_element=len(self.resources)
 		windows_limits=[self.startdate_stamp,self.enddate_stamp]
 		
@@ -252,7 +252,7 @@ class g5k_find_free_slots(object):
 		
 		
 	def draw_gantt(self):
-		self.logger.info('** Drawing Gantt diagram ...')
+		self.logger.info('Drawing Gantt diagram ...')
 		PLT.figure(figsize=(15,10),dpi=80)
 		PLT.title('Gantt diagram for the resources you ask')
 		
@@ -299,20 +299,18 @@ class g5k_find_free_slots(object):
 		PLT.show()
 
 	def choose_freeslot(self,freeslots,autochoice):
-	
-	
 		for freeslot in freeslots:
 			if freeslot[0]==freeslot[1]:
 				freeslots.remove(freeslot)
 		
 		if len(freeslots)>0:
 			if not autochoice:
-				log='** Available freeslots :'
+				log='Available freeslots :'
 				i=0
 				for freeslot in freeslots:
 					i+=1
 					log+='\n '+str(i)+') '+DT.datetime.fromtimestamp(freeslot[0]).strftime('%Y-%m-%d %H:%M:%S')\
-					 +'-'+DT.datetime.fromtimestamp(freeslot[0]+self.duration).strftime('%Y-%m-%d %H:%M:%S')
+					 +' - '+DT.datetime.fromtimestamp(freeslot[1]+self.duration).strftime('%Y-%m-%d %H:%M:%S')
 				log+='\n x) Abort ...'
 				self.logger.info('%s', log)	
 				i_slot=raw_input('Choose your slot: ')
@@ -323,6 +321,7 @@ class g5k_find_free_slots(object):
 				self.logger.info('You have chosen slot starting at %s',DT.datetime.fromtimestamp(freeslots[i_slot][0]))
 				self.chosen_slot=DT.datetime.fromtimestamp(freeslots[i_slot][0])
 			else:
+				self.logger.info('Slot starting at %s has been chosen',DT.datetime.fromtimestamp(freeslots[0][0]))
 				self.chosen_slot=DT.datetime.fromtimestamp(freeslots[0][0])
 		else:
 			self.logger.error('There is not enough resources for your parameters, aborting ...')
@@ -334,8 +333,41 @@ class g5k_find_free_slots(object):
 		if vlan is not None:
 			getlan=True
 		
-		
-		
+		if self.resources.has_key('grid5000.fr'):
+			self.logger.info('Determining which sites to use for your reservation')
+			PP.pprint(self.resources)
+			total_nodes=0
+			sites_nodes={}
+			for site in self.xml.findall('site'):
+				if self.resources.has_key(site.get('id')):
+					sites_nodes[site.get('id')]=self.resources[site.get('id')]
+				else:
+					sites_nodes[site.get('id')]=0
+			while total_nodes != self.resources['grid5000.fr']:
+				max_site=''
+				max_nodes=0
+				for site in self.xml.findall('site'):
+					hosts=self.get_hosts_element(site.get('id'))
+					host_available=0
+					start=int(T.mktime(self.chosen_slot.timetuple()))
+					if start+self.duration <self.enddate_stamp:
+						stop=start+self.duration 
+					else:
+						stop=self.enddate_stamp
+					for slots in hosts.itervalues():
+						for freeslot in slots['free']:
+							if start>=freeslot[0] and stop<=freeslot[1]:
+								host_available+=1
+					if max_nodes<host_available-sites_nodes[site.get('id')]:
+						max_site=site.get('id')
+						max_nodes=host_available-sites_nodes[site.get('id')]
+				sites_nodes[max_site]+=1
+				total_nodes+=1
+			self.resources.clear()
+			for site, n_nodes in sites_nodes.iteritems():
+				if n_nodes>0:
+					self.resources[site]=n_nodes
+		PP.pprint(self.resources)
 		for site in self.xml.findall('site'):
 			resources=''
 			cluster_nodes=0
@@ -350,49 +382,37 @@ class g5k_find_free_slots(object):
 				
 			if site.get('id') in self.resources:
 				resources+="nodes="+str(self.resources[site.get('id')]-cluster_nodes)+'+'
-			
-			
-			subs.append((EX5.OarSubmission(resources=resources[:-1]),site.get('id')))
+				subs.append((EX5.OarSubmission(resources=resources[:-1]),site.get('id')))
 		
-		if auto_reservation:
+		self.logger.info('Reservation command: \n \033[1m%s\033[0m',get_oargridsub_commandline(subs,walltime=self.walltime,additional_options=oargridsub_opts,reservation_date=self.chosen_slot))
+		if auto_reservation:			
 			EX5.oargridsub(subs,walltime=self.walltime,additional_options=oargridsub_opts,reservation_date=self.chosen_slot)
-		else:
-			self.logger.info('%s',get_oargridsub_commandline(subs,walltime=self.walltime,additional_options=oargridsub_opts,reservation_date=self.chosen_slot))
+		else:			
 			reservation=raw_input('Do you want me to do the reservation (y/n): ')
 			if reservation=='y':
 				(oargrid_job_id, ssh_key)=EX5.oargridsub(subs,walltime=self.walltime,additional_options=oargridsub_opts,reservation_date=self.chosen_slot)
-				self.logger.info('Grid reservation done, oargridjob_id=%s',oargrid_job_id)
+				self.logger.info('Grid reservation done, oargridjob_id = %s',oargrid_job_id)
 
 if __name__ == '__main__':
 	if len(sys.argv)>1:
 		
 		usage = "usage: %prog"
-		description = """           
+		description = """
+		This program allow you to determine the slots available for your experiment, defined by a resource
+		combination given and a           
 		"""
-		epilog = """ 
+		epilog = """Examples : \n sdf
 		"""
 		
 		parser = OptionParser(usage = usage, description = description, epilog = epilog)
 	
 		optinout= OptionGroup(parser, "I/O options", "Controls input and output.")
-		optinout.add_option("-i", 
-						"--infile", 
-						dest="infile", 
-						default='vm_deployment', 
-						help="directory to store the deployment files (%default)", 
-						metavar="OUTDIR")
 		optinout.add_option("-y", 
 						"--yes",
 		                action="store_true", 
 		                dest="yes", 
 		                default=False,
 		                help="Run without prompting user for slot selection (%default)")
-		optinout.add_option("-q", 
-						"--quiet",
-		                action="store_true", 
-		                dest="quiet", 
-		                default=False,
-		                help="don't print messages to stdout  (%default)")
 		optinout.add_option("-p", 
 						"--plots",
 		                action="store_true", 
@@ -405,7 +425,7 @@ if __name__ == '__main__':
 						"--resources", 
 						dest="resources", 
 						default=None, 
-						help="comma separated list of 'element1:n_nodes1,element2:n_nodes2'")
+						help="comma separated list of 'element1:n_nodes1,element2:n_nodes2', element can be a cluster, site or grid5000.fr")
 		optreservation.add_option("-l",
 						"--vlan", 
 						dest="vlan", 
