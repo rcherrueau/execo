@@ -9,10 +9,6 @@ import execo as EX, execo_g5k as EX5
 from execo_g5k.api_utils import APIConnexion,get_g5k_sites, get_g5k_hosts, get_site_clusters, get_cluster_site, get_cluster_hosts, _get_api_password
 from execo_g5k.config import default_frontend_connexion_params, g5k_configuration
 from execo_g5k.oargrid import default_frontend_connexion_params,get_oargridsub_commandline
-from networkx import graphviz_layout
-
-import vm_deployment_graph
-#from execo_g5k.api_utils import 
 
 
 class g5k_find_free_slots(object):
@@ -60,7 +56,7 @@ class g5k_find_free_slots(object):
 		self.logger.info('Starting \033[1m%s\033[0m ...',self.__class__.__name__)
 	
 	def get_g5k_elements(self):
-		self.g5k_api=APIConnexion( g5k_configuration.get('api_uri'),username = g5k_configuration.get('api_username'),
+		self.g5k_api=APIConnexion( "https://api.grid5000.fr/2.1",username = g5k_configuration.get('api_username'),
                                 password = _get_api_password())
 		self.logger.info('Retrieving Grid5000 sites, clusters, hosts and reservations from API ...')
 		self.g5k_sites=get_g5k_sites()
@@ -442,7 +438,7 @@ if __name__ == '__main__':
 			resources[element_uid]=int(n_nodes)
 		
 		test=g5k_find_free_slots(options.walltime,resources,oargridsub_opts=options.oargridsub, vlan=options.vlan,
-								with_plots=options.plots, auto=options.yes, weeks=options.time)
+								with_plots=options.plots, auto=options.yes, weeks=int(options.time))
 		
 	else:
 		logger = LOG.getLogger("execo")
