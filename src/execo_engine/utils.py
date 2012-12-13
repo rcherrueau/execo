@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import threading, os, cPickle
+import threading, os, cPickle, fcntl
 from log import logger
 
 class HashableDict(dict):
@@ -106,6 +106,45 @@ def sweep(parameters):
         result = newresult
     return result
 
+# context manager for locking and getting the state of a ParamSweeper
+class _ParamSweeperLockedState():
+
+    def __init__(self, persistence_dir):
+        self.__persistence_dir = persistence_dir
+
+    def __enter__(self):
+        try:
+            os.makedirs(self.__persistence_dir)
+        except os.error:
+            pass
+        self._done_file = open(os.path.join(self.__persistence_dir, "done"), "a+")
+        self._inprogress_file = open(os.path.join(self.__persistence_dir, "inprogress"), "a+")
+        fcntl.lockf(self._done_file, fcntl.LOCK_EX)
+        fcntl.lockf(self._inprogress_file, fcntl.LOCK_EX)
+        try:
+            self._done = cPickle.load(self._done_file)
+        except EOFError:
+            self._done = set()
+        try:
+            self._inprogress = cPickle.load(self._inprogress_file)
+        except EOFError:
+            self._inprogress = set()
+        return (self._done, self._inprogress)
+
+    def __exit__(self, t, v, traceback):
+        self._inprogress_file.truncate(0)
+        self._done_file.truncate(0)
+        cPickle.dump(self._inprogress, self._inprogress_file)
+        cPickle.dump(self._done, self._done_file)
+        self._inprogress_file.flush()
+        os.fsync(self._inprogress_file.fileno())
+        self._done_file.flush()
+        os.fsync(self._done_file.fileno())
+        fcntl.lockf(self._inprogress_file, fcntl.LOCK_UN)
+        fcntl.lockf(self._done_file, fcntl.LOCK_UN)
+        self._inprogress_file.close()
+        self._done_file.close()
+
 class ParamSweeper(object):
 
     """Threadsafe and persistent iterable container to iterate over a list of experiment parameters (or whatever, actually).
@@ -154,51 +193,57 @@ class ParamSweeper(object):
     (continue experiment in a given directory).
     """
 
-    def __init__(self, sweeps, persistence_file, name = None):
+    def __init__(self, sweeps, persistence_dir, name = None):
         """:param sweeps: what to iterate on
 
-        :param persistence_file: path to persistence file
+        :param persistence_dir: path to persistence directory
         """
         self.__lock = threading.RLock()
         self.__sweeps = sweeps
-        self.__done = set()
         self.__skipped = set()
-        self.__inprogress = set()
-        self.__remaining = frozenset()
-        self.__done_file = persistence_file
+        self.__my_inprogress = set()
+        self.__cached_done = set()
+        self.__cached_inprogress = set()
+        self.__persistence_dir = persistence_dir
         self.__name = name
         if not self.__name:
-            self.__name = os.path.basename(self.__done_file)
-        if os.path.isfile(self.__done_file):
-            with open(self.__done_file, "r") as done_file:
-                self.__done = cPickle.load(done_file)
-        self.__update_remaining()
+            self.__name = os.path.basename(self.__persistence_dir)
+        self.update()
 
-    def __update_remaining(self):
-        self.__remaining = frozenset(self.__sweeps).difference(self.__done).difference(self.__skipped).difference(self.__inprogress)
+    def update(self):
+        with self.__lock:
+            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
+                inprogress.update(self.__my_inprogress)
+                self.__cached_done = done
+                self.__cached_inprogress = inprogress
 
     def __str__(self):
-        return "%s <%i total, %i done, %i skipped, %i in progress, %i remaining>" % (
-            self.__name,
-            self.num_total(),
-            self.num_done(),
-            self.num_skipped(),
-            self.num_inprogress(),
-            self.num_remaining())
+        with self.__lock:
+            return "%s <%i total, %i done, %i skipped, %i in progress, %i remaining>" % (
+                self.__name,
+                self.num_total(),
+                self.num_done(),
+                self.num_skipped(),
+                self.num_inprogress(),
+                self.num_remaining())
 
     def set_sweeps(self, sweeps):
         """Change the list of what to iterate on"""
         with self.__lock:
             self.__sweeps = sweeps
-            self.__update_remaining()
 
     def get_next(self):
         """Return the next element which is *todo*. Returns None if reached end."""
         with self.__lock:
             try:
-                combination = iter(self.__remaining).next()
-                self.__inprogress.add(combination)
-                self.__update_remaining()
+                with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
+                    inprogress.update(self.__my_inprogress)
+                    remaining = frozenset(self.__sweeps).difference(done).difference(self.__skipped).difference(inprogress)
+                    combination = iter(remaining).next()
+                    inprogress.add(combination)
+                    self.__my_inprogress.add(combination)
+                    self.__cached_done = done
+                    self.__cached_inprogress = inprogress
                 logger.info("%s new combination: %s", self.__name, combination)
                 logger.info(self)
                 return combination
@@ -210,48 +255,71 @@ class ParamSweeper(object):
     def done(self, combination):
         """mark the given element *done*"""
         with self.__lock:
-            self.__done.add(combination)
-            self.__inprogress.discard(combination)
-            with open(self.__done_file, "w") as done_file:
-                cPickle.dump(self.__done, done_file)
-            self.__update_remaining()
+            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
+                inprogress.update(self.__my_inprogress)
+                done.add(combination)
+                inprogress.discard(combination)
+                self.__my_inprogress.discard(combination)
+                self.__cached_done = done
+                self.__cached_inprogress = inprogress
             logger.info("%s combination done: %s", self.__name, combination)
             logger.info(self)
 
     def skip(self, combination):
         """mark the given element *skipped*"""
         with self.__lock:
-            self.__skipped.add(combination)
-            self.__inprogress.discard(combination)
-            self.__update_remaining()
+            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
+                inprogress.discard(combination)
+                self.__my_inprogress.discard(combination)
+                self.__skipped.add(combination)
+                self.__cached_done = done
+                self.__cached_inprogress = inprogress
             logger.info("%s combination skipped: %s", self.__name, combination)
             logger.info(self)
 
-    def reset(self):
+    RESET_NO_INPROGRESS=0
+    RESET_MY_INPROGRESS=1
+    RESET_ALL_INPROGRESS=2
+
+    def reset(self, reset_inprogress = RESET_NO_INPROGRESS):
         """reset container: iteration will start from beginning, state *skipped* are forgotten, state *done* are **not** forgotten"""
         with self.__lock:
-            self.__inprogress.clear()
             self.__skipped.clear()
-            self.__update_remaining()
+            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
+                if reset_inprogress == RESET_MY_INPROGRESS:
+                    inprogress.difference_update(self.__my_inprogress)
+                    self.__my_inprogress.clear()
+                elif reset_inprogress == RESET_ALL_INPROGRESS:
+                    inprogress.clear()
+                    self.__my_inprogress.clear()
+                else:
+                    inprogress.update(self.__my_inprogress)
+                self.__cached_done = done
+                self.__cached_inprogress = inprogress
             logger.info("%s reset", self.__name)
             logger.info(self)
 
     def num_total(self):
         """returns the total number of elements"""
-        return len(self.__sweeps)
+        with self.__lock:
+            return len(self.__sweeps)
 
     def num_skipped(self):
         """returns the current number of *skipped* elements"""
-        return len(self.__skipped)
+        with self.__lock:
+            return len(self.__skipped)
 
     def num_remaining(self):
         """returns the current number of *todo* elements"""
-        return len(self.__remaining)
+        with self.__lock:
+            return len(frozenset(self.__sweeps).difference(self.__cached_done).difference(self.__skipped).difference(self.__cached_inprogress))
 
     def num_inprogress(self):
         """returns the current number of elements which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*"""
-        return len(self.__inprogress)
+        with self.__lock:
+            return len(self.__cached_inprogress)
 
     def num_done(self):
         """returns the current number of *done* elements"""
-        return self.num_total() - (self.num_remaining() + self.num_inprogress() + self.num_skipped())
+        with self.__lock:
+            return self.num_total() - (self.num_remaining() + self.num_inprogress() + self.num_skipped())
