@@ -179,8 +179,10 @@ class Engine(object):
 
     def _create_result_dir(self):
         """Ensure the engine's result dir exists. Create it if needed."""
-        if not os.path.isdir(self.result_dir):
+        try:
             os.makedirs(self.result_dir)
+        except os.error:
+            pass
 
     def _redirect_outputs(self, merge_stdout_stderr):
         """Redirects, and optionnaly merge, stdout and stderr to file(s) in experiment directory."""
