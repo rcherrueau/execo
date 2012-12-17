@@ -113,36 +113,41 @@ class _ParamSweeperLockedState():
         self.__persistence_dir = persistence_dir
 
     def __enter__(self):
-        try:
-            os.makedirs(self.__persistence_dir)
-        except os.error:
-            pass
         self._done_file = open(os.path.join(self.__persistence_dir, "done"), "a+")
-        self._inprogress_file = open(os.path.join(self.__persistence_dir, "inprogress"), "a+")
         fcntl.lockf(self._done_file, fcntl.LOCK_EX)
-        fcntl.lockf(self._inprogress_file, fcntl.LOCK_EX)
         try:
             self._done = cPickle.load(self._done_file)
+            self._client_done = self._done.copy()
         except EOFError:
-            self._done = set()
+            self._done = None
+            self._client_done = set()
+
+        self._inprogress_file = open(os.path.join(self.__persistence_dir, "inprogress"), "a+")
+        fcntl.lockf(self._inprogress_file, fcntl.LOCK_EX)
         try:
             self._inprogress = cPickle.load(self._inprogress_file)
+            self._client_inprogress = self._inprogress.copy()
         except EOFError:
-            self._inprogress = set()
-        return (self._done, self._inprogress)
+            self._inprogress = None
+            self._client_inprogress = set()
+
+        return (self._client_done, self._client_inprogress)
 
     def __exit__(self, t, v, traceback):
-        self._inprogress_file.truncate(0)
-        self._done_file.truncate(0)
-        cPickle.dump(self._inprogress, self._inprogress_file)
-        cPickle.dump(self._done, self._done_file)
-        self._inprogress_file.flush()
-        os.fsync(self._inprogress_file.fileno())
-        self._done_file.flush()
-        os.fsync(self._done_file.fileno())
+        if self._client_inprogress != self._inprogress:
+            self._inprogress_file.truncate(0)
+            cPickle.dump(self._client_inprogress, self._inprogress_file)
+            self._inprogress_file.flush()
+            os.fsync(self._inprogress_file.fileno())
         fcntl.lockf(self._inprogress_file, fcntl.LOCK_UN)
-        fcntl.lockf(self._done_file, fcntl.LOCK_UN)
         self._inprogress_file.close()
+
+        if self._client_done != self._done:
+            self._done_file.truncate(0)
+            cPickle.dump(self._client_done, self._done_file)
+            self._done_file.flush()
+            os.fsync(self._done_file.fileno())
+        fcntl.lockf(self._done_file, fcntl.LOCK_UN)
         self._done_file.close()
 
 class ParamSweeper(object):
@@ -208,6 +213,10 @@ class ParamSweeper(object):
         self.__name = name
         if not self.__name:
             self.__name = os.path.basename(self.__persistence_dir)
+        try:
+            os.makedirs(self.__persistence_dir)
+        except os.error:
+            pass
         self.update()
 
     def update(self):
