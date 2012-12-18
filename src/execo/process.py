@@ -172,6 +172,7 @@ class ProcessBase(object):
           `execo.process.ProcessLifecycleHandler` for being notified
           of process lifecycle events.
         """
+        self._host = None
         self._started = False
         self._start_date = None
         self._ended = False
@@ -465,6 +466,10 @@ class ProcessBase(object):
             self._process_lifecycle_handler.reset(self)
         self._common_reset()
         return self
+
+    def host(self):
+        """Return the remote host."""
+        return self._host
 
 def _get_childs(pid):
     childs = []
@@ -840,18 +845,19 @@ class SshProcess(Process):
           True, because oarsh/oarcp are run sudo which forbids to send
           signals).
         """
-        self._host = Host(host)
+        host = Host(host)
         self._remote_cmd = cmd
         self._connexion_params = connexion_params
-        real_cmd = (get_ssh_command(self._host.user,
-                                    self._host.keyfile,
-                                    self._host.port,
+        real_cmd = (get_ssh_command(host.user,
+                                    host.keyfile,
+                                    host.port,
                                     connexion_params)
-                    + (get_rewritten_host_address(self._host.address, connexion_params),)
+                    + (get_rewritten_host_address(host.address, connexion_params),)
                     + (cmd,))
         if not 'pty' in kwargs:
             kwargs['pty'] = make_connexion_params(connexion_params).get('pty')
         super(SshProcess, self).__init__(real_cmd, **kwargs)
+        self._host = host
 
     def _args(self):
         return [ repr(self._remote_cmd),
@@ -869,10 +875,6 @@ class SshProcess(Process):
         """Return the command line executed remotely through ssh."""
         return self._cmd
 
-    def host(self):
-        """Return the remote host."""
-        return self._host
-
     def connexion_params(self):
         """Return ssh connexion parameters."""
         return self._connexion_params
@@ -882,17 +884,13 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
     r"""Dummy process similar to `execo.process.SshProcess`."""
 
     def __init__(self, cmd, host = None, **kwargs):
+        super(TaktukProcess, self).__init__(cmd, **kwargs)
         self._host = Host(host)
         self._remote_cmd = cmd
-        super(TaktukProcess, self).__init__(cmd, **kwargs)
 
     def _args(self):
         return [ repr(self._remote_cmd),
                  repr(self._host) ] + ProcessBase._kwargs(self)
-
-    def host(self):
-        """Return the remote host."""
-        return self._host
 
     @synchronized
     def start(self):
