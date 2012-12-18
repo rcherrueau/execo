@@ -241,35 +241,21 @@ class ParamSweeper(object):
         with self.__lock:
             self.__sweeps = sweeps
 
-    def get_next(self, predicate = None, sort = False, cmp = None, key = None, reverse = False):
+    def get_next(self, filtr = None):
         """Return the next element which is *todo*. Returns None if reached end.
 
-        :param predicate: function. If not None, will return only
-          among elements for which predicate is True.
-
-        :param sort: boolean. If True, elements will be returned in a
-          sorted order
-
-        :param cmp: custom comparison function, for getting the
-          elements in a sorted order. See ``list.sort()``
-
-        :param key: custom key function, for getting the elements in a
-          sorted order. See ``list.sort()``
-
-        :param cmp: to reverse the sort order. See ``list.sort()``
+        :param filtr: a filter function. If not None, this filter
+          takes the iterable of remaining elements and returns a
+          filtered iterable. It can be used to filter out some
+          combinations and / or control the order of iteration.
         """
         with self.__lock:
             try:
                 with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
                     inprogress.update(self.__my_inprogress)
                     remaining = frozenset(self.__sweeps).difference(done).difference(self.__skipped).difference(inprogress)
-                    if predicate:
-                        remaining = filter(predicate, remaining)
-                    if sort:
-                        remaining = sorted(remaining,
-                                           cmp = cmp,
-                                           key = key,
-                                           reverse = reverse)
+                    if filtr:
+                        remaining = filtr(remaining)
                     combination = iter(remaining).next()
                     inprogress.add(combination)
                     self.__my_inprogress.add(combination)
