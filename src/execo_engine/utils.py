@@ -286,6 +286,17 @@ class ParamSweeper(object):
             logger.info("%s combination skipped: %s", self.__name, combination)
             logger.info(self)
 
+    def cancel(self, combination):
+        """cancel processing of the given combination, but don't mark it as skipped, it comes back in the queue of remaining combinations"""
+        with self.__lock:
+            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
+                inprogress.discard(combination)
+                self.__my_inprogress.discard(combination)
+                self.__cached_done = done
+                self.__cached_inprogress = inprogress
+            logger.info("%s combination cancelled: %s", self.__name, combination)
+            logger.info(self)
+
     RESET_NO_INPROGRESS=0
     RESET_MY_INPROGRESS=1
     RESET_ALL_INPROGRESS=2
