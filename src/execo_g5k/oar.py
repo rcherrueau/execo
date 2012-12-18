@@ -47,7 +47,7 @@ def format_oar_date(date):
     :param date: a date in one of the formats handled.
     """
     date = int(get_unixts(date))
-    t = time.localtime(date)
+    t = time.gmtime(date)
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     return formatted_time
 
