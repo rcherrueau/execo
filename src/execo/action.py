@@ -803,6 +803,7 @@ class Put(Remote):
                         shell = True,
                         process_lifecycle_handler = lifecycle_handler,
                         **self._other_kwargs)
+            p._host = host
             self._processes.append(p)
 
     def _args(self):
@@ -882,6 +883,7 @@ class Get(Remote):
                         shell = True,
                         process_lifecycle_handler = lifecycle_handler,
                         **self._other_kwargs)
+            p._host = host
             self._processes.append(p)
 
     def _args(self):
