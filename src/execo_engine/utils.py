@@ -152,15 +152,17 @@ class _ParamSweeperLockedState():
 
 class ParamSweeper(object):
 
-    """Threadsafe and persistent iterable container to iterate over a list of experiment parameters (or whatever, actually).
+    """Multi-process-safe, thread-safe and persistent iterable container to iterate over a list of experiment parameters (or whatever, actually).
 
     The aim of this class is to provide a convenient way to iterate
     over several experiment configurations (or anything else). It is
     an iterable container with the following characteristics:
 
-    - each element of the iterable has three states:
+    - each element of the iterable has four states:
 
       - *todo*
+
+      - *inprogress*
 
       - *done*
 
@@ -173,22 +175,35 @@ class ParamSweeper(object):
     - when iterating over it, you always get the next item in *todo*
       state
 
-    - this container is threadsafe
-
     - this container has automatic persistence of the element states
-      *done* (but not state *skipped*) to disk: If later you
-      instanciate a container with the same persistence file (path to
-      this file is given to constructor), then the elements of the
-      container will be taken from the constructor argument, but those
-      marked *done* in the last stored in the persistent file will be
-      marked *done*
+      *done* and *inprogress* (but not state *skipped*) to disk: If
+      later you instanciate a container with the same persistence
+      directory (path to is given to constructor), then the elements
+      of the container will be taken from the constructor argument,
+      but states *done* or *inprogress* will be loaded from persistent
+      state.
+
+    - this container is thread-safe and multi-process-safe. Multiple
+      threads can concurrently use a single ParamSweeper
+      object. Multiple threads or processes on the same or different
+      hosts can concurrently use several ParamSweeper instances
+      sharing the same persistence directory. With sufficiently recent
+      linux kernels and nfs servers / clients, it will work on a
+      shared nfs storage (current implementation uses python flock,
+      which should work since kernel 2.6.12. see
+      http://nfs.sourceforge.net/#faq_d10). All threads sharing a
+      ParamSweeper instance synchronize through in-process locks, and
+      all threads / processes with different instances of ParamSweeper
+      sharing the same persistent directory synchronize through the
+      persisted state.
 
     This container is intended to be used in the following way: at the
     beginning of the experiment, you initialize a ParamSweeper with
     the list of experiment configurations (which can result from a
     call to `execo_engine.utils.sweep`, but not necessarily) and a
-    filename for the persistence. During execution, you request
-    (possibly from several threads) new experiment configurations with
+    directory for the persistence. During execution, you request
+    (possibly from several concurrent threads or processes) new
+    experiment configurations with
     `execo_engine.utils.ParamSweeper.get_next`, mark them *done* or
     *skipped* with `execo_engine.utils.ParamSweeper.done` and
     `execo_engine.utils.ParamSweeper.skip`. At a later date, you can
@@ -196,12 +211,23 @@ class ParamSweeper(object):
     also retrying the skipped configurations. This works well when
     used with `execo_engine.engine.Engine` startup option ``-c``
     (continue experiment in a given directory).
+
+    State *inprogress* is stored on disk to avoid concurrent processes
+    to get the same elements from different ParamSweeper instances (to
+    avoid duplicating work). In some cases (for example if a process
+    has crashed without marking an element *done* or *skipped* or
+    cancelling it), you may want to reset the *inprogress* state. This
+    can be done by removing the file ``inprogress`` in the persistence
+    directory (this can even be done while some ParamSweeper are
+    instanciated and using it).
     """
 
     def __init__(self, sweeps, persistence_dir, name = None):
         """:param sweeps: what to iterate on
 
-        :param persistence_dir: path to persistence directory
+        :param persistence_dir: path to persistence directory. In this
+          directory will be created to python pickle files: ``done``
+          and ``inprogress`` This files can be erased if needed.
         """
         self.__lock = threading.RLock()
         self.__sweeps = sweeps
@@ -220,6 +246,7 @@ class ParamSweeper(object):
         self.update()
 
     def update(self):
+        """update the state (and cached state) of the ParamSweeper from disk. Can be used by client code, but mainly intended to be used internally."""
         with self.__lock:
             with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
                 inprogress.update(self.__my_inprogress)
@@ -295,7 +322,7 @@ class ParamSweeper(object):
             logger.info(self)
 
     def cancel(self, combination):
-        """cancel processing of the given combination, but don't mark it as skipped, it comes back in the queue of remaining combinations"""
+        """cancel processing of the given combination, but don't mark it as skipped, it comes back in the *todo* queue."""
         with self.__lock:
             with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
                 inprogress.discard(combination)
@@ -310,7 +337,16 @@ class ParamSweeper(object):
     RESET_ALL_INPROGRESS=2
 
     def reset(self, reset_inprogress = RESET_NO_INPROGRESS):
-        """reset container: iteration will start from beginning, state *skipped* are forgotten, state *done* are **not** forgotten"""
+        """reset container: iteration will start from beginning, state *skipped* are forgotten, state *done* are **not** forgotten.
+
+        :param reset_inprogress: can be RESET_NO_INPROGRESS (default):
+          state *inprogress* is not reset. RESET_MY_INPROGRESS:
+          elements with state *inprogress* set in this ParamSweeper
+          instance are reset to *todo*, not those of other
+          ParamSweeper instances. RESET_ALL_INPROGRESS: all elements
+          with state *inprogress* of all ParamSweeper instances are
+          reset to *todo*.
+        """
         with self.__lock:
             self.__skipped.clear()
             with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
