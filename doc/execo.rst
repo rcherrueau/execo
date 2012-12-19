@@ -250,7 +250,7 @@ automatically substituted:
 
 For example, in the following code::
 
-  execo.Remote(hosts1, 'iperf -c {{[host.address for host in hosts2]}}')
+  execo.Remote('iperf -c {{[host.address for host in hosts2]}}', hosts1)
 
 When execo runs this command on all hosts of ``hosts1``, it will
 produce a different command line for each host, each command line
