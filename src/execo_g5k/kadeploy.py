@@ -435,7 +435,7 @@ def deploy(deployment,
     start_time = time.time()
     deployed_hosts = set()
     undeployed_hosts = get_hosts_set(deployment.hosts)
-    my_newly_deployed = None
+    my_newly_deployed = []
     if check_deployed_command:
         my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params)
         deployed_hosts.update(my_newly_deployed)
@@ -460,7 +460,7 @@ def deploy(deployment,
                                                 out = out,
                                                 frontend_connexion_params = frontend_connexion_params,
                                                 timeout = deploy_timeout)
-        my_newly_deployed = None
+        my_newly_deployed = []
         if check_deployed_command:
             my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params)
             deployed_hosts.update(my_newly_deployed)
