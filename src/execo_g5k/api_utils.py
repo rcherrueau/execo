@@ -34,8 +34,9 @@ This module is currently not thread-safe.
 """
 
 from execo_g5k.config import g5k_configuration
+import execo
 import httplib2
-import json
+import json, re, itertools
 
 _g5k_api = None
 """Internal singleton instance of the g5k api rest resource."""
@@ -117,6 +118,7 @@ class APIConnexion:
             self.http.add_credentials(username, password)
 
     def get(self, relative_uri):
+        """Get the (response, content) tuple for the given path on the server"""
         uri = self.base_uri + "/" + relative_uri.lstrip("/")
         response, content = self.http.request(uri,
                                               headers = self.headers)
@@ -204,3 +206,63 @@ def get_cluster_site(cluster):
         if cluster in _g5k[site]:
             return site
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
+
+__g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+(\.([a-zA-Z]+))?")
+
+def get_host_cluster(host):
+    """Get the cluster of a host.
+
+    Works both with a bare hostname or a fqdn.
+    """
+    if isinstance(host, execo.Host):
+        host = host.address
+    m = __g5k_host_group_regex.match(host)
+    if m: return m.group(1)
+    else: return None
+
+def get_host_site(host):
+    """Get the site of a host.
+
+    Works both with a bare hostname or a fqdn.
+    """
+    if isinstance(host, execo.Host):
+        host = host.address
+    m = __g5k_host_group_regex.match(host)
+    if m:
+        if m.group(3):
+            return m.group(3)
+        else:
+            return get_cluster_site(m.group(1))
+    else: return None
+
+def group_hosts(hosts):
+    """Given a sequence of hosts, group them in a dict by sites and clusters"""
+    grouped_hosts = {}
+    for site, site_hosts in itertools.groupby(
+        sorted(hosts,
+               lambda h1, h2: cmp(
+                   get_host_site(h1),
+                   get_host_site(h2))),
+        get_host_site):
+        grouped_hosts[site] = {}
+        for cluster, cluster_hosts in itertools.groupby(
+            sorted(site_hosts,
+                   lambda h1, h2: cmp(
+                       get_host_cluster(h1),
+                       get_host_cluster(h2))),
+            get_host_cluster):
+            grouped_hosts[site][cluster] = list(cluster_hosts)
+    return grouped_hosts
+
+def get_host_attributes(host):
+    """Get the attributes of a host (as known to the g5k api) as a dict"""
+    if isinstance(host, execo.Host):
+        host = host.address
+    host_shortname, _, _ = host.partition(".")
+    cluster = get_host_cluster(host)
+    site = get_host_site(host)
+    (_, content) = _get_g5k_api().get('/grid5000/sites/' + site
+                                      + '/clusters/' + cluster
+                                      + '/nodes/' + host_shortname)
+    attributes = json.loads(content)
+    return attributes

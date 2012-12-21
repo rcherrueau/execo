@@ -154,6 +154,27 @@ get_cluster_site
 ----------------
 .. autofunction:: get_cluster_site
 
+get_host_cluster
+----------------
+.. autofunction:: get_host_cluster
+
+get_host_site
+-------------
+.. autofunction:: get_host_site
+
+group_hosts
+-----------
+.. autofunction:: group_hosts
+
+get_host_attributes
+-------------------
+.. autofunction:: get_host_attributes
+
+APIConnexion
+------------
+.. autoclass:: APIConnexion
+   :members:
+
 Configuration
 =============
 
