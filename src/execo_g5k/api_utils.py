@@ -46,38 +46,61 @@ a dict whose keys are sites, whose values are dict whose keys are
 clusters, whose values are hosts.
 """
 
-__api_password = None
-def _get_api_password():
-    username = g5k_configuration.get('api_username')
-    global __api_password
-    if not __api_password and username:
+__api_passwords = dict()
+# private dictionnary keyed by username, storing cached passwords
+def _get_api_password(username):
+    if not __api_passwords.get(username):
         try:
             import keyring
-            __api_password = keyring.get_password("grid5000_api", username)
+            __api_passwords[username] = keyring.get_password("grid5000_api", username)
         except ImportError:
             # only use keyring if available
             pass
-        if not __api_password:
+        if not __api_passwords.get(username):
             import getpass
-            __api_password = getpass.getpass(
+            __api_passwords[username] = getpass.getpass(
                 "Grid5000 API authentication password for user %s" % (username,))
             try:
                 import keyring
-                keyring.set_password("grid5000_api", username, __api_password)
+                keyring.set_password("grid5000_api", username, __api_passwords[username])
             except ImportError:
                 # only use keyring if available
                 pass
-    return __api_password
+    return __api_passwords[username]
 
 class APIConnexion:
+    """Basic class for easily getting url contents.
 
-    def __init__(self, base_uri, username = None, password = None, headers = None, timeout = 300):
+    Intended to be used to get content from restfull apis, particularly the grid5000 api.
+    """
+
+    def __init__(self, base_uri = None, username = None, password = None, headers = None, timeout = 300):
+        """:param base_uri: server base uri. defaults to
+          ``g5k_configuration.get('api_uri')``
+
+        :param username: username for the http connexion. If None
+          (default), use default from
+          ``g5k_configuration.get('api_username')``. If False, don't
+          use a username at all.
+
+        :param password: password for the http connexion. If None
+          (default), get the password from a keyring (if available) or
+          interactively.
+
+        :param headers: http headers to use. If None (default),
+          default headers accepting json answer will be used.
+
+        :param timeout: timeout for the http connexion.
+        """
+        if not base_uri:
+            base_uri = g5k_configuration.get('api_uri')
         self.base_uri = base_uri.rstrip("/")
-        self.headers = {
-            'ACCEPT': 'application/json'
-            }
         if headers:
-            self.headers.update(headers)
+            self.headers = headers
+        else:
+            self.headers = {
+                'ACCEPT': 'application/json'
+            }
         try:
             self.http = httplib2.Http(timeout = timeout,
                                       disable_ssl_certificate_validation = True)
@@ -86,6 +109,10 @@ class APIConnexion:
             # disable_ssl_certificate_validation, try
             # without it
             self.http = httplib2.Http(timeout = timeout)
+        if username == None:
+            username = g5k_configuration.get('api_username')
+        if username and not password:
+            password = _get_api_password(username)
         if username and password:
             self.http.add_credentials(username, password)
 
@@ -101,9 +128,7 @@ def _get_g5k_api():
     """Get a singleton instance of a g5k api rest resource."""
     global _g5k_api #IGNORE:W0603
     if not _g5k_api:
-        _g5k_api = APIConnexion(g5k_configuration.get('api_uri'),
-                                username = g5k_configuration.get('api_username'),
-                                password = _get_api_password())
+        _g5k_api = APIConnexion()
     return _g5k_api
 
 def get_g5k_sites():
