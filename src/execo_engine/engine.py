@@ -131,6 +131,8 @@ class Engine(object):
     which are automatically defined and initialized at the right time
     by the base class `execo_engine.engine.Engine`:
 
+    - `execo_engine.engine.Engine.engine_dir`
+
     - `execo_engine.engine.Engine.result_dir`
 
     - `execo_engine.engine.Engine.options_parser`
