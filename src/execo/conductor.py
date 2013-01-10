@@ -32,6 +32,15 @@ import threading
 import time
 import traceback
 
+# assuming import of this module is triggered from "the main" thread,
+# the following call is intended to workaround python issue #7980
+# http://bugs.python.org/issue7980
+# (see also http://bugs.python.org/issue11108)
+try:
+    time.strptime("1970-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+except:
+    pass
+
 # max number of bytes read when reading asynchronously from a pipe
 # (from _POSIX_SSIZE_MAX)
 _MAXREAD = 32767
