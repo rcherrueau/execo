@@ -873,7 +873,7 @@ class SshProcess(Process):
 
     def remote_cmd(self):
         """Return the command line executed remotely through ssh."""
-        return self._cmd
+        return self._remote_cmd
 
     def connexion_params(self):
         """Return ssh connexion parameters."""
