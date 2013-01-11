@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import threading, os, cPickle, fcntl
+import threading, os, cPickle, fcntl, unicodedata, re
 from log import logger
 
 class HashableDict(dict):
@@ -31,6 +31,23 @@ class HashableDict(dict):
 
     def __eq__(self, other):
         return other and self.__key() == other.__key()
+
+def slugify(value):
+    """
+    Normalizes string representation, converts to lowercase, removes
+    non-alpha characters, and converts spaces to hyphens.
+
+    Intended to convert any object having a relevant string
+    representation to a valid filename.
+
+    more or less inspired / copy pasted from django (see
+    http://stackoverflow.com/questions/295135/turn-a-string-into-a-valid-filename-in-python)
+    """
+    value = unicode(str(value))
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
+    value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
+    value = unicode(re.sub('[-\s]+', '-', value))
+    return value
 
 def sweep(parameters):
 
