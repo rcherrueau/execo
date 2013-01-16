@@ -36,7 +36,9 @@ try:
     from api_utils import get_g5k_sites, get_site_clusters, \
       get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
       get_cluster_site, APIConnexion, get_host_site, \
-      get_host_cluster, group_hosts, get_host_attributes
+      get_host_cluster, group_hosts, get_resource_attributes, \
+      get_host_attributes, get_cluster_attributes, \
+      get_site_attributes
 except ImportError:
     # probably if httplib2 is not installed.
     pass
