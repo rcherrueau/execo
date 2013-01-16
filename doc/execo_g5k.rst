@@ -166,9 +166,21 @@ group_hosts
 -----------
 .. autofunction:: group_hosts
 
+get_resource_attributes
+-----------------------
+.. autofunction:: get_resource_attributes
+
 get_host_attributes
 -------------------
 .. autofunction:: get_host_attributes
+
+get_cluster_attributes
+----------------------
+.. autofunction:: get_cluster_attributes
+
+get_site_attributes
+-------------------
+.. autofunction:: get_site_attributes
 
 APIConnexion
 ------------

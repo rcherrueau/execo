@@ -254,6 +254,12 @@ def group_hosts(hosts):
             grouped_hosts[site][cluster] = list(cluster_hosts)
     return grouped_hosts
 
+def get_resource_attributes(path):
+    """Get generic resource (path on g5k api) attributes as a dict"""
+    (_, content) = _get_g5k_api().get(path)
+    attributes = json.loads(content)
+    return attributes
+
 def get_host_attributes(host):
     """Get the attributes of a host (as known to the g5k api) as a dict"""
     if isinstance(host, execo.Host):
@@ -261,8 +267,16 @@ def get_host_attributes(host):
     host_shortname, _, _ = host.partition(".")
     cluster = get_host_cluster(host)
     site = get_host_site(host)
-    (_, content) = _get_g5k_api().get('/grid5000/sites/' + site
+    return get_resource_attributes('/grid5000/sites/' + site
                                       + '/clusters/' + cluster
                                       + '/nodes/' + host_shortname)
-    attributes = json.loads(content)
-    return attributes
+
+def get_cluster_attributes(cluster):
+    """Get the attributes of a cluster (as known to the g5k api) as a dict"""
+    site = get_cluster_site(cluster)
+    return get_resource_attributes('/grid5000/sites/' + site
+                                      + '/clusters/' + cluster)
+
+def get_site_attributes(site):
+    """Get the attributes of a site (as known to the g5k api) as a dict"""
+    return get_resource_attributes('/grid5000/sites/' + site)
