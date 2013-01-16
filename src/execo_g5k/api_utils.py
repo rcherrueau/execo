@@ -54,8 +54,8 @@ def _get_api_password(username):
         try:
             import keyring
             __api_passwords[username] = keyring.get_password("grid5000_api", username)
-        except ImportError:
-            # only use keyring if available
+        except:
+            # only use keyring if available and usable
             pass
         if not __api_passwords.get(username):
             import getpass
@@ -64,8 +64,8 @@ def _get_api_password(username):
             try:
                 import keyring
                 keyring.set_password("grid5000_api", username, __api_passwords[username])
-            except ImportError:
-                # only use keyring if available
+            except:
+                # only use keyring if available and usable
                 pass
     return __api_passwords[username]
 
