@@ -538,7 +538,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
     wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
-    process = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
+    process = get_process("(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
                           host = get_frontend_host(frontend),
                           connexion_params = make_connexion_params(frontend_connexion_params,
                                                                    default_frontend_connexion_params),
@@ -578,24 +578,25 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
     wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
-    # g5k-subnets -i -j $OAR_JOB_ID
-    #cmd = "(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id}
-    # g5k-subnets -i -j $OAR_JOB_ID
     # Get ip adresses
-    process_ip = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
-                             host = get_frontend_host(frontend),
-                             connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                      default_frontend_connexion_params),
-                             timeout = countdown.remaining(),
-                             pty = True)
+    process_ip = get_process(
+        "(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
+        host = get_frontend_host(frontend),
+        connexion_params = make_connexion_params(
+            frontend_connexion_params,
+            default_frontend_connexion_params),
+        timeout = countdown.remaining(),
+        pty = True)
     process_ip.run()
     # Get network parameters
-    process_net = get_process("(oarstat -sj %(oar_job_id)i | grep Running) > /dev/null 2>&1 && g5k-subnets -a -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
-                              host = get_frontend_host(frontend),
-                              connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                       default_frontend_connexion_params),
-                              timeout = countdown.remaining(),
-                              pty = True)
+    process_net = get_process(
+        "(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && g5k-subnets -a -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
+        host = get_frontend_host(frontend),
+        connexion_params = make_connexion_params(
+            frontend_connexion_params,
+            default_frontend_connexion_params),
+        timeout = countdown.remaining(),
+        pty = True)
     process_net.run()
     
     if process_net.ok() and process_ip.ok():
