@@ -552,7 +552,10 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
         raise ProcessesFailed, [process]
     
 def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
-    """Return a tuple containing an iterable of IP addresses and a dict containing the subnet parameters that OAR assigned to your reservation, with keys 'netmask', 'broadcast', 'gateway'.
+    """Return a tuple containing an iterable of tuples (IP, MAC) and a dict containing the subnet parameters of the reservation (if any).
+
+    subnet parameters dict has keys: 'ip_prefix', 'broadcast',
+    'netmask', 'gateway', 'network', 'dns_hostname', 'dns_ip'.
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
@@ -580,7 +583,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
     # Get ip adresses
     process_ip = get_process(
-        "(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && g5k-subnets -i -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
+        "(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && g5k-subnets -i -m -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
         host = get_frontend_host(frontend),
         connexion_params = make_connexion_params(
             frontend_connexion_params,
@@ -600,14 +603,19 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     process_net.run()
     
     if process_net.ok() and process_ip.ok():
-        subnet_addresses = re.findall("(\S+)", process_ip.stdout(), re.MULTILINE)
-        net_stdout =  process_net.stdout()
-        network_params = net_stdout.split('\t')
-#	print type(network_params)
-#	print len(network_params)
-#	print network_params
-        return (subnet_addresses, {"netmask": network_params[2],
-                                   "broadcast": network_params[1],
-                                   "gateway": network_params[3]})
+        subnet_addresses = re.findall("(\S+)\s+(\S+)", process_ip.stdout(), re.MULTILINE)
+        process_net_out = process_net.stdout().rstrip().split('\t')
+        network_params = dict()
+        if len(process_net_out) == 7:
+            network_params = {
+                "ip_prefix": process_net_out[0],
+                "broadcast": process_net_out[1],
+                "netmask": process_net_out[2],
+                "gateway": process_net_out[3],
+                "network": process_net_out[4],
+                "dns_hostname": process_net_out[5],
+                "dns_ip": process_net_out[6]
+                }
+        return (subnet_addresses, network_params)
     else:
         raise ProcessesFailed, [ p for p in [process_net, process_ip] if not p.ok() ]
