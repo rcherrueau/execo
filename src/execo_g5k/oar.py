@@ -619,3 +619,51 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
         return (subnet_addresses, network_params)
     else:
         raise ProcessesFailed, [ p for p in [process_net, process_ip] if not p.ok() ]
+
+def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
+    """Return the vlan id of a job (if any).
+
+    :param oar_job_id: the oar job id. If None given, will try to get
+      it from ``OAR_JOB_ID`` environment variable.
+
+    :param frontend: the frontend of the oar job. If None given, use
+      default frontend.
+
+    :param frontend_connexion_params: connexion params for connecting
+      to frontends if needed. Values override those in
+      `execo_g5k.config.default_frontend_connexion_params`.
+
+    :param timeout: timeout for retrieving. Default is False, which
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
+    """
+    if timeout == False:
+        timeout = g5k_configuration.get('default_timeout')
+    if oar_job_id == None:
+        if os.environ.has_key('OAR_JOB_ID'):
+            oar_job_id = os.environ['OAR_JOB_ID']
+        else:
+            raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+    countdown = Timer(timeout)
+    wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
+    process = get_process(
+        'kavlan -j %s -V ' % oar_job_id,
+        host = get_frontend_host(frontend),
+        connexion_params = make_connexion_params(
+            frontend_connexion_params,
+            default_frontend_connexion_params),
+        timeout = countdown.remaining(),
+        pty = True,
+        ignore_exit_code = True) # kavlan exit code != 0 if request is
+                                 # for a job without a vlan
+                                 # reservation
+    process.run()
+    if process.ok():
+        try:
+            return int(process.stdout().strip().rstrip())
+        except:
+            return None # handles cases where the job has no kavlan
+                        # resource or when kavlan isn't available
+    else:
+        raise ProcessesFailed, [process]
