@@ -314,7 +314,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
     """
     if timeout == False:
         timeout = g5k_configuration.get('default_timeout')
-    process = get_process("oargridstat -wl %i 2>/dev/null" % (oargrid_job_id,),
+    process = get_process("oargridstat -wl %i 2>/dev/null || oargridstat -l %i 2>/dev/null" % (oargrid_job_id, oargrid_job_id),
                           host = get_frontend_host(),
                           connexion_params = make_connexion_params(frontend_connexion_params,
                                                                    default_frontend_connexion_params),
