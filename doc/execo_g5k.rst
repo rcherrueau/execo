@@ -52,6 +52,10 @@ get_oar_job_subnets
 -------------------
 .. autofunction:: execo_g5k.oar.get_oar_job_subnets
 
+get_oar_job_kavlan
+------------------
+.. autofunction:: execo_g5k.oar.get_oar_job_kavlan
+
 OARGRID functions
 =================
 
