@@ -48,12 +48,20 @@ configuration = {
     'kill_timeout': 5,
     'color_mode': checktty(sys.stdout)
                   and checktty(sys.stderr),
-    'style_log_header': ('yellow',),
-    'style_log_level' : ('magenta',),
-    'style_object_repr': ('blue', 'bold'),
-    'style_emph': ('magenta', 'bold'),
-    'style_report_warn': ('magenta',),
-    'style_report_error': ('red', 'bold'),
+    'color_styles': {
+        'log_header': ('yellow',),
+        'object_repr': ('blue', 'bold'),
+        'emph': ('magenta', 'bold'),
+        'report_warn': ('magenta',),
+        'report_error': ('red', 'bold'),
+        },
+    'log_level_styles' : {
+        logging.DEBUG: ('green',),
+        logging.INFO: ('magenta',),
+        logging.WARNING: ('cyan',),
+        logging.ERROR: ('red',),
+        logging.CRITICAL: ('yellow', 'on_red')
+        }
     }
 # _ENDOF_ configuration
 """Global execo configuration parameters.
@@ -80,10 +88,12 @@ configuration = {
 - ``color_mode``: whether to colorize output (with ansi escape
   sequences)
 
-- ``style_log_header``, ``style_log_level``, ``style_object_repr``,
-  ``style_emph``, ``style_report_warn``, ``style_report_error``:
-  iterables of ansi attributes identifiers (those found in
-  `execo.log._ansi_styles`)
+- ``color_styles``: a dict with keys ``log_header``, ``object_repr``,
+  ``emph``, ``report_warn``, ``report_error``: iterables of ansi
+  attributes identifiers (see `execo.log._ansi_styles`)
+
+- ``log_level_styles``: a mapping of log levels to iterables of ansi
+  attributes identifiers
 
 """
 
