@@ -49,19 +49,18 @@ _ansi_styles = {
     }
 """Definition of ansi escape sequences for colorized output."""
 
-def set_style(string, ansi_style):
+def set_style(string, style):
     """Enclose a string with ansi color escape codes if ``execo.config.configuration['color_mode']`` is True.
 
     :param string: the string to enclose
     
-    :param ansi_style: an iterable of ansi attributes identifiers
-      (those found in `execo.log._ansi_styles`)
+    :param style: a key in dict
+      ``execo.config.configuration['color_styles']``
     """
-    ansi_style = 'style_' + ansi_style
     if (configuration.get('color_mode')
-        and configuration.get(ansi_style)):
+        and configuration['color_styles'].get(style)):
         style_seq = ""
-        for attr in configuration[ansi_style]:
+        for attr in configuration['color_styles'][style]:
             style_seq += _ansi_styles[attr]
         return "%s%s%s" % (style_seq, string, _ansi_styles['default'])
     else:
@@ -71,6 +70,15 @@ def set_style(string, ansi_style):
 logger = logging.getLogger("execo")
 """The execo logger."""
 logger_handler = logging.StreamHandler(sys.stdout)
-logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
+
+class MyFormatter(logging.Formatter):
+    def format(self, record):
+        self._fmt = ( set_style("%(asctime)s %(name)s ", 'log_header')
+                      + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
+                      + "%(levelname)s" + _ansi_styles['default']
+                      + " %(message)s" )
+        return logging.Formatter.format(self, record)
+
+logger_handler.setFormatter(MyFormatter())
 logger.addHandler(logger_handler)
 logger.setLevel(configuration.get('log_level'))

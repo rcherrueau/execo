@@ -129,6 +129,10 @@ oar_duration_to_seconds
 -----------------------
 .. autofunction:: execo_g5k.oar.oar_duration_to_seconds
 
+get_kavlan_host_name
+--------------------
+.. autofunction:: execo_g5k.utils.get_kavlan_host_name
+
 Grid5000 API utilities
 ======================
 

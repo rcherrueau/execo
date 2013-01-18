@@ -32,6 +32,8 @@ from oargrid import oargridsub, oargriddel, \
 
 from kadeploy import Deployment, Kadeployer, kadeploy, deploy
 
+from utils import get_kavlan_host_name
+
 try:
     from api_utils import get_g5k_sites, get_site_clusters, \
       get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
