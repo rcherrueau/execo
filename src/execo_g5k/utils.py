@@ -57,3 +57,11 @@ def get_frontend_host(frontend = None):
     if frontend:
         frontend = Host(frontend)
     return frontend
+
+def get_kavlan_host_name(host, vlanid):
+    """Returns the DNS hostname of a host once switched in a kavlan."""
+    if isinstance(host, Host):
+        host = host.address
+    host_shortname, sep, fqdn = host.partition(".")
+    vlan_host_name = host_shortname + "-kavlan-" + str(vlanid) + sep + fqdn
+    return vlan_host_name
