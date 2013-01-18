@@ -26,7 +26,7 @@ from execo.process import ProcessOutputHandler, get_process
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connexion_params
-from execo_g5k.utils import get_frontend_host
+from execo_g5k.utils import get_frontend_host, get_kavlan_host_name
 from utils import get_default_frontend
 import copy
 import re
@@ -47,6 +47,8 @@ class Deployment(object):
 
     - user:
 
+    - vlan:
+
     - other_options:
 
     there must be either one of env_name or env_file parameter
@@ -59,11 +61,13 @@ class Deployment(object):
                  env_file = None,
                  env_name = None,
                  user = None,
+                 vlan = None,
                  other_options = None):
         self.hosts = hosts
         self.env_file = env_file
         self.env_name = env_name
         self.user = user
+        self.vlan = vlan
         self.other_options = other_options
 
     def _get_common_kadeploy_command_line(self):
@@ -86,6 +90,8 @@ class Deployment(object):
             cmd_line += " -a %s" % (self.env_file,)
         if self.user != None:
             cmd_line += " -u %s" % (self.user,)
+        if self.vlan != None:
+            cmd_line += " --vlan %s" % (self.vlan,)
         if self.other_options:
             cmd_line += " %s" % (self.other_options,)
         return cmd_line
@@ -96,6 +102,7 @@ class Deployment(object):
         if self.env_file != None: s = comma_join(s, "env_file=%r" % (self.env_file,))
         if self.env_name != None: s = comma_join(s, "env_name=%r" % (self.env_name,))
         if self.user != None: s = comma_join(s, "user=%r" % (self.user,))
+        if self.vlan != None: s = comma_join(s, "vlan=%r" % (self.vlan,))
         if self.other_options: s = comma_join(s, "other_options=%r" % (self.other_options,))
         return "Deployment(%s)" % (s,)
 
@@ -356,6 +363,11 @@ def deploy(deployment,
     returns a tuple with the list of deployed hosts and the list of
     undeployed hosts.
 
+    When checking correctly deployed nodes with
+    ``check_deployed_command``, and if the deployment is using the
+    kavlan option, this function will try to contact the nodes using
+    the appropriate DNS hostnames in the new vlan.
+
     :param deployment: instance of `execo.kadeploy.Deployment` class
       describing the intended kadeployment.
 
@@ -409,10 +421,17 @@ def deploy(deployment,
     if check_deployed_command == True:
         check_deployed_command = g5k_configuration.get('check_deployed_command')
 
-    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params): #IGNORE:W0613
+    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params, vlan): #IGNORE:W0613
         logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s", undeployed_hosts)
+        deployment_hostnames_mapping = dict()
+        if vlan:
+            for host in undeployed_hosts:
+                deployment_hostnames_mapping[get_kavlan_host_name(host, vlan)] = host
+        else:
+            for host in undeployed_hosts:
+                deployment_hostnames_mapping[host.address] = host
         deployed_check = get_remote(check_deployed_command,
-                                    undeployed_hosts,
+                                    deployment_hostnames_mapping.keys(),
                                     connexion_params = node_connexion_params,
                                     log_exit_code = False,
                                     log_timeout = False,
@@ -426,10 +445,10 @@ def deploy(deployment,
                          + set_style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
                          + set_style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
             if (process.ok()):
-                newly_deployed.append(process.host())
-                logger.info("OK %s", process.host())
+                newly_deployed.append(deployment_hostnames_mapping[process.host().address])
+                logger.info("OK %s", deployment_hostnames_mapping[process.host().address])
             else:
-                logger.info("KO %s", process.host())
+                logger.info("KO %s", deployment_hostnames_mapping[process.host().address])
         return newly_deployed
 
     start_time = time.time()
@@ -437,7 +456,7 @@ def deploy(deployment,
     undeployed_hosts = get_hosts_set(deployment.hosts)
     my_newly_deployed = []
     if check_deployed_command:
-        my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params)
+        my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params, deployment.vlan)
         deployed_hosts.update(my_newly_deployed)
         undeployed_hosts.difference_update(my_newly_deployed)
     num_tries_done = 0
@@ -462,7 +481,7 @@ def deploy(deployment,
                                                 timeout = deploy_timeout)
         my_newly_deployed = []
         if check_deployed_command:
-            my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params)
+            my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params, deployment.vlan)
             deployed_hosts.update(my_newly_deployed)
             undeployed_hosts.difference_update(my_newly_deployed)
         else:
