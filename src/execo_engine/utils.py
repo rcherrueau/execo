@@ -239,20 +239,21 @@ class ParamSweeper(object):
     instanciated and using it).
     """
 
-    def __init__(self, sweeps, persistence_dir, name = None):
-        """:param sweeps: what to iterate on
-
+    def __init__(self, persistence_dir, sweeps = None, name = None):
+        """
         :param persistence_dir: path to persistence directory. In this
           directory will be created to python pickle files: ``done``
           and ``inprogress`` This files can be erased if needed.
+
+        :param sweeps: what to iterate on. If None (default), try to
+          load it from ``persistence_dir``
         """
         self.__lock = threading.RLock()
-        self.__sweeps = sweeps
+        self.__persistence_dir = persistence_dir
         self.__skipped = set()
         self.__my_inprogress = set()
         self.__cached_done = set()
         self.__cached_inprogress = set()
-        self.__persistence_dir = persistence_dir
         self.__name = name
         if not self.__name:
             self.__name = os.path.basename(self.__persistence_dir)
@@ -261,6 +262,7 @@ class ParamSweeper(object):
         except os.error:
             pass
         self.update()
+        self.set_sweeps(sweeps)
 
     def update(self):
         """update the state (and cached state) of the ParamSweeper from disk. Can be used by client code, but mainly intended to be used internally."""
@@ -283,7 +285,25 @@ class ParamSweeper(object):
     def set_sweeps(self, sweeps):
         """Change the list of what to iterate on"""
         with self.__lock:
-            self.__sweeps = sweeps
+            sweeps_file =  open(os.path.join(self.__persistence_dir, "sweeps"), "a+")
+            try:
+                fcntl.lockf(sweeps_file, fcntl.LOCK_EX)
+                if sweeps:
+                    self.__sweeps = sweeps
+                    sweeps_file.truncate(0)
+                    cPickle.dump(self.__sweeps, sweeps_file)
+                    sweeps_file.flush()
+                    os.fsync(sweeps_file.fileno())
+                else:
+                    self.__sweeps = cPickle.load(sweeps_file)
+            finally:
+                fcntl.lockf(sweeps_file, fcntl.LOCK_UN)
+                sweeps_file.close()
+
+    def sweeps(self):
+        """Returns the list of what to iterate on"""
+        with self.__lock:
+            return self.__sweeps
 
     def get_next(self, filtr = None):
         """Return the next element which is *todo*. Returns None if reached end.
