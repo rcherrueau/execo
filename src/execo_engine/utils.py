@@ -416,3 +416,65 @@ class ParamSweeper(object):
         """returns an iterable of currently *done* elements"""
         with self.__lock:
             return frozenset(self.__sweeps).difference(self.get_remaining(), self.get_inprogress(), self.get_skipped())
+
+    def stats(self):
+        """if combinations are in the format output by `sweep`, return a dict detailing number and ratios of remaining, skipped, done, inprogress combinations per combination parameter value."""
+
+        def count(combs):
+            counts = dict()
+            for comb in combs:
+                for k in comb:
+                    if not counts.has_key(k):
+                        counts[k] = dict()
+                    if not counts[k].has_key(comb[k]):
+                        counts[k][comb[k]] = 0
+                    counts[k][comb[k]] += 1
+            return counts
+
+        with self.__lock:
+            total = count(self.sweeps())
+            remaining = count(self.get_remaining())
+            skipped = count(self.get_skipped())
+            inprogress = count(self.get_inprogress())
+            done = count(self.get_done())
+            remaining_ratio = dict()
+            skipped_ratio = dict()
+            inprogress_ratio = dict()
+            done_ratio = dict()
+            for k1 in total:
+                remaining_ratio[k1] = dict()
+                skipped_ratio[k1] = dict()
+                inprogress_ratio[k1] = dict()
+                done_ratio[k1] = dict()
+                for k2 in total[k1]:
+                    if remaining.has_key(k1) and remaining[k1].has_key(k2):
+                        r = remaining[k1][k2]
+                    else:
+                        r = 0
+                    remaining_ratio[k1][k2] = float(r) / float(total[k1][k2])
+                    if skipped.has_key(k1) and skipped[k1].has_key(k2):
+                        s = skipped[k1][k2]
+                    else:
+                        s = 0
+                    skipped_ratio[k1][k2] = float(s) / float(total[k1][k2])
+                    if inprogress.has_key(k1) and inprogress[k1].has_key(k2):
+                        i = inprogress[k1][k2]
+                    else:
+                        i = 0
+                    inprogress_ratio[k1][k2] = float(i)  / float(total[k1][k2])
+                    if done.has_key(k1) and done[k1].has_key(k2):
+                        d = done[k1][k2]
+                    else:
+                        d = 0
+                    done_ratio[k1][k2] = float(d)  / float(total[k1][k2])
+            return {
+                "total": total,
+                "remaining": remaining,
+                "remaining_ratio": remaining_ratio,
+                "skipped": skipped,
+                "skipped_ratio": skipped_ratio,
+                "inprogress": inprogress,
+                "inprogress_ratio": inprogress_ratio,
+                "done": done,
+                "done_ratio": done_ratio
+                }
