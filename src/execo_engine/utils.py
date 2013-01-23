@@ -276,11 +276,11 @@ class ParamSweeper(object):
         with self.__lock:
             return "%s <%i total, %i done, %i skipped, %i in progress, %i remaining>" % (
                 self.__name,
-                self.num_total(),
-                self.num_done(),
-                self.num_skipped(),
-                self.num_inprogress(),
-                self.num_remaining())
+                len(self.__sweeps),
+                len(self.get_done()),
+                len(self.get_skipped()),
+                len(self.get_inprogress()),
+                len(self.get_remaining()))
 
     def set_sweeps(self, sweeps):
         """Change the list of what to iterate on"""
