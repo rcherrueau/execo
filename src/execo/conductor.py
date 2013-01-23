@@ -430,11 +430,11 @@ class _Conductor(object):
                         if event & select.POLLIN:
                             (string, eof) = _read_asmuch(fd)
                             stream_handler_func(string, eof = False)
-                            #if eof:
-                            #    self.__remove_handle(fd)
-                        if event & select.POLLHUP:
-                            stream_handler_func('', eof = True)
-                            self.__remove_handle(fd)
+                            if eof:
+                                self.__remove_handle(fd)
+                        #if event & select.POLLHUP:
+                        #    stream_handler_func('', eof = True)
+                        #    self.__remove_handle(fd)
                         if event & select.POLLERR:
                             stream_handler_func('', error = True)
                             self.__remove_handle(fd)
