@@ -391,7 +391,7 @@ class ParamSweeper(object):
             return len(self.__skipped)
 
     def remaining(self, filtr = None):
-        """returns the current number of *todo* elements
+        """returns an iterable (currently a frozenset) of the current remaining *todo* elements
 
         :param filtr: a filter function. If not None, this filter
           takes the iterable of remaining elements and returns a
@@ -405,7 +405,7 @@ class ParamSweeper(object):
             return remaining
 
     def num_remaining(self, filtr = None):
-        """returns the current number of *todo* elements
+        """returns the current number of remaining *todo* elements
 
         :param filtr: a filter function. If not None, this filter
           takes the iterable of remaining elements and returns a
