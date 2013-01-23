@@ -302,8 +302,7 @@ class ParamSweeper(object):
 
     def sweeps(self):
         """Returns the list of what to iterate on"""
-        with self.__lock:
-            return self.__sweeps
+        return self.__sweeps
 
     def get_next(self, filtr = None):
         """Return the next element which is *todo*. Returns None if reached end.
@@ -400,46 +399,20 @@ class ParamSweeper(object):
             logger.info("%s reset", self.__name)
             logger.info(self)
 
-    def num_total(self):
-        """returns the total number of elements"""
+    def get_skipped(self):
+        """returns an iterable of current *skipped* elements"""
+        return self.__skipped
+
+    def get_remaining(self):
+        """returns an iterable (currently a frozenset) of the current remaining *todo* elements"""
         with self.__lock:
-            return len(self.__sweeps)
+            return frozenset(self.__sweeps).difference(self.__cached_done, self.__skipped, self.__cached_inprogress)
 
-    def num_skipped(self):
-        """returns the current number of *skipped* elements"""
+    def get_inprogress(self):
+        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)"""
+        return self.__cached_inprogress
+
+    def get_done(self):
+        """returns an iterable of currently *done* elements"""
         with self.__lock:
-            return len(self.__skipped)
-
-    def remaining(self, filtr = None):
-        """returns an iterable (currently a frozenset) of the current remaining *todo* elements
-
-        :param filtr: a filter function. If not None, this filter
-          takes the iterable of remaining elements and returns a
-          filtered iterable. It can be used to filter out some
-          combinations and / or control the order of iteration.
-        """
-        with self.__lock:
-            remaining = frozenset(self.__sweeps).difference(self.__cached_done).difference(self.__skipped).difference(self.__cached_inprogress)
-            if filtr:
-                remaining = filtr(remaining)
-            return remaining
-
-    def num_remaining(self, filtr = None):
-        """returns the current number of remaining *todo* elements
-
-        :param filtr: a filter function. If not None, this filter
-          takes the iterable of remaining elements and returns a
-          filtered iterable. It can be used to filter out some
-          combinations.
-        """
-        return len(self.remaining(filtr))
-
-    def num_inprogress(self):
-        """returns the current number of elements which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*"""
-        with self.__lock:
-            return len(self.__cached_inprogress)
-
-    def num_done(self):
-        """returns the current number of *done* elements"""
-        with self.__lock:
-            return self.num_total() - (self.num_remaining() + self.num_inprogress() + self.num_skipped())
+            return frozenset(self.__sweeps).difference(self.get_remaining(), self.get_inprogress(), self.get_skipped())
