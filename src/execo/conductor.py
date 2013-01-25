@@ -45,14 +45,14 @@ except:
 # (from _POSIX_SSIZE_MAX)
 _MAXREAD = 32767
 
-if sys.platform.startswith('darwin'):
+if sys.platform.startswith('darwin') or sys.platform.startswith('win'):
 
     # minimal abstraction of poll over select allowing the conductor
-    # to run on macos. poll is removed from python on macos due to an
-    # unclear (buggy or unusual?) behavior.  this *minimal*
-    # abstraction only goes as far as needed to allow the conductor to
-    # run, this is probably *not* a full emulation of poll over
-    # select.
+    # to run on platforms lacking poll: macosx, windows. poll is
+    # removed from python on macos due to an unclear (buggy or
+    # unusual?) behavior.  this *minimal* abstraction only goes as far
+    # as needed to allow the conductor to run, this is probably *not*
+    # a full emulation of poll over select.
 
     POLLIN=1
     POLLPRI=2
