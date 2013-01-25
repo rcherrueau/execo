@@ -58,6 +58,15 @@ links
 - contribs:
   https://gforge.inria.fr/plugins/scmgit/cgi-bin/gitweb.cgi?p=execo/execo.git;a=tree;f=contrib
 
+platforms
+---------
+
+- works on linux (primary development platform), darwin (macosx)
+
+- should work on bsd (not tested)
+
+- don't know on windows or cygwin (not tested)
+
 prerequisites
 -------------
 
