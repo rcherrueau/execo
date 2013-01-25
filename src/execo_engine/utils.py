@@ -239,20 +239,21 @@ class ParamSweeper(object):
     instanciated and using it).
     """
 
-    def __init__(self, sweeps, persistence_dir, name = None):
-        """:param sweeps: what to iterate on
-
+    def __init__(self, persistence_dir, sweeps = None, name = None):
+        """
         :param persistence_dir: path to persistence directory. In this
           directory will be created to python pickle files: ``done``
           and ``inprogress`` This files can be erased if needed.
+
+        :param sweeps: what to iterate on. If None (default), try to
+          load it from ``persistence_dir``
         """
         self.__lock = threading.RLock()
-        self.__sweeps = sweeps
+        self.__persistence_dir = persistence_dir
         self.__skipped = set()
         self.__my_inprogress = set()
         self.__cached_done = set()
         self.__cached_inprogress = set()
-        self.__persistence_dir = persistence_dir
         self.__name = name
         if not self.__name:
             self.__name = os.path.basename(self.__persistence_dir)
@@ -261,6 +262,7 @@ class ParamSweeper(object):
         except os.error:
             pass
         self.update()
+        self.set_sweeps(sweeps)
 
     def update(self):
         """update the state (and cached state) of the ParamSweeper from disk. Can be used by client code, but mainly intended to be used internally."""
@@ -274,16 +276,33 @@ class ParamSweeper(object):
         with self.__lock:
             return "%s <%i total, %i done, %i skipped, %i in progress, %i remaining>" % (
                 self.__name,
-                self.num_total(),
-                self.num_done(),
-                self.num_skipped(),
-                self.num_inprogress(),
-                self.num_remaining())
+                len(self.__sweeps),
+                len(self.get_done()),
+                len(self.get_skipped()),
+                len(self.get_inprogress()),
+                len(self.get_remaining()))
 
     def set_sweeps(self, sweeps):
         """Change the list of what to iterate on"""
         with self.__lock:
-            self.__sweeps = sweeps
+            sweeps_file =  open(os.path.join(self.__persistence_dir, "sweeps"), "a+")
+            try:
+                fcntl.lockf(sweeps_file, fcntl.LOCK_EX)
+                if sweeps:
+                    self.__sweeps = sweeps
+                    sweeps_file.truncate(0)
+                    cPickle.dump(self.__sweeps, sweeps_file)
+                    sweeps_file.flush()
+                    os.fsync(sweeps_file.fileno())
+                else:
+                    self.__sweeps = cPickle.load(sweeps_file)
+            finally:
+                fcntl.lockf(sweeps_file, fcntl.LOCK_UN)
+                sweeps_file.close()
+
+    def sweeps(self):
+        """Returns the list of what to iterate on"""
+        return self.__sweeps
 
     def get_next(self, filtr = None):
         """Return the next element which is *todo*. Returns None if reached end.
@@ -380,27 +399,82 @@ class ParamSweeper(object):
             logger.info("%s reset", self.__name)
             logger.info(self)
 
-    def num_total(self):
-        """returns the total number of elements"""
-        with self.__lock:
-            return len(self.__sweeps)
+    def get_skipped(self):
+        """returns an iterable of current *skipped* elements"""
+        return self.__skipped
 
-    def num_skipped(self):
-        """returns the current number of *skipped* elements"""
+    def get_remaining(self):
+        """returns an iterable (currently a frozenset) of the current remaining *todo* elements"""
         with self.__lock:
-            return len(self.__skipped)
+            return frozenset(self.__sweeps).difference(self.__cached_done, self.__skipped, self.__cached_inprogress)
 
-    def num_remaining(self):
-        """returns the current number of *todo* elements"""
-        with self.__lock:
-            return len(frozenset(self.__sweeps).difference(self.__cached_done).difference(self.__skipped).difference(self.__cached_inprogress))
+    def get_inprogress(self):
+        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)"""
+        return self.__cached_inprogress
 
-    def num_inprogress(self):
-        """returns the current number of elements which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*"""
+    def get_done(self):
+        """returns an iterable of currently *done* elements"""
         with self.__lock:
-            return len(self.__cached_inprogress)
+            return frozenset(self.__sweeps).difference(self.get_remaining(), self.get_inprogress(), self.get_skipped())
 
-    def num_done(self):
-        """returns the current number of *done* elements"""
+    def stats(self):
+        """if combinations are in the format output by `sweep`, return a dict detailing number and ratios of remaining, skipped, done, inprogress combinations per combination parameter value."""
+
+        def count(combs):
+            counts = dict()
+            for comb in combs:
+                for k in comb:
+                    if not counts.has_key(k):
+                        counts[k] = dict()
+                    if not counts[k].has_key(comb[k]):
+                        counts[k][comb[k]] = 0
+                    counts[k][comb[k]] += 1
+            return counts
+
         with self.__lock:
-            return self.num_total() - (self.num_remaining() + self.num_inprogress() + self.num_skipped())
+            total = count(self.sweeps())
+            remaining = count(self.get_remaining())
+            skipped = count(self.get_skipped())
+            inprogress = count(self.get_inprogress())
+            done = count(self.get_done())
+            remaining_ratio = dict()
+            skipped_ratio = dict()
+            inprogress_ratio = dict()
+            done_ratio = dict()
+            for k1 in total:
+                remaining_ratio[k1] = dict()
+                skipped_ratio[k1] = dict()
+                inprogress_ratio[k1] = dict()
+                done_ratio[k1] = dict()
+                for k2 in total[k1]:
+                    if remaining.has_key(k1) and remaining[k1].has_key(k2):
+                        r = remaining[k1][k2]
+                    else:
+                        r = 0
+                    remaining_ratio[k1][k2] = float(r) / float(total[k1][k2])
+                    if skipped.has_key(k1) and skipped[k1].has_key(k2):
+                        s = skipped[k1][k2]
+                    else:
+                        s = 0
+                    skipped_ratio[k1][k2] = float(s) / float(total[k1][k2])
+                    if inprogress.has_key(k1) and inprogress[k1].has_key(k2):
+                        i = inprogress[k1][k2]
+                    else:
+                        i = 0
+                    inprogress_ratio[k1][k2] = float(i)  / float(total[k1][k2])
+                    if done.has_key(k1) and done[k1].has_key(k2):
+                        d = done[k1][k2]
+                    else:
+                        d = 0
+                    done_ratio[k1][k2] = float(d)  / float(total[k1][k2])
+            return {
+                "total": total,
+                "remaining": remaining,
+                "remaining_ratio": remaining_ratio,
+                "skipped": skipped,
+                "skipped_ratio": skipped_ratio,
+                "inprogress": inprogress,
+                "inprogress_ratio": inprogress_ratio,
+                "done": done,
+                "done_ratio": done_ratio
+                }
