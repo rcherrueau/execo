@@ -45,12 +45,85 @@ except:
 # (from _POSIX_SSIZE_MAX)
 _MAXREAD = 32767
 
+if sys.platform.startswith('darwin'):
+
+    # minimal abstraction of poll over select allowing the conductor
+    # to run on macos. poll is removed from python on macos due to an
+    # unclear (buggy or unusual?) behavior.  this *minimal*
+    # abstraction only goes as far as needed to allow the conductor to
+    # run, this is probably *not* a full emulation of poll over
+    # select.
+
+    POLLIN=1
+    POLLPRI=2
+    POLLOUT=4
+    POLLERR=8
+    POLLHUP=16
+    POLLNVAL=32
+
+    def dict_item_and(dic, item, field):
+        if dic.has_key(item):
+            dic[item] |= field
+        else:
+            dic[item] = field
+
+    class poll(object):
+
+        def __init__(self):
+            self._readfds = list()
+            self._writefds = list()
+            self._exceptfds = list()
+
+        def register(self, fd, eventmask = POLLIN | POLLPRI | POLLOUT):
+            if eventmask & POLLIN or eventmask & POLLPRI:
+                readfds_set = set(self._readfds)
+                readfds_set.add(fd)
+                self._readfds = list(readfds_set)
+            if eventmask & POLLOUT:
+                writefds_set = set(self._writefds)
+                writefds_set.add(fd)
+                self._writefds = list(writefds_set)
+            if eventmask & POLLIN or eventmask & POLLOUT:
+                exceptfds_set = set(self._exceptfds)
+                exceptfds_set.add(fd)
+                self._exceptfds = list(exceptfds_set)
+
+        def unregister(self, fd):
+            try:
+                self._readfds.remove(fd)
+            except ValueError:
+                pass
+            try:
+                self._writefds.remove(fd)
+            except ValueError:
+                pass
+            try:
+                self._exceptfds.remove(fd)
+            except ValueError:
+                pass
+
+        def poll(self, timeout = None):
+            (ready_readfds,
+             ready_writefds,
+             ready_exceptfds) = select.select(
+                self._readfds,
+                self._writefds,
+                self._exceptfds, timeout)
+            fd_events = dict()
+            for fd in ready_readfds: dict_item_and(fd_events, fd, POLLIN)
+            for fd in ready_writefds: dict_item_and(fd_events, fd, POLLOUT)
+            for fd in ready_exceptfds: dict_item_and(fd_events, fd, POLLERR)
+            return list(fd_events.iteritems())
+
+else:
+    from select import poll, POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
+
 def _event_desc(event):
     """For debugging: user friendly representation of the event bitmask returned by poll()."""
     desc = ""
     first = True
     for t in ('POLLIN', 'POLLPRI', 'POLLOUT', 'POLLERR', 'POLLHUP', 'POLLNVAL'):
-        if event & select.__dict__[t]:
+        if event & globals()[t]:
             if not first: desc += '|'
             desc += t
             first = False
@@ -163,12 +236,11 @@ class _Conductor(object):
                                             # _read_asmuch() relies on
                                             # file descriptors to be non
                                             # blocking
-        self.__poller = select.poll()   # asynchronous I/O with all
-                                        # subprocesses filehandles
+        self.__poller = poll()   # asynchronous I/O with all
+                                 # subprocesses filehandles
         self.__poller.register(self.__rpipe,
-                               select.POLLIN
-                               | select.POLLERR
-                               | select.POLLHUP)
+                               POLLIN
+                               | POLLERR)
         self.__processes = set()    # the set of `Process` handled by
                                     # this `_Conductor`
         self.__fds = dict() # keys: the file descriptors currently polled by
@@ -268,13 +340,11 @@ class _Conductor(object):
                 self.__fds[fileno_stdout] = (process, process._handle_stdout)
                 self.__fds[fileno_stderr] = (process, process._handle_stderr)
                 self.__poller.register(fileno_stdout,
-                                       select.POLLIN
-                                       | select.POLLERR
-                                       | select.POLLHUP)
+                                       POLLIN
+                                       | POLLERR)
                 self.__poller.register(fileno_stderr,
-                                       select.POLLIN
-                                       | select.POLLERR
-                                       | select.POLLHUP)
+                                       POLLIN
+                                       | POLLERR)
                 self.__pids[process.pid()] = process
                 if process.timeout_date() != None:
                     self.__timeline.append((process.timeout_date(), process))
@@ -427,28 +497,28 @@ class _Conductor(object):
                     if self.__fds.has_key(fd):
                         process, stream_handler_func = self.__fds[fd]
                         if _fulldebug: logger.debug("event %s on fd %s, process %s", _event_desc(event), fd, str(process))
-                        if event & select.POLLIN:
+                        if event & POLLIN:
                             (string, eof) = _read_asmuch(fd)
                             stream_handler_func(string, eof = False)
                             if eof:
                                 self.__remove_handle(fd)
-                        #if event & select.POLLHUP:
+                        #if event & POLLHUP:
                         #    stream_handler_func('', eof = True)
                         #    self.__remove_handle(fd)
-                        if event & select.POLLERR:
+                        if event & POLLERR:
                             stream_handler_func('', error = True)
                             self.__remove_handle(fd)
             self.__check_timeouts()
             if event_on_rpipe != None:
                 if _fulldebug: logger.debug("event %s on inter-thread pipe", _event_desc(event_on_rpipe))
-                if event_on_rpipe & select.POLLIN:
+                if event_on_rpipe & POLLIN:
                     (string, eof) = _read_asmuch(self.__rpipe)
                     if eof:
                         # pipe closed -> auto stop the thread
                         finished = True
-                if event_on_rpipe & select.POLLHUP:
+                if event_on_rpipe & POLLHUP:
                     finished = True
-                if event_on_rpipe & select.POLLERR:
+                if event_on_rpipe & POLLERR:
                     finished = True
                     raise IOError, "Error on inter-thread communication pipe"
             with self.__lock:
