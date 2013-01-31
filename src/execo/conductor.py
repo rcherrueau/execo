@@ -21,7 +21,6 @@ from time_utils import format_unixts
 import Queue
 import errno
 import fcntl
-import functools
 import logging
 import os
 import select
@@ -183,19 +182,6 @@ def _set_fd_nonblocking(fileno):
     status_flags = fcntl.fcntl(fileno, fcntl.F_GETFL, 0)
     fcntl.fcntl(fileno, fcntl.F_SETFL, status_flags | os.O_NONBLOCK)
     return status_flags
-
-
-def synchronized(func):
-    # decorator (similar to java synchronized) to ensure mutual
-    # exclusion between some methods that may be called by different
-    # threads (the main thread and the _Conductor thread), to ensure
-    # that the Process instances always have a consistent state.
-    # TO BE USED ONLY BY PROCESSBASE OR SUBCLASSES OF
-    @functools.wraps(func)
-    def wrapper(*args, **kw):
-        with args[0]._lock:
-            return func(*args, **kw)
-    return wrapper
 
 class _Conductor(object):
 
