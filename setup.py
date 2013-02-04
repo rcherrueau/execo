@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2009-2011 INRIA Rhone-Alpes, Service Experimentation et
+# Copyright 2009-2013 INRIA Rhone-Alpes, Service Experimentation et
 # Developpement
 # This file is part of Execo, released under the GNU Lesser Public
 # License, version 3 or later.
@@ -10,7 +10,7 @@ import sys
 
 setup(name = 'execo',
       license = 'GNU GPL v3',
-      version = '2.1-dev',
+      version = '2.2-dev',
       description = 'API for parallel local or remote processes execution',
       long_description = 'This module offers a high level API for parallel'
       'local or remote processes execution with the `Action` class hierarchy,'

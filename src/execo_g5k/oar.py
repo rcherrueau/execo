@@ -1,4 +1,4 @@
-# Copyright 2009-2012 INRIA Rhone-Alpes, Service Experimentation et
+# Copyright 2009-2013 INRIA Rhone-Alpes, Service Experimentation et
 # Developpement
 #
 # This file is part of Execo.
@@ -513,6 +513,9 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
 def get_oar_job_nodes(oar_job_id = None, frontend = None,
                       frontend_connexion_params = None, timeout = False):
     """Return an iterable of `execo.host.Host` containing the hosts of an oar job.
+
+    This method waits for the job start (the list of nodes isn't fixed
+    until the job start).
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.

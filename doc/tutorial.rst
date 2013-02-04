@@ -21,9 +21,9 @@ with packages managed by your distribution package manager.
 
 Install from a release tar.gz package::
 
- $ wget http://execo.gforge.inria.fr/downloads/execo-2.0.tar.gz
- $ tar xzf execo-2.0.tar.gz
- $ cd execo-2.0/
+ $ wget http://execo.gforge.inria.fr/downloads/execo-2.1.tar.gz
+ $ tar xzf execo-2.1.tar.gz
+ $ cd execo-2.1/
  $ make install PREFIX=$HOME/.local
 
 Or install from source repository if you want the very latest
