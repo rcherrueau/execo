@@ -125,6 +125,10 @@ def sweep(parameters):
     return result
 
 # context manager for opening and locking files
+# beware: for locking purpose, the file is always opened in mode "a+"
+# which is the only mode allowing both locking the file and having
+# read write access to it. but it forces to handle correctly file
+# position and truncation
 class _openlock():
 
     def __init__(self, filename):
@@ -211,6 +215,23 @@ class ParamSweeper(object):
     can be done by removing the file ``inprogress`` in the persistence
     directory (this can even be done while some ParamSweeper are
     instanciated and using it).
+
+    ParamSweeper handle crashes in the following ways: if it crashes
+    (or is killed) while synchronizing to disk, in the worst case, the
+    current element marked done can be lost (i.e. other ParamSweepers
+    or later instanciations will not see it marked done), or the whole
+    list of inprogress elements can be lost.
+
+    The ParamSweeper code assumes that in typical usage, there may be
+    a huge number of elements to iterate on (and accordingly, the list
+    of done elements will grow huge too), and that the number of
+    inprogress elements will stay reasonably low. The whole iterable
+    of elements is (optionnaly) written to disk only once, at
+    ParamSweeper construction. The set of done elements can only grow
+    and is incrementaly appended. The set of inprogress elements is
+    fully read from and written to disk at each operation, thus this
+    may become a bottleneck to ParamSweeper performance if the set of
+    inprogress elements is big.
     """
 
     def __init__(self, persistence_dir, sweeps = None, save_sweeps = False, name = None):
@@ -219,8 +240,15 @@ class ParamSweeper(object):
           directory will be created to python pickle files: ``done``
           and ``inprogress`` This files can be erased if needed.
 
-        :param sweeps: what to iterate on. If None (default), try to
-          load it from ``persistence_dir``
+        :param sweeps: An iterable, what to iterate on. If None
+          (default), try to load it from ``persistence_dir``
+
+        :param save_sweeps: boolean. default False. If True, the
+          sweeps are written to disk during initialization (this may
+          take some time but occurs only once)
+
+        :param name: a convenient name to identify an instance in
+          logs. If None, compute one from persistence_dir.
         """
         self.__lock = threading.RLock()
         self.__persistence_dir = persistence_dir
@@ -242,7 +270,13 @@ class ParamSweeper(object):
         self.full_update()
 
     def set_sweeps(self, sweeps = None, save_sweeps = False):
-        """Change the list of what to iterate on"""
+        """Change the list of what to iterate on.
+
+        :param sweeps: iterable
+
+        :param save_sweeps: boolean. default False. If True, the
+          sweeps are written to disk.
+        """
         with self.__lock:
             if sweeps:
                 self.__sweeps = sweeps
@@ -274,6 +308,7 @@ class ParamSweeper(object):
         self.__remaining = set(self.__sweeps).difference(self.__done, self.__skipped, self.__inprogress)
 
     def full_update(self):
+        """Reload completely the ParamSweeper state from disk (may take some time)."""
         with self.__lock:
             with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
                 with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
@@ -303,6 +338,11 @@ class ParamSweeper(object):
             self.__inprogress.clear()
 
     def update(self):
+        """Update incrementaly the ParamSweeper state from disk
+
+        fast, except if done file has been truncated or deleted. In
+        this case, will trigger a full_reload.
+        """
         with self.__lock:
             with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
                 with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
@@ -319,23 +359,39 @@ class ParamSweeper(object):
                 len(self.__remaining))
 
     def get_sweeps(self):
-        """Returns the list of what to iterate on"""
+        """Returns the iterable of what to iterate on"""
         return self.__sweeps
 
     def get_skipped(self):
-        """returns an iterable of current *skipped* elements"""
+        """returns an iterable of current *skipped* elements
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
         return self.__skipped.copy()
 
     def get_remaining(self):
-        """returns an iterable (currently a frozenset) of the current remaining *todo* elements"""
+        """returns an iterable of current remaining *todo* elements
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
         return self.__remaining.copy()
 
     def get_inprogress(self):
-        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)"""
+        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
         return self.__inprogress.copy()
 
     def get_done(self):
-        """returns an iterable of currently *done* elements"""
+        """returns an iterable of currently *done* elements
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
         return self.__done.copy()
 
     def get_next(self, filtr = None):
@@ -412,13 +468,8 @@ class ParamSweeper(object):
     def reset(self, reset_inprogress = False):
         """reset container: iteration will start from beginning, state *skipped* are forgotten, state *done* are **not** forgotten.
 
-        :param reset_inprogress: can be RESET_NO_INPROGRESS (default):
-          state *inprogress* is not reset. RESET_MY_INPROGRESS:
-          elements with state *inprogress* set in this ParamSweeper
-          instance are reset to *todo*, not those of other
-          ParamSweeper instances. RESET_ALL_INPROGRESS: all elements
-          with state *inprogress* of all ParamSweeper instances are
-          reset to *todo*.
+        :param reset_inprogress: default False. If True, state
+          *inprogress* is also reset.
         """
         with self.__lock:
             with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
