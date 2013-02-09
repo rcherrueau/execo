@@ -299,7 +299,7 @@ class ParamSweeper(object):
             except:
                 done_file.truncate(self.__done_filepos)
                 break
-        inprogress_file.seek(self.__done_filepos, os.SEEK_SET)
+        inprogress_file.seek(0, os.SEEK_SET)
         try:
             self.__inprogress = pickle.load(inprogress_file)
         except:
@@ -329,13 +329,14 @@ class ParamSweeper(object):
                     break
             self.__done.update(new_done)
             self.__remaining.difference_update(new_done)
+            inprogress_file.seek(0, os.SEEK_SET)
+            try:
+                self.__inprogress = pickle.load(inprogress_file)
+            except:
+                inprogress_file.truncate(0)
+                self.__inprogress.clear()
         elif new_done_filepos < self.__done_filepos:
             self.__nolock_full_update(done_file, inprogress_file)
-        try:
-            self.__inprogress = pickle.load(inprogress_file)
-        except:
-            inprogress_file.truncate(0)
-            self.__inprogress.clear()
 
     def update(self):
         """Update incrementaly the ParamSweeper state from disk
