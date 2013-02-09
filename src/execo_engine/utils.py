@@ -232,15 +232,13 @@ class ParamSweeper(object):
         if not self.__name:
             self.__name = os.path.basename(self.__persistence_dir)
 
-        self.set_sweeps(sweeps, save_sweeps)
-
         self.__done = set()
         self.__inprogress = set()
         self.__skipped = set()
         self.__remaining = set()
-
         self.__done_filepos = None
 
+        self.set_sweeps(sweeps, save_sweeps)
         self.full_update()
 
     def set_sweeps(self, sweeps = None, save_sweeps = False):
