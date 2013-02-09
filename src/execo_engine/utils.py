@@ -324,19 +324,19 @@ class ParamSweeper(object):
 
     def get_skipped(self):
         """returns an iterable of current *skipped* elements"""
-        return self.__skipped
+        return self.__skipped.copy()
 
     def get_remaining(self):
         """returns an iterable (currently a frozenset) of the current remaining *todo* elements"""
-        return self.__remaining
+        return self.__remaining.copy()
 
     def get_inprogress(self):
         """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)"""
-        return self.__inprogress
+        return self.__inprogress.copy()
 
     def get_done(self):
         """returns an iterable of currently *done* elements"""
-        return self.__done
+        return self.__done.copy()
 
     def get_next(self, filtr = None):
         """Return the next element which is *todo*. Returns None if reached end.
