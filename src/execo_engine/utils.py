@@ -500,49 +500,54 @@ class ParamSweeper(object):
             return counts
 
         with self.__lock:
-            total = count(self.get_sweeps())
-            remaining = count(self.get_remaining())
-            skipped = count(self.get_skipped())
-            inprogress = count(self.get_inprogress())
-            done = count(self.get_done())
-            remaining_ratio = dict()
-            skipped_ratio = dict()
-            inprogress_ratio = dict()
-            done_ratio = dict()
-            for k1 in total:
-                remaining_ratio[k1] = dict()
-                skipped_ratio[k1] = dict()
-                inprogress_ratio[k1] = dict()
-                done_ratio[k1] = dict()
-                for k2 in total[k1]:
-                    if remaining.has_key(k1) and remaining[k1].has_key(k2):
-                        r = remaining[k1][k2]
-                    else:
-                        r = 0
-                    remaining_ratio[k1][k2] = float(r) / float(total[k1][k2])
-                    if skipped.has_key(k1) and skipped[k1].has_key(k2):
-                        s = skipped[k1][k2]
-                    else:
-                        s = 0
-                    skipped_ratio[k1][k2] = float(s) / float(total[k1][k2])
-                    if inprogress.has_key(k1) and inprogress[k1].has_key(k2):
-                        i = inprogress[k1][k2]
-                    else:
-                        i = 0
-                    inprogress_ratio[k1][k2] = float(i)  / float(total[k1][k2])
-                    if done.has_key(k1) and done[k1].has_key(k2):
-                        d = done[k1][k2]
-                    else:
-                        d = 0
-                    done_ratio[k1][k2] = float(d)  / float(total[k1][k2])
-            return {
-                "total": total,
-                "remaining": remaining,
-                "remaining_ratio": remaining_ratio,
-                "skipped": skipped,
-                "skipped_ratio": skipped_ratio,
-                "inprogress": inprogress,
-                "inprogress_ratio": inprogress_ratio,
-                "done": done,
-                "done_ratio": done_ratio
-                }
+            sweeps = self.get_sweeps()
+            remaining = self.get_remaining()
+            skipped = self.get_skipped()
+            inprogress = self.get_inprogress()
+            done = self.get_done()
+        ctotal = count(sweeps)
+        cremaining = count(remaining)
+        cskipped = count(skipped)
+        cinprogress = count(inprogress)
+        cdone = count(done)
+        remaining_ratio = dict()
+        skipped_ratio = dict()
+        inprogress_ratio = dict()
+        done_ratio = dict()
+        for k1 in ctotal:
+            remaining_ratio[k1] = dict()
+            skipped_ratio[k1] = dict()
+            inprogress_ratio[k1] = dict()
+            done_ratio[k1] = dict()
+            for k2 in ctotal[k1]:
+                if cremaining.has_key(k1) and cremaining[k1].has_key(k2):
+                    r = cremaining[k1][k2]
+                else:
+                    r = 0
+                remaining_ratio[k1][k2] = float(r) / float(ctotal[k1][k2])
+                if cskipped.has_key(k1) and cskipped[k1].has_key(k2):
+                    s = cskipped[k1][k2]
+                else:
+                    s = 0
+                skipped_ratio[k1][k2] = float(s) / float(ctotal[k1][k2])
+                if cinprogress.has_key(k1) and cinprogress[k1].has_key(k2):
+                    i = cinprogress[k1][k2]
+                else:
+                    i = 0
+                inprogress_ratio[k1][k2] = float(i) / float(ctotal[k1][k2])
+                if cdone.has_key(k1) and cdone[k1].has_key(k2):
+                    d = cdone[k1][k2]
+                else:
+                    d = 0
+                done_ratio[k1][k2] = float(d) / float(ctotal[k1][k2])
+        return {
+            "total": ctotal,
+            "remaining": cremaining,
+            "remaining_ratio": remaining_ratio,
+            "skipped": cskipped,
+            "skipped_ratio": skipped_ratio,
+            "inprogress": cinprogress,
+            "inprogress_ratio": inprogress_ratio,
+            "done": cdone,
+            "done_ratio": done_ratio
+            }
