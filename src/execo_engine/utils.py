@@ -258,17 +258,20 @@ class ParamSweeper(object):
 
     def __nolock_full_update(self, done_file, inprogress_file):
         self.__done.clear()
+        self.__done_filepos = 0
         done_file.seek(0, os.SEEK_SET)
         while True:
             try:
                 self.__done.add(pickle.load(done_file))
-            except EOFError:
                 self.__done_filepos = done_file.tell()
+            except:
+                done_file.truncate(self.__done_filepos)
                 break
         inprogress_file.seek(self.__done_filepos, os.SEEK_SET)
         try:
             self.__inprogress = pickle.load(inprogress_file)
-        except EOFError:
+        except:
+            inprogress_file.truncate(0)
             self.__inprogress.clear()
         self.__remaining = set(self.__sweeps).difference(self.__done, self.__skipped, self.__inprogress)
 
@@ -287,8 +290,9 @@ class ParamSweeper(object):
             while True:
                 try:
                     new_done.append(pickle.load(done_file))
-                except EOFError:
                     self.__done_filepos = done_file.tell()
+                except:
+                    done_file.truncate(self.__done_filepos)
                     break
             self.__done.update(new_done)
             self.__remaining.difference_update(new_done)
@@ -296,7 +300,8 @@ class ParamSweeper(object):
             self.__nolock_full_update(done_file, inprogress_file)
         try:
             self.__inprogress = pickle.load(inprogress_file)
-        except EOFError:
+        except:
+            inprogress_file.truncate(0)
             self.__inprogress.clear()
 
     def update(self):
