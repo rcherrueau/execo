@@ -16,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import threading, os, cPickle, fcntl, unicodedata, re
+import threading, os, fcntl, unicodedata, re
+import cPickle as pickle
 from log import logger
 
 class HashableDict(dict):
@@ -123,49 +124,26 @@ def sweep(parameters):
         result = newresult
     return result
 
-# context manager for locking and getting the state of a ParamSweeper
-class _ParamSweeperLockedState():
+# context manager for opening and locking files
+# beware: for locking purpose, the file is always opened in mode "a+"
+# which is the only mode allowing both locking the file and having
+# read write access to it. but it forces to handle correctly file
+# position and truncation
+class _openlock():
 
-    def __init__(self, persistence_dir):
-        self.__persistence_dir = persistence_dir
+    def __init__(self, filename):
+        self.__filename = filename
 
     def __enter__(self):
-        self._done_file = open(os.path.join(self.__persistence_dir, "done"), "a+")
-        fcntl.lockf(self._done_file, fcntl.LOCK_EX)
-        try:
-            self._done = cPickle.load(self._done_file)
-            self._client_done = self._done.copy()
-        except EOFError:
-            self._done = None
-            self._client_done = set()
-
-        self._inprogress_file = open(os.path.join(self.__persistence_dir, "inprogress"), "a+")
-        fcntl.lockf(self._inprogress_file, fcntl.LOCK_EX)
-        try:
-            self._inprogress = cPickle.load(self._inprogress_file)
-            self._client_inprogress = self._inprogress.copy()
-        except EOFError:
-            self._inprogress = None
-            self._client_inprogress = set()
-
-        return (self._client_done, self._client_inprogress)
+        self.__file = open(self.__filename, "a+")
+        fcntl.lockf(self.__file, fcntl.LOCK_EX)
+        return self.__file
 
     def __exit__(self, t, v, traceback):
-        if self._client_inprogress != self._inprogress:
-            self._inprogress_file.truncate(0)
-            cPickle.dump(self._client_inprogress, self._inprogress_file)
-            self._inprogress_file.flush()
-            os.fsync(self._inprogress_file.fileno())
-        fcntl.lockf(self._inprogress_file, fcntl.LOCK_UN)
-        self._inprogress_file.close()
-
-        if self._client_done != self._done:
-            self._done_file.truncate(0)
-            cPickle.dump(self._client_done, self._done_file)
-            self._done_file.flush()
-            os.fsync(self._done_file.fileno())
-        fcntl.lockf(self._done_file, fcntl.LOCK_UN)
-        self._done_file.close()
+        self.__file.flush()
+        os.fsync(self.__file.fileno())
+        fcntl.lockf(self.__file, fcntl.LOCK_UN)
+        self.__file.close()
 
 class ParamSweeper(object):
 
@@ -237,72 +215,185 @@ class ParamSweeper(object):
     can be done by removing the file ``inprogress`` in the persistence
     directory (this can even be done while some ParamSweeper are
     instanciated and using it).
+
+    ParamSweeper handle crashes in the following ways: if it crashes
+    (or is killed) while synchronizing to disk, in the worst case, the
+    current element marked done can be lost (i.e. other ParamSweepers
+    or later instanciations will not see it marked done), or the whole
+    list of inprogress elements can be lost.
+
+    The ParamSweeper code assumes that in typical usage, there may be
+    a huge number of elements to iterate on (and accordingly, the list
+    of done elements will grow huge too), and that the number of
+    inprogress elements will stay reasonably low. The whole iterable
+    of elements is (optionnaly) written to disk only once, at
+    ParamSweeper construction. The set of done elements can only grow
+    and is incrementaly appended. The set of inprogress elements is
+    fully read from and written to disk at each operation, thus this
+    may become a bottleneck to ParamSweeper performance if the set of
+    inprogress elements is big.
     """
 
-    def __init__(self, persistence_dir, sweeps = None, name = None):
+    def __init__(self, persistence_dir, sweeps = None, save_sweeps = False, name = None):
         """
         :param persistence_dir: path to persistence directory. In this
           directory will be created to python pickle files: ``done``
           and ``inprogress`` This files can be erased if needed.
 
-        :param sweeps: what to iterate on. If None (default), try to
-          load it from ``persistence_dir``
+        :param sweeps: An iterable, what to iterate on. If None
+          (default), try to load it from ``persistence_dir``
+
+        :param save_sweeps: boolean. default False. If True, the
+          sweeps are written to disk during initialization (this may
+          take some time but occurs only once)
+
+        :param name: a convenient name to identify an instance in
+          logs. If None, compute one from persistence_dir.
         """
         self.__lock = threading.RLock()
         self.__persistence_dir = persistence_dir
-        self.__skipped = set()
-        self.__my_inprogress = set()
-        self.__cached_done = set()
-        self.__cached_inprogress = set()
-        self.__name = name
-        if not self.__name:
-            self.__name = os.path.basename(self.__persistence_dir)
         try:
             os.makedirs(self.__persistence_dir)
         except os.error:
             pass
-        self.update()
-        self.set_sweeps(sweeps)
+        self.__name = name
+        if not self.__name:
+            self.__name = os.path.basename(self.__persistence_dir)
+
+        self.__done = set()
+        self.__inprogress = set()
+        self.__skipped = set()
+        self.__remaining = set()
+        self.__done_filepos = None
+
+        self.set_sweeps(sweeps, save_sweeps)
+        self.full_update()
+
+    def set_sweeps(self, sweeps = None, save_sweeps = False):
+        """Change the list of what to iterate on.
+
+        :param sweeps: iterable
+
+        :param save_sweeps: boolean. default False. If True, the
+          sweeps are written to disk.
+        """
+        with self.__lock:
+            if sweeps:
+                self.__sweeps = sweeps
+                if save_sweeps:
+                    with _openlock(os.path.join(self.__persistence_dir, "sweeps")) as sweeps_file:
+                        sweeps_file.truncate(0)
+                        pickle.dump(self.__sweeps, sweeps_file)
+            else:
+                with _openlock(os.path.join(self.__persistence_dir, "sweeps")) as sweeps_file:
+                    self.__sweeps = pickle.load(sweeps_file)
+
+    def __nolock_full_update(self, done_file, inprogress_file):
+        self.__done.clear()
+        self.__done_filepos = 0
+        done_file.seek(0, os.SEEK_SET)
+        while True:
+            try:
+                self.__done.add(pickle.load(done_file))
+                self.__done_filepos = done_file.tell()
+            except:
+                done_file.truncate(self.__done_filepos)
+                break
+        inprogress_file.seek(0, os.SEEK_SET)
+        try:
+            self.__inprogress = pickle.load(inprogress_file)
+        except:
+            inprogress_file.truncate(0)
+            self.__inprogress.clear()
+        self.__remaining = set(self.__sweeps).difference(self.__done, self.__skipped, self.__inprogress)
+
+    def full_update(self):
+        """Reload completely the ParamSweeper state from disk (may take some time)."""
+        with self.__lock:
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_full_update(done_file, inprogress_file)
+
+    def __nolock_update(self, done_file, inprogress_file):
+        done_file.seek(0, os.SEEK_END)
+        new_done_filepos = done_file.tell()
+        if new_done_filepos > self.__done_filepos:
+            done_file.seek(self.__done_filepos, os.SEEK_SET)
+            new_done = list()
+            while True:
+                try:
+                    new_done.append(pickle.load(done_file))
+                    self.__done_filepos = done_file.tell()
+                except:
+                    done_file.truncate(self.__done_filepos)
+                    break
+            self.__done.update(new_done)
+            self.__remaining.difference_update(new_done)
+            inprogress_file.seek(0, os.SEEK_SET)
+            try:
+                self.__inprogress = pickle.load(inprogress_file)
+            except:
+                inprogress_file.truncate(0)
+                self.__inprogress.clear()
+        elif new_done_filepos < self.__done_filepos:
+            self.__nolock_full_update(done_file, inprogress_file)
 
     def update(self):
-        """update the state (and cached state) of the ParamSweeper from disk. Can be used by client code, but mainly intended to be used internally."""
+        """Update incrementaly the ParamSweeper state from disk
+
+        fast, except if done file has been truncated or deleted. In
+        this case, will trigger a full_reload.
+        """
         with self.__lock:
-            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
-                inprogress.update(self.__my_inprogress)
-                self.__cached_done = done
-                self.__cached_inprogress = inprogress
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
 
     def __str__(self):
         with self.__lock:
             return "%s <%i total, %i done, %i skipped, %i in progress, %i remaining>" % (
                 self.__name,
                 len(self.__sweeps),
-                len(self.get_done()),
-                len(self.get_skipped()),
-                len(self.get_inprogress()),
-                len(self.get_remaining()))
+                len(self.__done),
+                len(self.__skipped),
+                len(self.__inprogress),
+                len(self.__remaining))
 
-    def set_sweeps(self, sweeps):
-        """Change the list of what to iterate on"""
-        with self.__lock:
-            sweeps_file =  open(os.path.join(self.__persistence_dir, "sweeps"), "a+")
-            try:
-                fcntl.lockf(sweeps_file, fcntl.LOCK_EX)
-                if sweeps:
-                    self.__sweeps = sweeps
-                    sweeps_file.truncate(0)
-                    cPickle.dump(self.__sweeps, sweeps_file)
-                    sweeps_file.flush()
-                    os.fsync(sweeps_file.fileno())
-                else:
-                    self.__sweeps = cPickle.load(sweeps_file)
-            finally:
-                fcntl.lockf(sweeps_file, fcntl.LOCK_UN)
-                sweeps_file.close()
-
-    def sweeps(self):
-        """Returns the list of what to iterate on"""
+    def get_sweeps(self):
+        """Returns the iterable of what to iterate on"""
         return self.__sweeps
+
+    def get_skipped(self):
+        """returns an iterable of current *skipped* elements
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
+        return self.__skipped.copy()
+
+    def get_remaining(self):
+        """returns an iterable of current remaining *todo* elements
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
+        return self.__remaining.copy()
+
+    def get_inprogress(self):
+        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
+        return self.__inprogress.copy()
+
+    def get_done(self):
+        """returns an iterable of currently *done* elements
+
+        The returned iterable is a copy (safe to use without fearing
+        concurrent mutations by another thread).
+        """
+        return self.__done.copy()
 
     def get_next(self, filtr = None):
         """Return the next element which is *todo*. Returns None if reached end.
@@ -313,109 +404,86 @@ class ParamSweeper(object):
           combinations and / or control the order of iteration.
         """
         with self.__lock:
-            try:
-                with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
-                    inprogress.update(self.__my_inprogress)
-                    remaining = frozenset(self.__sweeps).difference(done).difference(self.__skipped).difference(inprogress)
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    remaining = self.__remaining
                     if filtr:
                         remaining = filtr(remaining)
-                    combination = iter(remaining).next()
-                    inprogress.add(combination)
-                    self.__my_inprogress.add(combination)
-                    self.__cached_done = done
-                    self.__cached_inprogress = inprogress
-                logger.info("%s new combination: %s", self.__name, combination)
-                logger.info(self)
-                return combination
-            except StopIteration:
-                logger.info("%s no new combination", self.__name)
-                logger.info(self)
-                return None
+                    try:
+                        combination = iter(remaining).next()
+                    except StopIteration:
+                        logger.info("%s no new combination", self.__name)
+                        logger.info(self)
+                        return None
+                    self.__remaining.discard(combination)
+                    self.__inprogress.add(combination)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
+            logger.info("%s new combination: %s", self.__name, combination)
+            logger.info(self)
+            return combination
 
     def done(self, combination):
         """mark the given element *done*"""
         with self.__lock:
-            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
-                inprogress.update(self.__my_inprogress)
-                done.add(combination)
-                inprogress.discard(combination)
-                self.__my_inprogress.discard(combination)
-                self.__cached_done = done
-                self.__cached_inprogress = inprogress
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    self.__remaining.discard(combination)
+                    self.__inprogress.discard(combination)
+                    self.__done.add(combination)
+                    done_file.seek(0, os.SEEK_END)
+                    pickle.dump(combination, done_file)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
             logger.info("%s combination done: %s", self.__name, combination)
             logger.info(self)
 
     def skip(self, combination):
         """mark the given element *skipped*"""
         with self.__lock:
-            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
-                inprogress.discard(combination)
-                self.__my_inprogress.discard(combination)
-                self.__skipped.add(combination)
-                self.__cached_done = done
-                self.__cached_inprogress = inprogress
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    self.__skipped.add(combination)
+                    self.__inprogress.discard(combination)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
             logger.info("%s combination skipped: %s", self.__name, combination)
             logger.info(self)
 
     def cancel(self, combination):
         """cancel processing of the given combination, but don't mark it as skipped, it comes back in the *todo* queue."""
         with self.__lock:
-            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
-                inprogress.discard(combination)
-                self.__my_inprogress.discard(combination)
-                self.__cached_done = done
-                self.__cached_inprogress = inprogress
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    self.__remaining.add(combination)
+                    self.__inprogress.discard(combination)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
             logger.info("%s combination cancelled: %s", self.__name, combination)
             logger.info(self)
 
-    RESET_NO_INPROGRESS=0
-    RESET_MY_INPROGRESS=1
-    RESET_ALL_INPROGRESS=2
-
-    def reset(self, reset_inprogress = RESET_NO_INPROGRESS):
+    def reset(self, reset_inprogress = False):
         """reset container: iteration will start from beginning, state *skipped* are forgotten, state *done* are **not** forgotten.
 
-        :param reset_inprogress: can be RESET_NO_INPROGRESS (default):
-          state *inprogress* is not reset. RESET_MY_INPROGRESS:
-          elements with state *inprogress* set in this ParamSweeper
-          instance are reset to *todo*, not those of other
-          ParamSweeper instances. RESET_ALL_INPROGRESS: all elements
-          with state *inprogress* of all ParamSweeper instances are
-          reset to *todo*.
+        :param reset_inprogress: default False. If True, state
+          *inprogress* is also reset.
         """
         with self.__lock:
-            self.__skipped.clear()
-            with _ParamSweeperLockedState(self.__persistence_dir) as (done, inprogress):
-                if reset_inprogress == RESET_MY_INPROGRESS:
-                    inprogress.difference_update(self.__my_inprogress)
-                    self.__my_inprogress.clear()
-                elif reset_inprogress == RESET_ALL_INPROGRESS:
-                    inprogress.clear()
-                    self.__my_inprogress.clear()
-                else:
-                    inprogress.update(self.__my_inprogress)
-                self.__cached_done = done
-                self.__cached_inprogress = inprogress
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    self.__remaining.update(self.__skipped)
+                    self.__skipped.clear()
+                    if reset_inprogress:
+                        self.__inprogress.clear()
+                        inprogress_file.truncate(0)
+                        pickle.dump(self.__inprogress, inprogress_file)
             logger.info("%s reset", self.__name)
             logger.info(self)
-
-    def get_skipped(self):
-        """returns an iterable of current *skipped* elements"""
-        return self.__skipped
-
-    def get_remaining(self):
-        """returns an iterable (currently a frozenset) of the current remaining *todo* elements"""
-        with self.__lock:
-            return frozenset(self.__sweeps).difference(self.__cached_done, self.__skipped, self.__cached_inprogress)
-
-    def get_inprogress(self):
-        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)"""
-        return self.__cached_inprogress
-
-    def get_done(self):
-        """returns an iterable of currently *done* elements"""
-        with self.__lock:
-            return frozenset(self.__sweeps).difference(self.get_remaining(), self.get_inprogress(), self.get_skipped())
 
     def stats(self):
         """if combinations are in the format output by `sweep`, return a dict detailing number and ratios of remaining, skipped, done, inprogress combinations per combination parameter value."""
@@ -432,49 +500,54 @@ class ParamSweeper(object):
             return counts
 
         with self.__lock:
-            total = count(self.sweeps())
-            remaining = count(self.get_remaining())
-            skipped = count(self.get_skipped())
-            inprogress = count(self.get_inprogress())
-            done = count(self.get_done())
-            remaining_ratio = dict()
-            skipped_ratio = dict()
-            inprogress_ratio = dict()
-            done_ratio = dict()
-            for k1 in total:
-                remaining_ratio[k1] = dict()
-                skipped_ratio[k1] = dict()
-                inprogress_ratio[k1] = dict()
-                done_ratio[k1] = dict()
-                for k2 in total[k1]:
-                    if remaining.has_key(k1) and remaining[k1].has_key(k2):
-                        r = remaining[k1][k2]
-                    else:
-                        r = 0
-                    remaining_ratio[k1][k2] = float(r) / float(total[k1][k2])
-                    if skipped.has_key(k1) and skipped[k1].has_key(k2):
-                        s = skipped[k1][k2]
-                    else:
-                        s = 0
-                    skipped_ratio[k1][k2] = float(s) / float(total[k1][k2])
-                    if inprogress.has_key(k1) and inprogress[k1].has_key(k2):
-                        i = inprogress[k1][k2]
-                    else:
-                        i = 0
-                    inprogress_ratio[k1][k2] = float(i)  / float(total[k1][k2])
-                    if done.has_key(k1) and done[k1].has_key(k2):
-                        d = done[k1][k2]
-                    else:
-                        d = 0
-                    done_ratio[k1][k2] = float(d)  / float(total[k1][k2])
-            return {
-                "total": total,
-                "remaining": remaining,
-                "remaining_ratio": remaining_ratio,
-                "skipped": skipped,
-                "skipped_ratio": skipped_ratio,
-                "inprogress": inprogress,
-                "inprogress_ratio": inprogress_ratio,
-                "done": done,
-                "done_ratio": done_ratio
-                }
+            sweeps = self.get_sweeps()
+            remaining = self.get_remaining()
+            skipped = self.get_skipped()
+            inprogress = self.get_inprogress()
+            done = self.get_done()
+        ctotal = count(sweeps)
+        cremaining = count(remaining)
+        cskipped = count(skipped)
+        cinprogress = count(inprogress)
+        cdone = count(done)
+        remaining_ratio = dict()
+        skipped_ratio = dict()
+        inprogress_ratio = dict()
+        done_ratio = dict()
+        for k1 in ctotal:
+            remaining_ratio[k1] = dict()
+            skipped_ratio[k1] = dict()
+            inprogress_ratio[k1] = dict()
+            done_ratio[k1] = dict()
+            for k2 in ctotal[k1]:
+                if cremaining.has_key(k1) and cremaining[k1].has_key(k2):
+                    r = cremaining[k1][k2]
+                else:
+                    r = 0
+                remaining_ratio[k1][k2] = float(r) / float(ctotal[k1][k2])
+                if cskipped.has_key(k1) and cskipped[k1].has_key(k2):
+                    s = cskipped[k1][k2]
+                else:
+                    s = 0
+                skipped_ratio[k1][k2] = float(s) / float(ctotal[k1][k2])
+                if cinprogress.has_key(k1) and cinprogress[k1].has_key(k2):
+                    i = cinprogress[k1][k2]
+                else:
+                    i = 0
+                inprogress_ratio[k1][k2] = float(i) / float(ctotal[k1][k2])
+                if cdone.has_key(k1) and cdone[k1].has_key(k2):
+                    d = cdone[k1][k2]
+                else:
+                    d = 0
+                done_ratio[k1][k2] = float(d) / float(ctotal[k1][k2])
+        return {
+            "total": ctotal,
+            "remaining": cremaining,
+            "remaining_ratio": remaining_ratio,
+            "skipped": cskipped,
+            "skipped_ratio": skipped_ratio,
+            "inprogress": cinprogress,
+            "inprogress_ratio": inprogress_ratio,
+            "done": cdone,
+            "done_ratio": done_ratio
+            }

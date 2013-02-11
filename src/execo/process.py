@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from conductor import synchronized, the_conductor
+from conductor import the_conductor
 from config import configuration
 from execo.config import make_connexion_params
 from execo.host import Host
@@ -33,6 +33,19 @@ import signal
 import subprocess
 import threading
 import time
+import functools
+
+def synchronized(func):
+    # decorator (similar to java synchronized) to ensure mutual
+    # exclusion between some methods that may be called by different
+    # threads (the main thread and the _Conductor thread), to ensure
+    # that the Process instances always have a consistent state.
+    # TO BE USED ONLY BY PROCESSBASE OR SUBCLASSES OF
+    @functools.wraps(func)
+    def wrapper(*args, **kw):
+        with args[0]._lock:
+            return func(*args, **kw)
+    return wrapper
 
 class ProcessLifecycleHandler(object):
 
