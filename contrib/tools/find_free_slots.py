@@ -30,10 +30,12 @@ class g5k_find_free_slots(object):
 	Require execo 2.1, http://execo.gforge.inria.fr/doc/
 	'''
 	
-	def __init__(self,walltime,resources,vlan=None,oargridsub_opts='-t deploy',
+	def __init__(self,walltime,resources,vlan=None,kavlan=None,oargridsub_opts='-t deploy',
 				weeks=1,auto=False,log=True,with_plots=False,outdir='.'):
-		self.restime=ET.format_date(ET.unixts_to_datetime(T.time()))
-		self.resources=resources
+		self.restime = ET.format_date(ET.unixts_to_datetime(T.time()))
+		self.resources = resources
+		self.vlan = vlan
+		self.kavlan = kavlan
 		self.start_logger(log)		
 		self.define_dates(walltime, weeks)
 		self.compute_hosts_planning()
@@ -44,7 +46,7 @@ class g5k_find_free_slots(object):
 			self.draw_gantt()
 		self.choose_freeslot(self.windows_ok,auto)
 			
-		self.create_submissions(vlan,oargridsub_opts,auto)
+		self.create_submissions(oargridsub_opts,auto)
 		self.logger.info('Done.')
 	
 	def start_logger(self,log):
@@ -272,7 +274,10 @@ class g5k_find_free_slots(object):
 			ax.yaxis.set_visible(False)
 			
 			pos=0.1
-			inc=0.9/len(hosts)
+			if len(hosts)!=0:
+				inc=0.9/len(hosts)
+			else:
+				inc=0.9
 			for slots in hosts.itervalues():					
 				for freeslot in slots['free']:
 					ax.barh(pos, (freeslot[1]-freeslot[0]), 1,
@@ -331,11 +336,11 @@ class g5k_find_free_slots(object):
 			exit()
 	
 
-	def create_submissions(self,vlan,oargridsub_opts,auto_reservation):
+	def create_submissions(self,oargridsub_opts,auto_reservation):
 		subs=[]
-		getlan=False
-		if vlan is not None:
-			getlan=True
+		getkavlan=False
+		if self.kavlan is not None:
+			getkavlan=True
 		
 		if self.resources.has_key('grid5000.fr'):
 			self.logger.info('Determining which sites to use for your reservation')
@@ -375,10 +380,12 @@ class g5k_find_free_slots(object):
 		for site in self.sites:
 			sub_resources=''
 			cluster_nodes=0
-			if getlan:
-				sub_resources=vlan+'+'
-				getlan=False
-				self.lan_site=site
+			
+			if getkavlan:
+				sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
+			if self.vlan is not None:
+				sub_resources+=self.vlan+'+'
+				
 			
 			for cluster in get_site_clusters(site):
 				if cluster in self.resources:
