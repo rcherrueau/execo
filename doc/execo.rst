@@ -443,7 +443,10 @@ in seconds. When passing parameters to execo api, all dates and
 duration can be given in various formats (see
 `execo.time_utils.get_unixts`, `execo.time_utils.get_seconds`) and
 will be automatically converted to dates as unix timestamps, and
-durations in seconds.
+durations in seconds. All dates in execo are UTC. When giving a date
+to execo, you can give it with an explicit timezone or if no timezone
+is given, execo will assume that ``datetime.datetime`` or dates
+expressed as strings are in local timezone.
 
 Exceptions at shutdown
 ----------------------

@@ -17,27 +17,22 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from log import logger
-import datetime
-import re
-import time
-
-_epoch = datetime.datetime (1970, 1, 1, 0, 0, 0, 0)
+import datetime, calendar, time, re
 
 def timedelta_to_seconds(td):
     """Convert a ``datetime.timedelta`` to a number of seconds (float)."""
     return td.days * 86400 + td.seconds + td.microseconds / 1e6
 
 def datetime_to_unixts(dt):
-    """Convert a ``datetime.datetime`` to a unix timestamp (float)."""
-    elapsed = dt - _epoch
-    return timedelta_to_seconds(elapsed)
+    """Convert a ``datetime.datetime`` to a utc unix timestamp (float)."""
+    if dt.tzinfo:
+        return calendar.timegm(dt.utctimetuple()) + dt.microsecond / 1e6
+    else:
+        return time.mktime(dt.utctimetuple()) + dt.microsecond / 1e6
 
-def unixts_to_datetime(ts):
+def unixts_to_datetime(ts, tz = None):
     """Convert a unixts (int or float) to ``datetime.datetime``."""
-    days = int(ts) / 86400
-    seconds = int(ts) % 86400
-    elapsed = datetime.timedelta(days, seconds)
-    return _epoch + elapsed
+    return datetime.datetime.fromtimestamp(ts, tz)
 
 def numeric_date_to_unixts(d):
     """Convert a numeric to unix timestamp (float)."""
@@ -48,7 +43,7 @@ def numeric_duration_to_seconds(d):
     return float(d)
 
 _num_str_date_re = re.compile("^((\d*\.)?\d+)$")
-_str_date_re = re.compile("^(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)(\.\d+)?$")
+_str_date_re = re.compile("^(\d\d\d\d-\d\d-\d\d)[Tt ](\d\d:\d\d:\d\d)(\.\d+)?([Zz]|([+-])(\d\d):(\d\d))?$")
 def str_date_to_unixts(d):
     """Convert a date string to a unix timestamp (float).
 
@@ -57,16 +52,23 @@ def str_date_to_unixts(d):
     - a numeric. In this case, convert with
       `execo.time_utils.numeric_date_to_unixts`
 
-    - a string in format 'YYYY-MM-DD HH:MM:SS[.MS]'
+    - a string in rfc-3339 format 'YYYY-MM-DD[Tt ]HH:MM:SS[.µS][Zz|(+|-)HH:MM]'
     """
     numeric_date = _num_str_date_re.match(d)
     if numeric_date:
         return numeric_date_to_unixts(float(numeric_date.group(1)))
     str_date = _str_date_re.match(d)
     if str_date:
-        ts = time.mktime(time.strptime(str_date.group(1), "%Y-%m-%d %H:%M:%S"))
-        if str_date.group(2):
-            ts += float(str_date.group(2))
+        if str_date.group(4):
+            ts = calendar.timegm(time.strptime(str_date.group(1) + " " + str_date.group(2), "%Y-%m-%d %H:%M:%S"))
+        else:
+            ts = time.mktime(time.strptime(str_date.group(1) + " " + str_date.group(2), "%Y-%m-%d %H:%M:%S"))
+        if str_date.group(3):
+            ts += float(str_date.group(3))
+        if str_date.group(4) and str_date.group(4) not in ["Z", "z"]:
+            offset = int(str_date.group(6)) * 3600 + int(str_date.group(7)) * 60
+            if str_date.group(5) == "+": ts -= offset
+            else: ts += offset
         return ts
     raise ValueError, "unsupported date format %s" % (d,)
 
@@ -153,7 +155,7 @@ def _zone2822(timetuple):
     return '%+.2d%.2d' % (offs / -3600, abs(offs / 60) % 60)
 
 def format_unixts(secs, showms = False):
-    """Return a string with the formatted date (year, month, day, hour, min, sec, ms) for pretty printing.
+    """Return a string with the formatted date (year, month, day, hour, min, sec, ms) in locale timezone and in rfc-3339 format for pretty printing.
 
     :param secs: a unix timestamp (integer or float) (or None).
 
@@ -165,7 +167,7 @@ def format_unixts(secs, showms = False):
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     if showms:
         formatted_time += _get_milliseconds_suffix(secs)
-    formatted_time += " " + _zone2822(t)
+    formatted_time += _zone2822(t)
     return formatted_time
 
 def format_seconds(secs, showms = False):

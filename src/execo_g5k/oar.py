@@ -42,12 +42,12 @@ def _date_in_range(date, date_range):
 def format_oar_date(date):
     """Return a string with the formatted date (year, month, day, hour, min, sec, ms) formatted for oar/oargrid.
 
-    timezone is discarded since oar doesn't know about them.
+    timezone is local and is discarded since oar doesn't know about them.
 
     :param date: a date in one of the formats handled.
     """
     date = int(get_unixts(date))
-    t = time.gmtime(date)
+    t = time.localtime(date)
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     return formatted_time
 
