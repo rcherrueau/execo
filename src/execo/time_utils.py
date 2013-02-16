@@ -149,10 +149,10 @@ def _get_milliseconds_suffix(secs):
         ms_suffix = ".%03i" % msecs
     return ms_suffix
 
-def _zone2822(timetuple):
+def _zone3339(timetuple):
     dst = timetuple[8]
     offs = (time.timezone, time.timezone, time.altzone)[1 + dst]
-    return '%+.2d%.2d' % (offs / -3600, abs(offs / 60) % 60)
+    return '%+.2d:%.2d' % (offs / -3600, abs(offs / 60) % 60)
 
 def format_unixts(secs, showms = False):
     """Return a string with the formatted date (year, month, day, hour, min, sec, ms) in locale timezone and in rfc-3339 format for pretty printing.
@@ -167,7 +167,7 @@ def format_unixts(secs, showms = False):
     formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
     if showms:
         formatted_time += _get_milliseconds_suffix(secs)
-    formatted_time += _zone2822(t)
+    formatted_time += _zone3339(t)
     return formatted_time
 
 def format_seconds(secs, showms = False):
