@@ -43,7 +43,7 @@ def numeric_duration_to_seconds(d):
     return float(d)
 
 _num_str_date_re = re.compile("^((\d*\.)?\d+)$")
-_str_date_re = re.compile("^(\d\d\d\d-\d\d-\d\d)[Tt ](\d\d:\d\d:\d\d)(\.\d+)?([Zz]|([+-])(\d\d):(\d\d))?$")
+_str_date_re = re.compile("^\s*((((\d\d)?(\d\d)-)?((\d?\d)-))?(\d?\d)[Tt ])?(\d?\d):(\d?\d):(\d?\d)(\.\d+)?([Zz]|([+-])(\d?\d):(\d?\d))?\s*$")
 def str_date_to_unixts(d):
     """Convert a date string to a unix timestamp (float).
 
@@ -59,15 +59,37 @@ def str_date_to_unixts(d):
         return numeric_date_to_unixts(float(numeric_date.group(1)))
     str_date = _str_date_re.match(d)
     if str_date:
-        if str_date.group(4):
-            ts = calendar.timegm(time.strptime(str_date.group(1) + " " + str_date.group(2), "%Y-%m-%d %H:%M:%S"))
+        now = time.localtime()
+        if str_date.group(5):
+            year = int(str_date.group(5))
+            if str_date.group(4):
+                year += 100 * int(str_date.group(4))
+            else:
+                if year >= 70: year += 1900
+                else: year += 2000
         else:
-            ts = time.mktime(time.strptime(str_date.group(1) + " " + str_date.group(2), "%Y-%m-%d %H:%M:%S"))
-        if str_date.group(3):
-            ts += float(str_date.group(3))
-        if str_date.group(4) and str_date.group(4) not in ["Z", "z"]:
-            offset = int(str_date.group(6)) * 3600 + int(str_date.group(7)) * 60
-            if str_date.group(5) == "+": ts -= offset
+            year = now.tm_year
+        if str_date.group(7):
+            month = int(str_date.group(7))
+        else:
+            month = now.tm_mon
+        if str_date.group(8):
+            day = int(str_date.group(8))
+        else:
+            day = now.tm_mday
+        h = int(str_date.group(9))
+        m = int(str_date.group(10))
+        s = int(str_date.group(11))
+        norm_date = "%i-%i-%i %i:%i:%i" % (year, month, day, h, m, s)
+        if str_date.group(13):
+            ts = calendar.timegm(time.strptime(norm_date, "%Y-%m-%d %H:%M:%S"))
+        else:
+            ts = time.mktime(time.strptime(norm_date, "%Y-%m-%d %H:%M:%S"))
+        if str_date.group(12):
+            ts += float(str_date.group(12))
+        if str_date.group(13) and str_date.group(13) not in ["Z", "z"]:
+            offset = int(str_date.group(15)) * 3600 + int(str_date.group(16)) * 60
+            if str_date.group(14) == "+": ts -= offset
             else: ts += offset
         return ts
     raise ValueError, "unsupported date format %s" % (d,)
