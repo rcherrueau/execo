@@ -65,7 +65,7 @@ def str_date_to_unixts(d):
             if str_date.group(4):
                 year += 100 * int(str_date.group(4))
             else:
-                if year >= 70: year += 1900
+                if year >= 69: year += 1900
                 else: year += 2000
         else:
             year = now.tm_year
