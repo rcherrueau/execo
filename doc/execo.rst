@@ -433,20 +433,36 @@ a security hole in a different context.
 Miscellaneous notes
 ===================
 
-Timestamps
-----------
+Time: timestamps and durations
+------------------------------
 
-Internally all dates are unix timestamps, ie. number of seconds
-elapsed since the unix epoch (00:00:00 on Jan 1 1970), possibly with
-or without subsecond precision (float or integer). All durations are
-in seconds. When passing parameters to execo api, all dates and
-duration can be given in various formats (see
-`execo.time_utils.get_unixts`, `execo.time_utils.get_seconds`) and
-will be automatically converted to dates as unix timestamps, and
-durations in seconds. All dates in execo are UTC. When giving a date
-to execo, you can give it with an explicit timezone or if no timezone
-is given, execo will assume that ``datetime.datetime`` or dates
-expressed as strings are in local timezone.
+Two notions are used in execo for dealing with time: the notion of a
+date, also called a timestamp, which uniquely identifies a moment in
+time, and the notion of duration. Internally all dates are unix
+timestamps, ie. number of seconds elapsed since the unix epoch
+(00:00:00 on Jan 1 1970), possibly with or without subsecond precision
+(float or integer). All durations are in seconds, also possibly with
+or without subsecond precision.
+
+When passing parameters to execo api, all timestamps and durations can be
+expressed in various formats (see `execo.time_utils.get_unixts`,
+`execo.time_utils.get_seconds`) and will be automatically converted to
+dates as unix timestamps, and durations in seconds.
+
+All dates in execo are UTC. When giving a date to execo, you can give
+it with an explicit timezone or if no timezone is given, execo will
+assume that ``datetime.datetime`` or dates expressed as strings are in
+local timezone. For timestamps given directly as unix timestamps, it
+will assume they are in UTC.
+
+If a developer wants to take advantage of the time facilities of
+execo, the main functions are `get_unixts` for properly converting the
+various timestamp formats to a unix timestamp (with proper handling of
+timezone), and `get_seconds` for properly converting the various
+duration formats to seconds. `format_date` and `format_duration` can
+be used to pretty-print a timestamp or a duration, expressed in any of
+the format supported by `get_unixts` or `get_seconds` (they actually
+call them internally before pretty-printing).
 
 Exceptions at shutdown
 ----------------------
