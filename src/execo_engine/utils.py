@@ -502,9 +502,9 @@ class ParamSweeper(object):
         with self.__lock:
             sweeps = self.get_sweeps()
             remaining = self.get_remaining()
-            skipped = self.get_skipped()
-            inprogress = self.get_inprogress()
-            done = self.get_done()
+            skipped = self.get_skipped().intersection(sweeps)
+            inprogress = self.get_inprogress().intersection(sweeps)
+            done = self.get_done().intersection(sweeps)
         ctotal = count(sweeps)
         cremaining = count(remaining)
         cskipped = count(skipped)
