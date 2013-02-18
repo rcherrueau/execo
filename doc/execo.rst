@@ -319,14 +319,6 @@ get_seconds
 -----------
 .. autofunction:: execo.time_utils.get_seconds
 
-format_unixts
--------------
-.. autofunction:: execo.time_utils.format_unixts
-
-format_seconds
---------------
-.. autofunction:: execo.time_utils.format_seconds
-
 format_date
 -----------
 .. autofunction:: execo.time_utils.format_date
@@ -456,13 +448,15 @@ local timezone. For timestamps given directly as unix timestamps, it
 will assume they are in UTC.
 
 If a developer wants to take advantage of the time facilities of
-execo, the main functions are `get_unixts` for properly converting the
-various timestamp formats to a unix timestamp (with proper handling of
-timezone), and `get_seconds` for properly converting the various
-duration formats to seconds. `format_date` and `format_duration` can
-be used to pretty-print a timestamp or a duration, expressed in any of
-the format supported by `get_unixts` or `get_seconds` (they actually
-call them internally before pretty-printing).
+execo, the main functions are `execo.time_utils.get_unixts` for
+properly converting the various timestamp formats to a unix timestamp
+(with proper handling of timezone), and `execo.time_utils.get_seconds`
+for properly converting the various duration formats to
+seconds. `execo.time_utils.format_date` and
+`execo.time_utils.format_duration` can be used to pretty-print a
+timestamp or a duration, expressed in any of the format supported by
+`execo.time_utils.get_unixts` or `execo.time_utils.get_seconds` (they
+actually call them internally before pretty-printing).
 
 Exceptions at shutdown
 ----------------------

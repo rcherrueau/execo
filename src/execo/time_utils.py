@@ -24,14 +24,24 @@ def timedelta_to_seconds(td):
     return td.days * 86400 + td.seconds + td.microseconds / 1e6
 
 def datetime_to_unixts(dt):
-    """Convert a ``datetime.datetime`` to a utc unix timestamp (float)."""
+    """Convert a ``datetime.datetime`` to a utc unix timestamp (float).
+
+    If the datetime given has an explicit timezone, it is used,
+    otherwise the timestamp is assumed to be given in the locale
+    timezone and is converted to utc.
+    """
     if dt.tzinfo:
         return calendar.timegm(dt.utctimetuple()) + dt.microsecond / 1e6
     else:
         return time.mktime(dt.utctimetuple()) + dt.microsecond / 1e6
 
 def unixts_to_datetime(ts, tz = None):
-    """Convert a unixts (int or float) to ``datetime.datetime``."""
+    """Convert a utc unixts (int or float) to ``datetime.datetime``.
+
+    If no timezone is given, the returned datetime is a naive one,
+    with the timestamp set in local time, without a timezone. Or the
+    returned datetime is set in the given timezone if one is given.
+    """
     return datetime.datetime.fromtimestamp(ts, tz)
 
 def numeric_date_to_unixts(d):
@@ -52,7 +62,10 @@ def str_date_to_unixts(d):
     - a numeric. In this case, convert with
       `execo.time_utils.numeric_date_to_unixts`
 
-    - a string in rfc-3339 format 'YYYY-MM-DD[Tt ]HH:MM:SS[.subsec][Zz|(+|-)HH:MM]'
+    - a string in rfc-3339 format 'YYYY-MM-DD[Tt ]HH:MM:SS[.subsec][Zz|(+|-)HH:MM]'.
+      If a timezone is given, it is used, otherwise the timestamp is
+      assumed to be given in the locale timezone and is converted to
+      utc.
     """
     numeric_date = _num_str_date_re.match(d)
     if numeric_date:
@@ -125,7 +138,7 @@ def get_seconds(duration):
     :param duration: a duration in one of the supported types. if
       duration == None, returns None. Supported types
 
-      - ``datetime.timedelta``
+      - ``datetime.timedelta``: see `execo.time_utils.timedelta_to_seconds`
 
       - string: see `execo.time_utils.str_duration_to_seconds`
 
@@ -146,7 +159,7 @@ def get_unixts(d):
     :param d: a date in one of the supported types. if date == None,
       returns None. Supported types
 
-      - ``datetime.datetime``
+      - ``datetime.datetime``: see `execo.time_utils.datetime_to_unixts`
 
       - string: see `execo.time_utils.str_date_to_unixts`
 
@@ -172,6 +185,7 @@ def _get_milliseconds_suffix(secs):
     return ms_suffix
 
 def _zone3339(timetuple):
+    """Return a string with the locale timezone in rfc-3339 format."""
     dst = timetuple[8]
     offs = (time.timezone, time.timezone, time.altzone)[1 + dst]
     return '%+.2d:%.2d' % (offs / -3600, abs(offs / 60) % 60)
@@ -219,7 +233,7 @@ def format_seconds(secs, showms = False):
     return formatted_duration
 
 def format_date(d, showms = False):
-    """Return a string with the formatted date (year, month, day, hour, min, sec, ms) for pretty printing.
+    """Return a string with the formatted date (year, month, day, hour, min, sec, ms) in locale timezone and in rfc-3339 format for pretty printing.
 
     :param d: a date in one of the formats handled (or None) (see
       `execo.time_utils.get_unixts`).
