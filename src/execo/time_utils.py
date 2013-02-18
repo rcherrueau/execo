@@ -52,7 +52,7 @@ def str_date_to_unixts(d):
     - a numeric. In this case, convert with
       `execo.time_utils.numeric_date_to_unixts`
 
-    - a string in rfc-3339 format 'YYYY-MM-DD[Tt ]HH:MM:SS[.µS][Zz|(+|-)HH:MM]'
+    - a string in rfc-3339 format 'YYYY-MM-DD[Tt ]HH:MM:SS[.subsec][Zz|(+|-)HH:MM]'
     """
     numeric_date = _num_str_date_re.match(d)
     if numeric_date:
