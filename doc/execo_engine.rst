@@ -40,6 +40,10 @@ Engine
 Misc
 ====
 
+slugify
+-------
+.. autofunction:: execo_engine.utils.slugify
+
 logger
 ------
 Default and convenient logger for engines.
