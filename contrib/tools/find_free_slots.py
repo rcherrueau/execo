@@ -32,7 +32,7 @@ class g5k_find_free_slots(object):
 	
 	def __init__(self,walltime,resources,vlan=None,kavlan=None,oargridsub_opts='-t deploy',
 				weeks=1,auto=False,log=True,with_plots=False,outdir='.'):
-		self.restime = ET.format_date(ET.unixts_to_datetime(T.time()))
+		self.restime = ET.format_date(T.time())
 		self.resources = resources
 		self.vlan = vlan
 		self.kavlan = kavlan
@@ -309,7 +309,7 @@ class g5k_find_free_slots(object):
 			if freeslot[0]==freeslot[1]:
 				freeslots.remove(freeslot)
 			else:
-				freeslots[i_test]=(freeslot[0]+int(ET.timedelta_to_seconds(DT.timedelta(seconds=90))),freeslot[1])
+				freeslots[i_test]=(freeslot[0]+90,freeslot[1])
 				i_test+=1	
 				
 		if len(freeslots)>0:
