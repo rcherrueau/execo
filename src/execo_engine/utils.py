@@ -309,7 +309,7 @@ class ParamSweeper(object):
         """
         with self.__lock:
             if sweeps:
-                self.__sweeps = sweeps
+                self.__sweeps = set(sweeps)
                 if save_sweeps:
                     with _openlock(os.path.join(self.__persistence_dir, "sweeps")) as sweeps_file:
                         sweeps_file.truncate(0)
@@ -398,7 +398,7 @@ class ParamSweeper(object):
 
     def get_sweeps(self):
         """Returns the iterable of what to iterate on"""
-        return self.__sweeps
+        return self.__sweeps.copy()
 
     def get_skipped(self):
         """returns an iterable of current *skipped* elements
