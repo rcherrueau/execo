@@ -18,11 +18,7 @@
 
 from log import logger
 from subprocess import MAXFD
-import optparse
-import os
-import sys
-import time
-import inspect
+import optparse, os, sys, time, inspect, pipes
 
 class ArgsOptionParser(optparse.OptionParser):
 
@@ -252,8 +248,8 @@ class Engine(object):
             "-M", dest = "merge_outputs", action="store_true", default = False,
             help = "when copying or redirecting outputs, merge stdout / stderr in a single file. Default = %default")
         self.options_parser.add_option(
-            "-c", dest = "continue_dir", default = None, metavar = "DIR",
-            help = "continue experiment in DIR")
+            "-c", dest = "use_dir", default = None, metavar = "DIR",
+            help = "use experiment directory DIR")
         self.options_parser.set_description("engine: " + self.__class__.__name__)
         self.options = None
         """Options given on the command line. Available after the
@@ -295,11 +291,8 @@ class Engine(object):
             self.options_parser.print_help(sys.stderr)
             exit(1)
         self.setup_run_name()
-        if self.options.continue_dir:
-            if not os.path.isdir(self.options.continue_dir):
-                print >> sys.stderr, "ERROR: unable to find experiment dir %s" % (self.options.continue_dir,)
-                exit(1)
-            self.result_dir = self.options.continue_dir
+        if self.options.use_dir:
+            self.result_dir = self.options.use_dir
         else:
             self.setup_result_dir()
         self._create_result_dir()
@@ -309,8 +302,8 @@ class Engine(object):
             elif self.options.output_mode == "redirect":
                 self._redirect_outputs(self.options.merge_outputs)
         logger.info("command line arguments: %s" % (sys.argv,))
-        if self.options.continue_dir:
-            logger.info("continue experiment in %s", self.options.continue_dir)
+        logger.info("command line: " + " ".join([pipes.quote(arg) for arg in sys.argv]))
+        logger.info("run in directory %s", self.result_dir)
         run_meth_on_engine_ancestors(self, "init")
         run_meth_on_engine_ancestors(self, "run")
 
