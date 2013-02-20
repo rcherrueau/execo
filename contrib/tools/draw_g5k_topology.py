@@ -162,7 +162,7 @@ for site, topo in topology.iteritems():
 	legend(graph)
 	
 	
-	graph.write_png('graphs/'+site+'.png')
+	graph.write_png(site+'.png')
 	
 	
 # Creating the total graph
