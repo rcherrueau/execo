@@ -335,6 +335,7 @@ class ParamSweeper(object):
             except:
                 inprogress_file.truncate(0)
                 self.__inprogress.clear()
+            self.__remaining.difference_update(self.__inprogress)
         elif new_done_filepos < self.__done_filepos:
             self.__nolock_full_update(done_file, inprogress_file)
 
