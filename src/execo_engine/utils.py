@@ -267,7 +267,6 @@ class ParamSweeper(object):
         self.__done_filepos = None
 
         self.set_sweeps(sweeps, save_sweeps)
-        self.full_update()
 
     def set_sweeps(self, sweeps = None, save_sweeps = False):
         """Change the list of what to iterate on.
@@ -287,6 +286,7 @@ class ParamSweeper(object):
             else:
                 with _openlock(os.path.join(self.__persistence_dir, "sweeps")) as sweeps_file:
                     self.__sweeps = pickle.load(sweeps_file)
+            self.full_update()
 
     def __nolock_full_update(self, done_file, inprogress_file):
         self.__done.clear()
