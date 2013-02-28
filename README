@@ -88,7 +88,8 @@ makefile targets:
 - build
 
 - install. Pass option PREFIX=... for installing in a non-default
-  location (default PREFIX is /usr/local).
+  location (default PREFIX is /usr/local). Pass option PYTHON to use
+  an explicit python interpreter (default is python).
 
 - doc: to build sphinx documentation
 

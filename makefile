@@ -6,14 +6,15 @@
 .PHONY: all build install doc cleandoc sphinxdoccommon sphinxdochtml sphinxdoclatex cleansphinxdoc epydoc cleanepydoc check clean dist
 
 PREFIX=/usr/local
+PYTHON=python
 
 all: build
 
 build: execo.conf.py.sample execo-run
-	python setup.py build
+	$(PYTHON) setup.py build
 
 install: build
-	python setup.py install --prefix=$(PREFIX)
+	$(PYTHON) setup.py install --prefix=$(PREFIX)
 
 doc: sphinxdochtml
 
@@ -42,9 +43,9 @@ clean: cleandoc
 	find . -name '*.pyc' -exec $(RM) {} \;
 
 dist: doc
-	python setup.py sdist
+	$(PYTHON) setup.py sdist
 
-extract = ( sed -n '/^\# _STARTOF_ $(2)/,/^\# _ENDOF_ $(2)/p' $(1) | grep -v ^\# | python -c 'import sys, textwrap; print textwrap.dedent(sys.stdin.read())' | sed 's/^\(.*\)$$/\# \1/' ; echo )
+extract = ( sed -n '/^\# _STARTOF_ $(2)/,/^\# _ENDOF_ $(2)/p' $(1) | grep -v ^\# | $(PYTHON) -c 'import sys, textwrap; print textwrap.dedent(sys.stdin.read())' | sed 's/^\(.*\)$$/\# \1/' ; echo )
 
 execo.conf.py.sample: execo.conf.py.sample.in src/execo/config.py src/execo_g5k/config.py
 	cp $< $@
