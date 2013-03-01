@@ -316,6 +316,7 @@ class ParamSweeper(object):
                         pickle.dump(self.__sweeps, sweeps_file)
             else:
                 with _openlock(os.path.join(self.__persistence_dir, "sweeps")) as sweeps_file:
+                    sweeps_file.seek(0, os.SEEK_SET)
                     self.__sweeps = pickle.load(sweeps_file)
             self.full_update()
 
