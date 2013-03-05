@@ -627,9 +627,6 @@ class TaktukRemote(Action):
         self._processes = list()
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
-        self._taktuk_hosts_order = []
-        self._taktuk_cmdline = ()
-        self._taktuk = None
         self._taktuk_common_init()
 
     def _args(self):
@@ -665,7 +662,9 @@ class TaktukRemote(Action):
     def _taktuk_common_init(self):
         # taktuk code common to TaktukRemote and subclasses TaktukGet
         # TaktukPut
-
+        self._taktuk_hosts_order = []
+        self._taktuk_cmdline = ()
+        self._taktuk = None
         # we can provide per-host user with taktuk, but we cannot
         # provide per-host port or keyfile, so check that all hosts
         # and connexion_params have the same port / keyfile (or None)
