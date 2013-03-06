@@ -28,8 +28,7 @@ from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
-import threading
-import time
+import threading, time, pipes
 
 class ActionLifecycleHandler(object):
 
@@ -715,12 +714,13 @@ class TaktukRemote(Action):
         taktuk_gateway = None
         if actual_connexion_params.get('taktuk_gateway'):
             taktuk_gateway = Host(actual_connexion_params['taktuk_gateway'])
+            self._taktuk_cmdline = " ".join([pipes.quote(arg) for arg in self._taktuk_cmdline])
         self._taktuk = get_process(self._taktuk_cmdline,
                                    host = taktuk_gateway,
                                    connexion_params = actual_connexion_params['taktuk_gateway_connexion_params'],
                                    timeout = self._other_kwargs.get('timeout'),
                                    stdout_handler = self._taktuk_stdout_output_handler,
-                                   stderr_handler = self._taktuk_stderr_output_handler,
+                                   #stderr_handler = self._taktuk_stderr_output_handler,
                                    #default_stdout_handler = False,
                                    #default_stderr_handler = False,
                                    process_lifecycle_handler = _TaktukLifecycleHandler(self))
