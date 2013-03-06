@@ -492,7 +492,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         #  connector "D $position # $peer_position # $line"                    68     YES
         #  state     "E $position # $peer_position # $line # event_msg($line)" 69     YES
         #  info      "F $position # $line"                                     70     NO
-        #  taktuk    "G $position # $line"                                     71     NO
+        #  taktuk    "G $position # $line"                                     71     SOMETIMES
         #  message   "H $position # $line"                                     72     NO
         #  default   "I $position # $type # $line"                             73     NO
         try:
@@ -943,6 +943,15 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                             else: # 15: file reception terminated
                                 process._num_transfers_terminated += 1
                             self._update_taktukprocess_end_state(process)
+                        elif state_code == 16: # file send failed
+                            if position > 0:
+                                processes = [ self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]] ]
+                            else:
+                                processes = self._taktukaction._processes
+                            for process in processes:
+                                process._num_transfers_started += 1
+                                process._num_transfers_failed += 1
+                                self._update_taktukprocess_end_state(process)
                         elif state_code == 3 or state_code == 5: # connexion failed or lost
                             peer_position = int(peer_position)
                             process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
@@ -954,6 +963,13 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                             pass
                         else:
                             self._log_unexpected_output(string)
+                elif header == 71: # to ignore "Error No such file or directory". Don't know if it can occur in other situations
+                    if position > 0:
+                        processes = [ self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]] ]
+                    else:
+                        processes = self._taktukaction._processes
+                    for process in processes:
+                        process._handle_stderr(line)
                 else:
                     self._log_unexpected_output(string)
         except Exception, e: #IGNORE:W0703
@@ -1096,6 +1112,15 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                             else: # 15: file reception terminated
                                 process._num_transfers_terminated += 1
                             self._update_taktukprocess_end_state(process)
+                        elif state_code == 16: # file send failed
+                            if position > 0:
+                                processes = [ self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]] ]
+                            else:
+                                processes = self._taktukaction._processes
+                            for process in processes:
+                                process._num_transfers_started += 1
+                                process._num_transfers_failed += 1
+                                self._update_taktukprocess_end_state(process)
                         elif state_code == 3 or state_code == 5: # connexion failed or lost
                             peer_position = int(peer_position)
                             process = self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[peer_position-1]]
@@ -1107,6 +1132,13 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                             pass
                         else:
                             self._log_unexpected_output(string)
+                elif header == 71: # to ignore "Error No such file or directory". Don't know if it can occur in other situations
+                    if position > 0:
+                        processes = [ self._taktukaction._processes[self._taktukaction._taktuk_hosts_order[position-1]] ]
+                    else:
+                        processes = self._taktukaction._processes
+                    for process in processes:
+                        process._handle_stderr(line)
                 else:
                     self._log_unexpected_output(string)
         except Exception, e: #IGNORE:W0703
