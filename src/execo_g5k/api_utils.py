@@ -207,7 +207,7 @@ def get_cluster_site(cluster):
             return site
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
 
-__g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+(\.([a-zA-Z]+))?")
+__g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+(\.(\w+))?")
 
 def get_host_cluster(host):
     """Get the cluster of a host.
