@@ -865,8 +865,11 @@ class SshProcess(Process):
                                     host.keyfile,
                                     host.port,
                                     connexion_params)
-                    + (get_rewritten_host_address(host.address, connexion_params),)
-                    + (cmd,))
+                    + (get_rewritten_host_address(host.address, connexion_params),))
+        if hasattr(cmd, '__iter__'):
+            real_cmd += cmd
+        else:
+            real_cmd += (cmd,)
         if not 'pty' in kwargs:
             kwargs['pty'] = make_connexion_params(connexion_params).get('pty')
         super(SshProcess, self).__init__(real_cmd, **kwargs)
