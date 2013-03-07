@@ -409,7 +409,7 @@ class ProcessBase(object):
                 self._stdout_handler.read(self, string, eof, error)
             elif hasattr(self._stdout_handler, "write"):
                 self._stdout_handler.write(string)
-            elif isinstance(self._stdout_handler, str):
+            elif isinstance(self._stdout_handler, basestring):
                 if not self._stdout_file:
                     self._stdout_file = open(self._stdout_handler, "w")
                 self._stdout_file.write(string)
@@ -437,7 +437,7 @@ class ProcessBase(object):
                 self._stderr_handler.read(self, string, eof, error)
             elif hasattr(self._stderr_handler, "write"):
                 self._stderr_handler.write(string)
-            elif isinstance(self._stderr_handler, str):
+            elif isinstance(self._stderr_handler, basestring):
                 if not self._stderr_file:
                     self._stderr_file = open(self._stderr_handler, "w")
                 self._stderr_file.write(string)
