@@ -71,10 +71,11 @@ class Report(object):
             'sub_stats': [],
             }
 
-    def aggregate_stats(self):
-        aggstats = self._stats.copy()
+    @staticmethod
+    def aggregate_stats(stats):
+        aggstats = stats.copy()
         no_end_date = False
-        for substats in self._stats['sub_stats']:
+        for substats in stats['sub_stats']:
             for k in substats.keys():
                 if k == 'start_date':
                     if (substats[k] != None
@@ -146,7 +147,7 @@ class Report(object):
         - ``num_finished_ok``: number of processes which started,
           ended, and are ok.
         """
-        return self.aggregate_stats()
+        return Report.aggregate_stats(self._stats)
 
     def __repr__(self):
         return "<Report(<%i entries>, name=%r)>" % (len(self._stats['sub_stats']), self._stats['name'])

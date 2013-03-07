@@ -1379,8 +1379,7 @@ class ParallelActions(Action):
     def stats(self):
         stats = Report.empty_stats()
         stats['sub_stats'] = [action.stats() for action in self.actions()]
-        Report.aggregate_stats(stats)
-        return stats
+        return Report.aggregate_stats(stats)
 
 class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
 
@@ -1466,8 +1465,7 @@ class SequentialActions(Action):
     def stats(self):
         stats = Report.empty_stats()
         stats['sub_stats'] = [action.stats() for action in self.actions()]
-        Report.aggregate_stats(stats)
-        return stats
+        return Report.aggregate_stats(stats)
 
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
