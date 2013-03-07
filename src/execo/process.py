@@ -837,6 +837,12 @@ class Process(ProcessBase):
             self._process.stdout.close()
         if self._process.stderr:
             self._process.stderr.close()
+        if self._stdout_file:
+            self._stdout_file.close()
+            self._stdout_file = None
+        if self._stderr_file:
+            self._stderr_file.close()
+            self._stderr_file = None
         self._log_terminated()
         if self._process_lifecycle_handler != None:
             self._process_lifecycle_handler.end(self)
@@ -982,6 +988,12 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self._forced_kill = True
         self._end_date = time.time()
         self._ended = True
+        if self._stdout_file:
+            self._stdout_file.close()
+            self._stdout_file = None
+        if self._stderr_file:
+            self._stderr_file.close()
+            self._stderr_file = None
         self._log_terminated()
         if self._process_lifecycle_handler != None:
             self._process_lifecycle_handler.end(self)
