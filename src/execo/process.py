@@ -146,13 +146,19 @@ class ProcessBase(object):
         :param timeout: timeout (in seconds, or None for no timeout)
           after which the process will automatically be sent a SIGTERM
 
-        :param stdout_handler: instance of
+        :param stdout_handler: an instance of
           `execo.process.ProcessOutputHandler` for handling activity
-          on process stdout
+          on process stdout, or an existing file descriptor (positive
+          integer), or an existing file object, or a filename, to
+          which stdout will be sent. If a filename is given, it will
+          be opened in write mode, and closed on eof
 
-        :param stderr_handler: instance of
+        :param stderr_handler: an instance of
           `execo.process.ProcessOutputHandler` for handling activity
-          on process stderr
+          on process stderr, or an existing file descriptor (positive
+          integer), or an existing file object, or a filename, to
+          which stderr will be sent. If a filename is given, it will
+          be opened in write mode, an closed on eof
 
         :param ignore_exit_code: if True, a process with a return code
           != 0 will still be considered ok
@@ -210,7 +216,9 @@ class ProcessBase(object):
         self._log_timeout = log_timeout
         self._log_error = log_error
         self._stdout_handler = stdout_handler
+        self._stdout_file = None
         self._stderr_handler = stderr_handler
+        self._stderr_file = None
         self._default_stdout_handler = default_stdout_handler
         self._default_stderr_handler = default_stderr_handler
         self._process_lifecycle_handler = process_lifecycle_handler
@@ -374,11 +382,11 @@ class ProcessBase(object):
         return self._stderr
 
     def stdout_handler(self):
-        """Return this process stdout `execo.process.ProcessOutputHandler`."""
+        """Return this process stdout handler."""
         return self._stdout_handler
     
     def stderr_handler(self):
-        """Return this process stderr `execo.process.ProcessOutputHandler`."""
+        """Return this process stderr handler."""
         return self._stderr_handler
 
     def _handle_stdout(self, string, eof = False, error = False):
@@ -395,7 +403,19 @@ class ProcessBase(object):
         if error == True:
             self._stdout_ioerror = True
         if self._stdout_handler != None:
-            self._stdout_handler.read(self, string, eof, error)
+            if isinstance(self._stdout_handler, int):
+                os.write(self._stdout_handler, string)
+            elif isinstance(self._stdout_handler, ProcessLifecycleHandler):
+                self._stdout_handler.read(self, string, eof, error)
+            elif hasattr(self._stdout_handler, "write"):
+                self._stdout_handler.write(string)
+            elif isinstance(self._stdout_handler, str):
+                if not self._stdout_file:
+                    self._stdout_file = open(self._stdout_handler, "w")
+                self._stdout_file.write(string)
+                if eof:
+                    self._stdout_file.close()
+                    self._stdout_file = None
         
     def _handle_stderr(self, string, eof = False, error = False):
         """Handle stderr activity.
@@ -411,7 +431,19 @@ class ProcessBase(object):
         if error == True:
             self._stderr_ioerror = True
         if self._stderr_handler != None:
-            self._stderr_handler.read(self, string, eof, error)
+            if isinstance(self._stderr_handler, int):
+                os.write(self._stderr_handler, string)
+            elif isinstance(self._stderr_handler, ProcessLifecycleHandler):
+                self._stderr_handler.read(self, string, eof, error)
+            elif hasattr(self._stderr_handler, "write"):
+                self._stderr_handler.write(string)
+            elif isinstance(self._stderr_handler, str):
+                if not self._stderr_file:
+                    self._stderr_file = open(self._stderr_handler, "w")
+                self._stderr_file.write(string)
+                if eof:
+                    self._stderr_file.close()
+                    self._stderr_file = None
 
     @synchronized
     def ok(self):
