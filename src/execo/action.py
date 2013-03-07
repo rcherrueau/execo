@@ -336,6 +336,20 @@ class ActionNotificationProcessLifecycleHandler(ProcessLifecycleHandler):
     def action_reset(self):
         self._terminated_processes = 0
 
+def _substitute_kwargs(kwargs, all_hosts, index, frame_context):
+    if ((kwargs.has_key("stdout_handler")
+         and isinstance(kwargs["stdout_handler"], str))
+        or (kwargs.has_key("stderr_handler")
+            and isinstance(kwargs["stderr_handler"], str))):
+        kwargs = kwargs.copy()
+        if (kwargs.has_key("stdout_handler")
+            and isinstance(kwargs["stdout_handler"], str)):
+            kwargs["stdout_handler"] = remote_substitute(kwargs["stdout_handler"], all_hosts, index, frame_context)
+        if (kwargs.has_key("stderr_handler")
+            and isinstance(kwargs["stderr_handler"], str)):
+            kwargs["stderr_handler"] = remote_substitute(kwargs["stderr_handler"], all_hosts, index, frame_context)
+    return kwargs
+
 class Remote(Action):
 
     """Launch a command remotely on several host, with ``ssh`` or a similar remote connexion tool.
@@ -358,8 +372,12 @@ class Remote(Action):
 
         :param name: action's name
 
-        :param kwargs: passed to the instanciated
-          `execo.process.SshProcess`.
+        :param kwargs: passed unmodified to the instanciated
+          `execo.process.SshProcess`. Special case for the
+          ``stdout_handler`` or ``stderr_handler`` arguments: if they
+          are of type string (and thus are a filename, see
+          `execo.process.ProcessBase`), then substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
         """
         super(Remote, self).__init__(name = name)
         self._cmd = cmd
@@ -374,7 +392,7 @@ class Remote(Action):
                            host = host,
                            connexion_params = connexion_params,
                            process_lifecycle_handler = self._process_lifecycle_handler,
-                           **self._other_kwargs)
+                           **_substitute_kwargs(self._other_kwargs, self._hosts, index, self._caller_context))
             self._processes.append(p)
 
     def _args(self):
@@ -615,7 +633,11 @@ class TaktukRemote(Action):
           `execo.process.TaktukProcess`. Special case for the
           ``timeout`` keyword argument: it will be passed to the dummy
           `execo.process.TaktukProcess`, but will also be used as
-          timeout for the underlying real taktuk process.
+          timeout for the underlying real taktuk process. Special case
+          for the ``stdout_handler`` or ``stderr_handler`` arguments:
+          if they are of type string (and thus are a filename, see
+          `execo.process.ProcessBase`), then substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
         """
         super(TaktukRemote, self).__init__(name = name)
         self._cmd = cmd
@@ -647,7 +669,7 @@ class TaktukRemote(Action):
             p = TaktukProcess(remote_substitute(self._cmd, self._hosts, index, self._caller_context),
                               host = host,
                               process_lifecycle_handler = lifecycle_handler,
-                              **self._other_kwargs)
+                              **_substitute_kwargs(self._other_kwargs, self._hosts, index, self._caller_context))
             self._processes.append(p)
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
@@ -777,7 +799,11 @@ class Put(Remote):
 
         :param kwargs: passed to the instanciated processes. Special
           case: do not use the shell keyword argument, as it is used
-          internally.
+          internally. Special case for the ``stdout_handler`` or
+          ``stderr_handler`` arguments: if they are of type string
+          (and thus are a filename, see `execo.process.ProcessBase`),
+          then substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
         """
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
@@ -801,7 +827,7 @@ class Put(Remote):
             p = Process(real_command,
                         shell = True,
                         process_lifecycle_handler = lifecycle_handler,
-                        **self._other_kwargs)
+                        **_substitute_kwargs(self._other_kwargs, self._hosts, index, self._caller_context))
             p._host = host
             self._processes.append(p)
 
@@ -854,7 +880,11 @@ class Get(Remote):
 
         :param kwargs: passed to the instanciated processes. Special
           case: do not use the shell keyword argument, as it is used
-          internally.
+          internally. Special case for the ``stdout_handler`` or
+          ``stderr_handler`` arguments: if they are of type string
+          (and thus are a filename, see `execo.process.ProcessBase`),
+          then substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
         """
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
@@ -881,7 +911,7 @@ class Get(Remote):
             p = Process(real_command,
                         shell = True,
                         process_lifecycle_handler = lifecycle_handler,
-                        **self._other_kwargs)
+                        **_substitute_kwargs(self._other_kwargs, self._hosts, index, self._caller_context))
             p._host = host
             self._processes.append(p)
 
@@ -1007,7 +1037,11 @@ class TaktukPut(TaktukRemote):
           `execo.process.TaktukProcess`. Special case for the
           ``timeout`` keyword argument: it will be passed to the dummy
           `execo.process.TaktukProcess`, but will also be used as
-          timeout for the underlying real taktuk process.
+          timeout for the underlying real taktuk process. Special case
+          for the ``stdout_handler`` or ``stderr_handler`` arguments:
+          if they are of type string (and thus are a filename, see
+          `execo.process.ProcessBase`), then substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
         """
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
@@ -1045,11 +1079,11 @@ class TaktukPut(TaktukRemote):
 
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
-        for host in self._hosts:
+        for (index, host) in enumerate(self._hosts):
             process = TaktukProcess("",
                                     host = host,
                                     process_lifecycle_handler = lifecycle_handler,
-                                    **self._other_kwargs)
+                                    **_substitute_kwargs(self._other_kwargs, self._hosts, index, self._caller_context))
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1176,7 +1210,11 @@ class TaktukGet(TaktukRemote):
           `execo.process.TaktukProcess`. Special case for the
           ``timeout`` keyword argument: it will be passed to the dummy
           `execo.process.TaktukProcess`, but will also be used as
-          timeout for the underlying real taktuk process.
+          timeout for the underlying real taktuk process. Special case
+          for the ``stdout_handler`` or ``stderr_handler`` arguments:
+          if they are of type string (and thus are a filename, see
+          `execo.process.ProcessBase`), then substitions described in
+          `execo.substitutions.remote_substitute` will be performed.
         """
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
@@ -1214,11 +1252,11 @@ class TaktukGet(TaktukRemote):
 
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
-        for host in self._hosts:
+        for (index, host) in enumerate(self._hosts):
             process = TaktukProcess("",
                                     host = host,
                                     process_lifecycle_handler = lifecycle_handler,
-                                    **self._other_kwargs)
+                                    **_substitute_kwargs(self._other_kwargs, self._hosts, index, self._caller_context))
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
