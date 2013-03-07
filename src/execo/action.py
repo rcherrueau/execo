@@ -384,7 +384,7 @@ class Remote(Action):
     def _kwargs(self):
         kwargs = []
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -635,7 +635,7 @@ class TaktukRemote(Action):
     def _kwargs(self):
         kwargs = []
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -814,7 +814,7 @@ class Put(Remote):
         if self._remote_location: kwargs.append("remote_location=%r" % (self._remote_location,))
         if self._create_dirs: kwargs.append("create_dirs=%r" % (self._create_dirs,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -894,7 +894,7 @@ class Get(Remote):
         if self._local_location: kwargs.append("local_location=%r" % (self._local_location,))
         if self._create_dirs: kwargs.append("create_dirs=%r" % (self._create_dirs,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -1031,7 +1031,7 @@ class TaktukPut(TaktukRemote):
         kwargs = []
         if self._remote_location: kwargs.append("remote_location=%r" % (self._remote_location,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -1200,7 +1200,7 @@ class TaktukGet(TaktukRemote):
         kwargs = []
         if self._local_location: kwargs.append("local_location=%r" % (self._local_location,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
     def _infos(self):
@@ -1268,7 +1268,7 @@ class Local(Action):
 
     def _kwargs(self):
         kwargs = []
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
     def _infos(self):
