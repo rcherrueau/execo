@@ -405,7 +405,7 @@ class ProcessBase(object):
         if self._stdout_handler != None:
             if isinstance(self._stdout_handler, int):
                 os.write(self._stdout_handler, string)
-            elif isinstance(self._stdout_handler, ProcessLifecycleHandler):
+            elif isinstance(self._stdout_handler, ProcessOutputHandler):
                 self._stdout_handler.read(self, string, eof, error)
             elif hasattr(self._stdout_handler, "write"):
                 self._stdout_handler.write(string)
@@ -433,7 +433,7 @@ class ProcessBase(object):
         if self._stderr_handler != None:
             if isinstance(self._stderr_handler, int):
                 os.write(self._stderr_handler, string)
-            elif isinstance(self._stderr_handler, ProcessLifecycleHandler):
+            elif isinstance(self._stderr_handler, ProcessOutputHandler):
                 self._stderr_handler.read(self, string, eof, error)
             elif hasattr(self._stderr_handler, "write"):
                 self._stderr_handler.write(string)
