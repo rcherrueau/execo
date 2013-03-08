@@ -24,10 +24,10 @@ from log import set_style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output
+from utils import compact_output, nice_cmdline
 from report import Report
 import errno, os, re, shlex, signal, subprocess
-import threading, time, functools, pipes
+import threading, time, functools
 
 def synchronized(func):
     # decorator (similar to java synchronized) to ensure mutual
@@ -300,10 +300,7 @@ class ProcessBase(object):
     def name(self):
         """Return process friendly name."""
         if self._name == None:
-            if hasattr(self._cmd, '__iter__'):
-                return " ".join([pipes.quote(arg) for arg in self._cmd])
-            else:
-                return self._cmd
+            return nice_cmdline(self._cmd)
         else:
             return self._name
 
@@ -962,10 +959,7 @@ class SshProcess(Process):
     def name(self):
         """Return process friendly name."""
         if self._name == None:
-            if hasattr(self._remote_cmd, '__iter__'):
-                return " ".join([pipes.quote(arg) for arg in self._remote_cmd])
-            else:
-                return self._remote_cmd
+            return nice_cmdline(self._remote_cmd)
         else:
             return self._name
 
@@ -993,10 +987,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
     def name(self):
         """Return process friendly name."""
         if self._name == None:
-            if hasattr(self._remote_cmd, '__iter__'):
-                return " ".join([pipes.quote(arg) for arg in self._remote_cmd])
-            else:
-                return self._remote_cmd
+            return nice_cmdline(self._remote_cmd)
         else:
             return self._name
 

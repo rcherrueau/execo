@@ -17,6 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration
+import pipes
 
 def comma_join(*args):
     return ", ".join([ arg for arg in args if len(arg) > 0 ])
@@ -25,3 +26,9 @@ def compact_output(s):
     thresh = configuration.get('compact_output_threshold')
     if thresh == 0 or len(s) <= thresh: return s
     return s[:thresh/2] + "\n[...]\n" + s[(thresh/2)-thresh:]
+
+def nice_cmdline(cmdline):
+    if hasattr(cmdline, '__iter__'):
+        return " ".join([ pipes.quote(arg) for arg in cmdline ])
+    else:
+        return cmdline

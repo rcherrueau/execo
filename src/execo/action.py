@@ -26,6 +26,7 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
+from utils import nice_cmdline
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
 import threading, time, pipes
@@ -406,10 +407,7 @@ class Remote(Action):
 
     def name(self):
         if self._name == None:
-            if hasattr(self._cmd, '__iter__'):
-                return " ".join([pipes.quote(arg) for arg in self._cmd])
-            else:
-                return self._cmd
+            return nice_cmdline(self._cmd)
         else:
             return self._name
 
@@ -1313,10 +1311,7 @@ class Local(Action):
 
     def name(self):
         if self._name == None:
-            if hasattr(self._cmd, '__iter__'):
-                return " ".join([pipes.quote(arg) for arg in self._cmd])
-            else:
-                return self._cmd
+            return nice_cmdline(self._cmd)
         else:
             return self._name
 
