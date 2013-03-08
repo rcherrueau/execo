@@ -410,7 +410,10 @@ class Remote(Action):
 
     def name(self):
         if self._name == None:
-            return "%s on %i hosts: %s" % (self.__class__.__name__, len(self._hosts), self._cmd)
+            if hasattr(self._cmd, '__iter__'):
+                return " ".join([pipes.quote(arg) for arg in self._cmd])
+            else:
+                return self._cmd
         else:
             return self._name
 
@@ -1314,7 +1317,10 @@ class Local(Action):
 
     def name(self):
         if self._name == None:
-            return "%s %s" % (self.__class__.__name__, self._cmd)
+            if hasattr(self._cmd, '__iter__'):
+                return " ".join([pipes.quote(arg) for arg in self._cmd])
+            else:
+                return self._cmd
         else:
             return self._name
 
