@@ -25,15 +25,9 @@ from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
 from utils import compact_output
-import errno
-import os
-import re
-import shlex
-import signal
-import subprocess
-import threading
-import time
-import functools
+from report import Report
+import errno, os, re, shlex, signal, subprocess
+import threading, time, functools, pipes
 
 def synchronized(func):
     # decorator (similar to java synchronized) to ensure mutual
@@ -138,7 +132,7 @@ class ProcessBase(object):
                  ignore_timeout = False, log_timeout = None,
                  ignore_error = False, log_error = None,
                  default_stdout_handler = True, default_stderr_handler = True,
-                 process_lifecycle_handler = None):
+                 process_lifecycle_handler = None, name = None):
         """
         :param cmd: string or tuple containing the command and args to
           run.
@@ -190,6 +184,9 @@ class ProcessBase(object):
         :param process_lifecycle_handler: instance of
           `execo.process.ProcessLifecycleHandler` for being notified
           of process lifecycle events.
+
+        :param name: optional user-friendly name. a default will be
+          generated if None given.
         """
         self._host = None
         self._started = False
@@ -222,6 +219,7 @@ class ProcessBase(object):
         self._default_stdout_handler = default_stdout_handler
         self._default_stderr_handler = default_stderr_handler
         self._process_lifecycle_handler = process_lifecycle_handler
+        self._name = name
 
     def _common_reset(self):
         # all methods _common_reset() of this class hierarchy contain
@@ -298,6 +296,16 @@ class ProcessBase(object):
     @synchronized
     def dump(self):
         return " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
+
+    def name(self):
+        """Return process friendly name."""
+        if self._name == None:
+            if hasattr(self._cmd, '__iter__'):
+                return " ".join([pipes.quote(arg) for arg in self._cmd])
+            else:
+                return self._cmd
+        else:
+            return self._name
 
     def cmd(self):
         """Return the process command line."""
@@ -515,6 +523,32 @@ class ProcessBase(object):
     def host(self):
         """Return the remote host."""
         return self._host
+
+    @synchronized
+    def stats(self):
+        """Return a dict summarizing the statistics of this process.
+
+        see `execo.report.Report.stats`.
+        """
+        stats = Report.empty_stats()
+        stats['name'] = self.name()
+        stats['start_date'] = self._start_date
+        stats['end_date'] = self._end_date
+        stats['num_processes'] = 1
+        if self._started: stats['num_started'] += 1
+        if self._ended: stats['num_ended'] += 1
+        if self._error: stats['num_errors'] += 1
+        if self._timeouted: stats['num_timeouts'] += 1
+        if self._forced_kill: stats['num_forced_kills'] += 1
+        if (self._started
+            and self._ended
+            and self._exit_code != 0):
+            stats['num_non_zero_exit_codes'] += 1
+        if self.ok():
+            stats['num_ok'] += 1
+        if self.finished_ok():
+            stats['num_finished_ok'] +=1
+        return stats
 
 def _get_childs(pid):
     childs = []
@@ -925,6 +959,16 @@ class SshProcess(Process):
     def _infos(self):
         return [ "real cmd=%r" % (self._cmd,) ] + Process._infos(self)
 
+    def name(self):
+        """Return process friendly name."""
+        if self._name == None:
+            if hasattr(self._remote_cmd, '__iter__'):
+                return " ".join([pipes.quote(arg) for arg in self._remote_cmd])
+            else:
+                return self._remote_cmd
+        else:
+            return self._name
+
     def remote_cmd(self):
         """Return the command line executed remotely through ssh."""
         return self._remote_cmd
@@ -945,6 +989,16 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
     def _args(self):
         return [ repr(self._remote_cmd),
                  repr(self._host) ] + ProcessBase._kwargs(self)
+
+    def name(self):
+        """Return process friendly name."""
+        if self._name == None:
+            if hasattr(self._remote_cmd, '__iter__'):
+                return " ".join([pipes.quote(arg) for arg in self._remote_cmd])
+            else:
+                return self._remote_cmd
+        else:
+            return self._name
 
     @synchronized
     def start(self):
