@@ -246,28 +246,24 @@ class Action(object):
         stats = Report.empty_stats()
         stats['name'] = self.name()
         for process in self.processes():
+            pstats = process.stats()
             if (stats['start_date'] == None
-                or (process.start_date() != None
-                    and process.start_date() < stats['start_date'])):
-                stats['start_date'] = process.start_date()
+                or (pstats['start_date'] != None
+                    and pstats['start_date'] < stats['start_date'])):
+                stats['start_date'] = pstats['start_date']
             if (stats['end_date'] == None
-                or (process.end_date() != None
-                    and process.end_date() > stats['end_date'])):
-                stats['end_date'] = process.end_date()
-            stats['num_processes'] += 1
-            if process.started(): stats['num_started'] += 1
-            if process.ended(): stats['num_ended'] += 1
-            if process.error(): stats['num_errors'] += 1
-            if process.timeouted(): stats['num_timeouts'] += 1
-            if process.forced_kill(): stats['num_forced_kills'] += 1
-            if (process.started()
-                and process.ended()
-                and process.exit_code() != 0):
-                stats['num_non_zero_exit_codes'] += 1
-            if process.ok():
-                stats['num_ok'] += 1
-            if process.finished_ok():
-                stats['num_finished_ok'] +=1
+                or (pstats['end_date'] != None
+                    and pstats['end_date'] > stats['end_date'])):
+                stats['end_date'] = pstats['end_date']
+            stats['num_processes'] += pstats['num_processes']
+            stats['num_started'] += pstats['num_started']
+            stats['num_ended'] += pstats['num_ended']
+            stats['num_errors'] += pstats['num_errors']
+            stats['num_timeouts'] += pstats['num_timeouts']
+            stats['num_forced_kills'] += pstats['num_forced_kills']
+            stats['num_non_zero_exit_codes'] += pstats['num_non_zero_exit_codes']
+            stats['num_ok'] += pstats['num_ok']
+            stats['num_finished_ok'] += pstats['num_finished_ok']
         if stats['num_processes'] > stats['num_ended']:
             stats['end_date'] = None
         return stats
