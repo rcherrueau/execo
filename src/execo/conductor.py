@@ -102,6 +102,7 @@ if sys.platform.startswith('darwin') or sys.platform.startswith('win'):
                 pass
 
         def poll(self, timeout = None):
+            if timeout != None: timeout = timeout / 1000.0
             (ready_readfds,
              ready_writefds,
              ready_exceptfds) = select.select(
