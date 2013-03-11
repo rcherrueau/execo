@@ -509,6 +509,7 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                 sleep(until = mymin(new_prediction, now + countdown.remaining() if countdown.remaining() != None else None))
                 continue
         sleep(mymin(g5k_configuration.get('polling_interval'), countdown.remaining()))
+    return False
     
 def get_oar_job_nodes(oar_job_id = None, frontend = None,
                       frontend_connexion_params = None, timeout = False):
