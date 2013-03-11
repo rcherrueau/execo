@@ -856,12 +856,14 @@ class Process(ProcessBase):
             except OSError, e:
                 if e.errno == errno.EBADF: pass
                 else: raise e
+            self._ptymaster = None
         if self._ptyslave != None:
             try:
                 os.close(self._ptyslave)
             except OSError, e:
                 if e.errno == errno.EBADF: pass
                 else: raise e
+            self._ptyslave = None
         if self._process.stdin:
             self._process.stdin.close()
         if self._process.stdout:
