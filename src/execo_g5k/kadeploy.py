@@ -412,7 +412,7 @@ def deploy(deployment,
       means no timeout.
     """
 
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
 
     if check_enough_func == None:

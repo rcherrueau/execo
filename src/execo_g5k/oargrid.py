@@ -107,7 +107,7 @@ def oargridsub(job_specs, reservation_date = None,
     Returns a tuple (oargrid_job_id, ssh_key), or (None, None) if
     error.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     oargridsub_cmdline = get_oargridsub_commandline(job_specs, reservation_date,
                                                     walltime, job_type, queue,
@@ -150,7 +150,7 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
       means use ``g5k_configuration['default_timeout']``. None means no
       timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for job_id in job_ids:
@@ -186,7 +186,7 @@ def get_current_oargrid_jobs(start_between = None,
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if start_between: start_between = [ get_unixts(t) for t in start_between ]
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
@@ -231,7 +231,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
 
     - ``walltime``: job's walltime in seconds
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     process = get_process("oargridstat %i" % (oargrid_job_id,),
                           host = get_frontend_host(),
@@ -265,7 +265,7 @@ def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connexion_params = 
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     process = get_process("oargridstat %i" % (oargrid_job_id,),
                           host = get_frontend_host(),
@@ -312,7 +312,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     process = get_process("oargridstat -wl %i 2>/dev/null || oargridstat -l %i 2>/dev/null" % (oargrid_job_id, oargrid_job_id),
                           host = get_frontend_host(),

@@ -224,7 +224,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
     None. The returned list matches, in the same order, the job_specs
     parameter.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for (spec, frontend) in job_specs:
@@ -276,7 +276,7 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for (job_id, frontend) in job_specs:
@@ -324,7 +324,7 @@ def get_current_oar_jobs(frontends = None,
       on any error. If False, will returned the list of job got, even
       if incomplete (some frontends may have failed to answer).
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if start_between: start_between = [ get_unixts(t) for t in start_between ]
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
@@ -401,7 +401,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
 
     But no info may be available as long as the job is not scheduled.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
@@ -533,7 +533,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
@@ -576,7 +576,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
@@ -642,7 +642,7 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connexion_pa
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    if timeout == False:
+    if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
         if os.environ.has_key('OAR_JOB_ID'):
