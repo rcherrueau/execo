@@ -1,0 +1,426 @@
+# Copyright 2009-2013 INRIA Rhone-Alpes, Service Experimentation et
+# Developpement
+#
+# This file is part of Execo.
+#
+# Execo is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Execo is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Execo.  If not, see <http://www.gnu.org/licenses/>
+
+from pprint import pprint
+import time as T, datetime as DT, execo.time_utils as ET, math
+from execo.log import set_style, logger
+
+import execo_g5k.api_utils as API
+try:
+	from matplotlib import pylab as PLT
+	import matplotlib.dates as MD
+except ImportError:
+	pass
+
+
+class Planning:
+	
+	def __init__(self, elements = None, starttime = None, endtime = None):
+		''' :param elements: a list containing the uid of the elements 
+    	(grid5000.fr or site or cluster) which planning will be compute 
+        
+        :param startime: a timestamp corresponding to the planning start
+        
+        :param endtime: a timestamp corresponding to the planning end
+        
+        : paral
+        
+        '''
+		self.elements = elements
+		self.startstamp = starttime
+		self.endstamp = endtime
+		if elements is not None and starttime is not None and endtime is not None:
+			self.compute()
+			
+		
+	def compute(self):
+		'''Compute the planning from the API data and create a dict that contains all 
+		hosts planning sorted by {'site': {'cluster': {'host': {'free': [(start, stop)], 'busy': [(start, stop)] }}}}
+		'''
+		logger.info('%s',set_style('GETTING PLANNINGS FROM API', 'object_repr'))
+		self.planning = {}
+		
+		if 'grid5000.fr' in self.elements:
+			logger.info('for the %s', set_style('whole platform \n', 'emph'))
+			self.planning = self.grid5000(self.startstamp, self.endstamp)
+		else:
+			for resource in self.elements:
+				if resource in API.get_g5k_sites():
+					log = 'for site '+ set_style(resource, 'site')
+					self.planning[resource] = self.site(resource, self.startstamp, self.endstamp)
+				else:
+					log = 'for cluster '+ set_style(resource, 'cluster')
+					site = API.get_cluster_site(resource)
+					if not self.planning.has_key(site):
+						self.planning[site] = {}
+					self.planning[site][resource] = self.cluster(resource, self.startstamp, self.endstamp)
+				logger.info('%s', log)
+		
+		logger.info('%s', set_style('Merging planning elements ..', 'object_repr'))
+		for clusters in self.planning.itervalues():
+			for hosts in clusters.itervalues():
+				for planning in hosts.itervalues():
+					self.merge_planning(planning)	
+		logger.info('%s', set_style('Done\n', 'object_repr'))
+		
+	def host(self, host_reservations, startstamp, endstamp):
+		''' Compute the planning from the dict of reservations gathered from the API'''
+		planning = {'busy': [], 'free': []}
+		for job in host_reservations:
+			if job['queue']!='besteffort' and (job['start_time'],job['start_time']+job['walltime']) not in planning['busy']:
+				job['start_time'] = max(job['start_time'], startstamp)
+				job['end_time'] = min(job['start_time']+job['walltime']+61, endstamp)
+				planning['busy'].append( (job['start_time'], job['end_time']) )
+		planning['busy'].sort()
+		
+		if len(planning['busy']) > 0:
+			if planning['busy'][0][0] > startstamp:
+				planning['free'].append((startstamp, planning['busy'][0][0])) 
+			for i in range(0, len(planning['busy'])-1):
+				planning['free'].append((planning['busy'][i][1], planning['busy'][i+1][0]))
+			if planning['busy'][len(planning['busy'])-1][1]<endstamp:
+				planning['free'].append((planning['busy'][len(planning['busy'])-1][1], endstamp))
+		else:
+			planning['free'].append((startstamp, endstamp))
+		return planning	
+		
+	def cluster(self, cluster, startstamp, endstamp):
+		''' Return a dict containing all alive nodes and their planning for a given cluster'''
+		cluster_planning = {}
+		site = API.get_cluster_site(cluster)
+		hosts = API.get_resource_attributes('/grid5000/sites/'+site+'/clusters/'+cluster+'/status?reservations_limit=100')
+		for host in hosts['items']:
+			if host['hardware_state'] != 'dead':
+				cluster_planning[host['node_uid']] = self.host(host['reservations'], startstamp, endstamp)
+		for planning in cluster_planning.itervalues():
+			self.merge_planning(planning)
+		return cluster_planning
+		
+				
+	def site(self, site, startstamp, endstamp):
+		''' Return a dict containing all alive nodes and their planning for a given site'''
+		site_planning = {}
+		hosts = API.get_resource_attributes('/grid5000/sites/'+site+'/status?reservations_limit=100')
+		for host in hosts['items']:
+			cluster = API.get_host_cluster(host['node_uid'])
+			if not site_planning.has_key(cluster):
+				site_planning[cluster] = {}
+			if host['hardware_state'] != 'dead':
+				site_planning[cluster][host['node_uid']] = self.host(host['reservations'], startstamp, endstamp)
+		tmp_planning = site_planning.copy()
+		for cluster in tmp_planning.iterkeys():
+			if len(tmp_planning[cluster]) == 0:
+				del site_planning[cluster]
+		for cluster, cluster_planning in site_planning.iteritems():
+			for planning in cluster_planning.itervalues():
+				self.merge_planning(planning)
+		return site_planning
+		
+	def grid5000(self, startstamp, endstamp):
+		''' Return a dict containing all alive nodes and their planning for a the whole platform'''
+		grid_planning = {}
+		sites = API.get_g5k_sites()
+		for site in sites:
+			grid_planning[site] = self.site(site, startstamp, endstamp)	
+		return grid_planning
+
+	def merge_planning(self, planning):
+		for kind in ['free', 'busy' ]:
+			slots = planning[kind]
+			if len(slots) > 1:
+				for i in range(len(slots)):
+					j = i+1
+					if j == len(slots)-1:
+						break
+					while True:
+						condition = slots[i][1]>=slots[j][0] 
+						if condition:
+							slots[i]=(slots[i][0],slots[j][1])
+							slots.pop(j)
+							if j == len(slots) - 1:
+								break
+						else:
+							break
+					if j == len(slots) - 1:
+						break
+	
+	def slots_limits(self):
+		self.limits = []
+		
+		for clusters  in self.planning.values():
+			for hosts in clusters.values():
+				for planning in hosts.itervalues():
+					for limits in planning['busy']:
+						if limits[0] not in self.limits and limits[0] >= self.startstamp \
+							and limits[0] < self.endstamp:
+							self.limits.append(limits[0])
+						if limits[1] not in self.limits and limits[1] >= self.startstamp \
+							and limits[1] < self.endstamp:
+							self.limits.append(limits[1])
+					for limits in planning['free']:
+						if limits[0] not in self.limits and limits[0] >= self.startstamp \
+							and limits[0] < self.endstamp:
+							self.limits.append(limits[0])
+						if limits[1] not in self.limits and limits[1] >= self.startstamp \
+							and limits[1] < self.endstamp:
+							self.limits.append(limits[1])
+		if self.endstamp not in self.limits:
+			self.limits.append(self.endstamp)			
+		self.limits.sort()
+	
+	def merge_slots(self, slots):
+		if len(slots)>1:
+			list_slots = list(enumerate(sorted(slots.iteritems())))
+			for i in range(len(slots)):
+				j = i+1
+				if j == len(list_slots)-1:
+					break
+				while True:
+					if list_slots[i][1][0][1] == list_slots[j][1][0][0] \
+						and list_slots[i][1][1] == list_slots[j][1][1]:
+						list_slots[i] = (i, ((list_slots[i][1][0][0], list_slots[j][1][0][1]), list_slots[i][1][1]))
+						list_slots.pop(j)
+						if j == len(list_slots)-1:
+							break	
+					else:
+						break
+				if j == len(list_slots)-1:
+					break
+			slots.clear()
+			for slot in list_slots:
+				slots[(slot[1][0][0], slot[1][0][1])] = slot[1][1] 
+
+	def compute_slots(self):
+		''' Determine all the slots limits and find the number of available nodes for each resources'''
+		logger.info('%s', set_style('COMPUTING SLOTS', 'object_repr'))
+		slots = {}
+		self.slots_limits()
+		self.duration = 3600
+		for i in range(len(self.limits)-1):
+			slot_limit = (self.limits[i], self.limits[i+1])
+			slots[slot_limit] = {}
+			for site, clusters  in self.planning.iteritems(): 
+				slots[slot_limit][site] = 0
+				for cluster, hosts in clusters.iteritems():
+					slots[slot_limit][cluster] = 0
+					for host in hosts.itervalues():
+						for slot in host['free']:
+							if self.limits[i] >= slot[0] and self.limits[i] + self.duration <= slot[1]:
+								slots[slot_limit][cluster] += 1						
+					slots[slot_limit][site] += slots[slot_limit][cluster]
+		
+		
+		self.merge_slots(slots)
+			
+		g5k_clusters = API.get_g5k_clusters()
+		for limit, elements in iter(sorted(slots.iteritems())):			
+			slots[limit]['grid5000.fr'] = 0 
+			for element, n_nodes in elements.iteritems():
+				if element in g5k_clusters:
+					slots[limit]['grid5000.fr'] += n_nodes
+			
+		self.slots = slots
+		
+		logger.info('%s', set_style('Done\n', 'object_repr'))   
+
+	def find_slots(self, mode, walltime, resources = None):
+		h, m, s = walltime.split(':')
+		duration = ET.timedelta_to_seconds(DT.timedelta(hours=int(h), minutes=int(m), seconds=int(s)))
+	
+		if mode == 'free':
+			logger.info('Filtering slots with enough resources')
+			slots_ok = {}
+			for slot, elements in self.slots.iteritems():
+				slot_ok = True
+				if slot[1] - slot[0] >= duration:
+					for element, n_nodes in elements.iteritems():
+						if resources.has_key(element) and resources[element] > n_nodes:
+							slot_ok = False
+				if slot_ok:
+					slots_ok[slot] = resources
+			self.slots_ok = slots_ok
+		elif mode == 'max':
+			logger.info('Choosing slot with max nodes')
+			max_slot = {}
+			max = 0
+			for slot, elements in iter(sorted(self.slots.iteritems())):
+				if slot[1] - slot[0] >= duration:
+					if elements['grid5000.fr'] > max:
+						max = elements['grid5000.fr']
+						max_slot = { slot : elements}
+			self.max_slot = max_slot
+
+	def init_plots(self):
+		self.outsuffix = ET.format_date( self.startstamp ).replace('-', '').replace(' ','_').replace(':','')
+		
+		self.colors = {}
+		self.colors['busy'] = '#CCCCCC' 
+		rgb_colors = [(x[0]/255., x[1]/255., x[2]/255.) for x in \
+					[(255., 122., 122.), (255., 204., 122.), (255., 255., 122.), (255., 246., 153.), (204., 255., 122.), 
+					(122., 255., 122.), (122., 255., 255.), (122., 204., 255.), (204., 188., 255.), (255., 188., 255.)]]
+		i_site = 0
+		for site in sorted(API.get_g5k_sites()):
+			self.colors[site] = rgb_colors[i_site]
+			i_cluster = 0
+			for cluster in sorted(API.get_site_clusters(site)):
+				min_index = self.colors[site].index(min(self.colors[site]))
+				color = [0., 0., 0.]
+				for i in range(3):
+					color[i] = min(self.colors[site][i], 1.)
+					if i == min_index:
+						color[i] += i_cluster * 0.12
+				self.colors[cluster] = tuple(color)
+				i_cluster += 1
+			i_site += 1
+	
+
+	def draw_gantt(self, show = False, save = False):
+		''' Draw the hosts planning for the element you ask '''
+		self.init_plots()
+		n_sites = len(self.planning.keys())
+		n_col = 2 if n_sites > 1 else 1
+		n_row = int(math.ceil(float(n_sites) / float(n_col)))
+		
+		if self.endstamp - self.startstamp <= ET.timedelta_to_seconds(DT.timedelta(days=3)):
+			x_major_locator = MD.HourLocator(byhour = [9, 19])
+		elif self.endstamp - self.startstamp <= ET.timedelta_to_seconds(DT.timedelta(days=7)):
+			x_major_locator = MD.HourLocator(byhour = [9])
+		else:
+			x_major_locator = MD.AutoDateLocator()
+		xfmt = MD.DateFormatter('%d %b, %H:%M ')
+		
+		fig = PLT.figure(figsize=(15, 5 * n_row), dpi=80)
+		
+		i_site = 1
+		for site, clusters in self.planning.iteritems():
+			ax = fig.add_subplot(n_row, n_col, i_site, title = site.title())
+			ax.title.set_fontsize(18)
+			ax.xaxis_date()
+			ax.set_xlim(ET.unixts_to_datetime(self.startstamp), ET.unixts_to_datetime(self.endstamp))
+			ax.xaxis.set_major_formatter(xfmt)
+			ax.xaxis.set_major_locator(x_major_locator )
+			ax.xaxis.grid( color = 'black', linestyle = 'dashed' )
+			PLT.xticks(rotation = 15)
+			ax.set_ylim(0, 1)
+			ax.get_yaxis().set_ticks([])
+			ax.yaxis.label.set_fontsize(16)
+			n_hosts = 0
+			for hosts in clusters.itervalues():
+				n_hosts += len(hosts)
+			pos = 0.0
+			inc=1./n_hosts
+			
+			ylabel = ''
+			for cluster, hosts in clusters.iteritems():
+				ylabel += cluster+' '
+				i_host = 0
+				for slots in hosts.itervalues():
+					i_host +=1
+					colors = {'free': self.colors[cluster], 'busy': self.colors['busy']}
+					edgecolor = 'none' if i_host < len(hosts) else '#cccccc'
+					for kind in colors.iterkeys(): 
+						for freeslot in slots[kind]:
+							edate, bdate = [MD.date2num(item) for item in 
+											(ET.unixts_to_datetime(freeslot[1]), ET.unixts_to_datetime(freeslot[0]))]
+							ax.barh(pos, edate - bdate , 1, left = bdate,
+								color = colors[kind],  edgecolor = edgecolor )					
+					pos += inc
+			ax.set_ylabel(ylabel)
+			i_site += 1
+		fig.tight_layout()
+		if show:
+			PLT.show()
+		if save:
+			fname = 'gantt-'+self.outsuffix+'.png'
+			logger.info('Saving file %s ...', fname)
+			PLT.savefig (fname, dpi=300)
+		
+	def draw_max_nodes(self, show = False, save = False):	  
+		''' '''
+		self.init_plots()		
+		xfmt = MD.DateFormatter('%d %b, %H:%M ')
+		if self.endstamp - self.startstamp <= ET.timedelta_to_seconds(DT.timedelta(days=7)):
+			x_major_locator = MD.HourLocator(byhour = [9, 19])
+		elif self.endstamp - self.startstamp <= ET.timedelta_to_seconds(DT.timedelta(days=17)):
+			x_major_locator = MD.HourLocator(byhour = [9])
+		else:
+			x_major_locator = MD.AutoDateLocator()
+		
+				
+		max_nodes = {}
+		total_nodes = 0
+		slot_limits = []
+		total_list = []
+		for slot, elements in iter(sorted(self.slots.iteritems())):
+			slot_limits.append(slot[0])
+			slot_limits.append(slot[1]-1)
+			for element, n_nodes in elements.iteritems():
+				if element in API.get_g5k_clusters():
+					if not max_nodes.has_key(element):
+						max_nodes[element] = []
+					max_nodes[element].append(n_nodes)
+					max_nodes[element].append(n_nodes)
+				if element == 'grid5000.fr':
+					total_list.append(n_nodes)
+					total_list.append(n_nodes)
+					if n_nodes > total_nodes:
+						total_nodes = n_nodes
+		slot_limits.sort()
+		dates=[ET.unixts_to_datetime(ts) for ts in slot_limits]
+		
+		datenums=MD.date2num(dates)
+		
+		fig = PLT.figure(figsize=(15,10), dpi=80)
+#		PLT.title('Choose your slot')
+		ax = PLT.subplot(111)
+		ax.xaxis_date()
+		box = ax.get_position()
+		ax.set_position([box.x0-0.07, box.y0, box.width, box.height])
+		ax.set_xlim(ET.unixts_to_datetime(min(self.limits)), ET.unixts_to_datetime(max(self.limits)))
+		ax.set_xlabel('Time')
+		ax.set_ylabel('Nodes available')
+		ax.set_ylim(0, total_nodes*1.1)
+		ax.axhline(y = total_nodes, color = '#000000', linestyle ='-', linewidth = 2, label = 'ABSOLUTE MAXIMUM')
+		ax.yaxis.grid(color='gray', linestyle='dashed')
+		ax.xaxis.set_major_formatter(xfmt)
+		ax.xaxis.set_major_locator(x_major_locator )
+		PLT.xticks(rotation = 15)
+
+		
+		max_nodes_list = []
+		
+		p_legend = []
+		p_rects = []
+		p_colors = []
+		for key, value in iter(sorted(max_nodes.iteritems())):
+			if key != 'grid5000.fr':
+				max_nodes_list.append(value)
+				p_legend.append(key)
+				p_rects.append(PLT.Rectangle((0, 0), 1, 1, fc = self.colors[key]))
+				p_colors.append(self.colors[key])
+		plots = PLT.stackplot(datenums, max_nodes_list, colors = p_colors)
+		PLT.legend(p_rects, p_legend, loc='center right', ncol = 1, shadow = True, bbox_to_anchor=(1.2, 0.5))
+		
+		
+		if show:
+			PLT.show()
+		if save:
+			fname = 'max_nodes-'+self.outsuffix+'.png'
+			logger.info('Saving file %s ...', fname)
+			PLT.savefig (fname, dpi=300)
+		
