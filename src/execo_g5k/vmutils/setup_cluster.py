@@ -20,7 +20,7 @@
 technology
 """
 from pprint import pprint, pformat
-import time as T, logging as LOG, lxml.etree as ET
+import time as T, logging as LOG, xml.etree.ElementTree as ET
 import execo as EX, execo_g5k as EX5
 from execo import logger
 from execo_g5k.api_utils import get_g5k_sites, get_site_clusters, get_host_attributes, get_resource_attributes
@@ -214,7 +214,7 @@ class VirshCluster(object):
 			logger.info('Using custom file for network...')
 			root = network_xml
 		self.tree = ET.ElementTree(element=root)
-		self.tree.write('default.xml', pretty_print=True)
+		self.tree.write('default.xml')
 		logger.info('Pushing default.xml on all nodes ...')
 
 		EX.Remote('virsh net-destroy default; virsh net-undefine default', self.hosts).run()
