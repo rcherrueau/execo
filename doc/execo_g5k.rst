@@ -339,3 +339,28 @@ TODO: Currently, due to an ongoing bug or misconfiguration (see
 https://www.grid5000.fr/cgi-bin/bugzilla3/show_bug.cgi?id=3302), oar
 fails to access the ssh keys if they are not world-readable, so you
 need to make them so.
+
+Planning utilities
+==================
+
+.. automodule:: execo_g5k.planning
+
+Planning
+-------------
+.. autoclass:: execo_g5k.planning.Planning
+   :members:
+   
+Virtual machines utilities
+==========================
+
+.. automodule:: execo_g5k.vmutils.setup_cluster
+
+VirshCluster
+------------
+.. autoclass:: execo_g5k.vmutils.setup_cluster.VirshCluster
+   :members:
+
+
+
+
+

@@ -54,6 +54,10 @@ configuration = {
         'emph': ('magenta', 'bold'),
         'report_warn': ('magenta',),
         'report_error': ('red', 'bold'),
+        'host': ('white', 'bold'),
+        'user1': ('green', 'bold'),
+        'user2': ('yellow', 'bold'),
+        'user3': ('cyan', 'bold'),
         },
     'log_level_styles' : {
         logging.DEBUG: ('green',),

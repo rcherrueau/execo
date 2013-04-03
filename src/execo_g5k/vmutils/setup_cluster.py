@@ -81,8 +81,8 @@ class VirshCluster(object):
 		self.hack_cmd = "source /etc/profile; "
 	
 	def run(self):
-		"""Sequentially execute deploy_hosts(), rename_hosts(), setup_packages(), 
-		configure_libvirt(), create_disk_image(), copy_ssh_keys()""" 
+		"""Sequentially execute deploy_hosts, rename_hosts, setup_packages, 
+		configure_libvirt, create_disk_image, copy_ssh_keys""" 
 		self.deploy_hosts()
 		self.rename_hosts()
 		self.setup_packages()
@@ -180,14 +180,16 @@ class VirshCluster(object):
 			self.create_disk_image()
 		
 		logger.info('Copying ssh key on vm-base ...')
+		
 		cmd = self.hack_cmd+'modprobe nbd max_part=1; '+ \
 			'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
 			'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
 			'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys; '+ \
 			'echo "Host * \n StrictHostKeyChecking no" >> /mnt/root/.ssh/config; '+ \
 			'umount /mnt'
-		EX.Remote(cmd, self.hosts).run()
-		
+		logger.debug(cmd)
+		copy_on_vm_base = EX.Remote(cmd, self.hosts).run()
+		logger.debug('%s', copy_on_vm_base.ok())
 		self.state.append('ssh_keys')
 		
 	def setup_stress(self):
