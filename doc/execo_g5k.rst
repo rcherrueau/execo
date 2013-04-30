@@ -360,7 +360,7 @@ VirshCluster
 .. autoclass:: execo_g5k.vmutils.setup_cluster.VirshCluster
    :members:
 
-
+.. automodule:: execo_g5k.vmutils.state
 
 
 

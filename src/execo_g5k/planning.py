@@ -29,7 +29,9 @@ except ImportError:
 	pass
 
 def get_first_cluster_available( clusters, walltime, n_nodes = 1): 
-	"""Compute the planning of the clusters list and find the first one available for a given walltime"""
+	"""Compute the planning of the clusters list and find the first one available for a given walltime
+	and a given number of nodes"""
+	
 	starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
 	endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))	
 	planning = Planning(clusters, starttime, endtime)
@@ -54,6 +56,7 @@ def get_first_cluster_available( clusters, walltime, n_nodes = 1):
 def get_first_site_available( sites, walltime, n_nodes = 1): 
 	"""Compute the planning of the sites list and find the first one available for a given walltime and
 	a given number of node """
+	
 	starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
 	endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))	
 	planning = Planning(sites, starttime, endtime)

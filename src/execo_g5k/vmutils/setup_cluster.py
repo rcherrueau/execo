@@ -69,7 +69,7 @@ class VirshCluster(object):
 		logger.setLevel('INFO')
 		self.hosts = hosts
 		self.kavlan = kavlan
-		self.packages_list = ' qemu-kvm'
+		self.packages_list = ' qemu-kvm nmap virtinst libvirt-bin'
 		if env_file is None:
 			self.env_name = 'squeeze-x64-prod' if env_name is None else env_name	
 		else:
@@ -181,6 +181,7 @@ class VirshCluster(object):
 		
 		logger.info('Copying ssh key on vm-base ...')
 		
+		
 		cmd = self.hack_cmd+'modprobe nbd max_part=1; '+ \
 			'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
 			'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
@@ -192,14 +193,14 @@ class VirshCluster(object):
 		logger.debug('%s', copy_on_vm_base.ok())
 		self.state.append('ssh_keys')
 		
-	def setup_stress(self):
-		'''Install the stress program on the base vm '''	
-		cmd = 'modprobe nbd max_part=1; '+ \
-			 'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
-			  'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
-			  'apt-get install stress '+ \
-			  'umount /mnt'
-		#EX.Remote(cmd, self.hosts).run()
+#	def setup_stress(self):
+#		'''Install the stress program on the base vm '''	
+#		cmd = 'modprobe nbd max_part=1; '+ \
+#			 'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
+#			  'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
+#			  'apt-get install stress '+ \
+#			  'umount /mnt'
+#		#EX.Remote(cmd, self.hosts).run()
 		
 	def configure_libvirt(self, network_xml = None):
 		'''Configure the default network used by libvirt '''
@@ -230,30 +231,30 @@ class VirshCluster(object):
 	
 		
 
-class KVMCluster(VirshCluster):
-	def __init__(self, hosts, kavlan = None):
-		VirshCluster.__init__(self, hosts, kavlan)
-		self.packages_list = ' qemu-kvm'
-
-		
-		
-		
-class XenCluster(VirshCluster):
-	def __init__(self, hosts):
-		VirshCluster.__init__(hosts)
-		self.env_name = 'squeeze-x64-xen'
-		self.packages_list = ' xen-qemu-dm-4.0 nfs-common'
-		
-	def adding_migration(self):
-		cmd='echo "(xend-unix-server yes)" >> /etc/xen/xend-config.sxp ; '+ \
-			'echo "(xend-relocation-server yes)" >> /etc/xen/xend-config.sxp ; '+ \
-			'service xend restart'
-		EX.Remote(cmd,self.hosts).run()	
-
-	def run(self):
-		self.deploy_hosts()
-		self.adding_migration()
-		self.setup_packages()
+#class KVMCluster(VirshCluster):
+#	def __init__(self, hosts, kavlan = None):
+#		VirshCluster.__init__(self, hosts, kavlan)
+#		self.packages_list = ' qemu-kvm'
+#
+#		
+#		
+#		
+#class XenCluster(VirshCluster):
+#	def __init__(self, hosts):
+#		VirshCluster.__init__(hosts)
+#		self.env_name = 'squeeze-x64-xen'
+#		self.packages_list = ' xen-qemu-dm-4.0 nfs-common'
+#		
+#	def adding_migration(self):
+#		cmd='echo "(xend-unix-server yes)" >> /etc/xen/xend-config.sxp ; '+ \
+#			'echo "(xend-relocation-server yes)" >> /etc/xen/xend-config.sxp ; '+ \
+#			'service xend restart'
+#		EX.Remote(cmd,self.hosts).run()	
+#
+#	def run(self):
+#		self.deploy_hosts()
+#		self.adding_migration()
+#		self.setup_packages()
 
 
 

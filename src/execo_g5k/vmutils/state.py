@@ -4,20 +4,7 @@ from execo.log import set_style
 from execo_g5k.config import default_frontend_connexion_params
 from execo_g5k.api_utils import get_cluster_site
 
-def ping_probes( vms_params, cluster):
-    """A function that a parallel actions to be executed on the site frontend of the cluster
-    that ping the vms and write a log file"""
-    pingactions=[]
-    for vm_params in vms_params:
-        cmd='ping -i 0.2 '+vm_params['ip']+ \
-        ' | while read pong; do pong=`echo $pong | cut -f4 -d "=" | cut -f1 -d \' \' `;'+\
-        'if [ -z "$pong" ]; then pong=0.0; fi;'+\
-        'echo "$(date +%s) $pong"; done > ping_'+cluster+'_'+vm_params['vm_id']+'.out'
-        site = get_cluster_site(cluster)
-        pingactions.append(Remote(cmd, [site+'.grid5000.fr'], log_exit_code=False, 
-                                connexion_params={'user': default_frontend_connexion_params['user']}))
-    logger.debug('%s', pformat(pingactions))    
-    return ParallelActions(pingactions)
+
 
 def list_vm( host ):
     """List the vm on host"""
@@ -29,29 +16,41 @@ def list_vm( host ):
             if 'vm' in line:
                 std = line.split()
                 vms_id.append(std[1])
+    logger.debug('List of VM on host %s\n%s', set_style(host.address, 'host'),
+                 ' '.join([set_style(vm_id, 'object_repr') for vm_id in vms_id]))
     return  [ {'vm_id': vm_id} for vm_id in vms_id ] 
     
+def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms_params = []):
+    """ Create a dict of the VM parameters """
+    
+    if cpusets is None:
+        cpusets =  {'vm-'+str(i): 'auto' for i in range(n_vm)} 
+        
+    for i_vm in range( len(vms_params), n_vm+len(vms_params)):
+        vms_params.append( {'vm_id': 'vm-'+str(i_vm), 'hdd_size': hdd_size, 
+                'mem_size': mem_size, 'vcpus': n_cpu, 'cpuset': cpusets['vm-'+str(i_vm)],
+                'ip': ip_mac[i_vm][0], 'mac': ip_mac[i_vm][1]} )
+    logger.debug('VM parameters have been defined:\n%s', 
+                 ' '.join([set_style(param['vm_id'], 'object_repr') for param in vms_params]))
+    return vms_params
 
 
-def create( hosts, comb, ip_mac):
+def create_disks( hosts, vms_params):
     """ Create the VM disks on the hosts and the dict of vm parameters"""
     logger.debug('%s', pformat(hosts))
     disk_actions = []
-    vms_params = []
-    for i_vm in range(comb['n_vm']):
-        vm_param = {'vm_id': 'vm-'+str(i_vm), 'hdd_size': comb['hdd_size'], 
-                'mem_size': comb['mem_size'], 'vcpus': comb['n_cpu'],
-                'ip': ip_mac[i_vm][0], 'mac':ip_mac[i_vm][1]}
-        logger.info('Creating disk for %s (%s)', set_style(vm_param['vm_id'], 'object_repr'), vm_param['ip'] )
+    for vm_params in vms_params:
+        logger.info('Creating disk for %s (%s)', set_style(vm_params['vm_id'], 'object_repr'), vm_params['ip'] )
         cmd = 'qemu-img create -f qcow2 -o backing_file=/tmp/vm-base.img,backing_fmt=raw /tmp/'+\
-            vm_param['vm_id']+'.qcow2 '+str(comb['hdd_size'])+'G';
+            vm_params['vm_id']+'.qcow2 '+str(vm_params['hdd_size'])+'G';
         disk_actions.append( Remote(cmd, hosts))
-        vms_params.append(vm_param)
     logger.debug('%s', pformat(disk_actions))
-    logger.debug('%s', pformat(vms_params))
-    ParallelActions(disk_actions).run()
+    disks_created = ParallelActions(disk_actions).run()
     
-    return vms_params
+    if disks_created.ok():
+        return True
+    else:
+        return False
     
 def install( vms_params, host, autostart = True, packages = None):
     """Perform virt-install using the dict vm_params"""
@@ -61,12 +60,15 @@ def install( vms_params, host, autostart = True, packages = None):
         cmd = 'virt-install -d --import --connect qemu:///system --nographics --noautoconsole --noreboot'+ \
         ' --name=' + param['vm_id'] + ' --network network=default,mac='+param['mac']+' --ram='+str(param['mem_size'])+ \
         ' --disk path=/tmp/'+param['vm_id']+'.qcow2,device=disk,format=qcow2,size='+str(param['hdd_size'])+',cache=none '+\
-        ' --vcpus='+ str(param['vcpus'])
+        ' --vcpus='+ str(param['vcpus'])+' --cpuset='+param['cpuset']
         logger.debug('%s', cmd)
         install_actions.append(Remote(cmd, [host]))            
     logger.debug('%s', pformat(install_actions))
     logger.info('Installing %s on host %s', log_vm, set_style(host.address, 'host'))
-    SequentialActions(install_actions).run()
+    action = SequentialActions(install_actions).run()
+    
+    if not action.ok():
+        return False
     
     ## FIX VIRT-INSTALL BUG WITH QCOW2 THAT DEFINE A WRONG DRIVER FOR THE DISK
     fix_actions = []
@@ -79,15 +81,23 @@ def install( vms_params, host, autostart = True, packages = None):
     ParallelActions(fix_actions).run()
     logger.info('%s are ready to be started', log_vm )
     
-    if start:
-        start( vms_params, host )
+    if not action.ok():
+        return False
+    
+    if autostart:
+        result = start( vms_params, host )
+        if not result:
+            return False
         
     if packages is not None:
         logger.info('Installing additionnal packages %s', packages )
         cmd = 'apt-get update && apt-get install -y '+packages 
-        Remote(cmd, [ Host(vm['ip']+'.grid5000.fr') for vm in vms_params ]).run()
-    
-         
+        action = Remote(cmd, [ Host(vm['ip']+'.grid5000.fr') for vm in vms_params ]).run()
+        if not action.ok():
+            return False
+        
+    return True
+     
         
         
 def start( vms_params, host, migspeed = 100 ):
@@ -101,8 +111,7 @@ def start( vms_params, host, migspeed = 100 ):
         start_tries += 1
         start_actions = []
         for param in vms_params:
-            cmd = 'virsh --connect qemu:///system migrate-setspeed '+param['vm_id']+' 125 && '+\
-                'virsh --connect qemu:///system start '+param['vm_id']
+            cmd = 'virsh --connect qemu:///system destroy '+param['vm_id']+';  virsh --connect qemu:///system start '+param['vm_id']
             logger.debug('%s', cmd)
             start_actions.append(Remote(cmd, [host]))
         logger.debug('%s', pformat(start_actions))
@@ -130,6 +139,8 @@ def start( vms_params, host, migspeed = 100 ):
         else:
             logger.error('All VM have not been started')
         logger.debug('vm_started %s', vm_started)
+        
+    return vm_started
   
 def destroy( vms_params, host, autoundefine = True ):
     """Destroy vm on hosts """
@@ -140,21 +151,49 @@ def destroy( vms_params, host, autoundefine = True ):
         for param in vms_params:
             cmd = "virsh destroy "+param['vm_id']
             destroy_actions.append(Remote(cmd, [host], ignore_exit_code = True))
-        ParallelActions(destroy_actions).run()
+        action = ParallelActions(destroy_actions).run()
         
+        if not action.ok():
+            return False
+    
         if autoundefine:
-            undefine( vms_params, host )
+            logger.info('Undefining %s VM on hosts %s', ' '.join([set_style(param['vm_id'], 'object_repr') for param in vms_params]),
+                        set_style(host.address, 'host') )
+            result = undefine( vms_params, host )
+            if not result:
+                return False
+            
+    return True
 
 def destroy_all( hosts):
+    """Destroy all the VM on the hosts"""
+    actions = []
     for host in hosts:
         vms = list_vm(host)
         if len(list_vm(host)) > 0:
-            destroy( vms, host )
+            action = destroy( vms, host )
+            actions.append(action.ok())
+    
+    logger.debug('%s', pprint(actions))
+    
+    if False in actions:
+        return False
+    else: 
+        return True
+        
       
 def undefine(vms_params, host):
     undefine_actions = []
     for param in vms_params:
         cmd = "virsh undefine "+param['vm_id']
         undefine_actions.append(Remote(cmd, [host], ignore_exit_code = True))
-    ParallelActions(undefine_actions).run()
+    logger.info('Destroying %s VM on hosts %s', ' '.join([set_style(param['vm_id'], 'object_repr') for param in vms_params]), 
+                    set_style(host.address, 'host') )
+
+    action = ParallelActions(undefine_actions).run()
+    
+    return action.ok()
+ 
+    
+
         
