@@ -23,10 +23,19 @@ from pprint import pprint, pformat
 import time as T, logging as LOG, xml.etree.ElementTree as ET
 import execo as EX, execo_g5k as EX5
 from execo import logger
-from execo_g5k.api_utils import get_g5k_sites, get_site_clusters, get_host_attributes, get_resource_attributes
+from execo_g5k.api_utils import get_g5k_sites, get_site_clusters, get_cluster_attributes, get_host_attributes, get_resource_attributes
 import execo.time_utils as EXT
 from collections import deque
 
+def get_kavlan_sites():
+	"""Function that retrieve a list of sites where KAVLAN is enable"""
+	kavlan_sites = []
+	for site in get_g5k_sites():
+		cluster_attr = get_cluster_attributes(get_site_clusters(site)[0])
+		if cluster_attr['kavlan']:
+			kavlan_sites.append(site)
+	return kavlan_sites
+		
 
 def get_virt_clusters(sites = get_g5k_sites()):
 	"""Function that returns the list of clusters with virtualization capacities"""
@@ -159,7 +168,6 @@ class VirshCluster(object):
 				host.address = part_host[0]+'-kavlan-'+str(self.kavlan)+part_host[1]+ part_host[2]
 			logger.info('Hosts name have been changed :\n %s',pformat(self.hosts))
 			self.state.append('renamed')
-			
 				
 	def create_disk_image(self):
 		'''Create a base image for the virtualization technology using qcow2 '''
@@ -183,7 +191,7 @@ class VirshCluster(object):
 		
 		
 		cmd = self.hack_cmd+'modprobe nbd max_part=1; '+ \
-			'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
+			'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 5; '+ \
 			'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
 			'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys; '+ \
 			'echo "Host * \n StrictHostKeyChecking no" >> /mnt/root/.ssh/config; '+ \

@@ -20,13 +20,14 @@ def list_vm( host ):
                  ' '.join([set_style(vm_id, 'object_repr') for vm_id in vms_id]))
     return  [ {'vm_id': vm_id} for vm_id in vms_id ] 
     
-def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms_params = []):
+def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms_params = [] ):
     """ Create a dict of the VM parameters """
     
     if cpusets is None:
-        cpusets =  {'vm-'+str(i): 'auto' for i in range(n_vm)} 
-        
-    for i_vm in range( len(vms_params), n_vm+len(vms_params)):
+        cpusets =  {'vm-'+str(i): 'auto' for i in range(n_vm)}
+    logger.debug('cpusets: %s', pformat(cpusets)) 
+    
+    for i_vm in range( len(vms_params), n_vm + len(vms_params)):
         vms_params.append( {'vm_id': 'vm-'+str(i_vm), 'hdd_size': hdd_size, 
                 'mem_size': mem_size, 'vcpus': n_cpu, 'cpuset': cpusets['vm-'+str(i_vm)],
                 'ip': ip_mac[i_vm][0], 'mac': ip_mac[i_vm][1]} )
@@ -100,7 +101,7 @@ def install( vms_params, host, autostart = True, packages = None):
      
         
         
-def start( vms_params, host, migspeed = 100 ):
+def start( vms_params, host):
     """Start vm on hosts """
     log_vm = ' '.join([set_style(param['vm_id'], 'object_repr') for param in vms_params])
     start_tries = 0
@@ -134,7 +135,8 @@ def start( vms_params, host, migspeed = 100 ):
                     logger.debug(line)
                     ssh_open = line.split()[2] == line.split()[5].replace('(','')
             
-        if ssh_open: 
+        if ssh_open:
+            logger.info('All VM have been started') 
             vm_started = True
         else:
             logger.error('All VM have not been started')
@@ -172,7 +174,7 @@ def destroy_all( hosts):
         vms = list_vm(host)
         if len(list_vm(host)) > 0:
             action = destroy( vms, host )
-            actions.append(action.ok())
+            actions.append(action)
     
     logger.debug('%s', pprint(actions))
     
