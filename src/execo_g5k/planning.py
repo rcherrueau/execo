@@ -85,7 +85,7 @@ class Planning:
         """:param elements: a list containing the uid of the elements
   (grid5000.fr or site or cluster) which planning will be compute
 
-:param startime: a timestamp corresponding to the planning start
+:param starttime: a timestamp corresponding to the planning start
 
 :param endtime: a timestamp corresponding to the planning end
 """
