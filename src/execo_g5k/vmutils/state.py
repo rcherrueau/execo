@@ -71,7 +71,7 @@ def install( vms_params, host, autostart = True, packages = None):
     if not action.ok():
         return False
 
-    ## FIX VIRT-INSTALL BUG WITH QCOW2 THAT DEFINE A WRONG DRIVER FOR THE DISK
+    ## FIX VIRT-INSTALL BUG WITH QCOW2 THAT DEFINE A WRONG DRIVER FOR THE DISK
     fix_actions = []
     for param in vms_params:
         cmd = 'sed "s/raw/qcow2/g" /etc/libvirt/qemu/'+param['vm_id']+'.xml >  /etc/libvirt/qemu/'+ \
