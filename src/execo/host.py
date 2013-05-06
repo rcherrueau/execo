@@ -17,6 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from utils import comma_join
+from log import set_style
 
 class Host(object):
 
@@ -95,7 +96,7 @@ class Host(object):
                 ^ self.port.__hash__())
 
     def _args(self):
-        args = "%r" % (self.address,)
+        args = set_style(repr(self.address), 'host')
         if self.user: args = comma_join(args, "user=%r" % (self.user,))
         if self.keyfile: args = comma_join(args, "keyfile=%r" % (self.keyfile,))
         if self.port: args = comma_join(args, "port=%r" % (self.port,))

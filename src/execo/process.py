@@ -247,7 +247,7 @@ class ProcessBase(object):
         # all arguments to the constructor, beginning by the
         # positionnal arguments, finishing by keyword arguments. This
         # list will be directly used in __repr__ methods.
-        return [ repr(self._cmd) ] + ProcessBase._kwargs(self)
+        return [ set_style(repr(self._cmd), 'command') ] + ProcessBase._kwargs(self)
 
     def _kwargs(self):
         # to be implemented in all subclasses. Must return a list with
@@ -947,7 +947,7 @@ class SshProcess(Process):
         self._host = host
 
     def _args(self):
-        return [ repr(self._remote_cmd),
+        return [ set_style(repr(self._remote_cmd), 'command'),
                  repr(self._host) ] + Process._kwargs(self) + SshProcess._kwargs(self)
 
     def _kwargs(self):
