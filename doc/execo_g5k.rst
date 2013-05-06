@@ -346,10 +346,10 @@ Planning utilities
 .. automodule:: execo_g5k.planning
 
 Planning
--------------
+--------
 .. autoclass:: execo_g5k.planning.Planning
    :members:
-   
+
 Virtual machines utilities
 ==========================
 
