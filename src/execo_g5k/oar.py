@@ -209,7 +209,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
-    
+
     :param timeout: timeout for submitting. Default is False, which
       means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
@@ -270,7 +270,7 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
-    
+
     :param timeout: timeout for deleting. Default is False, which
       means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
@@ -307,14 +307,14 @@ def get_current_oar_jobs(frontends = None,
     :param start_between: a tuple (low, high) of endpoints. Filters
       and returns only jobs whose start date is in between these
       endpoints.
-        
+
     :param end_between: a tuple (low, high) of endpoints. Filters and
       returns only jobs whose end date is in between these endpoints.
-        
+
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
-    
+
     :param timeout: timeout for retrieving. Default is False, which
       means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
@@ -375,10 +375,10 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
-      
+
     :param frontend: the frontend of the oar job. If None given, use
       default frontend
-        
+
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
@@ -387,7 +387,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
       means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
-    
+
     Hash returned may contain these keys:
 
     - ``start_date``: unix timestamp of job's start date
@@ -460,7 +460,7 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
-    
+
     :param timeout: timeout for retrieving. Default is None (no
       timeout).
 
@@ -510,7 +510,7 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                 continue
         sleep(mymin(g5k_configuration.get('polling_interval'), countdown.remaining()))
     return False
-    
+
 def get_oar_job_nodes(oar_job_id = None, frontend = None,
                       frontend_connexion_params = None, timeout = False):
     """Return an iterable of `execo.host.Host` containing the hosts of an oar job.
@@ -554,7 +554,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
         return [ Host(host_address) for host_address in host_addresses ]
     else:
         raise ProcessesFailed, [process]
-    
+
 def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
     """Return a tuple containing an iterable of tuples (IP, MAC) and a dict containing the subnet parameters of the reservation (if any).
 
@@ -605,7 +605,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
         timeout = countdown.remaining(),
         pty = True)
     process_net.run()
-    
+
     if process_net.ok() and process_ip.ok():
         subnet_addresses = re.findall("(\S+)\s+(\S+)", process_ip.stdout(), re.MULTILINE)
         process_net_out = process_net.stdout().rstrip().split('\t')

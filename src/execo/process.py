@@ -67,7 +67,7 @@ class ProcessLifecycleHandler(object):
         pass
 
 class ProcessOutputHandler(object):
-    
+
     """Abstract handler for `execo.process.ProcessBase` output."""
 
     def __init__(self):
@@ -82,7 +82,7 @@ class ProcessOutputHandler(object):
         :param string: the string read
 
         :param eof:(boolean) true if the stream is now at eof.
-        
+
         :param error: (boolean) true if there was an error on the
           stream
         """
@@ -106,7 +106,7 @@ class ProcessOutputHandler(object):
         :param string: the line read
 
         :param eof:(boolean) true if the stream is now at eof.
-        
+
         :param error: (boolean) true if there was an error on the
           stream
         """
@@ -307,19 +307,19 @@ class ProcessBase(object):
     def cmd(self):
         """Return the process command line."""
         return self._cmd
-    
+
     def started(self):
         """Return a boolean indicating if the process was started or not."""
         return self._started
-    
+
     def start_date(self):
         """Return the process start date or None if not yet started."""
         return self._start_date
-    
+
     def ended(self):
         """Return a boolean indicating if the process ended or not."""
         return self._ended
-    
+
     def end_date(self):
         """Return the process end date or None if not yet ended."""
         return self._end_date
@@ -328,18 +328,18 @@ class ProcessBase(object):
     def running(self):
         """Return a boolean indicating if the process is currently running."""
         return self._started and not self._ended
-    
+
     def error(self):
         """Return a boolean indicating if there was an error starting the process.
 
         This is *not* the process's return code.
         """
         return self._error
-    
+
     def error_reason(self):
         """Return the operating system level errno, if there was an error starting the process, or None."""
         return self._error_reason
-    
+
     def exit_code(self):
         """Return the process exit code.
 
@@ -347,11 +347,11 @@ class ProcessBase(object):
         of view), or None.
         """
         return self._exit_code
-    
+
     def timeout(self):
         """Return the timeout in seconds after which the process would be killed."""
         return self._timeout
-    
+
     def timeout_date(self):
         """Return the date at which the process will reach its timeout.
 
@@ -366,7 +366,7 @@ class ProcessBase(object):
         not reached).
         """
         return self._timeouted
-    
+
     def forced_kill(self):
         """Return a boolean indicating if the process was killed forcibly.
 
@@ -377,7 +377,7 @@ class ProcessBase(object):
         forcibly with a SIGKILL.
         """
         return self._forced_kill
-    
+
     def stdout(self):
         """Return a string containing the process stdout."""
         return self._stdout
@@ -389,7 +389,7 @@ class ProcessBase(object):
     def stdout_handler(self):
         """Return this process stdout handler."""
         return self._stdout_handler
-    
+
     def stderr_handler(self):
         """Return this process stderr handler."""
         return self._stderr_handler
@@ -421,7 +421,7 @@ class ProcessBase(object):
                 if eof:
                     self._stdout_file.close()
                     self._stdout_file = None
-        
+
     def _handle_stderr(self, string, eof = False, error = False):
         """Handle stderr activity.
 
@@ -619,7 +619,7 @@ class Process(ProcessBase):
 
         :param kill_subprocesses: if True, signals are also sent to
           subprocesses. If None, automatically decide based on
-          shell = True/False. 
+          shell = True/False.
         """
         super(Process, self).__init__(cmd, **kwargs)
         self._process = None
@@ -656,17 +656,17 @@ class Process(ProcessBase):
         if self._close_stdin: kwargs.append("close_stdin=%r" % (self._close_stdin,))
         if self._shell != False: kwargs.append("shell=%r" % (self._shell,))
         if self._pty != False: kwargs.append("pty=%r" % (self._pty,))
-        if self._kill_subprocesses != None: kwargs.append("kill_subprocesses=%r" % (self._kill_subprocesses,)) 
+        if self._kill_subprocesses != None: kwargs.append("kill_subprocesses=%r" % (self._kill_subprocesses,))
         return kwargs
 
     def _infos(self):
         return ProcessBase._infos(self) + [ "pid=%s" % (self._pid,),
                                             "forced_kill=%s" % (self._forced_kill,) ]
-    
+
     def pid(self):
         """Return the subprocess's pid, if available (subprocess started) or None."""
         return self._pid
-    
+
     @synchronized
     def stdout_fd(self):
         """Return the subprocess stdout filehandle.
@@ -825,7 +825,7 @@ class Process(ProcessBase):
 
         This method is intended to be used by the
         `execo.conductor._Conductor` thread.
-        
+
         If the subprocess already got a SIGTERM and is still there, it
         is directly killed with SIGKILL.
         """
@@ -890,7 +890,7 @@ class Process(ProcessBase):
             logger.debug(set_style("wait:", 'emph') + " %s", str(self))
             timeout = get_seconds(timeout)
             if timeout != None:
-                end = time.time() + timeout 
+                end = time.time() + timeout
             while self._ended != True and (timeout == None or timeout > 0):
                 the_conductor.get_condition().wait(timeout)
                 if timeout != None:

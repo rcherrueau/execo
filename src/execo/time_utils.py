@@ -291,9 +291,9 @@ def sleep(delay = None, until = None):
         return sleeptime
 
 class Timer(object):
-    
+
     """Keep track of elapsed time."""
-    
+
     def __init__(self, timeout = None):
         """Create and start the Timer."""
         self._start = time.time()

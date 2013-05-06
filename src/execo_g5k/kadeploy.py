@@ -109,7 +109,7 @@ class Deployment(object):
 class _KadeployStdoutHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stdout."""
-    
+
     def __init__(self, kadeployer, out = False):
         """
         :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
@@ -127,7 +127,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
 
     def action_reset(self):
         self._current_section = self._SECTION_NONE
-        
+
     def read_line(self, process, string, eof = False, error = False):
         if self._out:
             print string,
@@ -151,7 +151,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
 class _KadeployStderrHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stderr."""
-    
+
     def __init__(self, kadeployer, out = False):
         """
         :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
@@ -240,7 +240,7 @@ class Kadeployer(Remote):
         super(Kadeployer, self)._common_reset()
         self._good_hosts = set()
         self._bad_hosts = set()
-        
+
     def _args(self):
         return [ repr(self._deployment) ] + Action._args(self) + Kadeployer._kwargs(self)
 

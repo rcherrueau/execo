@@ -152,7 +152,7 @@ def get_site_clusters(site):
     if not _g5k[site]:
         (_, content) = _get_g5k_api().get('/grid5000/sites/'
                          + site
-                         + '/clusters') 
+                         + '/clusters')
         clusters = json.loads(content)
         _g5k[site] = dict()
         for cluster in [cluster['uid'] for cluster in clusters['items']]:

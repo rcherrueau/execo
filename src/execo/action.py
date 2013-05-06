@@ -180,7 +180,7 @@ class Action(object):
         return self"""
         logger.debug(set_style("kill:", 'emph') + " %s", self)
         return self
-    
+
     def wait(self, timeout = None):
         """Wait for all processes to complete.
 
@@ -441,7 +441,7 @@ class Remote(Action):
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
 
     """Parse taktuk output."""
-    
+
     def __init__(self, taktukaction):
         super(_TaktukRemoteOutputHandler, self).__init__()
         self._taktukaction = taktukaction
@@ -563,7 +563,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
 class _TaktukLifecycleHandler(ProcessLifecycleHandler):
 
     """Notify `execo.process.TaktukProcess` of their real taktuk process lifecyle."""
-    
+
     def __init__(self, taktukremote):
         super(_TaktukLifecycleHandler, self).__init__()
         self._taktukremote = taktukremote
@@ -780,7 +780,7 @@ class Put(Remote):
         :param local_files: an iterable of string of file
           paths. substitions described in
           `execo.substitutions.remote_substitute` will be performed.
-        
+
         :param remote_location: the directory on the remote hosts were
           the files will be copied. substitions described in
           `execo.substitutions.remote_substitute` will be performed.
@@ -945,7 +945,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                 process._set_terminated(error = True, error_reason = "taktuk file reception failed")
             else:
                 process._set_terminated(exit_code = 0)
-    
+
     def read_line(self, process, string, eof = False, error = False):
         try:
             if len(string) > 0:
@@ -1017,7 +1017,7 @@ class TaktukPut(TaktukRemote):
           `execo.substitutions.remote_substitute` will not be
           performed, but taktuk substitutions can be used (see
           http://taktuk.gforge.inria.fr/taktuk.html#item_put__2a_src__2a__2a_dest__2a)
-        
+
         :param remote_location: the directory on the remote hosts were
           the files will be copied. substitions described in
           `execo.substitutions.remote_substitute` will not be
@@ -1117,7 +1117,7 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                 process._set_terminated(error = True, error_reason = "taktuk file reception failed")
             else:
                 process._set_terminated(exit_code = 0)
-    
+
     def read_line(self, process, string, eof = False, error = False):
         try:
             if len(string) > 0:

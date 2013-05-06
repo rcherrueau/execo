@@ -173,10 +173,10 @@ def get_current_oargrid_jobs(start_between = None,
     :param start_between: a tuple (low, high) of endpoints. Filters
       and returns only jobs whose start date is in between these
       endpoints.
-        
+
     :param end_between: a tuple (low, high) of endpoints. Filters and
       returns only jobs whose end date is in between these endpoints.
-        
+
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.

@@ -223,7 +223,7 @@ class Engine(object):
             logger.info("dup stdout / stderr to %s", stdout_redir_filename)
         else:
             logger.info("dup stdout / stderr to %s and %s", stdout_redir_filename, stderr_redir_filename)
-            
+
     def __init__(self):
         self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.modules[self.__module__].__file__)))
         """Full path of the engine directory. Available to client

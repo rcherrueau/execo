@@ -131,11 +131,11 @@ def _event_desc(event):
 
 def _checked_waitpid(pid, options):
     """Wrapper for waitpid.
-    
+
     - restarts if interrupted by signal
-    
+
     - returns (0, 0) if no child processes
-    
+
     - returns the waitpid tuple containing process id and exit status
       indication otherwise.
     """
@@ -443,7 +443,7 @@ class _Conductor(object):
         # the Poll object
         del self.__fds[fd]
         self.__poller.unregister(fd)
-        
+
     def __main_run_func(self):
         # wrapper around the conductor thread actual func for
         # exception handling
@@ -553,7 +553,7 @@ class _Conductor(object):
                 else:
                     logger.debug("process with pid=%s terminated, exit_code=%s", exit_pid, exit_code)
                     self.notify_process_terminated(exit_pid, exit_code)
-        
+
 class _ConductorDebugLogRecord(logging.LogRecord):
     def __init__(self, name, level, fn, lno, msg, args, exc_info, func):
         logging.LogRecord.__init__(self, name, level, fn, lno, msg, args, exc_info, func)

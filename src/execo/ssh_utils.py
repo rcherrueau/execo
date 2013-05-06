@@ -35,7 +35,7 @@ def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion
       port from the given connexion_params, or fallback to the default
       port in `execo.config.default_connexion_params`, or no port
       option at all.
-        
+
     :param connexion_params: a dict similar to
       `execo.config.default_connexion_params`, whose values will
       override those in `execo.config.default_connexion_params`
@@ -47,17 +47,17 @@ def get_ssh_scp_auth_options(user = None, keyfile = None, port = None, connexion
         ssh_scp_auth_options += ("-o", "User=%s" % (user,))
     elif actual_connexion_params.get('user'):
         ssh_scp_auth_options += ("-o", "User=%s" % (actual_connexion_params['user'],))
-            
+
     if keyfile != None:
         ssh_scp_auth_options += ("-i", str(keyfile))
     elif actual_connexion_params.get('keyfile'):
         ssh_scp_auth_options += ("-i", str(actual_connexion_params['keyfile']))
-            
+
     if port != None:
         ssh_scp_auth_options += ("-o", "Port=%i" % port)
     elif actual_connexion_params.get('port'):
         ssh_scp_auth_options += ("-o", "Port=%i" % actual_connexion_params['port'])
-            
+
     return ssh_scp_auth_options
 
 def _get_connector_command(connector_params_entry,
@@ -85,9 +85,9 @@ def _get_connector_command(connector_params_entry,
     :param user: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
     :param keyfile: see `execo.ssh_utils.get_ssh_scp_auth_options`
-    
+
     :param port: see `execo.ssh_utils.get_ssh_scp_auth_options`
-    
+
     :param connexion_params: see
       `execo.ssh_utils.get_ssh_scp_auth_options`
     """
@@ -109,9 +109,9 @@ def get_ssh_command(user = None, keyfile = None, port = None, connexion_params =
     :param user: see `execo.ssh_utils.get_ssh_scp_auth_options`
 
     :param keyfile: see `execo.ssh_utils.get_ssh_scp_auth_options`
-    
+
     :param port: see `execo.ssh_utils.get_ssh_scp_auth_options`
-    
+
     :param connexion_params: see
       `execo.ssh_utils.get_ssh_scp_auth_options`
     """

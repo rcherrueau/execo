@@ -14,7 +14,7 @@ def split_vm( vms_params, n = 2 ):
 def host_shortname( host, color_style = None ):
     ''' Return the short name of a G5K host, with a color_style '''
     return set_style(host.address.split('.')[0], color_style)
-    
+
 def migration_measure( vm, host_src, host_dest, i_mes = 0, label = 'MIG', mig_speed = default_mig_speed):
     ''' Return an Remote action to measure migration time of vm_id from
     host_src to host_dest '''
@@ -25,43 +25,43 @@ def migration_measure( vm, host_src, host_dest, i_mes = 0, label = 'MIG', mig_sp
             "echo $timestamp "+vm['vm_id']+" $duration >> "+\
             label+"_"+host_shortname(host_src)+"_"+host_shortname(host_dest)+".out"
     logger.info(set_style(vm['vm_id'], 'object_repr')+': '+host_shortname(host_src, color_style ='host')+" -> "+host_shortname(host_dest, color_style ='host'))
-    logger.debug('%s %s %s', cmd, host_src, host_dest)    
+    logger.debug('%s %s %s', cmd, host_src, host_dest)
     return Remote(cmd, [ host_src ])
 
 def measurements_loop(n_measure, vms, hosts, mig_function, mode, label = None, mig_speed = default_mig_speed, cache = False):
     ''' Perform a loop of migration given by the mig_function'''
     if not cache:
         clear_cache = Remote('sync; echo 3 > /proc/sys/vm/drop_caches', hosts)
-    
+
     n_nodes = len(hosts)
     permut = deque(''.join([`num` for num in range(n_nodes)]))
     for i_mes in range( n_measure ):
         if not cache:
             clear_cache.run()
             clear_cache.reset()
-            
+
         logger.info( set_style('Measure '+str(i_mes+1)+'/'+str(n_measure), 'user3'))
         ii = [int(permut[i]) for i in range(n_nodes)]
-        
+
         #if mig_function in [ twonodes_migrations, crossed_migrations ]:
         nodes = [ hosts[ii[i]] for i in range(n_nodes)]
 #        else:
 #            nodes = hosts
-            
-        migractions = mig_function( vms, nodes, i_mes = i_mes, 
+
+        migractions = mig_function( vms, nodes, i_mes = i_mes,
                     mode = mode, label = label, mig_speed = mig_speed)
-        
+
         migractions.run()
         if not migractions.ok():
             return False
-        
+
         if not cache:
             clear_cache.run()
             clear_cache.reset()
-        
+
         if mig_function != split_merge_migrations:
             permut.rotate(+1)
-            
+
     return True
 
 def twonodes_migrations( vms, hosts, mode = 'sequential', i_mes = 0, label = 'SEQ', mig_speed = default_mig_speed):
@@ -73,7 +73,7 @@ def twonodes_migrations( vms, hosts, mode = 'sequential', i_mes = 0, label = 'SE
         return SequentialActions(migractions)
     else:
         return ParallelActions(migractions)
-    
+
 def crossed_migrations( vms, hosts, mode = 'parallel', i_mes = 0, label = 'CROSSED', mig_speed = default_mig_speed):
     ''' Return ParallelActions to perform parallel measurements '''
     vms = split_vm(vms)
@@ -97,14 +97,14 @@ def circular_migrations( vms, hosts, mode = 'sequential', i_mes = 0, label = 'CI
         vms = split_vm(vms, n_nodes )
         migractions = []
         for i_from in range(n_nodes):
-            i_to = i_from+1 if i_from < n_nodes-1 else 0            
+            i_to = i_from+1 if i_from < n_nodes-1 else 0
             if mode == 'sequential':
                 label = 'CIRCSEQ'
             elif mode == 'parallel':
                 label = 'CIRCPARA'
             migractions.append(twonodes_migrations(vms[i_to], hosts[i_from], hosts[i_to], mode = mode, i_mes = 0, label = label ))
         return ParallelActions(migractions)
-                
+
 def split_merge_migrations( vms, hosts, mode = 'parallel', i_mes = 0, label = 'SPLITMERGE', mig_speed = default_mig_speed):
     ''' Return ParallelActions to perform split migration '''
     if len(hosts) < 3:
@@ -124,4 +124,3 @@ def split_merge_migrations( vms, hosts, mode = 'parallel', i_mes = 0, label = 'S
             return SequentialActions( [SequentialActions(migsplit), SequentialActions(migmerge)])
         else:
             return SequentialActions( [ParallelActions(migsplit), ParallelActions(migmerge)])
-        

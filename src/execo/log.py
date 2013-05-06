@@ -38,7 +38,7 @@ _ansi_styles = {
     'cyan'       : '\033[36m',
     'white'      : '\033[37m',
     # background colors
-    'on_black'   : '\033[40m', 
+    'on_black'   : '\033[40m',
     'on_red'     : '\033[41m',
     'on_green'   : '\033[42m',
     'on_yellow'  : '\033[43m',
@@ -53,7 +53,7 @@ def set_style(string, style):
     """Enclose a string with ansi color escape codes if ``execo.config.configuration['color_mode']`` is True.
 
     :param string: the string to enclose
-    
+
     :param style: a key in dict
       ``execo.config.configuration['color_styles']``
     """

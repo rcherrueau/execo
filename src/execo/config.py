@@ -188,7 +188,7 @@ def load_configuration(filename, dicts_confs):
     """Update dicts with those found in file.
 
     :param filename: file to load dicts from
-    
+
     :param dicts_confs: an iterable of couples (dict, string)
 
     Used to read configuration dicts. For each couple (dict, string),
@@ -212,7 +212,7 @@ def get_user_config_filename():
     if os.environ.has_key('HOME'):
         _user_conf_file = os.environ['HOME'] + '/.execo.conf.py'
     return _user_conf_file
-    
+
 load_configuration(
   get_user_config_filename(),
   ((configuration, 'configuration'),

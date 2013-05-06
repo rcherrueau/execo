@@ -47,7 +47,7 @@ class Report(object):
 
     def add(self, stats_objects):
         """Add some sub-`execo.report.Report` or `execo.action.Action` to this report.
-        
+
         :param stats_objects:
         """
         self._stats['sub_stats'].extend([o.stats() for o in stats_objects])
@@ -106,33 +106,33 @@ class Report(object):
         """Return a dict summarizing the statistics of all `execo.action.Action` and sub-`execo.report.Report` registered to this report.
 
         This stats dict contains the following metrics:
-        
+
         - ``start_date``: earliest start date (unix timestamp) of all
           `Action` or None if none have started yet.
-        
+
         - ``end_date``: latest end date (unix timestamp) of all
           `Action` or None if not available (not all started, not all
           ended).
-        
+
         - ``num_processes``: number of processes in all `Action`.
-        
+
         - ``num_started``: number of processes that have started.
-        
+
         - ``num_ended``: number of processes that have ended.
-        
+
         - ``num_errors``: number of processes that went in error
           when started.
-        
+
         - ``num_timeouts``: number of processes that had to be killed
           (SIGTERM) after reaching their timeout.
-        
+
         - ``num_forced_kills``: number of processes that had to be
           forcibly killed (SIGKILL) after not responding for some
           time.
-        
+
         - ``num_non_zero_exit_codes``: number of processes that ran
           correctly but whose return code was != 0.
-        
+
         - ``num_ok``: number of processes which:
 
           - did not started
