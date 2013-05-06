@@ -106,3 +106,20 @@ usage
 
 See html documentation for module execo and execo_g5k at
 http://execo.gforge.inria.fr/doc/
+
+how to contribute
+=================
+
+- indent with spaces, not tabs. one level of indentation is four
+  spaces (if needed: use ``reindent.py -rnv .`` in execo top
+  directory)
+
+- stay consistent with the coding and naming style
+
+- use the core systems provided (eg. the configuration system, the tty
+  coloring system, the logger, etc.) instead of developing your own.
+
+- ask a core developer before adding a dependency
+
+- provide documented code (internal documentation as well as user
+  documentation where needed)
