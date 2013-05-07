@@ -1,3 +1,23 @@
+# Copyright 2009-2012 INRIA Rhone-Alpes, Service Experimentation et
+# Developpement
+#
+# This file is part of Execo.
+#
+# Execo is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Execo is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Execo.  If not, see <http://www.gnu.org/licenses/>
+
+
+
 from pprint import pformat, pprint
 from execo import Host, SshProcess, Remote, SequentialActions, ParallelActions, logger
 from execo.log import set_style
@@ -20,9 +40,10 @@ def list_vm( host ):
                  ' '.join([set_style(vm_id, 'object_repr') for vm_id in vms_id]))
     return [ {'vm_id': vm_id} for vm_id in vms_id ]
 
-def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms_params = [], offset = 0 ):
+def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms_params = None, offset = 0 ):
     """ Create a dict of the VM parameters """
-
+    if vms_params is None:
+        vms_params = []
     if cpusets is None:
         cpusets = {}
         for i in range(n_vm): cpusets['vm-'+str(i)] = 'auto'

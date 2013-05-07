@@ -17,10 +17,6 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 
-from pprint import pformat
-from execo.log import set_style
-from execo_g5k.api_utils import get_cluster_site, get_g5k_sites, get_host_attributes
-
 from setup_cluster import VirshCluster, get_virt_clusters, get_big_clusters, get_kavlan_sites
 from state import define_vms_params, create_disks, destroy_all, install, list_vm, start, destroy
 
