@@ -18,9 +18,9 @@ def list_vm( host ):
                 vms_id.append(std[1])
     logger.debug('List of VM on host %s\n%s', set_style(host.address, 'host'),
                  ' '.join([set_style(vm_id, 'object_repr') for vm_id in vms_id]))
-    return  [ {'vm_id': vm_id} for vm_id in vms_id ]
+    return [ {'vm_id': vm_id} for vm_id in vms_id ]
 
-def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms_params = [] ):
+def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms_params = [], offset = 0 ):
     """ Create a dict of the VM parameters """
 
     if cpusets is None:
@@ -31,7 +31,7 @@ def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cp
     for i_vm in range( len(vms_params), n_vm + len(vms_params)):
         vms_params.append( {'vm_id': 'vm-'+str(i_vm), 'hdd_size': hdd_size,
                 'mem_size': mem_size, 'vcpus': n_cpu, 'cpuset': cpusets['vm-'+str(i_vm)],
-                'ip': ip_mac[i_vm][0], 'mac': ip_mac[i_vm][1]} )
+                'ip': ip_mac[i_vm+offset][0], 'mac': ip_mac[i_vm+offset][1]} )
     logger.debug('VM parameters have been defined:\n%s',
                  ' '.join([set_style(param['vm_id'], 'object_repr') for param in vms_params]))
     return vms_params
@@ -47,7 +47,7 @@ def create_disks( hosts, vms_params):
             vm_params['vm_id']+'.qcow2 '+str(vm_params['hdd_size'])+'G';
         disk_actions.append( Remote(cmd, hosts))
     logger.debug('%s', pformat(disk_actions))
-    disks_created = ParallelActions(disk_actions).run()
+    disks_created = SequentialActions(disk_actions).run()
 
     if disks_created.ok():
         return True
@@ -113,20 +113,20 @@ def start( vms_params, host):
         start_tries += 1
         start_actions = []
         for param in vms_params:
-            cmd = 'virsh --connect qemu:///system destroy '+param['vm_id']+';  virsh --connect qemu:///system start '+param['vm_id']
+            cmd = 'virsh --connect qemu:///system destroy '+param['vm_id']+';  virsh --connect qemu:///system start '+param['vm_id']+';  sleep 20;'
             logger.debug('%s', cmd)
             start_actions.append(Remote(cmd, [host]))
         logger.debug('%s', pformat(start_actions))
         logger.info('Starting %s ...', log_vm)
-        ParallelActions(start_actions).run()
-
+        SequentialActions(start_actions).run()
+        
         ip_range = vms_params[0]['ip'].rsplit('.', 1)[0]+'.'+','.join([vm_param['ip'].split('.')[3] for vm_param in vms_params])
 
         nmap_tries = 0
         ssh_open = False
-        while (not ssh_open) and nmap_tries < 20:
+        while (not ssh_open) and nmap_tries < 30:
             logger.debug('nmap_tries %s', nmap_tries)
-            nmap_tries += 1
+            nmap_tries += 1            
             nmap = SshProcess('nmap '+ip_range+' -p 22', host)
             nmap.run()
             logger.debug('%s', nmap.cmd())

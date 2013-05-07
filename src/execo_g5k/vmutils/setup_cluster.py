@@ -214,14 +214,15 @@ class VirshCluster(object):
         '''Configure the default network used by libvirt '''
         logger.info('Configuring libvirt network ...')
         if network_xml is None:
-            root=ET.Element('network')
-            name=ET.SubElement(root,'name')
-            name.text='default'
+            root = ET.Element('network')
+            name = ET.SubElement(root,'name')
+            name.text = 'default'
             ET.SubElement(root, 'forward', attrib={'mode':'bridge'})
             ET.SubElement(root, 'bridge', attrib={'name': self.bridge})
         else:
-            logger.info('Using custom file for network...')
-            root = network_xml
+            logger.info('Using custom file for network... \n%s', network_xml)
+            root = ET.fromstring( network_xml )
+            
         self.tree = ET.ElementTree(element=root)
         self.tree.write('default.xml')
         logger.info('Pushing default.xml on all nodes ...')
