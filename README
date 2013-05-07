@@ -123,3 +123,14 @@ how to contribute
 
 - provide documented code (internal documentation as well as user
   documentation where needed)
+
+- recommended commit messages format:
+
+  ``[<module_name>] <category>: commit message``.
+
+  - <module_name> can be execo, execo_g5k, execo_engine. Omit if
+    commit is not specific to a module.
+
+  - <category> is free form but should indicate which part(s) of the
+    module the commit affects. Omit if a commit is not specific to a
+    module part.
