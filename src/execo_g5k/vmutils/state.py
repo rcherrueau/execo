@@ -24,7 +24,8 @@ def define_vms_params( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cp
     """ Create a dict of the VM parameters """
 
     if cpusets is None:
-        cpusets =  {'vm-'+str(i): 'auto' for i in range(n_vm)}
+        cpusets = {}
+        for i in range(n_vm): cpusets['vm-'+str(i)] = 'auto'
     logger.debug('cpusets: %s', pformat(cpusets))
 
     for i_vm in range( len(vms_params), n_vm + len(vms_params)):
