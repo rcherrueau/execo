@@ -36,40 +36,29 @@ def get_kavlan_sites():
             kavlan_sites.append(site)
     return kavlan_sites
 
-
-def get_virt_clusters(sites = get_g5k_sites()):
-    """Function that returns the list of clusters with virtualization capacities"""
+def get_clusters(sites = get_g5k_sites(), n_nodes = 1, node_flops = 10**1, virt = False):
+    """Function that returns the list of cluster with some filters"""
     virt_clusters = []
+    big_clusters = []
+    fast_clusters = []
     for site in sites:
         for cluster in get_site_clusters(site):
             if get_host_attributes(cluster+'-1.'+site+'.grid5000.fr')['supported_job_types']['virtual'] in [ 'ivt', 'amd-v']:
                 virt_clusters.append(cluster)
-
-    logger.info('Clusters with virtualization capacities \n%s', pformat( virt_clusters ))
-    return virt_clusters
-
-def get_big_clusters(sites = get_g5k_sites(), n_nodes = 20):
-    """Function that returns the list of clusters that have more than n_nodes, default is 20"""
-    big_clusters = []
-    for site in sites:
-        for cluster in get_site_clusters(site):
             if get_resource_attributes('grid5000/sites/'+site+'/clusters/'+cluster+'/nodes')['total'] >= n_nodes:
                 big_clusters.append(cluster)
-    logger.info('Clusters with more than '+str(n_nodes)+' nodes \n%s', pformat(big_clusters))
-    return big_clusters
-
-def get_fast_clusters(sites = get_g5k_sites(), node_flops = 10**12, n_nodes = 20):
-    """Function that returns the list of clusters which node have a power >= node_flops and
-    a number of nodes >= n_nodes"""
-    fast_clusters = []
-    for site in sites:
-        for cluster in get_site_clusters(site):
-            if get_resource_attributes('grid5000/sites/'+site+'/clusters/'+cluster+'/nodes')['total'] >= n_nodes\
-                    and get_host_attributes(cluster+'-1')['performance'] >= node_flops:
+            if get_host_attributes(cluster+'-1')['performance'] >= node_flops:
                 fast_clusters.append(cluster)
-    logger.info('Clusters with a power greater than '+str(node_flops)+' and more than '+str(n_nodes)+' nodes\n%s',
-                    pformat(fast_clusters))
-    return fast_clusters
+                
+    logger.debug('Clusters with virtualization capacities \n%s', pformat( virt_clusters ))
+    logger.debug('Clusters with more than '+str(n_nodes)+' nodes \n%s', pformat(big_clusters))
+    logger.debug('Clusters with a power greater than '+str(node_flops))
+    
+    if virt:
+        return list(set(virt_clusters) & set(big_clusters) & set(fast_clusters))
+    else:
+        return list(set(big_clusters) & set(fast_clusters))
+    
 
 class VirshCluster(object):
     """Base class to deploy and configure hosts virtualization technology"""
@@ -78,14 +67,14 @@ class VirshCluster(object):
         logger.setLevel('INFO')
         self.hosts = hosts
         self.kavlan = kavlan
-        self.packages_list = ' qemu-kvm nmap virtinst libvirt-bin'
+        self.packages_list = ' command-not-found bash-completion nmap qemu-kvm  virtinst libvirt-bin'
         if env_file is None:
             self.env_name = 'squeeze-x64-prod' if env_name is None else env_name
         else:
             self.env_file = env_file
             self.env_name = None
         self.bridge = 'br0'
-        self.frontend = 'reims.grid5000.fr'
+        self.frontend = 'lyon.grid5000.fr'
         self.state =['initialized']
         self.hack_cmd = "source /etc/profile; "
 
@@ -99,7 +88,7 @@ class VirshCluster(object):
         self.create_disk_image()
         self.copy_ssh_keys()
 
-    def deploy_hosts(self, out=False):
+    def deploy_hosts(self, out = False):
         if self.env_name is not None:
             logger.info('Deploying environment %s ...', self.env_name)
             deployment = EX5.Deployment(
@@ -201,14 +190,6 @@ class VirshCluster(object):
         logger.debug('%s', copy_on_vm_base.ok())
         self.state.append('ssh_keys')
 
-#       def setup_stress(self):
-#               '''Install the stress program on the base vm '''
-#               cmd = 'modprobe nbd max_part=1; '+ \
-#                        'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
-#                         'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
-#                         'apt-get install stress '+ \
-#                         'umount /mnt'
-#               #EX.Remote(cmd, self.hosts).run()
 
     def configure_libvirt(self, network_xml = None):
         '''Configure the default network used by libvirt '''
@@ -238,29 +219,3 @@ class VirshCluster(object):
         EX.Remote(cmd, self.hosts).run()
 
 
-
-
-#class KVMCluster(VirshCluster):
-#       def __init__(self, hosts, kavlan = None):
-#               VirshCluster.__init__(self, hosts, kavlan)
-#               self.packages_list = ' qemu-kvm'
-#
-#
-#
-#
-#class XenCluster(VirshCluster):
-#       def __init__(self, hosts):
-#               VirshCluster.__init__(hosts)
-#               self.env_name = 'squeeze-x64-xen'
-#               self.packages_list = ' xen-qemu-dm-4.0 nfs-common'
-#
-#       def adding_migration(self):
-#               cmd='echo "(xend-unix-server yes)" >> /etc/xen/xend-config.sxp ; '+ \
-#                       'echo "(xend-relocation-server yes)" >> /etc/xen/xend-config.sxp ; '+ \
-#                       'service xend restart'
-#               EX.Remote(cmd,self.hosts).run()
-#
-#       def run(self):
-#               self.deploy_hosts()
-#               self.adding_migration()
-#               self.setup_packages()
