@@ -17,6 +17,6 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 
-from setup_cluster import VirshCluster, get_virt_clusters, get_big_clusters, get_kavlan_sites
+from setup_cluster import VirshCluster
 from state import define_vms_params, create_disks, destroy_all, install, list_vm, start, destroy
 
