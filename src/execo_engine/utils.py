@@ -30,9 +30,6 @@ class HashableDict(dict):
     def __hash__(self):
         return hash(self.__key())
 
-    def __eq__(self, other):
-        return other and self.__key() == other.__key()
-
 def slugify(value):
     """
     Normalizes string representation, converts to lowercase, removes
