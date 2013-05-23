@@ -16,16 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-"""Some classes to configure a cluster with libvirt on Grid5000 and various virtualization
-technology
-"""
-from pprint import pprint, pformat
-import time as T, logging as LOG, xml.etree.ElementTree as ET
+"""A base class to configure a cluster with libvirt on Grid5000 """
+from pprint import  pformat
+import time as T,  xml.etree.ElementTree as ET
 import execo as EX, execo_g5k as EX5
 from execo import logger
 from execo_g5k.api_utils import get_g5k_sites, get_site_clusters, get_cluster_attributes, get_host_attributes, get_resource_attributes
-import execo.time_utils as EXT
-from collections import deque
+
+
 
 def get_kavlan_sites():
     """Function that retrieve a list of sites where KAVLAN is enable"""

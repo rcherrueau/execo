@@ -18,11 +18,11 @@
 
 
 
-from pprint import pformat, pprint
-from execo import Host, SshProcess, Remote, SequentialActions, ParallelActions, logger
+from pprint import pformat
+from itertools import cycle
+from execo import Host, SshProcess, Remote, SequentialActions, ParallelActions, logger, TaktukRemote
 from execo.log import set_style
-from execo_g5k.config import default_frontend_connexion_params
-from execo_g5k.api_utils import get_cluster_site
+from execo_g5k.api_utils import get_host_attributes
 
 
 
