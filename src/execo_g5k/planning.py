@@ -17,71 +17,24 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 """This module provides some tools to help you to plan your experiment on grid5000"""
-from pprint import pprint
+from pprint import pformat
+from operator import itemgetter
 import time as T, datetime as DT, execo.time_utils as ET, math
 from execo.log import set_style, logger
+from execo import Host
+#from execo_g5k.config import default_connexion_frontend
 
 import execo_g5k.api_utils as API
 try:
     from matplotlib import pylab as PLT
     import matplotlib.dates as MD
-except ImportError:
+except ImportError:    
     pass
-
-def get_first_cluster_available( clusters, walltime, n_nodes = 1):
-    """Compute the planning of the clusters list and find the first one available for a given walltime
-    and a given number of nodes"""
-
-    starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
-    endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))
-    planning = Planning(clusters, starttime, endtime)
-    planning.compute_slots()
-    first_slots = {}
-    for cluster in clusters:
-        planning.find_slots('free', walltime, {cluster: n_nodes})
-        start_min = 10**20
-        for start_stop in planning.slots_ok.keys():
-            if start_stop[0] < start_min:
-                start_min = start_stop[0]
-                first_slots[cluster] = start_stop
-
-    first_slot = (10**20, 10**21)
-    for cluster, slot in first_slots.iteritems():
-        if slot[0] <= first_slot[0]:
-            first_slot = slot
-            first_cluster = cluster
-
-    return first_cluster, first_slot
-
-def get_first_site_available( sites, walltime, n_nodes = 1):
-    """Compute the planning of the sites list and find the first one available for a given walltime and
-    a given number of node """
-
-    starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
-    endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))
-    planning = Planning(sites, starttime, endtime)
-    planning.compute_slots()
-    first_slots = {}
-    for site in sites:
-        planning.find_slots('free', walltime, {site: n_nodes})
-        start_min = 10**20
-        for start_stop in planning.slots_ok.keys():
-            if start_stop[0] < start_min:
-                start_min = start_stop[0]
-                first_slots[site] = start_stop
-
-    first_slot = (10**20, 10**21)
-    for site, slot in first_slots.iteritems():
-        if slot[0] <= first_slot[0]:
-            first_slot = slot
-            first_site = site
-
-    return first_site, first_slot
 
 
 class Planning:
 
-    def __init__(self, elements = None, starttime = None, endtime = None):
+    def __init__(self, elements = None, starttime = None, endtime = None, with_kavlan = False):
         """:param elements: a list containing the uid of the elements
   (grid5000.fr or site or cluster) which planning will be compute
 
@@ -89,18 +42,23 @@ class Planning:
 
 :param endtime: a timestamp corresponding to the planning end
 """
+        logger.debug('Initializing planning computation')
         self.elements = elements
         self.startstamp = starttime
         self.endstamp = endtime
+        self.with_kavlan = with_kavlan
         if elements is not None and starttime is not None and endtime is not None:
             self.compute()
-
+        
 
     def compute(self):
         """Compute the planning from the API data and create a dict that contains all
         hosts planning sorted by {'site': {'cluster': {'host': {'free': [(start, stop)], 'busy': [(start, stop)] }}}}
         """
-        logger.info('%s',set_style('GETTING PLANNINGS FROM API', 'object_repr'))
+        if self.elements is None:
+            logger.error('No elements given, aborting')
+            exit()
+        logger.info('%s',set_style('Getting plannings from API', 'log_header'))
         self.planning = {}
 
         if 'grid5000.fr' in self.elements:
@@ -112,19 +70,24 @@ class Planning:
                     log = 'for site '+ set_style(resource, 'site')
                     self.planning[resource] = self.site(resource, self.startstamp, self.endstamp)
                 else:
-                    log = 'for cluster '+ set_style(resource, 'user1')
+                    log = 'for cluster '+ set_style(resource, 'emph')
                     site = API.get_cluster_site(resource)
                     if not self.planning.has_key(site):
                         self.planning[site] = {}
                     self.planning[site][resource] = self.cluster(resource, self.startstamp, self.endstamp)
                 logger.info('%s', log)
 
-        logger.info('%s', set_style('Merging planning elements ..', 'object_repr'))
+
+        if self.with_kavlan:
+            self.kavlan(self.startstamp, self.endstamp)
+            
+        logger.info('%s', set_style('Merging planning elements ..', 'log_header'))
         for clusters in self.planning.itervalues():
             for hosts in clusters.itervalues():
                 for planning in hosts.itervalues():
                     self.merge_planning(planning)
-        logger.info('%s', set_style('Done\n', 'object_repr'))
+        logger.debug(pformat(self.planning))
+        
 
     def host(self, host_reservations, startstamp, endstamp):
         """ Compute the planning from the dict of reservations gathered from the API"""
@@ -187,6 +150,24 @@ class Planning:
             grid_planning[site] = self.site(site, startstamp, endstamp)
         return grid_planning
 
+
+#    def kavlan(self, startstamp, endstamp):
+#        """ Add to the planning"""
+#        if self.planning is None:
+#            self.planning = {}
+#        get_jobs = Remote('oarstat -J -f', [ Host(site+'.grid5000.fr') for site in self.sites], 
+#                      connexion_params = default_frontend_connexion_params ).run()
+#        for p in get_jobs.processes():
+#            site_jobs = loads(p.stdout())
+#            site_free = True
+#            for job_id, info in site_jobs.iteritems():
+#                if 'kavlan-global' in info['wanted_resources']:
+#                    site_free = False 
+#            if site_free:
+#                kavlan_site = p.host().address.split('.')[0]
+        
+
+
     def merge_planning(self, planning):
         """Merge the different planning elements"""
         for kind in ['free', 'busy' ]:
@@ -236,13 +217,14 @@ class Planning:
     def merge_slots(self, slots):
         """Merge the slots"""
         if len(slots)>1:
-            list_slots = list(enumerate(sorted(slots.iteritems())))
+            list_slots = list(slots)
+            
             for i in range(len(slots)):
                 j = i+1
                 if j == len(list_slots)-1:
                     break
                 while True:
-                    if list_slots[i][1][0][1] == list_slots[j][1][0][0] \
+                    if list_slots[i][2] == list_slots[j][2] \
                             and list_slots[i][1][1] == list_slots[j][1][1]:
                         list_slots[i] = (i, ((list_slots[i][1][0][0], list_slots[j][1][0][1]), list_slots[i][1][1]))
                         list_slots.pop(j)
@@ -260,36 +242,36 @@ class Planning:
         """ Determine all the slots limits and find the number of available nodes for each elements"""
         if not hasattr(self, 'planning'):
             self.compute()
-        logger.info('%s', set_style('COMPUTING SLOTS', 'object_repr'))
-        slots = {}
+        logger.info('%s', set_style('Computings slots', 'log_header'))
+        slots = []
         self.slots_limits()
         self.duration = 3600
         for i in range(len(self.limits)-1):
-            slot_limit = (self.limits[i], self.limits[i+1])
-            slots[slot_limit] = {}
+            slot =  [self.limits[i], self.limits[i+1], {} ] 
             for site, clusters  in self.planning.iteritems():
-                slots[slot_limit][site] = 0
+                slot[2][site] = 0
                 for cluster, hosts in clusters.iteritems():
-                    slots[slot_limit][cluster] = 0
+                    slot[2][cluster] = 0
                     for host in hosts.itervalues():
-                        for slot in host['free']:
-                            if self.limits[i] >= slot[0] and self.limits[i] + self.duration <= slot[1]:
-                                slots[slot_limit][cluster] += 1
-                    slots[slot_limit][site] += slots[slot_limit][cluster]
-
-
-        self.merge_slots(slots)
-
+                        for freeslot in host['free']:
+                            if self.limits[i] >= freeslot[0] and self.limits[i] + self.duration <= freeslot[1]:
+                                slot[2][cluster] += 1
+                    slot[2][site] += slot[2][cluster]
+            slots.append(slot)
+        
+        slots.sort(key = itemgetter(0))
+        
+        #self.merge_slots(slots)
+        
         g5k_clusters = API.get_g5k_clusters()
-        for limit, elements in iter(sorted(slots.iteritems())):
-            slots[limit]['grid5000.fr'] = 0
-            for element, n_nodes in elements.iteritems():
+        for slot in slots:
+            slot[2]['grid5000.fr'] = 0
+            for element, n_nodes in slot[2].iteritems():
                 if element in g5k_clusters:
-                    slots[limit]['grid5000.fr'] += n_nodes
+                    slot[2]['grid5000.fr'] += n_nodes
 
         self.slots = slots
-
-        logger.info('%s', set_style('Done\n', 'object_repr'))
+        
 
     def find_slots(self, mode, walltime, resources = None):
         """ Find slot corresponding to the criteria you give"""
@@ -482,3 +464,54 @@ class Planning:
             fname = 'max_nodes-'+self.outsuffix+'.png'
             logger.info('Saving file %s ...', fname)
             PLT.savefig (fname, dpi=300)
+
+
+def get_first_cluster_available( clusters, walltime, n_nodes = 1):
+    """Compute the planning of the clusters list and find the first one available for a given walltime
+    and a given number of nodes"""
+
+    starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
+    endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))
+    planning = Planning(clusters, starttime, endtime)
+    planning.compute_slots()
+    first_slots = {}
+    for cluster in clusters:
+        planning.find_slots('free', walltime, {cluster: n_nodes})
+        start_min = 10**20
+        for start_stop in planning.slots_ok.keys():
+            if start_stop[0] < start_min:
+                start_min = start_stop[0]
+                first_slots[cluster] = start_stop
+
+    first_slot = (10**20, 10**21)
+    for cluster, slot in first_slots.iteritems():
+        if slot[0] <= first_slot[0]:
+            first_slot = slot
+            first_cluster = cluster
+
+    return first_cluster, first_slot
+
+def get_first_site_available( sites, walltime, n_nodes = 1):
+    """Compute the planning of the sites list and find the first one available for a given walltime and
+    a given number of node """
+
+    starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
+    endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))
+    planning = Planning(sites, starttime, endtime)
+    planning.compute_slots()
+    first_slots = {}
+    for site in sites:
+        planning.find_slots('free', walltime, {site: n_nodes})
+        start_min = 10**20
+        for start_stop in planning.slots_ok.keys():
+            if start_stop[0] < start_min:
+                start_min = start_stop[0]
+                first_slots[site] = start_stop
+
+    first_slot = (10**20, 10**21)
+    for site, slot in first_slots.iteritems():
+        if slot[0] <= first_slot[0]:
+            first_slot = slot
+            first_site = site
+
+    return first_site, first_slot
