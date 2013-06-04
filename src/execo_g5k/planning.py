@@ -89,7 +89,11 @@ class Planning:
         logger.debug(pformat(self.planning))
         
 
-    def host(self, host_reservations, startstamp, endstamp):
+    def host(self, host_reservations, startstamp = None, endstamp = None):
+        if startstamp is None:
+            startstamp = self.startstamp
+        if endstamp is None:
+            endstamp = self.endstamp
         """ Compute the planning from the dict of reservations gathered from the API"""
         planning = {'busy': [], 'free': []}
         for job in host_reservations:
@@ -110,8 +114,12 @@ class Planning:
             planning['free'].append((startstamp, endstamp))
         return planning
 
-    def cluster(self, cluster, startstamp, endstamp):
+    def cluster(self, cluster, startstamp = None, endstamp = None):
         """ Return a dict containing all alive nodes and their planning for a given cluster"""
+        if startstamp is None:
+            startstamp = self.startstamp
+        if endstamp is None:
+            endstamp = self.endstamp
         cluster_planning = {}
         site = API.get_cluster_site(cluster)
         hosts = API.get_resource_attributes('/grid5000/sites/'+site+'/clusters/'+cluster+'/status?reservations_limit=100')
@@ -123,8 +131,12 @@ class Planning:
         return cluster_planning
 
 
-    def site(self, site, startstamp, endstamp):
+    def site(self, site, startstamp = None, endstamp = None):
         """ Return a dict containing all alive nodes and their planning for a given site"""
+        if startstamp is None:
+            startstamp = self.startstamp
+        if endstamp is None:
+            endstamp = self.endstamp
         site_planning = {}
         hosts = API.get_resource_attributes('/grid5000/sites/'+site+'/status?reservations_limit=100')
         for host in hosts['items']:
@@ -142,8 +154,12 @@ class Planning:
                 self.merge_planning(planning)
         return site_planning
 
-    def grid5000(self, startstamp, endstamp):
+    def grid5000(self, startstamp = None, endstamp = None):
         """Return a dict containing all alive nodes and their planning for a the whole platform"""
+        if startstamp is None:
+            startstamp = self.startstamp
+        if endstamp is None:
+            endstamp = self.endstamp
         grid_planning = {}
         sites = API.get_g5k_sites()
         for site in sites:
