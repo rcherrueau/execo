@@ -17,6 +17,6 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 
-from setup_cluster import VirshCluster
-from state import define_vms_params, create_disks, destroy_all, install, list_vm, start, destroy
+from deployment import Virsh_Deployment
+from actions import define_vms_params, create_disks, destroy_all, install, list_vm, start, destroy
 
