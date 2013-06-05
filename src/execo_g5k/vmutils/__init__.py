@@ -18,5 +18,5 @@
 
 
 from deployment import Virsh_Deployment
-from actions import define_vms_params, create_disks, destroy_all, install, list_vm, start, destroy
+from actions import define_vms, create_disks, destroy_all, install, list_vm, start, destroy
 
