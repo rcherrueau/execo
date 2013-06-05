@@ -716,8 +716,10 @@ class TaktukRemote(Action):
         self._taktuk_cmdline += ("quit",)
         #handler = _TaktukRemoteOutputHandler(self)
         taktuk_options_filehandle, taktuk_options_filename = tempfile.mkstemp(prefix = 'tmp_execo_taktuk_')
-        os.write(taktuk_options_filehandle, " ".join(self._taktuk_cmdline) + "\n")
+        self._taktuk_cmdline = " ".join(self._taktuk_cmdline)
+        os.write(taktuk_options_filehandle, self._taktuk_cmdline + "\n")
         os.close(taktuk_options_filehandle)
+        logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_cmdline)
         real_taktuk_cmdline = (actual_connexion_params['taktuk'],)
         real_taktuk_cmdline += actual_connexion_params['taktuk_options']
         real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
