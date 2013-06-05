@@ -29,7 +29,7 @@ from ssh_utils import get_rewritten_host_address, get_scp_command, \
 from utils import nice_cmdline
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
-import threading, time, pipes
+import threading, time, pipes, tempfile, os
 
 class ActionLifecycleHandler(object):
 
@@ -712,37 +712,60 @@ class TaktukRemote(Action):
         if len(check_ports) == 1:
             global_port = list(check_ports)[0]
         self._gen_taktukprocesses()
-        self._taktuk_cmdline += (actual_connexion_params['taktuk'],)
-        self._taktuk_cmdline += actual_connexion_params['taktuk_options']
-        self._taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
-                                 "-o", 'error="B $position # $line\\n"',
-                                 "-o", 'status="C $position # $line\\n"',
-                                 "-o", 'connector="D $position # $peer_position # $line\\n"',
-                                 "-o", 'state="E $position # $peer_position # $line # ".event_msg($line)."\\n"',
-                                 "-o", 'info="F $position # $line\\n"',
-                                 "-o", 'taktuk="G $position # $line\\n"',
-                                 "-o", 'message="H $position # $line\\n"',
-                                 "-o", 'default="I $position # $type > $line\\n"')
-        self._taktuk_cmdline += ("-c", " ".join(
-            get_taktuk_connector_command(keyfile = global_keyfile,
-                                         port = global_port,
-                                         connexion_params = self._connexion_params)))
         self._gen_taktuk_commands(hosts_with_explicit_user)
         self._taktuk_cmdline += ("quit",)
         #handler = _TaktukRemoteOutputHandler(self)
+        taktuk_options_filehandle, taktuk_options_filename = tempfile.mkstemp(prefix = 'tmp_execo_taktuk_')
+        os.write(taktuk_options_filehandle, " ".join(self._taktuk_cmdline) + "\n")
+        os.close(taktuk_options_filehandle)
+        real_taktuk_cmdline = (actual_connexion_params['taktuk'],)
+        real_taktuk_cmdline += actual_connexion_params['taktuk_options']
+        real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
+                                "-o", 'error="B $position # $line\\n"',
+                                "-o", 'status="C $position # $line\\n"',
+                                "-o", 'connector="D $position # $peer_position # $line\\n"',
+                                "-o", 'state="E $position # $peer_position # $line # ".event_msg($line)."\\n"',
+                                "-o", 'info="F $position # $line\\n"',
+                                "-o", 'taktuk="G $position # $line\\n"',
+                                "-o", 'message="H $position # $line\\n"',
+                                "-o", 'default="I $position # $type > $line\\n"')
+        real_taktuk_cmdline += ("-c", " ".join(
+            get_taktuk_connector_command(keyfile = global_keyfile,
+                                         port = global_port,
+                                         connexion_params = self._connexion_params)))
+        real_taktuk_cmdline += ("-F", taktuk_options_filename)
+        real_taktuk_cmdline = " ".join([pipes.quote(arg) for arg in real_taktuk_cmdline])
+        real_taktuk_cmdline += " && rm -f " + taktuk_options_filename
         taktuk_gateway = None
         if actual_connexion_params.get('taktuk_gateway'):
             taktuk_gateway = Host(actual_connexion_params['taktuk_gateway'])
-            self._taktuk_cmdline = " ".join([pipes.quote(arg) for arg in self._taktuk_cmdline])
-        self._taktuk = get_process(self._taktuk_cmdline,
-                                   host = taktuk_gateway,
-                                   connexion_params = actual_connexion_params['taktuk_gateway_connexion_params'],
-                                   timeout = self._other_kwargs.get('timeout'),
-                                   stdout_handler = self._taktuk_stdout_output_handler,
-                                   #stderr_handler = self._taktuk_stderr_output_handler,
-                                   #default_stdout_handler = False,
-                                   #default_stderr_handler = False,
-                                   process_lifecycle_handler = _TaktukLifecycleHandler(self))
+            taktuk_gateway_connexion_params = make_connexion_params(actual_connexion_params.get('taktuk_gateway_connexion_params'))
+            real_taktuk_cmdline = (
+                get_scp_command(taktuk_gateway.user,
+                                taktuk_gateway.keyfile,
+                                taktuk_gateway.port,
+                                taktuk_gateway_connexion_params)
+                + (taktuk_options_filename,
+                   get_rewritten_host_address(taktuk_gateway.address,
+                                              taktuk_gateway_connexion_params) + ":" + taktuk_options_filename,
+                   '&&')
+                + get_ssh_command(taktuk_gateway.user,
+                                  taktuk_gateway.keyfile,
+                                  taktuk_gateway.port,
+                                  taktuk_gateway_connexion_params)
+                + (get_rewritten_host_address(taktuk_gateway.address,
+                                              taktuk_gateway_connexion_params),)
+                + (pipes.quote(real_taktuk_cmdline) + " && rm -f " + taktuk_options_filename,)
+                )
+            real_taktuk_cmdline = " ".join(real_taktuk_cmdline)
+        self._taktuk = Process(real_taktuk_cmdline,
+                               shell = True,
+                               timeout = self._other_kwargs.get('timeout'),
+                               stdout_handler = self._taktuk_stdout_output_handler,
+                               #stderr_handler = self._taktuk_stderr_output_handler,
+                               #default_stdout_handler = False,
+                               #default_stderr_handler = False,
+                               process_lifecycle_handler = _TaktukLifecycleHandler(self))
 
     def processes(self):
         return list(self._processes)
