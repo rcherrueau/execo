@@ -462,4 +462,3 @@ def destroy_all( hosts):
     else:
         return True
 
-
