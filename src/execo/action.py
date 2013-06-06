@@ -671,17 +671,17 @@ class TaktukRemote(Action):
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", get_rewritten_host_address(host.address, self._connexion_params), "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self._connexion_params), "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params), "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params), "-[", "exec", "[", self._processes[index].cmd(), "]", "-]",)
             self._taktuk_hosts_order.append(index)
 
     def _taktuk_common_init(self):
         # taktuk code common to TaktukRemote and subclasses TaktukGet
         # TaktukPut
         self._taktuk_hosts_order = []
-        self._taktuk_cmdline = ()
+        self._taktuk_commands = ()
         self._taktuk = None
         # we can provide per-host user with taktuk, but we cannot
         # provide per-host port or keyfile, so check that all hosts
@@ -713,13 +713,13 @@ class TaktukRemote(Action):
             global_port = list(check_ports)[0]
         self._gen_taktukprocesses()
         self._gen_taktuk_commands(hosts_with_explicit_user)
-        self._taktuk_cmdline += ("quit",)
+        self._taktuk_commands += ("quit",)
         #handler = _TaktukRemoteOutputHandler(self)
         taktuk_options_filehandle, taktuk_options_filename = tempfile.mkstemp(prefix = 'tmp_execo_taktuk_')
-        self._taktuk_cmdline = " ".join(self._taktuk_cmdline)
-        os.write(taktuk_options_filehandle, self._taktuk_cmdline + "\n")
+        self._taktuk_commands = " ".join(self._taktuk_commands)
+        os.write(taktuk_options_filehandle, self._taktuk_commands + "\n")
         os.close(taktuk_options_filehandle)
-        logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_cmdline)
+        logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_commands)
         real_taktuk_cmdline = (actual_connexion_params['taktuk'],)
         real_taktuk_cmdline += actual_connexion_params['taktuk_options']
         real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
@@ -1114,13 +1114,13 @@ class TaktukPut(TaktukRemote):
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", get_rewritten_host_address(host.address, self._connexion_params))
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params))
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for src in self._local_files:
-            self._taktuk_cmdline += ("broadcast", "put", "[", src, "]", "[", self._remote_location, "]", ";")
+            self._taktuk_commands += ("broadcast", "put", "[", src, "]", "[", self._remote_location, "]", ";")
 
     def reset(self):
         retval = super(TaktukPut, self).reset()
@@ -1287,13 +1287,13 @@ class TaktukGet(TaktukRemote):
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-m", get_rewritten_host_address(host.address, self._connexion_params))
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self._hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_cmdline += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params))
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self._connexion_params))
             self._taktuk_hosts_order.append(index)
         for src in self._remote_files:
-            self._taktuk_cmdline += ("broadcast", "get", "[", src, "]", "[", self._local_location, "]", ";")
+            self._taktuk_commands += ("broadcast", "get", "[", src, "]", "[", self._local_location, "]", ";")
 
     def reset(self):
         retval = super(TaktukGet, self).reset()
