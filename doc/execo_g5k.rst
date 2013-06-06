@@ -353,14 +353,18 @@ Planning
 Virtual machines utilities
 ==========================
 
-.. automodule:: execo_g5k.vmutils.setup_cluster
+.. automodule:: execo_g5k.vmutils
 
-VirshCluster
-------------
-.. autoclass:: execo_g5k.vmutils.setup_cluster.VirshCluster
+Deployment
+----------
+
+.. autoclass:: execo_g5k.vmutils.deployment.Virsh_Deployment
    :members:
 
-.. automodule:: execo_g5k.vmutils.state
+Actions
+-------
+
+.. automodule:: execo_g5k.vmutils.actions
 
 
 
