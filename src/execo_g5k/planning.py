@@ -24,6 +24,8 @@ import time as T, datetime as DT, execo.time_utils as ET, math
 from execo.log import set_style, logger
 from execo import Host, Remote
 from execo_g5k.config import default_frontend_connexion_params
+from execo_g5k.oar import format_oar_date, oar_duration_to_seconds
+from execo_g5k.oargrid import get_oargridsub_commandline
 
 import execo_g5k.api_utils as API
 try:
