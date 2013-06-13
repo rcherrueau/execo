@@ -18,7 +18,7 @@
 
 
 from pprint import pprint, pformat
-import time as T, xml.etree.ElementTree as ET, re, os
+import time, xml.etree.ElementTree as ETree, re, os
 from netaddr import IPNetwork
 from itertools import cycle
 import random
@@ -51,7 +51,7 @@ class Virsh_Deployment(object):
         self.oarjob_id  = oarjob_id
         self.env_name   = env_name if env_name is not None else 'wheezy-x64-base'
         self.env_file   = env_file
-        self.outdir     = '/tmp/deploy_'+ T.strftime("%Y%m%d_%H%M%S_%z") if outdir is None else outdir
+        self.outdir     = '/tmp/deploy_'+ time.strftime("%Y%m%d_%H%M%S_%z") if outdir is None else outdir
         try:
             os.mkdir(self.outdir)
         except:
@@ -61,7 +61,7 @@ class Virsh_Deployment(object):
         logger.debug('hosts %s',    pformat (self.hosts))
         logger.debug('clusters %s', pformat (self.clusters))
         logger.debug('sites %s',    pformat (self.sites))
-        logger.info('sites %s',    pformat (self.hosts_attr))
+        logger.debug('sites %s',    pformat (self.hosts_attr))
         
     def deploy_hosts(self, out = False, max_tries = 2):
         """ Deploy the environment specified by env_name or env_file """
@@ -189,16 +189,16 @@ class Virsh_Deployment(object):
         
         logger.info('Configuring libvirt network ...')
         if network_xml is None:
-            root = ET.Element('network')
-            name = ET.SubElement(root,'name')
+            root = ETree.Element('network')
+            name = ETree.SubElement(root,'name')
             name.text = 'default'
-            ET.SubElement(root, 'forward', attrib={'mode':'bridge'})
-            ET.SubElement(root, 'bridge', attrib={'name': bridge})
+            ETree.SubElement(root, 'forward', attrib={'mode':'bridge'})
+            ETree.SubElement(root, 'bridge', attrib={'name': bridge})
         else:
             logger.info('Using custom file for network... \n%s', network_xml)
-            root = ET.fromstring( network_xml )
+            root = ETree.fromstring( network_xml )
             
-        self.tree = ET.ElementTree(element=root)
+        self.tree = ETree.ElementTree(element=root)
 
         self.tree.write('default.xml')
         
@@ -296,7 +296,7 @@ class Virsh_Deployment(object):
                 connexion_params = default_frontend_connexion_params).run()
         ip = get_ip.stdout().strip()
         f = open(self.outdir+'/resolv.conf', 'w')
-        f.write('domain grid5000.fr\nsearch grid5000.fr \nnameserver '+ip+ '\n')
+        f.write('domain grid5000.fr\nsearch grid5000.fr '+' '.join( [site+'.grid5000.fr' for site in self.sites] )+' \nnameserver '+ip+ '\n')
         f.close()
         f = open(self.outdir+'/dnsmasq.conf', 'w')
         f.write(dhcp_range+dhcp_router+dhcp_hosts)
@@ -352,7 +352,7 @@ class Virsh_Deployment(object):
     
     def write_placement_file(self):
         """ Generate an XML file with the VM deployment topology """
-        deployment = ET.Element('virsh_deployment')  
+        deployment = ETree.Element('virsh_deployment')  
         for vm in self.vms:
             host_info = vm['host'].address.split('.')[0:-2]
             host_uid =   host_info[0].split('-')[0]+'-'+host_info[0].split('-')[1]
@@ -360,18 +360,18 @@ class Virsh_Deployment(object):
             site_uid = host_info[1]
         #    print host_uid, cluster_uid, site_uid
             if deployment.find("./site[@id='"+site_uid+"']") is None:
-                site = ET.SubElement(deployment, 'site', attrib = {'id': site_uid})
+                site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
             else:
                 site = deployment.find("./site[@id='"+site_uid+"']")
             if site.find("./cluster/[@id='"+cluster_uid+"']") is None:
-                cluster = ET.SubElement(site, 'cluster', attrib = {'id': cluster_uid})
+                cluster = ETree.SubElement(site, 'cluster', attrib = {'id': cluster_uid})
             else:
                 cluster = site.find("./cluster/[@id='"+cluster_uid+"']")
             if cluster.find("./host/[@id='"+host_uid+"']") is None:
-                host = ET.SubElement(cluster, 'host', attrib = {'id': host_uid})
+                host = ETree.SubElement(cluster, 'host', attrib = {'id': host_uid})
             else:
                 host = cluster.find("./host/[@id='"+host_uid+"']")
-            el_vm = ET.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
+            el_vm = ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
                         'mem': str(vm['mem_size']), 'cpu': str(vm['vcpus']), 'hdd': str(vm['hdd_size'])})
         
         f = open(self.outdir+'/placement.xml', 'w')
@@ -382,6 +382,9 @@ class Virsh_Deployment(object):
     def get_max_vms(self, vm_template):
         """ A basic function that determine the maximum number of VM you can have depending on the vm template"""
         logger.warning('Not Implemented')
+        
+        
+        
         
     def distribute_vms(self, vms, mode = 'distributed', placement = None):    
         """ Add a host information for every VM """
@@ -534,7 +537,7 @@ def kavname_to_shortname( host):
         
 def prettify(elem):
     """Return a pretty-printed XML string for the Element.  """
-    rough_string = ET.tostring(elem, 'utf-8')
+    rough_string = ETree.tostring(elem, 'utf-8')
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")
 
