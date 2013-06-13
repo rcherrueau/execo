@@ -17,6 +17,6 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 
-from deployment import Virsh_Deployment
-from actions import define_vms, create_disks, destroy_all, install, list_vm, start, destroy
+from deployment import Virsh_Deployment, get_clusters
+from actions import install_vms, define_vms, start_vms, create_disks, destroy_vms, list_vm, wait_vms_have_started
 
