@@ -335,7 +335,7 @@ def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout 
 
 def deploy(deployment,
            check_deployed_command = True,
-           node_connexion_params = None,
+           node_connexion_params = {'user': 'root'},
            num_tries = 2,
            check_enough_func = None,
            out = False,
