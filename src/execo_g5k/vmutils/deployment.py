@@ -65,15 +65,17 @@ class Virsh_Deployment(object):
         
     def deploy_hosts(self, out = False, max_tries = 2):
         """ Deploy the environment specified by env_name or env_file """
-        if self.env_name is not None:
-            logger.info('Deploying environment %s ...',set_style( self.env_name, 'emph') )
-            deployment = EX5.Deployment( hosts = self.hosts, env_name = self.env_name,
-                                        vlan = self.kavlan)
-        elif self.env_file is not None:
+        if self.env_file is not None:
             logger.info('Deploying environment %s ...', set_style( self.env_file, 'emph') )
             deployment = EX5.Deployment( hosts = self.hosts, env_file = self.env_file,
                                         vlan = self.kavlan)
-
+        elif self.env_name is not None:
+            logger.info('Deploying environment %s ...',set_style( self.env_name, 'emph') )
+            deployment = EX5.Deployment( hosts = self.hosts, env_name = self.env_name,
+                                        vlan = self.kavlan)
+        
+        
+          
         Hosts = EX5.deploy(deployment, out = out, num_tries = max_tries)
 
         deployed_hosts = list(Hosts[0])
@@ -92,22 +94,27 @@ class Virsh_Deployment(object):
     def enable_taktuk(self, ssh_key = None):
         """Copying your ssh_keys on hosts for automatic connexion"""
         logger.info('Copying ssh key to prepare hosts for taktuk execution and file transfer ...')
+        #taktuk_gateway = Host(self.get_fastest_host(), user = 'root')
         taktuk_gateway = Host(self.get_fastest_host())
         
         ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
         
-        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -y --force-yes taktuk', [taktuk_gateway]).run()
-        EX.Put([taktuk_gateway], [ssh_key, ssh_key+'.pub'], remote_location='.ssh/').run()
+        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -y --force-yes taktuk', [taktuk_gateway], connexion_params = {'user': 'root'}).run()
+        EX.Put([taktuk_gateway], [ssh_key, ssh_key+'.pub'], remote_location='.ssh/', connexion_params = {'user': 'root'} ).run()
         
         configure_taktuk = self.fact.remote('cat '+ssh_key+'.pub >> .ssh/authorized_keys; echo "Host *" >> /root/.ssh/config ; echo " StrictHostKeyChecking no" >> /root/.ssh/config; ',
-                        self.hosts, connexion_params = { 'user': 'root',
+                        self.hosts, connexion_params = { 
+                'user': 'root',
                 'host_rewrite_func': lambda host: re.sub("\.g5k$", ".grid5000.fr", host),        
-                'taktuk_gateway': taktuk_gateway.address,
-                'taktuk_options': ('-s', '-S', '/root/.ssh/id_rsa:/root/.ssh/id_rsa,/root/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub')}).run()
+                'taktuk_gateway': taktuk_gateway,
+                'taktuk_options': ('-s', '-S', '/root/.ssh/id_rsa:/root/.ssh/id_rsa,/root/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub'),
+                'taktuk_gateway_connexion_params': {'user': 'root'} }).run()
         
-        self.taktuk_params = {     'user': 'root',
+        self.taktuk_params = {     
+                'user': 'root',
                 'host_rewrite_func': lambda host: re.sub("\.g5k$", ".grid5000.fr", host),        
-                'taktuk_gateway': taktuk_gateway.address,}     
+                'taktuk_gateway': taktuk_gateway,
+                'taktuk_gateway_connexion_params': {'user': 'root'} }     
         if configure_taktuk.ok():
             logger.debug('Taktuk configuration finished %s', pformat(self.taktuk_params))
         else:
@@ -128,7 +135,8 @@ class Virsh_Deployment(object):
                 'Package: * \nPin: release a=unstable \nPin-Priority: 800\n\n')
         f.close()
         
-        EX.Put([self.taktuk_params['taktuk_gateway']], [self.outdir+'/sources.list', self.outdir+'/preferences' ]).run()
+        EX.Put([self.taktuk_params['taktuk_gateway']], [self.outdir+'/sources.list', self.outdir+'/preferences' ], 
+               connexion_params = { 'user': 'root' }).run()
         apt_conf = self.fact.fileput(self.hosts, [ 'sources.list', 'preferences' ], 
                 remote_location = '/etc/apt/', connexion_params = self.taktuk_params).run()
         if apt_conf.ok():
@@ -155,7 +163,7 @@ class Virsh_Deployment(object):
     def install_packages(self, packages_list = None):
         """ Installation of packages on the nodes """
     
-        base_packages = ' uuid-runtime command-not-found bash-completion nmap qemu-kvm taktuk '
+        base_packages = ' uuid-runtime bash-completion nmap qemu-kvm taktuk '
         logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()        
@@ -165,7 +173,7 @@ class Virsh_Deployment(object):
             logger.error('Unable to install packages on the nodes ..')
             exit()
         
-        libvirt_packages = ' virtinst libvirt-bin '
+        libvirt_packages = ' libvirt-bin virtinst  python2.7 python-pycurl python-libxml2 '
         logger.info('Installing libvirt updated packages %s', set_style(libvirt_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes -t unstable '+\
             libvirt_packages
@@ -205,7 +213,8 @@ class Virsh_Deployment(object):
         self.fact.remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
                     connexion_params = self.taktuk_params, log_exit_code = False).run()
         
-        EX.Put([self.taktuk_params['taktuk_gateway']], 'default.xml' ,remote_location = '/etc/libvirt/qemu/networks/').run()
+        EX.Put([self.taktuk_params['taktuk_gateway']], 'default.xml' ,remote_location = '/etc/libvirt/qemu/networks/', 
+               connexion_params = { 'user': 'root' } ).run()
         
         self.fact.fileput(self.hosts, '/etc/libvirt/qemu/networks/default.xml', remote_location = '/etc/libvirt/qemu/networks/',
                       connexion_params = self.taktuk_params).run()
@@ -307,11 +316,11 @@ class Virsh_Deployment(object):
                     , set_style('DNS/DCHP', 'emph'))
         
         EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -t testing -y dnsmasq taktuk', [service_node]).run()
-        EX.Put([service_node], self.outdir+'/dnsmasq.conf', remote_location='/etc/').run()
+        EX.Put([service_node], self.outdir+'/dnsmasq.conf', remote_location='/etc/', connexion_params = { 'user': 'root' }).run()
         
         logger.info('Adding the VM in /etc/hosts ...')
         EX.Remote('[ -f /etc/hosts.bak ] && cp /etc/hosts.bak /etc/hosts || cp /etc/hosts /etc/hosts.bak', [service_node]).run()
-        EX.Put([service_node], self.outdir+'/vms.list', remote_location= '/root/').run()
+        EX.Put([service_node], self.outdir+'/vms.list', remote_location= '/root/', connexion_params = { 'user': 'root' }).run()
         EX.Remote('cat /root/vms.list >> /etc/hosts', [service_node]).run()
         
         logger.info('Restarting service ...')
@@ -321,7 +330,7 @@ class Virsh_Deployment(object):
         clients = list(self.hosts)
         clients.remove(service_node)
         
-        EX.Put([service_node], self.outdir+'/resolv.conf', remote_location= '/root/').run()
+        EX.Put([service_node], self.outdir+'/resolv.conf', remote_location= '/root/', connexion_params = { 'user': 'root' }).run()
         EX.TaktukPut(clients, '/root/resolv.conf', remote_location = '/etc/',
                      connexion_params = self.taktuk_params).run()
 
@@ -382,7 +391,6 @@ class Virsh_Deployment(object):
     def get_max_vms(self, vm_template):
         """ A basic function that determine the maximum number of VM you can have depending on the vm template"""
         logger.warning('Not Implemented')
-        
         
         
         
@@ -471,6 +479,7 @@ class Virsh_Deployment(object):
                 'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
                 'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys; '+ \
                 'umount /mnt'
+        print cmd
         logger.debug(cmd)
         copy_on_vm_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
         logger.debug('%s', copy_on_vm_base.ok())

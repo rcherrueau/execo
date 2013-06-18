@@ -18,5 +18,5 @@
 
 
 from deployment import Virsh_Deployment, get_clusters
-from actions import install_vms, define_vms, start_vms, create_disks, destroy_vms, list_vm, wait_vms_have_started
+from actions import install_vms, define_vms, create_disks, destroy_vms, list_vm, start_vms, wait_vms_have_started
 
