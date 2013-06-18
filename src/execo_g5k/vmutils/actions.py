@@ -19,7 +19,7 @@
 
 
 from pprint import pformat
-from execo import Remote,  logger, TaktukRemote
+from execo import SshProcess, Remote, Put, logger, TaktukRemote
 from execo.log import set_style
 
 
@@ -61,7 +61,7 @@ def define_vms( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets =
 
 
 
-def create_disks(vms, taktuk_params, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
+def create_disks(vms, taktuk_params = None, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
     """ Return an action to create the disks for the VMs on the hosts"""
     hosts = []
     cmds = []
@@ -70,10 +70,12 @@ def create_disks(vms, taktuk_params, backing_file = '/tmp/vm-base.img', backing_
             vm['vm_id']+'.qcow2 '+str(vm['hdd_size'])+'G')
         hosts.append(vm['host'])
 
-    return TaktukRemote('{{cmds}}', hosts, connexion_params = taktuk_params)
+    if taktuk_params is not None:
+        return TaktukRemote('{{cmds}}', hosts, connexion_params = taktuk_params)
+    else:
+        return Remote('{{cmds}}', hosts)
 
-
-def install_vms(vms, taktuk_params):
+def install_vms(vms, taktuk_params = None):
     """ Return an action to install the VM on the hosts"""
     hosts_cmds = {}
     for vm in vms:
@@ -83,38 +85,78 @@ def install_vms(vms, taktuk_params):
         ' --vcpus='+ str(vm['vcpus'])+' --cpuset='+vm['cpuset']+' ; '
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
-    return TaktukRemote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = taktuk_params)
+    if taktuk_params is not None:
+        return TaktukRemote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = taktuk_params)
+    else:
+        return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()))
     
-def start_vms(vms, taktuk_params):
+def start_vms(vms, taktuk_params = None):
     """ Return an action to start the VMs on the hosts """
     hosts_cmds = {}
     for vm in vms:
         cmd = 'virsh --connect qemu:///system start '+vm['vm_id']+' ; '
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
-    return TaktukRemote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = taktuk_params)
+    if taktuk_params is not None:
+        return TaktukRemote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = taktuk_params)
+    else:
+        return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()))
 
-
-def wait_vms_have_started(vms, taktuk_params):
-    """ Try to make a ls on all vms and return True when all process are ok""" 
-    vms = [vm['ip']+'.grid5000.fr' for vm in vms ] 
-    ls_tries = 0
+def wait_vms_have_started(vms, taktuk_params = None):
+    """ Try to make a ls on all vms and return True when all process are ok", need a taktuk gateway"""
+    host = vms[0]['host']
+    vms = [vm['ip'] for vm in vms ] 
+    f = open('/tmp/vmips', 'w')
+    for ip in vms:
+        f.write(ip+'\n')
+    f.close()
+    Put([host], '/tmp/vmips').run()
+    nmap_tries = 0
     ssh_open = False
+    while (not ssh_open) and nmap_tries < 50:
+        logger.debug('nmap_tries %s', nmap_tries)
+        nmap_tries += 1            
+        nmap = SshProcess('nmap -i vmips -p 22', host)
+        nmap.run()
+        logger.debug('%s', nmap.cmd())
+        stdout = nmap.stdout().split('\n')
+        for line in stdout:
+            if 'Nmap done' in line:
+                logger.debug(line)
+                ssh_open = line.split()[2] == line.split()[5].replace('(','')
+    if ssh_open:
+        logger.info('All VM have been started')
+    else:
+        logger.error('All VM have not been started')
     
-    test_vm = TaktukRemote('ls', vms, connexion_params = taktuk_params, log_exit_code = False)
-    while (not ssh_open) and ls_tries < 50:
-        print ls_tries
-        test_vm.run()
-        if test_vm.finished_ok():
-            ssh_open = True
-            return ssh_open
-        else:
-            test_vm.reset()    
+    
+#    nmap_tries = 0   
+#    test_vm = TaktukRemote('ls', vms, connexion_params = taktuk_params, log_exit_code = False, log_error = False)
+#    while (not ssh_open) and ls_tries < 50:
+#        print ls_tries
+#        test_vm.run()
+#        if test_vm.finished_ok():
+#            ssh_open = True
+#            return ssh_open
+#        else:
+#            test_vm.reset()
+#    
+#    while (not ssh_open) and ls_tries < 50:
+#        if taktuk_params is not None:
+#            test_vm = TaktukRemote('ls', vms, connexion_params = taktuk_params, log_exit_code = False, log_error = False).run()
+#        else:
+#            test_vm = Remote('ls', vms, log_exit_code = False, log_error = False).run()
+#        ls_tries += 1
+#        logger.debug(str(ls_tries))
+#        if test_vm.finished_ok():
+#            ssh_open = True
+#            return ssh_open
+
     return ssh_open
 
 
 
-def destroy_vms( hosts, taktuk_params):
+def destroy_vms( hosts, taktuk_params = None):
     """Destroy all the VM on the hosts"""
     
     cmds = []
@@ -126,7 +168,10 @@ def destroy_vms( hosts, taktuk_params):
             hosts_with_vms.append(host)
         
     if len(cmds) > 0:
-        TaktukRemote('{{cmds}}', hosts_with_vms, connexion_params = taktuk_params).run()
+        if taktuk_params is not None:
+            TaktukRemote('{{cmds}}', hosts_with_vms, connexion_params = taktuk_params).run()
+        else:
+            Remote('{{cmds}}', hosts_with_vms, connexion_params = taktuk_params).run()
     
 
 
