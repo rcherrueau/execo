@@ -68,6 +68,7 @@ def create_disks(vms, taktuk_params = None, backing_file = '/tmp/vm-base.img', b
     for vm in vms:
         cmds.append('qemu-img create -f qcow2 -o backing_file='+backing_file+',backing_fmt='+backing_file_fmt+' /tmp/'+\
             vm['vm_id']+'.qcow2 '+str(vm['hdd_size'])+'G')
+#        cmds.append('qemu-img create -f qcow2 -b '+backing_file+' /tmp/'+vm['vm_id']+'.qcow2 '+str(vm['hdd_size'])+'G')
         hosts.append(vm['host'])
 
     if taktuk_params is not None:

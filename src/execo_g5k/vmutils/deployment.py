@@ -475,11 +475,10 @@ class Virsh_Deployment(object):
         ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
 
         cmd = 'modprobe nbd max_part=1; '+ \
-                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 5; '+ \
+                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
                 'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
                 'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys; '+ \
-                'umount /mnt'
-        print cmd
+                'umount /mnt; qemu-nbd -d /dev/nbd0'
         logger.debug(cmd)
         copy_on_vm_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
         logger.debug('%s', copy_on_vm_base.ok())
