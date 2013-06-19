@@ -292,8 +292,7 @@ class Planning:
 
     def find_slots(self, mode, walltime, resources = None):
         """ Find slot corresponding to the criteria you give"""
-        h, m, s = walltime.split(':')
-        duration = ET.timedelta_to_seconds(DT.timedelta(hours=int(h), minutes=int(m), seconds=int(s)))
+        duration = oar_duration_to_seconds(walltime)
 
         if not hasattr(self, 'slots'):
             self.compute_slots()
@@ -301,16 +300,15 @@ class Planning:
         if mode == 'free':
             logger.info('Filtering slots with enough resources')
 
-            slots_ok = {}
+            slots_ok = []
             for slot in self.slots:
                 slot_ok = True
-                
-                if slot[1] - slot[0] >= duration:
-                    for element, n_nodes in slot[2].iteritems():
-                        if resources.has_key(element) and resources[element] > n_nodes:
-                            slot_ok = False
+                print(slot)
+                for element, n_nodes in slot[2].iteritems():
+                    if resources.has_key(element) and resources[element] > n_nodes:
+                        slot_ok = False
                 if slot_ok:
-                    slots_ok = slot
+                    slots_ok.append(slot)
             self.slots_ok = slots_ok
                         
         elif mode == 'max':
@@ -338,10 +336,10 @@ def get_first_cluster_available( clusters, walltime, n_nodes = 1):
     for cluster in clusters:
         planning.find_slots('free', walltime, {cluster: n_nodes})
         start_min = 10**20
-        first_slots[cluster] = planning.slots_ok
+        first_slots[cluster] = planning.slots_ok[0]
 
-    pprint(first_slots)
     first_slot = [10**20, 10**21]
+    
     for cluster, slot in first_slots.iteritems():
         if slot[0] <= first_slot[0]:
             first_slot = [slot[0], slot[1]]
@@ -349,30 +347,30 @@ def get_first_cluster_available( clusters, walltime, n_nodes = 1):
 
     return first_cluster, first_slot
 
-def get_first_site_available( sites, walltime, n_nodes = 1):
-    """Compute the planning of the sites list and find the first one available for a given walltime and
-    a given number of node """
-
-    starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
-    endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))
-    planning = Planning(sites, starttime, endtime)
-    planning.compute_slots()
-    first_slots = {}
-    for site in sites:
-        planning.find_slots('free', walltime, {site: n_nodes})
-        start_min = 10**20
-        for start_stop in planning.slots_ok.keys():
-            if start_stop[0] < start_min:
-                start_min = start_stop[0]
-                first_slots[site] = start_stop
-
-    first_slot = (10**20, 10**21)
-    for site, slot in first_slots.iteritems():
-        if slot[0] <= first_slot[0]:
-            first_slot = slot
-            first_site = site
-
-    return first_site, first_slot
+# def get_first_site_available( sites, walltime, n_nodes = 1):
+#     """Compute the planning of the sites list and find the first one available for a given walltime and
+#     a given number of node """
+# 
+#     starttime = T.time() + ET.timedelta_to_seconds(DT.timedelta(seconds = 30))
+#     endtime = starttime + ET.timedelta_to_seconds(DT.timedelta(days = 3))
+#     planning = Planning(sites, starttime, endtime)
+#     planning.compute_slots()
+#     first_slots = {}
+#     for site in sites:
+#         planning.find_slots('free', walltime, {site: n_nodes})
+#         start_min = 10**20
+#         for slot in planning.slots_ok:
+#             if slot[0] < start_min:
+#                 start_min = slot[0]
+#                 first_slots[site] = (slot[0], slot[1])
+# 
+#     first_slot = (10**20, 10**21)
+#     for site, slot in first_slots.iteritems():
+#         if slot[0] <= first_slot[0]:
+#             first_slot = slot
+#             first_site = site
+# 
+#     return first_site, first_slot
 
 
 
