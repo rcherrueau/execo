@@ -738,28 +738,6 @@ class TaktukRemote(Action):
         real_taktuk_cmdline += ("-F", taktuk_options_filename)
         real_taktuk_cmdline = " ".join([pipes.quote(arg) for arg in real_taktuk_cmdline])
         real_taktuk_cmdline += " && rm -f " + taktuk_options_filename
-        taktuk_gateway = None
-        if actual_connexion_params.get('taktuk_gateway'):
-            taktuk_gateway = Host(actual_connexion_params['taktuk_gateway'])
-            taktuk_gateway_connexion_params = make_connexion_params(actual_connexion_params.get('taktuk_gateway_connexion_params'))
-            real_taktuk_cmdline = (
-                get_scp_command(taktuk_gateway.user,
-                                taktuk_gateway.keyfile,
-                                taktuk_gateway.port,
-                                taktuk_gateway_connexion_params)
-                + (taktuk_options_filename,
-                   get_rewritten_host_address(taktuk_gateway.address,
-                                              taktuk_gateway_connexion_params) + ":" + taktuk_options_filename,
-                   '&&')
-                + get_ssh_command(taktuk_gateway.user,
-                                  taktuk_gateway.keyfile,
-                                  taktuk_gateway.port,
-                                  taktuk_gateway_connexion_params)
-                + (get_rewritten_host_address(taktuk_gateway.address,
-                                              taktuk_gateway_connexion_params),)
-                + (pipes.quote(real_taktuk_cmdline) + " && rm -f " + taktuk_options_filename,)
-                )
-            real_taktuk_cmdline = " ".join(real_taktuk_cmdline)
         self._taktuk = Process(real_taktuk_cmdline,
                                shell = True,
                                timeout = self._other_kwargs.get('timeout'),

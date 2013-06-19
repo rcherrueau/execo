@@ -130,8 +130,6 @@ def make_default_connexion_params():
                                       '-o', 'StrictHostKeyChecking=no',
                                       '-o', 'UserKnownHostsFile=/dev/null',
                                       '-o', 'ConnectTimeout=20'),
-        'taktuk_gateway': None,
-        'taktuk_gateway_connexion_params': None,
         'pty': False,
         'host_rewrite_func': None
         }
@@ -163,12 +161,6 @@ default_connexion_params = make_default_connexion_params()
 
 - ``taktuk_connector_options``: tuple of options passed to
   taktuk_connector.
-
-- ``taktuk_gateway``: hostname or `execo.host.Host` instance on which
-  to launch the taktuk command.
-
-- ``taktuk_gateway_connexion_params``: connexion parameters (if
-  needed) to connect to taktuk_gateway.
 
 - ``pty``: boolean. Wether to allocate or not a pty for
   ssh/scp.
