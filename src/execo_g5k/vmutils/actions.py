@@ -114,7 +114,7 @@ def wait_vms_have_started(vms, taktuk_params = None):
     Put([host], '/tmp/vmips').run()
     nmap_tries = 0
     ssh_open = False
-    while (not ssh_open) and nmap_tries < 50:
+    while (not ssh_open) and nmap_tries < 100:
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
         nmap = SshProcess('nmap -i vmips -p 22', host)
