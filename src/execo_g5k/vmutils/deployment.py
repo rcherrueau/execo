@@ -249,7 +249,9 @@ class Virsh_Deployment(object):
         create_br = self.fact.remote(cmd, nobr_hosts, connexion_params = self.taktuk_params).run()
         
         if create_br.ok():
+            
             logger.debug('Bridge has been created')
+            
         else:
             logger.error('Impossible to setup the bridge')
             exit()
@@ -335,16 +337,23 @@ class Virsh_Deployment(object):
         EX.TaktukPut(clients, '/root/resolv.conf', remote_location = '/etc/',
                      connexion_params = self.taktuk_params).run()
 
-    def create_disk_image(self, disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2', clean = True):
+    def create_disk_image(self, disk_image = None, clean = True):
         """Create a base image in RAW format for using qemu-img than can be used as the vms backing file """
-       
-        ls_image = EX.SshProcess('ls '+disk_image, self.taktuk_params['taktuk_gateway']).run()
+        if disk_image is None:
+            disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2'
+        
+        if clean:
+            logger.info('Removing existing disks')
+            self.fact.remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
+                            connexion_params = self.taktuk_params).run()
+        
+        ls_image = EX.SshProcess('ls '+disk_image, self.taktuk_params['taktuk_gateway'], ignore_exit_code = True).run()
         if ls_image.stdout().strip() == disk_image:
             logger.info("Image found in deployed hosts")
             copy_file = EX.TaktukRemote('cp '+disk_image+' /tmp/', self.hosts,
                                     connexion_params = self.taktuk_params).run()
         else:
-            logger.info("Copying backing file")
+            logger.info("Copying backing file from frontends")
             frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
             copy_file = EX.TaktukRemote('scp '+default_frontend_connexion_params['user']+\
                                     '@{{frontends}}:'+disk_image+' /tmp/', self.hosts,
@@ -352,11 +361,8 @@ class Virsh_Deployment(object):
             if not copy_file.ok():
                 logger.error('Unable to copy the backing file')
                 exit()               
-                    
-        if clean:
-            logger.info('Removing existing disks')
-            self.fact.remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
-                            connexion_params = self.taktuk_params).run()
+        
+        
         
         logger.info("Creating disk image on /tmp/vm-base.img")
         cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
