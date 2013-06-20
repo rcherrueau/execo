@@ -402,9 +402,6 @@ class Remote(Action):
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
-    def _infos(self):
-        return Action._infos(self)
-
     def name(self):
         if self._name == None:
             return nice_cmdline(self._cmd)
@@ -657,9 +654,6 @@ class TaktukRemote(Action):
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
-    def _infos(self):
-        return Action._infos(self)
-
     def _gen_taktukprocesses(self):
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
@@ -843,9 +837,6 @@ class Put(Remote):
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
-    def _infos(self):
-        return Action._infos(self)
-
     def name(self):
         if self._name == None:
             return "%s to %i hosts" % (self.__class__.__name__, len(self._hosts))
@@ -926,9 +917,6 @@ class Get(Remote):
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
-
-    def _infos(self):
-        return Action._infos(self)
 
     def name(self):
         if self._name == None:
@@ -1067,9 +1055,6 @@ class TaktukPut(TaktukRemote):
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
-
-    def _infos(self):
-        return TaktukRemote._infos(self)
 
     def name(self):
         if self._name == None:
@@ -1241,9 +1226,6 @@ class TaktukGet(TaktukRemote):
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
-    def _infos(self):
-        return TaktukRemote._infos(self)
-
     def name(self):
         if self._name == None:
             return "%s from %i hosts" % (self.__class__.__name__, len(self._hosts))
@@ -1309,9 +1291,6 @@ class Local(Action):
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
 
-    def _infos(self):
-        return Action._infos(self)
-
     def name(self):
         if self._name == None:
             return nice_cmdline(self._cmd)
@@ -1376,9 +1355,6 @@ class ParallelActions(Action):
 
     def _kwargs(self):
         return []
-
-    def _infos(self):
-        return Action._infos(self)
 
     def name(self):
         if self._name == None:
@@ -1463,9 +1439,6 @@ class SequentialActions(Action):
 
     def _kwargs(self):
         return []
-
-    def _infos(self):
-        return Action._infos(self)
 
     def name(self):
         if self._name == None:
