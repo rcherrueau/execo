@@ -163,7 +163,7 @@ class Virsh_Deployment(object):
     def install_packages(self, packages_list = None):
         """ Installation of packages on the nodes """
     
-        base_packages = ' uuid-runtime bash-completion nmap qemu-kvm taktuk '
+        base_packages = 'uuid-runtime bash-completion nmap qemu-kvm taktuk'
         logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()        
@@ -173,9 +173,10 @@ class Virsh_Deployment(object):
             logger.error('Unable to install packages on the nodes ..')
             exit()
         
-        libvirt_packages = ' libvirt-bin virtinst  python2.7 python-pycurl python-libxml2 '
+        libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2'
         logger.info('Installing libvirt updated packages %s', set_style(libvirt_packages, 'emph'))
-        cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes -t unstable '+\
+        cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
+            '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  -t unstable '+\
             libvirt_packages
         install_libvirt = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
             
@@ -334,20 +335,23 @@ class Virsh_Deployment(object):
         EX.TaktukPut(clients, '/root/resolv.conf', remote_location = '/etc/',
                      connexion_params = self.taktuk_params).run()
 
-    def create_disk_image(self, disk_image = None, clean = True):
+    def create_disk_image(self, disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2', clean = True):
         """Create a base image in RAW format for using qemu-img than can be used as the vms backing file """
        
-        if disk_image is None:
-            disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2'
-        logger.info("Copying backing file")
-        
-        frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
-        copy_file = EX.TaktukRemote('scp '+default_frontend_connexion_params['user']+\
-                                '@{{frontends}}:'+disk_image+' /root/', self.hosts,
-                                connexion_params = self.taktuk_params).run()
-        if not copy_file.ok():
-            logger.error('Unable to copy the backing file')
-            exit()               
+        ls_image = EX.SshProcess('ls '+disk_image, self.taktuk_params['taktuk_gateway']).run()
+        if ls_image.stdout().strip() == disk_image:
+            logger.info("Image found in deployed hosts")
+            copy_file = EX.TaktukRemote('cp '+disk_image+' /tmp/', self.hosts,
+                                    connexion_params = self.taktuk_params).run()
+        else:
+            logger.info("Copying backing file")
+            frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
+            copy_file = EX.TaktukRemote('scp '+default_frontend_connexion_params['user']+\
+                                    '@{{frontends}}:'+disk_image+' /tmp/', self.hosts,
+                                    connexion_params = self.taktuk_params).run()
+            if not copy_file.ok():
+                logger.error('Unable to copy the backing file')
+                exit()               
                     
         if clean:
             logger.info('Removing existing disks')
@@ -355,9 +359,22 @@ class Virsh_Deployment(object):
                             connexion_params = self.taktuk_params).run()
         
         logger.info("Creating disk image on /tmp/vm-base.img")
-        cmd = 'qemu-img convert -O raw /root/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
-        self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
+        cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
+        self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()  
+        
+    def ssh_keys_on_vmbase(self, ssh_key = None):
+        """ Copy your public key into the .ssh/authorized_keys """
+        logger.info('Copying ssh key on vm-base ...')
+        ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
 
+        cmd = 'modprobe nbd max_part=1; '+ \
+                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
+                'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
+                'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys; '+ \
+                'umount /mnt; qemu-nbd -d /dev/nbd0'
+        logger.debug(cmd)
+        copy_on_vm_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
+        logger.debug('%s', copy_on_vm_base.ok())
     
     def write_placement_file(self):
         """ Generate an XML file with the VM deployment topology """
@@ -387,12 +404,6 @@ class Virsh_Deployment(object):
         f.write(prettify(deployment))
         f.close()
 
-
-    def get_max_vms(self, vm_template):
-        """ A basic function that determine the maximum number of VM you can have depending on the vm template"""
-        logger.warning('Not Implemented')
-        
-        
         
     def distribute_vms(self, vms, mode = 'distributed', placement = None):    
         """ Add a host information for every VM """
@@ -469,19 +480,14 @@ class Virsh_Deployment(object):
         
         self.vms = vms
 
-    def ssh_keys_on_vmbase(self, ssh_key = None):
-        """ Copy your public key into the .ssh/authorized_keys """
-        logger.info('Copying ssh key on vm-base ...')
-        ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
-
-        cmd = 'modprobe nbd max_part=1; '+ \
-                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
-                'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
-                'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys; '+ \
-                'umount /mnt; qemu-nbd -d /dev/nbd0'
-        logger.debug(cmd)
-        copy_on_vm_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
-        logger.debug('%s', copy_on_vm_base.ok())
+    def get_max_vms(self, vm_template):
+        """ A basic function that determine the maximum number of VM you can have depending on the vm template"""
+        vm_ram_size = int(ETree.fromstring(vm_template).get('mem'))
+        self.get_hosts_attr()
+        max_vms = int(self.hosts_attr['total']['ram_size']/vm_ram_size) 
+        logger.info('Maximum number of VM is %s', str(max_vms))
+        return max_vms 
+        
 
     def get_fastest_host(self):
         """ Use the G5K api to have the fastest node"""
