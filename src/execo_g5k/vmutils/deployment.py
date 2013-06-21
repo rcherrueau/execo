@@ -49,7 +49,7 @@ class Virsh_Deployment(object):
         self.sites      = list(set([ get_cluster_site(cluster) for cluster in self.clusters ]))
         self.kavlan     = kavlan
         self.oarjob_id  = oarjob_id
-        self.env_name   = env_name if env_name is not None else 'wheezy-x64-base'
+        self.env_name   = env_name if env_name is not None else 'wheezy-x64-nfs'
         self.env_file   = env_file
         self.outdir     = '/tmp/deploy_'+ time.strftime("%Y%m%d_%H%M%S_%z") if outdir is None else outdir
         try:
@@ -234,32 +234,38 @@ class Virsh_Deployment(object):
     def create_bridge(self, bridge_name = 'br0'):
         """ Creation of a bridge to be used for the virtual network """
         logger.info('Configuring the bridge')
-        bridge_exists = self.fact.remote('brctl show |grep '+bridge_name, self.hosts,
+        
+        
+        bridge_exists = self.fact.remote('brctl show |grep -v "bridge name" | awk \'{ print $1 }\'', self.hosts,
                          connexion_params = self.taktuk_params, log_exit_code = False).run()
         nobr_hosts = []
         for p in bridge_exists.processes():
             if len(p.stdout()) == 0:
                 nobr_hosts.append(p.host())
+            else:
+                if p.stdout() != bridge_name:
+                    EX.Remote('ip link set '+p.stdout()+' down ; brctl delbr '+p.stdout(), [p.host()]).run()
+                    nobr_hosts.append(p.host())
         
         cmd = 'export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
             'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; echo "bridge_ports $br_if" >> /etc/network/interfaces ;'+\
             ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
             ' echo "bridge_fd 0" >> /etc/network/interfaces ; ifup '+bridge_name
         
+        
         create_br = self.fact.remote(cmd, nobr_hosts, connexion_params = self.taktuk_params).run()
         
         if create_br.ok():
-            
-            logger.debug('Bridge has been created')
-            
+            logger.info('Bridge has been created')
         else:
-            logger.error('Impossible to setup the bridge')
+            logger.error('Unable  to setup the bridge')
             exit()
 
     def setup_virsh_network(self, n_vms = None):
         """ Use the KaVLAN IP range or the IP-MAC list from g5k_subnets and configure 
          dnsmasq to setup a DNS/DHCP server for the VM i"""
         logger.info('Retrieving the list of IP and MAC for the virtual machines')
+        
         if self.kavlan is not None:
             logger.info('Using a KaVLAN global')
             vm_ip = []
