@@ -24,12 +24,14 @@ from itertools import cycle
 import random
 import execo as EX, execo_g5k as EX5
 from execo import logger, Host, SshProcess
+from execo.time_utils import sleep
 from execo.action import ActionFactory
 from execo.log import set_style
 from execo.config import TAKTUK
 from execo_g5k import get_oar_job_subnets
 from execo_g5k.config import g5k_configuration, default_frontend_connexion_params
 from execo_g5k.utils import get_kavlan_host_name
+
 from execo_g5k.api_utils import get_host_cluster, get_cluster_site, get_g5k_sites, get_site_clusters, get_cluster_attributes, get_host_attributes, get_resource_attributes, get_host_site
 from xml.dom import minidom
    
@@ -163,7 +165,7 @@ class Virsh_Deployment(object):
     def install_packages(self, packages_list = None):
         """ Installation of packages on the nodes """
     
-        base_packages = 'uuid-runtime bash-completion nmap qemu-kvm taktuk'
+        base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate'
         logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()        
@@ -173,7 +175,7 @@ class Virsh_Deployment(object):
             logger.error('Unable to install packages on the nodes ..')
             exit()
         
-        libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2'
+        libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 nmap'
         logger.info('Installing libvirt updated packages %s', set_style(libvirt_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
             '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  -t unstable '+\
@@ -185,6 +187,32 @@ class Virsh_Deployment(object):
         else:
             logger.error('Unable to install packages on the nodes ..')
             exit()
+
+    def reboot_nodes(self):
+        """ Reboot the nodes to load the new kernel """
+        logger.info('Rebooting nodes')
+        self.fact.remote('shutdown -r now ', self.hosts, connexion_params = self.taktuk_params).run()
+        n_host = len(self.hosts)
+        hosts_list = ' '.join( [host.address for host in self.hosts ])
+        logger.info('Wait for hosts reboot')
+        sleep(30)
+        
+        hosts_up = False
+        nmap_tries = 0
+        while (not hosts_up) and nmap_tries < 100:
+            nmap_tries += 1 
+            nmap = SshProcess('nmap '+hosts_list+' -p 22', g5k_configuration['default_frontend'],
+                              connexion_params = default_frontend_connexion_params).run()
+            for line in nmap.stdout().split('\n'):
+                if 'Nmap done' in line:
+                    hosts_up = line.split()[2] == line.split()[5].replace('(','')
+            sleep(20)
+            
+        if hosts_up:
+            logger.info('Hosts have been successfully rebooted')
+        else:
+            logger.error('Fail to reboot all hosts ...')
+        
 
     def configure_libvirt(self, network_xml = None, bridge = 'br0'):
         """Configure libvirt: make host unique, configure and restart the network """
@@ -240,28 +268,31 @@ class Virsh_Deployment(object):
                          connexion_params = self.taktuk_params, log_exit_code = False).run()
         nobr_hosts = []
         for p in bridge_exists.processes():
-            if len(p.stdout()) == 0:
+            stdout = p.stdout().strip()
+            if len(stdout) == 0:
                 nobr_hosts.append(p.host())
             else:
-                if p.stdout() != bridge_name:
+                if stdout != bridge_name:
                     EX.Remote('ip link set '+p.stdout()+' down ; brctl delbr '+p.stdout(), [p.host()]).run()
                     nobr_hosts.append(p.host())
         
-        cmd = 'export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
-            'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; echo "bridge_ports $br_if" >> /etc/network/interfaces ;'+\
-            ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
-            ' echo "bridge_fd 0" >> /etc/network/interfaces ; ifup '+bridge_name
-        
-        
-        create_br = self.fact.remote(cmd, nobr_hosts, connexion_params = self.taktuk_params).run()
-        
-        if create_br.ok():
-            logger.info('Bridge has been created')
+        if len(nobr_hosts) > 0:
+            cmd = 'export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
+                'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; echo "bridge_ports $br_if" >> /etc/network/interfaces ;'+\
+                ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
+                ' echo "bridge_fd 0" >> /etc/network/interfaces ; ifup '+bridge_name
+            
+            create_br = self.fact.remote(cmd, nobr_hosts, connexion_params = self.taktuk_params).run()
+            
+            if create_br.ok():
+                logger.info('Bridge has been created')
+            else:
+                logger.error('Unable to setup the bridge')
+                exit()
         else:
-            logger.error('Unable  to setup the bridge')
-            exit()
+            logger.info('Bridge is already present')
 
-    def setup_virsh_network(self, n_vms = None):
+    def setup_virsh_network(self, n_vms = 10000):
         """ Use the KaVLAN IP range or the IP-MAC list from g5k_subnets and configure 
          dnsmasq to setup a DNS/DHCP server for the VM i"""
         logger.info('Retrieving the list of IP and MAC for the virtual machines')
@@ -333,7 +364,7 @@ class Virsh_Deployment(object):
         EX.Remote('cat /root/vms.list >> /etc/hosts', [service_node]).run()
         
         logger.info('Restarting service ...')
-        EX.Remote('service dnsmasq restart', [service_node]).run()
+        EX.Remote('service dnsmasq stop ; rm /var/lib/misc/dnsmasq.leases ; service dnsmasq start', [service_node]).run()
         
         logger.info('Configuring resolv.conf on all hosts')
         clients = list(self.hosts)
@@ -380,9 +411,10 @@ class Virsh_Deployment(object):
         ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
 
         cmd = 'modprobe nbd max_part=1; '+ \
-                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img; sleep 3; '+ \
-                'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh; '+ \
-                'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys; '+ \
+                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img ; sleep 3 ; '+ \
+                'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
+                'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys ; '+ \
+                'cp -r '+ssh_key+'* /mnt/root/.ssh/ ;'+ \
                 'umount /mnt; qemu-nbd -d /dev/nbd0'
         logger.debug(cmd)
         copy_on_vm_base = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
@@ -495,8 +527,11 @@ class Virsh_Deployment(object):
     def get_max_vms(self, vm_template):
         """ A basic function that determine the maximum number of VM you can have depending on the vm template"""
         vm_ram_size = int(ETree.fromstring(vm_template).get('mem'))
+        vm_vcpu = int(ETree.fromstring(vm_template).get('cpu'))
         self.get_hosts_attr()
-        max_vms = int(self.hosts_attr['total']['ram_size']/vm_ram_size) 
+        max_vms_ram = int(self.hosts_attr['total']['ram_size']/vm_ram_size)
+        max_vms_cpu = int(8*self.hosts_attr['total']['n_cpu']/vm_vcpu) 
+        max_vms = min(max_vms_ram, max_vms_cpu)
         logger.info('Maximum number of VM is %s', str(max_vms))
         return max_vms 
         
@@ -525,33 +560,6 @@ class Virsh_Deployment(object):
             self.hosts_attr['total']['ram_size'] += self.hosts_attr[host.address.split('-')[0]]['ram_size']
             self.hosts_attr['total']['n_cpu'] += self.hosts_attr[host.address.split('-')[0]]['n_cpu']
                     
-   
-#  
-#        
-#    def reboot(self):
-#        """ Reboot the nodes """
-#        logger.info('Rebooting nodes ...')
-#        reboot=self.fact.remote('reboot', self.hosts , connexion_params = self.taktuk_params).run()
-#        if reboot.ok():
-#            while True:
-#                T.sleep(5)
-#                ping=[]
-#                for host in self.hosts:
-#                    logger.info('Waiting for node %s',host.address)
-#                    ping.append(EX.Remote('ping -c 4 '+host.address, [self.frontend],
-#                                connexion_params={'user':'lpouilloux'}, log_exit_code=False))
-#                all_ping = EX.ParallelActions(ping).run()
-#
-#                if all_ping.ok():
-#                    break;
-#                logger.info('Nodes down, sleeping for 5 seconds ...')
-#            logger.info('All hosts have been rebooted !')
-#        else:
-#            logger.error('Not able to connect to the hosts ...')
-#        self.state.append('rebooted')
-#
-
-                
 
 
 def kavname_to_shortname( host):

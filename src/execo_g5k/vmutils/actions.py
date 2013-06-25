@@ -21,6 +21,7 @@
 from pprint import pformat
 from execo import SshProcess, Remote, Put, logger, TaktukRemote
 from execo.log import set_style
+from execo.time_utils import sleep
 
 
 def list_vm( host, all = False ):
@@ -117,14 +118,13 @@ def wait_vms_have_started(vms, taktuk_params = None):
     while (not ssh_open) and nmap_tries < 100:
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
-        nmap = SshProcess('nmap -i vmips -p 22', host)
-        nmap.run()
+        nmap = SshProcess('nmap -i vmips -p 22', host).run()
         logger.debug('%s', nmap.cmd())
-        stdout = nmap.stdout().split('\n')
-        for line in stdout:
+        for line in nmap.stdout().split('\n'):
             if 'Nmap done' in line:
                 logger.debug(line)
                 ssh_open = line.split()[2] == line.split()[5].replace('(','')
+        sleep(20)
     if ssh_open:
         logger.info('All VM have been started')
     else:
