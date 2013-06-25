@@ -195,19 +195,20 @@ class Virsh_Deployment(object):
         n_host = len(self.hosts)
         hosts_list = ' '.join( [host.address for host in self.hosts ])
         logger.info('Wait for hosts reboot')
-        sleep(30)
+        
         
         hosts_up = False
         nmap_tries = 0
         while (not hosts_up) and nmap_tries < 100:
+            sleep(30)
             nmap_tries += 1 
             nmap = SshProcess('nmap '+hosts_list+' -p 22', g5k_configuration['default_frontend'],
                               connexion_params = default_frontend_connexion_params).run()
             for line in nmap.stdout().split('\n'):
                 if 'Nmap done' in line:
                     hosts_up = line.split()[2] == line.split()[5].replace('(','')
-            sleep(20)
             
+        sleep(5)
         if hosts_up:
             logger.info('Hosts have been successfully rebooted')
         else:
@@ -264,16 +265,16 @@ class Virsh_Deployment(object):
         logger.info('Configuring the bridge')
         
         
-        bridge_exists = self.fact.remote('brctl show |grep -v "bridge name" | awk \'{ print $1 }\'', self.hosts,
+        bridge_exists = self.fact.remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }'", self.hosts,
                          connexion_params = self.taktuk_params, log_exit_code = False).run()
         nobr_hosts = []
         for p in bridge_exists.processes():
-            stdout = p.stdout().strip()
+            stdout = p.stdout().strip()            
             if len(stdout) == 0:
                 nobr_hosts.append(p.host())
             else:
                 if stdout != bridge_name:
-                    EX.Remote('ip link set '+p.stdout()+' down ; brctl delbr '+p.stdout(), [p.host()]).run()
+                    EX.Remote('ip link set '+stdout+' down ; brctl delbr '+stdout [p.host()]).run()
                     nobr_hosts.append(p.host())
         
         if len(nobr_hosts) > 0:
