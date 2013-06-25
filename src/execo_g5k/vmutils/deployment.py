@@ -199,7 +199,7 @@ class Virsh_Deployment(object):
         
         hosts_up = False
         nmap_tries = 0
-        while (not hosts_up) and nmap_tries < 100:
+        while (not hosts_up) and nmap_tries < 20:
             sleep(30)
             nmap_tries += 1 
             nmap = SshProcess('nmap '+hosts_list+' -p 22', g5k_configuration['default_frontend'],
@@ -274,7 +274,7 @@ class Virsh_Deployment(object):
                 nobr_hosts.append(p.host())
             else:
                 if stdout != bridge_name:
-                    EX.Remote('ip link set '+stdout+' down ; brctl delbr '+stdout [p.host()]).run()
+                    EX.Remote('ip link set '+stdout+' down ; brctl delbr '+stdout, [p.host()]).run()
                     nobr_hosts.append(p.host())
         
         if len(nobr_hosts) > 0:
