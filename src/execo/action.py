@@ -1478,6 +1478,60 @@ class SequentialActions(Action):
         stats['sub_stats'] = [action.stats() for action in self.actions()]
         return Report.aggregate_stats(stats)
 
+class ChainPut(ParallelActions):
+
+    """Broadcast a local file to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from kastafior)."""
+
+    def __init__(self, hosts, source_file, destination_dir = ".", connexion_params = None, name = None, timeout = None):
+        """
+        :param hosts: iterable of `execo.host.Host` onto which to copy
+          the files.
+
+        :param source_file: source file (local path).
+
+        :param destination_dir: destination directory (remote path).
+
+        :param connexion_params: a dict similar to
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
+
+        :param name: action's name
+        """
+        hostsset = set()
+        self._hosts = list()
+        for h in hosts: # remove dups
+            if h not in hostsset:
+                self._hosts.append(h)
+                hostsset.add(h)
+        actual_connexion_params = make_connexion_params(connexion_params)
+        forwardcmd = [ "| tee %s | (sleep %i ; %s -q 0 %s %i)" % (os.path.join(destination_dir, source_file),
+                                                                  actual_connexion_params['chainput_syncdelay'],
+                                                                  actual_connexion_params['nc'],
+                                                                  host.address,
+                                                                  actual_connexion_params['chainput_port'])
+                       for host in self._hosts[1:] ]
+        forwardcmd.append("> %s" % (os.path.join(destination_dir, source_file),))
+        chain = TaktukRemote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
+                                                             actual_connexion_params['chainput_port']),
+                             self._hosts,
+                             connexion_params,
+                             timeout = timeout)
+        send = Local("sleep %i ; %s -q 0 %s %i < %s" % (actual_connexion_params['chainput_syncdelay'],
+                                                        actual_connexion_params['nc'],
+                                                        self._hosts[0].address,
+                                                        actual_connexion_params['chainput_port'],
+                                                        source_file),
+                     shell = True,
+                     timeout = timeout)
+        actions = [chain, send]
+        super(ChainPut, self).__init__(actions, name = name)
+
+    def name(self):
+        if self._name == None:
+            return "%s to %i hosts" % (self.__class__.__name__, len(self._hosts))
+        else:
+            return self._name
+
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
 

@@ -109,6 +109,9 @@ def make_default_oarsh_oarcp_params():
                                       '-o', 'StrictHostKeyChecking=no',
                                       '-o', 'UserKnownHostsFile=/dev/null',
                                       '-o', 'ConnectTimeout=20'),
+        'nc': '/bin/nc.traditional',
+        'chainput_port': 64208,
+        'chainput_syncdelay': 2,
         'pty': True,
         'host_rewrite_func': None
         }
@@ -149,6 +152,9 @@ def make_default_frontend_connexion_params():
                                       '-o', 'StrictHostKeyChecking=no',
                                       '-o', 'UserKnownHostsFile=/dev/null',
                                       '-o', 'ConnectTimeout=20'),
+        'nc': '/bin/nc.traditional',
+        'chainput_port': 64208,
+        'chainput_syncdelay': 2,
         'pty': True,
         'host_rewrite_func': lambda host: host + ".grid5000.fr"
         }
