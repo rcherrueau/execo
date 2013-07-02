@@ -67,6 +67,7 @@ class Virsh_Deployment(object):
         
     def deploy_hosts(self, out = False, max_tries = 2):
         """ Deploy the environment specified by env_name or env_file """
+        
         if self.env_file is not None:
             logger.info('Deploying environment %s ...', set_style( self.env_file, 'emph') )
             deployment = EX5.Deployment( hosts = self.hosts, env_file = self.env_file,
@@ -75,21 +76,17 @@ class Virsh_Deployment(object):
             logger.info('Deploying environment %s ...',set_style( self.env_name, 'emph') )
             deployment = EX5.Deployment( hosts = self.hosts, env_name = self.env_name,
                                         vlan = self.kavlan)
+            
+        deployed_hosts, undeployed_hosts = EX5.deploy(deployment, out = out, num_tries = max_tries)
         
-        
-          
-        Hosts = EX5.deploy(deployment, out = out, num_tries = max_tries)
-
-        deployed_hosts = list(Hosts[0])
-        undeployed_hosts = list(Hosts[1]).sort()
-        
-        if len(undeployed_hosts) > 0:
+        if undeployed_hosts is not None:
             logger.warning('Hosts %s haven\'t been deployed', ', '.join( [node.address for node in undeployed_hosts] ))
         
         if self.kavlan is not None:
             self.hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in deployed_hosts ]
         else: 
             self.hosts = deployed_hosts
+            
         logger.info('%s deployed', ' '.join([host.address for host in self.hosts]))
    
    
