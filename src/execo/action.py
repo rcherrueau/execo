@@ -1512,11 +1512,12 @@ class ChainPut(ParallelActions):
                 self._hosts.append(h)
                 tmphostsset.add(h)
         actual_connexion_params = make_connexion_params(connexion_params)
-        forwardcmd = [ "| tee %s | (sleep %i ; %s -q 0 %s %i)" % (os.path.join(destination_dir, source_file),
-                                                                  actual_connexion_params['chainput_syncdelay'],
-                                                                  actual_connexion_params['nc'],
-                                                                  host.address,
-                                                                  actual_connexion_params['chainput_port'])
+        forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(destination_dir, source_file),
+                                                                                                                                                                                     actual_connexion_params['chainput_num_retry'],
+                                                                                                                                                                                     actual_connexion_params['nc'],
+                                                                                                                                                                                     host.address,
+                                                                                                                                                                                     actual_connexion_params['chainput_port'],
+                                                                                                                                                                                     actual_connexion_params['chainput_try_delay'])
                        for host in self._hosts[1:] ]
         forwardcmd.append("> %s" % (os.path.join(destination_dir, source_file),))
         chain = TaktukRemote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
@@ -1524,11 +1525,12 @@ class ChainPut(ParallelActions):
                              self._hosts,
                              connexion_params,
                              timeout = timeout)
-        send = Local("sleep %i ; %s -q 0 %s %i < %s" % (actual_connexion_params['chainput_syncdelay'],
-                                                        actual_connexion_params['nc'],
-                                                        self._hosts[0].address,
-                                                        actual_connexion_params['chainput_port'],
-                                                        source_file),
+        send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connexion_params['chainput_num_retry'],
+                                                                                                                                                                             actual_connexion_params['nc'],
+                                                                                                                                                                             self._hosts[0].address,
+                                                                                                                                                                             actual_connexion_params['chainput_port'],
+                                                                                                                                                                             source_file,
+                                                                                                                                                                             actual_connexion_params['chainput_try_delay']),
                      shell = True,
                      timeout = timeout)
         actions = [chain, send]
