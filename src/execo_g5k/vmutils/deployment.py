@@ -81,7 +81,7 @@ class Virsh_Deployment(object):
         Hosts = EX5.deploy(deployment, out = out, num_tries = max_tries)
 
         deployed_hosts = list(Hosts[0])
-        undeployed_hosts = list(Hosts[1])
+        undeployed_hosts = list(Hosts[1]).sort()
         
         if len(undeployed_hosts) > 0:
             logger.warning('Hosts %s haven\'t been deployed', ', '.join( [node.address for node in undeployed_hosts] ))
@@ -215,7 +215,7 @@ class Virsh_Deployment(object):
             logger.error('Fail to reboot all hosts ...')
         
 
-    def configure_libvirt(self, network_xml = None, bridge = 'br0'):
+    def configure_libvirt(self, n_vms = 10000, network_xml = None, bridge = 'br0'):
         """Configure libvirt: make host unique, configure and restart the network """
         
         logger.info('Making libvirt host unique ...')
@@ -252,7 +252,7 @@ class Virsh_Deployment(object):
         self.fact.remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; virsh net-start default; virsh net-autostart default; ', 
                         self.hosts, connexion_params = self.taktuk_params).run()
         
-        self.setup_virsh_network()
+        self.setup_virsh_network(n_vms)
         
         logger.info('Restarting libvirt ...')        
         self.fact.remote('service libvirt-bin restart', self.hosts, connexion_params = self.taktuk_params).run()
@@ -312,14 +312,23 @@ class Virsh_Deployment(object):
             dhcp_router = 'dhcp-option=option:router,'+str(max(vm_ip))+'\n'
             dhcp_hosts =''
             self.ip_mac = []
+            macs = []
             for ip in vm_ip[0:n_vms]:
                 mac = [ 0x00, 0x020, 0x4e,
-                    random.randint(0x00, 0x7f),
+                    random.randint(0x00, 0xff),
                     random.randint(0x00, 0xff),
                     random.randint(0x00, 0xff) ]
+                while mac in macs:
+                    mac = [ 0x00, 0x020, 0x4e,
+                    random.randint(0x00, 0xff),
+                    random.randint(0x00, 0xff),
+                    random.randint(0x00, 0xff) ]
+                    
+                macs.append(mac)
                 self.ip_mac.append( ( str(ip), ':'.join( map(lambda x: "%02x" % x, mac) ) ) )
                 dhcp_hosts += 'dhcp-host='+':'.join( map(lambda x: "%02x" % x, mac))+','+str(ip)+'\n'
             self.configure_service_node(dhcp_range, dhcp_router, dhcp_hosts)
+            
         elif self.oarjob_id is not None:
             logger.info('Using a g5k-subnet')
             self.ip_mac = get_oar_job_subnets( self.oarjob_id, self.sites[0] )[0]
