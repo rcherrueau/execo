@@ -765,6 +765,12 @@ class TaktukRemote(Action):
             process.reset()
         return retval
 
+    def name(self):
+        if self._name == None:
+            return nice_cmdline(self._cmd)
+        else:
+            return self._name
+
 class Put(Remote):
 
     """Copy local files to several remote host, with ``scp`` or a similar connexion tool."""
@@ -1392,6 +1398,7 @@ class ParallelActions(Action):
 
     def stats(self):
         stats = Report.empty_stats()
+        stats['name'] = self.name()
         stats['sub_stats'] = [action.stats() for action in self.actions()]
         return Report.aggregate_stats(stats)
 
@@ -1475,6 +1482,7 @@ class SequentialActions(Action):
 
     def stats(self):
         stats = Report.empty_stats()
+        stats['name'] = self.name()
         stats['sub_stats'] = [action.stats() for action in self.actions()]
         return Report.aggregate_stats(stats)
 
