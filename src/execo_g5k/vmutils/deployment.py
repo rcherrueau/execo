@@ -79,13 +79,14 @@ class Virsh_Deployment(object):
             
         deployed_hosts, undeployed_hosts = EX5.deploy(deployment, out = out, num_tries = max_tries)
         
-        if undeployed_hosts is not None:
+        
+        if len(list(undeployed_hosts)) >0 :
             logger.warning('Hosts %s haven\'t been deployed', ', '.join( [node.address for node in undeployed_hosts] ))
         
         if self.kavlan is not None:
             self.hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in deployed_hosts ]
         else: 
-            self.hosts = deployed_hosts
+            self.hosts = list(deployed_hosts)
             
         logger.info('%s deployed', ' '.join([host.address for host in self.hosts]))
    
@@ -150,7 +151,8 @@ class Virsh_Deployment(object):
         logger.info('Upgrading hosts')
         cmd = " echo 'debconf debconf/frontend select noninteractive' | debconf-set-selections; \
                 echo 'debconf debconf/priority select critical' | debconf-set-selections ;      \
-                apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get upgrade -y --force-yes;"
+                apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get upgrade -y --force-yes "+\
+                '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" '
         upgrade = self.fact.remote( cmd, self.hosts, connexion_params = self.taktuk_params).run()
         if upgrade.ok():
             logger.debug('Upgrade finished')
@@ -174,8 +176,7 @@ class Virsh_Deployment(object):
         
         libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 nmap'
         logger.info('Installing libvirt updated packages %s', set_style(libvirt_packages, 'emph'))
-        cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
-            '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  -t unstable '+\
+        cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes -t unstable '+\
             libvirt_packages
         install_libvirt = self.fact.remote(cmd, self.hosts, connexion_params = self.taktuk_params).run()
             
