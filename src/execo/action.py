@@ -1505,12 +1505,12 @@ class ChainPut(ParallelActions):
 
         :param name: action's name
         """
-        hostsset = set()
         self._hosts = list()
-        for h in hosts: # remove dups
-            if h not in hostsset:
+        tmphostsset = set()
+        for h in get_hosts_list(hosts):
+            if h not in tmphostsset: # remove dups with tmphostsset
                 self._hosts.append(h)
-                hostsset.add(h)
+                tmphostsset.add(h)
         actual_connexion_params = make_connexion_params(connexion_params)
         forwardcmd = [ "| tee %s | (sleep %i ; %s -q 0 %s %i)" % (os.path.join(destination_dir, source_file),
                                                                   actual_connexion_params['chainput_syncdelay'],
