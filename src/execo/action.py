@@ -1520,7 +1520,7 @@ class ChainPut(ParallelActions):
                                                                                                                                                                                      actual_connexion_params['chainput_try_delay'])
                        for host in self._hosts[1:] ]
         forwardcmd.append("> %s" % (os.path.join(destination_dir, source_file),))
-        chain = TaktukRemote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
+        chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
                                                              actual_connexion_params['chainput_port']),
                              self._hosts,
                              connexion_params,
