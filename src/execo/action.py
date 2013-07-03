@@ -1472,7 +1472,7 @@ class ChainPut(ParallelActions):
 
     ChainPut relies on:
 
-    - running a bourne shell and netcat being available both remote
+    - running a bourne shell and netcat being available both on remote
       hosts and on localhost.
 
     - direct TCP connexions allowed between any nodes among localhost

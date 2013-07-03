@@ -166,6 +166,18 @@ default_connexion_params = make_default_connexion_params()
 - ``taktuk_connector_options``: tuple of options passed to
   taktuk_connector.
 
+- ``nc``: the netcat command to use
+
+- ``chainput_port``: port on which TCP servers listen for chain
+  transfers
+
+- ``chainput_num_retry``: number of times each TCP client in the
+  transfer chain retries to connect to TCP server on the next hop
+  on the chain
+
+- ``chainput_try_delay``: delay in seconds between TCP client to
+  server connexion attempts.
+
 - ``pty``: boolean. Wether to allocate or not a pty for
   ssh/scp.
 
