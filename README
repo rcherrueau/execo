@@ -78,7 +78,8 @@ epydoc.
 
 At runtime, connecting to remote hosts requires ssh, scp or similar
 connexion tools, and optionnaly taktuk (probably version >=
-3.6. http://taktuk.gforge.inria.fr/).
+3.6. http://taktuk.gforge.inria.fr/). ChainPut requires bourne shell
+and netcat on remote hosts.
 
 installation
 ------------
