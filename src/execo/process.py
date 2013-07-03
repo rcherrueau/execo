@@ -127,32 +127,18 @@ class ProcessBase(object):
     and `execo.process.ProcessOutputHandler`.
     """
 
-    def __init__(self, cmd, timeout = None, stdout_handler = None, stderr_handler = None,
+    def __init__(self, cmd, timeout = None,
                  ignore_exit_code = False, log_exit_code = None,
                  ignore_timeout = False, log_timeout = None,
                  ignore_error = False, log_error = None,
                  default_stdout_handler = True, default_stderr_handler = True,
-                 process_lifecycle_handler = None, name = None):
+                 name = None):
         """
         :param cmd: string or tuple containing the command and args to
           run.
 
         :param timeout: timeout (in seconds, or None for no timeout)
           after which the process will automatically be sent a SIGTERM
-
-        :param stdout_handler: an instance of
-          `execo.process.ProcessOutputHandler` for handling activity
-          on process stdout, or an existing file descriptor (positive
-          integer), or an existing file object, or a filename, to
-          which stdout will be sent. If a filename is given, it will
-          be opened in write mode, and closed on eof
-
-        :param stderr_handler: an instance of
-          `execo.process.ProcessOutputHandler` for handling activity
-          on process stderr, or an existing file descriptor (positive
-          integer), or an existing file object, or a filename, to
-          which stderr will be sent. If a filename is given, it will
-          be opened in write mode, an closed on eof
 
         :param ignore_exit_code: if True, a process with a return code
           != 0 will still be considered ok
@@ -181,10 +167,6 @@ class ProcessBase(object):
           sends stderr stream output to the member string accessed
           with self.stderr(). Default: True.
 
-        :param process_lifecycle_handler: instance of
-          `execo.process.ProcessLifecycleHandler` for being notified
-          of process lifecycle events.
-
         :param name: optional user-friendly name. a default will be
           generated if None given.
         """
@@ -212,14 +194,14 @@ class ProcessBase(object):
         self._log_exit_code = log_exit_code
         self._log_timeout = log_timeout
         self._log_error = log_error
-        self._stdout_handler = stdout_handler
-        self._stdout_file = None
-        self._stderr_handler = stderr_handler
-        self._stderr_file = None
         self._default_stdout_handler = default_stdout_handler
         self._default_stderr_handler = default_stderr_handler
-        self._process_lifecycle_handler = process_lifecycle_handler
         self._name = name
+        self._lifecycle_handlers = list()
+        self._stdout_handlers = list()
+        self._stderr_handlers = list()
+        self._stdout_files = dict()
+        self._stderr_files = dict()
 
     def _common_reset(self):
         # all methods _common_reset() of this class hierarchy contain
@@ -256,8 +238,6 @@ class ProcessBase(object):
         # child classes.
         kwargs = []
         if self._timeout: kwargs.append("timeout=%r" % (self._timeout,))
-        if self._stdout_handler: kwargs.append("stdout_handler=%r" % (self._stdout_handler,))
-        if self._stderr_handler: kwargs.append("stderr_handler=%r" % (self._stderr_handler,))
         if self._ignore_exit_code != False: kwargs.append("ignore_exit_code=%r" % (self._ignore_exit_code,))
         if self._ignore_timeout != False: kwargs.append("ignore_timeout=%r" % (self._ignore_timeout,))
         if self._ignore_error != False: kwargs.append("ignore_error=%r" % (self._ignore_error,))
@@ -266,7 +246,6 @@ class ProcessBase(object):
         if self._log_error != None: kwargs.append("log_error=%r" % (self._log_error,))
         if self._default_stdout_handler != True: kwargs.append("default_stdout_handler=%r" % (self._default_stdout_handler,))
         if self._default_stderr_handler != True: kwargs.append("default_stderr_handler=%r" % (self._default_stderr_handler,))
-        if self._process_lifecycle_handler: kwargs.append("process_lifecycle_handler=%r" % (self._process_lifecycle_handler,))
         return kwargs
 
     def _infos(self):
@@ -292,6 +271,36 @@ class ProcessBase(object):
     def __str__(self):
         # implemented once for all subclasses
         return "<" + set_style(self.__class__.__name__, 'object_repr') + "(%s)>" % (", ".join(self._args() + self._infos()),)
+
+    def lifecycle_handlers(self):
+        """Returns the list of lifecycle handlers.
+
+        They are instance of `execo.process.ProcessLifecycleHandler`
+        for being notified of process lifecycle events.
+        """
+        return self._lifecycle_handlers
+
+    def stdout_handlers(self):
+        """Returns the list of stdout handlers.
+
+        They can be instances of `execo.process.ProcessOutputHandler`
+        for handling activity on process stdout, or an existing file
+        descriptor (positive integer), or an existing file object, or
+        a filename, to which stdout will be sent. If a filename is
+        given, it will be opened in write mode, and closed on eof
+        """
+        return self._stdout_handlers
+
+    def stderr_handlers(self):
+        """Returns the list of stderr handlers.
+
+        They can be instances of `execo.process.ProcessOutputHandler`
+        for handling activity on process stderr, or an existing file
+        descriptor (positive integer), or an existing file object, or
+        a filename, to which stderr will be sent. If a filename is
+        given, it will be opened in write mode, and closed on eof
+        """
+        return self._stderr_handlers
 
     @synchronized
     def dump(self):
@@ -386,14 +395,6 @@ class ProcessBase(object):
         """Return a string containing the process stderr."""
         return self._stderr
 
-    def stdout_handler(self):
-        """Return this process stdout handler."""
-        return self._stdout_handler
-
-    def stderr_handler(self):
-        """Return this process stderr handler."""
-        return self._stderr_handler
-
     def _handle_stdout(self, string, eof = False, error = False):
         """Handle stdout activity.
 
@@ -407,20 +408,20 @@ class ProcessBase(object):
             self._stdout += string
         if error == True:
             self._stdout_ioerror = True
-        if self._stdout_handler != None:
-            if isinstance(self._stdout_handler, int):
-                os.write(self._stdout_handler, string)
-            elif isinstance(self._stdout_handler, ProcessOutputHandler):
-                self._stdout_handler.read(self, string, eof, error)
-            elif hasattr(self._stdout_handler, "write"):
-                self._stdout_handler.write(string)
-            elif isinstance(self._stdout_handler, basestring):
-                if not self._stdout_file:
-                    self._stdout_file = open(self._stdout_handler, "w")
-                self._stdout_file.write(string)
+        for handler in self._stdout_handlers:
+            if isinstance(handler, int):
+                os.write(handler, string)
+            elif isinstance(handler, ProcessOutputHandler):
+                handler.read(self, string, eof, error)
+            elif hasattr(handler, "write"):
+                handler.write(string)
+            elif isinstance(handler, basestring):
+                if not self._stdout_files.get(handler):
+                    self._stdout_files[handler] = open(handler, "w")
+                self._stdout_files[handler].write(string)
                 if eof:
-                    self._stdout_file.close()
-                    self._stdout_file = None
+                    self._stdout_files[handler].close()
+                    del self._stdout_files[handler]
 
     def _handle_stderr(self, string, eof = False, error = False):
         """Handle stderr activity.
@@ -435,20 +436,20 @@ class ProcessBase(object):
             self._stderr += string
         if error == True:
             self._stderr_ioerror = True
-        if self._stderr_handler != None:
-            if isinstance(self._stderr_handler, int):
-                os.write(self._stderr_handler, string)
-            elif isinstance(self._stderr_handler, ProcessOutputHandler):
-                self._stderr_handler.read(self, string, eof, error)
-            elif hasattr(self._stderr_handler, "write"):
-                self._stderr_handler.write(string)
-            elif isinstance(self._stderr_handler, basestring):
-                if not self._stderr_file:
-                    self._stderr_file = open(self._stderr_handler, "w")
-                self._stderr_file.write(string)
+        for handler in self._stderr_handlers:
+            if isinstance(handler, int):
+                os.write(handler, string)
+            elif isinstance(handler, ProcessOutputHandler):
+                handler.read(self, string, eof, error)
+            elif hasattr(handler, "write"):
+                handler.write(string)
+            elif isinstance(handler, basestring):
+                if not self._stderr_files.get(handler):
+                    self._stderr_files[handler] = open(handler, "w")
+                self._stderr_files[handler].write(string)
                 if eof:
-                    self._stderr_file.close()
-                    self._stderr_file = None
+                    self._stderr_files[handler].close()
+                    del self._stderr_files[handler]
 
     @synchronized
     def ok(self):
@@ -512,8 +513,8 @@ class ProcessBase(object):
         if self._started and not self._ended:
             self.kill()
             self.wait()
-        if self._process_lifecycle_handler != None:
-            self._process_lifecycle_handler.reset(self)
+        for handler in self._lifecycle_handlers:
+            handler.reset(self)
         self._common_reset()
         return self
 
@@ -720,8 +721,8 @@ class Process(ProcessBase):
                 self._timeout_date = self._start_date + self._timeout
             if self._pty:
                 (self._ptymaster, self._ptyslave) = openpty()
-        if self._process_lifecycle_handler != None:
-            self._process_lifecycle_handler.start(self)
+        for handler in self._lifecycle_handlers:
+            handler.start(self)
         try:
             with the_conductor.get_lock():
                 # this lock is needed to ensure that
@@ -754,8 +755,8 @@ class Process(ProcessBase):
                 self._ended = True
                 self._end_date = self._start_date
                 self._log_terminated()
-            if self._process_lifecycle_handler != None:
-                self._process_lifecycle_handler.end(self)
+            for handler in self._lifecycle_handlers:
+                handler.end(self)
         return self
 
     @synchronized
@@ -870,15 +871,15 @@ class Process(ProcessBase):
             self._process.stdout.close()
         if self._process.stderr:
             self._process.stderr.close()
-        if self._stdout_file:
-            self._stdout_file.close()
-            self._stdout_file = None
-        if self._stderr_file:
-            self._stderr_file.close()
-            self._stderr_file = None
+        for h in self._stdout_files:
+            self._stdout_files[h].close()
+            del self._stdout_files[h]
+        for h in self._stderr_files:
+            self._stderr_files[h].close()
+            del self._stderr_files[h]
         self._log_terminated()
-        if self._process_lifecycle_handler != None:
-            self._process_lifecycle_handler.end(self)
+        for handler in self._lifecycle_handlers:
+            handler.end(self)
 
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
@@ -1007,8 +1008,8 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         self._start_date = time.time()
         if self._timeout != None:
             self._timeout_date = self._start_date + self._timeout
-        if self._process_lifecycle_handler != None:
-            self._process_lifecycle_handler.start(self)
+        for handler in self._lifecycle_handlers:
+            handler.start(self)
         return self
 
     @synchronized
@@ -1035,15 +1036,15 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self._forced_kill = True
         self._end_date = time.time()
         self._ended = True
-        if self._stdout_file:
-            self._stdout_file.close()
-            self._stdout_file = None
-        if self._stderr_file:
-            self._stderr_file.close()
-            self._stderr_file = None
+        for h in self._stdout_files:
+            self._stdout_files[h].close()
+            del self._stdout_files[h]
+        for h in self._stderr_files:
+            self._stderr_files[h].close()
+            del self._stderr_files[h]
         self._log_terminated()
-        if self._process_lifecycle_handler != None:
-            self._process_lifecycle_handler.end(self)
+        for handler in self._lifecycle_handlers:
+            handler.end(self)
 
 def get_process(*args, **kwargs):
     """Instanciates a `execo.process.Process` or `execo.process.SshProcess`, depending on the existence of host keyword argument"""
