@@ -80,7 +80,9 @@ class Action(object):
         self._ended = False
         self._end_event.clear()
         self._name = name
-        self._lifecycle_handlers = list()
+        self.lifecycle_handlers = list()
+        """List of instances of `execo.action.ActionLifecycleHandler` for being
+        notified of action lifecycle events."""
 
     def _common_reset(self):
         # all methods _common_reset() of this class hierarchy contain
@@ -142,18 +144,18 @@ class Action(object):
         else:
             return self._name
 
-    def lifecycle_handlers(self):
-        """Returns the list of lifecycle handlers.
+    # def lifecycle_handlers(self):
+    #     """Returns the list of lifecycle handlers.
 
-        They are instances of `execo.action.ActionLifecycleHandler` for being
-        notified of action lifecycle events.
-        """
-        return self._lifecycle_handlers
+    #     They are instances of `execo.action.ActionLifecycleHandler` for being
+    #     notified of action lifecycle events.
+    #     """
+    #     return self._lifecycle_handlers
 
     def _notify_terminated(self):
         with Action._wait_multiple_actions_condition:
             logger.debug(set_style("got termination notification for:", 'emph') + " %s", self)
-            for handler in self._lifecycle_handlers:
+            for handler in self.lifecycle_handlers:
                 handler.end(self)
             self._ended = True
             self._end_event.set()
@@ -167,7 +169,7 @@ class Action(object):
             raise ValueError, "Actions may be started only once"
         self._started = True
         logger.debug(set_style("start:", 'emph') + " %s", self)
-        for handler in self._lifecycle_handlers:
+        for handler in self.lifecycle_handlers:
             handler.start(self)
         return self
 
@@ -209,7 +211,7 @@ class Action(object):
         if self._started and not self._ended:
             self.kill()
             self.wait()
-        for handler in self._lifecycle_handlers:
+        for handler in self.lifecycle_handlers:
             handler.reset(self)
         self._common_reset()
         return self
@@ -1321,7 +1323,7 @@ class ParallelActions(Action):
         self._actions = list(actions)
         self._subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self._actions))
         for action in self._actions:
-            action.lifecycle_handlers().append(self._subactions_lifecycle_handler)
+            action.lifecycle_handlers.append(self._subactions_lifecycle_handler)
 
     def _args(self):
         return [ repr(self._actions) ] + Action._args(self) + ParallelActions._kwargs(self)
@@ -1403,7 +1405,7 @@ class SequentialActions(Action):
                 next_action = self._actions[index + 1]
             else:
                 next_action = None
-            action.lifecycle_handlers().append(SequentialSubActionLifecycleHandler(self,
+            action.lifecycle_handlers.append(SequentialSubActionLifecycleHandler(self,
                                                                                    index,
                                                                                    len(self._actions),
                                                                                    next_action))
