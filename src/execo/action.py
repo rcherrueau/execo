@@ -1465,6 +1465,8 @@ class ChainPutProcessLifecycleHandler(ProcessLifecycleHandler):
         if not process.ok():
             if not self._triggered:
                 logger.warn("%s: one process failure in chainput - aborting. Failed process: %s", self._chainput, process)
+                for p in self._chainput.processes():
+                    if p != process: p.log_exit_code = False # don't polute log with killing of other processes in the chain
                 self._chainput.kill()
                 self._triggered = True
 
