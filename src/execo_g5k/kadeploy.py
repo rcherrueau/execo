@@ -231,9 +231,9 @@ class Kadeployer(Remote):
                                                                      default_frontend_connexion_params),
                             pty = True,
                             **self._other_kwargs)
-            p.stdout_handlers().append(_KadeployStdoutHandler(self, out = self._out))
-            p.stderr_handlers().append(_KadeployStderrHandler(self, out = self._out))
-            p.lifecycle_handlers().append(lifecycle_handler)
+            p.stdout_handlers.append(_KadeployStdoutHandler(self, out = self._out))
+            p.stderr_handlers.append(_KadeployStderrHandler(self, out = self._out))
+            p.lifecycle_handlers.append(lifecycle_handler)
             self._processes.append(p)
 
     def _common_reset(self):
@@ -298,7 +298,7 @@ class Kadeployer(Remote):
     def reset(self):
         retval = super(Kadeployer, self).reset()
         for process in self._processes:
-            [ h.action_reset() for h in process.stdout_handlers() ]
+            [ h.action_reset() for h in process.stdout_handlers ]
         return retval
 
 def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout = None):

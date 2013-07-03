@@ -373,7 +373,7 @@ class Remote(Action):
                            host = host,
                            connexion_params = connexion_params,
                            **self._other_kwargs)
-            p.lifecycle_handlers().append(self._process_lifecycle_handler)
+            p.lifecycle_handlers.append(self._process_lifecycle_handler)
             self._processes.append(p)
 
     def _args(self):
@@ -645,7 +645,7 @@ class TaktukRemote(Action):
             p = TaktukProcess(remote_substitute(self._cmd, self._hosts, index, self._caller_context),
                               host = host,
                               **self._other_kwargs)
-            p.lifecycle_handlers().append(lifecycle_handler)
+            p.lifecycle_handlers.append(lifecycle_handler)
             self._processes.append(p)
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
@@ -722,9 +722,9 @@ class TaktukRemote(Action):
                                #default_stdout_handler = False,
                                #default_stderr_handler = False,
                                timeout = self._other_kwargs.get('timeout'))
-        self._taktuk.stdout_handlers().append(self._taktuk_stdout_output_handler)
-        #self._taktuk.stderr_handlers().append(self._taktuk_stderr_output_handler)
-        self._taktuk.lifecycle_handlers().append(_TaktukLifecycleHandler(self))
+        self._taktuk.stdout_handlers.append(self._taktuk_stdout_output_handler)
+        #self._taktuk.stderr_handlers.append(self._taktuk_stderr_output_handler)
+        self._taktuk.lifecycle_handlers.append(_TaktukLifecycleHandler(self))
 
     def processes(self):
         return list(self._processes)
@@ -808,7 +808,7 @@ class Put(Remote):
             p = Process(real_command,
                         shell = True,
                         **self._other_kwargs)
-            p.lifecycle_handlers().append(lifecyle_handler)
+            p.lifecycle_handlers.append(lifecyle_handler)
             p._host = host
             self._processes.append(p)
 
@@ -885,7 +885,7 @@ class Get(Remote):
             p = Process(real_command,
                         shell = True,
                         **self._other_kwargs)
-            p.lifecycle_handlers().append(lifecycle_handler)
+            p.lifecycle_handlers.append(lifecycle_handler)
             p._host = host
             self._processes.append(p)
 
@@ -1047,7 +1047,7 @@ class TaktukPut(TaktukRemote):
             process = TaktukProcess("",
                                     host = host,
                                     **self._other_kwargs)
-            process.lifecycle_handlers().append(lifecycle_handler)
+            process.lifecycle_handlers.append(lifecycle_handler)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1213,7 +1213,7 @@ class TaktukGet(TaktukRemote):
             process = TaktukProcess("",
                                     host = host,
                                     **self._other_kwargs)
-            process.lifecycle_handlers().append(lifecycle_handler)
+            process.lifecycle_handlers.append(lifecycle_handler)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1256,7 +1256,7 @@ class Local(Action):
         self._other_kwargs = kwargs
         self._process = Process(self._cmd,
                                 **self._other_kwargs)
-        self._process.lifecycle_handlers().append(ActionNotificationProcessLifecycleHandler(self, 1))
+        self._process.lifecycle_handlers.append(ActionNotificationProcessLifecycleHandler(self, 1))
 
     def _args(self):
         return [ repr(self._cmd) ] + Action._args(self) + Local._kwargs(self)
@@ -1512,7 +1512,7 @@ class ChainPut(ParallelActions):
                              self._hosts,
                              connexion_params,
                              timeout = timeout)
-        [ p.lifecycle_handlers().append(plch) for p in chain.processes() ]
+        [ p.lifecycle_handlers.append(plch) for p in chain.processes() ]
         send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connexion_params['chainput_num_retry'],
                                                                                                                                                                              actual_connexion_params['nc'],
                                                                                                                                                                              self._hosts[0].address,
@@ -1521,7 +1521,7 @@ class ChainPut(ParallelActions):
                                                                                                                                                                              actual_connexion_params['chainput_try_delay']),
                      shell = True,
                      timeout = timeout)
-        [ p.lifecycle_handlers().append(plch) for p in send.processes() ]
+        [ p.lifecycle_handlers.append(plch) for p in send.processes() ]
         actions = [chain, send]
         super(ChainPut, self).__init__(actions, name = name)
 
