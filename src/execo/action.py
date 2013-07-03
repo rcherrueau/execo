@@ -1468,7 +1468,22 @@ class ChainPutProcessLifecycleHandler(ProcessLifecycleHandler):
 
 class ChainPut(ParallelActions):
 
-    """Broadcast a local file to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from kastafior)."""
+    """Broadcast a local file to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from kastafior).
+
+    ChainPut relies on:
+
+    - running a bourne shell and netcat being available both remote
+      hosts and on localhost.
+
+    - direct TCP connexions allowed between any nodes among localhost
+      and remote hosts. The exact chain of TCP connexions is: localhost
+      to first remote host, first remote host to second remote host, and
+      so on up to the last remote host.
+
+    On the security side, data transfers are not crypted, and ChainPut
+    briefly opens a TCP server socket on each remote host, accepting any
+    data without authentication.
+    """
 
     def __init__(self, hosts, source_file, destination_dir = ".", connexion_params = None, name = None, timeout = None):
         """
