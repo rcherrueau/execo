@@ -619,6 +619,7 @@ class TaktukRemote(Action):
         self._processes = list()
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
+        self._process_lifecycle_handler = None
         self._taktuk_common_init()
 
     def _args(self):
@@ -632,12 +633,12 @@ class TaktukRemote(Action):
         return kwargs
 
     def _gen_taktukprocesses(self):
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             p = TaktukProcess(remote_substitute(self._cmd, self._hosts, index, self._caller_context),
                               host = host,
                               **self._other_kwargs)
-            p.lifecycle_handlers.append(lifecycle_handler)
+            p.lifecycle_handlers.append(self._process_lifecycle_handler)
             self._processes.append(p)
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
@@ -737,9 +738,15 @@ class TaktukRemote(Action):
 
     def reset(self):
         retval = super(TaktukRemote, self).reset()
+        # from here
         self._taktuk.reset()
         for process in self._processes:
             process.reset()
+        self._process_lifecycle_handler.action_reset()
+        # to here this is not really needed as anyway we regenerate everything
+        self._process_lifecycle_handler = None
+        self._processes = list()
+        self._taktuk_common_init()
         return retval
 
     def name(self):
@@ -789,7 +796,7 @@ class Put(Remote):
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
         self._other_kwargs = kwargs
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
             if self._create_dirs:
@@ -800,7 +807,7 @@ class Put(Remote):
             p = Process(real_command,
                         shell = True,
                         **self._other_kwargs)
-            p.lifecycle_handlers.append(lifecyle_handler)
+            p.lifecycle_handlers.append(self._process_lifecycle_handler)
             p._host = host
             self._processes.append(p)
 
@@ -863,7 +870,7 @@ class Get(Remote):
         self._create_dirs = create_dirs
         self._connexion_params = connexion_params
         self._other_kwargs = kwargs
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             prepend_dir_creation = ()
             if self._create_dirs:
@@ -877,7 +884,7 @@ class Get(Remote):
             p = Process(real_command,
                         shell = True,
                         **self._other_kwargs)
-            p.lifecycle_handlers.append(lifecycle_handler)
+            p.lifecycle_handlers.append(self._process_lifecycle_handler)
             p._host = host
             self._processes.append(p)
 
@@ -1014,6 +1021,7 @@ class TaktukPut(TaktukRemote):
         self._other_kwargs = kwargs
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
+        self._process_lifecycle_handler = None
         self._taktuk_common_init()
 
     def _args(self):
@@ -1034,12 +1042,12 @@ class TaktukPut(TaktukRemote):
             return self._name
 
     def _gen_taktukprocesses(self):
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             process = TaktukProcess("",
                                     host = host,
                                     **self._other_kwargs)
-            process.lifecycle_handlers.append(lifecycle_handler)
+            process.lifecycle_handlers.append(self._process_lifecycle_handler)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1062,6 +1070,7 @@ class TaktukPut(TaktukRemote):
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
+        self._process_lifecycle_handler.action_reset()
         return retval
 
 class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
@@ -1180,6 +1189,7 @@ class TaktukGet(TaktukRemote):
         self._other_kwargs = kwargs
         self._taktuk_stdout_output_handler = _TaktukGetOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
+        self._process_lifecycle_handler = None
         self._taktuk_common_init()
 
     def _args(self):
@@ -1200,12 +1210,12 @@ class TaktukGet(TaktukRemote):
             return self._name
 
     def _gen_taktukprocesses(self):
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
+        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
             process = TaktukProcess("",
                                     host = host,
                                     **self._other_kwargs)
-            process.lifecycle_handlers.append(lifecycle_handler)
+            process.lifecycle_handlers.append(self._process_lifecycle_handler)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1228,6 +1238,7 @@ class TaktukGet(TaktukRemote):
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
+        self._process_lifecycle_handler.action_reset()
         return retval
 
 class Local(Action):
@@ -1248,7 +1259,8 @@ class Local(Action):
         self._other_kwargs = kwargs
         self._process = Process(self._cmd,
                                 **self._other_kwargs)
-        self._process.lifecycle_handlers.append(ActionNotificationProcessLifecycleHandler(self, 1))
+        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1)
+        self._process.lifecycle_handlers.append(self._process_lifecycle_handler)
 
     def _args(self):
         return [ repr(self._cmd) ] + Action._args(self) + Local._kwargs(self)
@@ -1281,6 +1293,7 @@ class Local(Action):
     def reset(self):
         retval = super(Local, self).reset()
         self._process.reset()
+        self._process_lifecycle_handler.action_reset()
         return retval
 
 class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
