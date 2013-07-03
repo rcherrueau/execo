@@ -144,14 +144,6 @@ class Action(object):
         else:
             return self._name
 
-    # def lifecycle_handlers(self):
-    #     """Returns the list of lifecycle handlers.
-
-    #     They are instances of `execo.action.ActionLifecycleHandler` for being
-    #     notified of action lifecycle events.
-    #     """
-    #     return self._lifecycle_handlers
-
     def _notify_terminated(self):
         with Action._wait_multiple_actions_condition:
             logger.debug(set_style("got termination notification for:", 'emph') + " %s", self)
