@@ -800,8 +800,11 @@ class Process(ProcessBase):
                         # of permissions. If _pty == True, then there
                         # is a pty, we can close its master side, it should
                         # trigger a signal (SIGPIPE?) on the other side
-                        os.close(self._ptymaster)
-                        logger.debug("EPERM for signal %s -> closing pty master side of %s", sig, str(self))
+                        try:
+                            logger.debug("EPERM for signal %s -> closing pty master side of %s", sig, str(self))
+                            os.close(self._ptymaster)
+                        except OSError, e:
+                            pass
                     else:
                         logger.debug(set_style("EPERM: unable to send signal", 'emph') + " to %s", str(self))
                 elif e.errno == errno.ESRCH:
