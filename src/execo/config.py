@@ -130,8 +130,10 @@ def make_default_connexion_params():
                                       '-o', 'StrictHostKeyChecking=no',
                                       '-o', 'UserKnownHostsFile=/dev/null',
                                       '-o', 'ConnectTimeout=20'),
-        'taktuk_gateway': None,
-        'taktuk_gateway_connexion_params': None,
+        'nc': '/bin/nc.traditional',
+        'chainput_port': 64208,
+        'chainput_num_retry': 10,
+        'chainput_try_delay': 2,
         'pty': False,
         'host_rewrite_func': None
         }
@@ -164,11 +166,17 @@ default_connexion_params = make_default_connexion_params()
 - ``taktuk_connector_options``: tuple of options passed to
   taktuk_connector.
 
-- ``taktuk_gateway``: hostname or `execo.host.Host` instance on which
-  to launch the taktuk command.
+- ``nc``: the netcat command to use
 
-- ``taktuk_gateway_connexion_params``: connexion parameters (if
-  needed) to connect to taktuk_gateway.
+- ``chainput_port``: port on which TCP servers listen for chain
+  transfers
+
+- ``chainput_num_retry``: number of times each TCP client in the
+  transfer chain retries to connect to TCP server on the next hop
+  on the chain
+
+- ``chainput_try_delay``: delay in seconds between TCP client to
+  server connexion attempts.
 
 - ``pty``: boolean. Wether to allocate or not a pty for
   ssh/scp.

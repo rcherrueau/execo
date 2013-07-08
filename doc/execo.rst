@@ -160,6 +160,13 @@ TaktukPut
    :members:
    :show-inheritance:
 
+ChainPut
+--------
+.. inheritance-diagram:: execo.action.ChainPut
+.. autoclass:: execo.action.ChainPut
+   :members:
+   :show-inheritance:
+
 Get
 ---
 .. inheritance-diagram:: execo.action.Get

@@ -32,5 +32,5 @@ from action import Action, wait_any_actions, wait_all_actions, \
   Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet, Local, \
   ParallelActions, SequentialActions, \
   get_remote, get_fileput, get_fileget, \
-  ActionLifecycleHandler
+  ActionLifecycleHandler, ChainPut
 from report import Report

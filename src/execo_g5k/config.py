@@ -109,8 +109,10 @@ def make_default_oarsh_oarcp_params():
                                       '-o', 'StrictHostKeyChecking=no',
                                       '-o', 'UserKnownHostsFile=/dev/null',
                                       '-o', 'ConnectTimeout=20'),
-        'taktuk_gateway': None,
-        'taktuk_gateway_connexion_params': None,
+        'nc': '/bin/nc.traditional',
+        'chainput_port': 64208,
+        'chainput_num_retry': 10,
+        'chainput_try_delay': 2,
         'pty': True,
         'host_rewrite_func': None
         }
@@ -151,8 +153,10 @@ def make_default_frontend_connexion_params():
                                       '-o', 'StrictHostKeyChecking=no',
                                       '-o', 'UserKnownHostsFile=/dev/null',
                                       '-o', 'ConnectTimeout=20'),
-        'taktuk_gateway': None,
-        'taktuk_gateway_connexion_params': None,
+        'nc': '/bin/nc.traditional',
+        'chainput_port': 64208,
+        'chainput_num_retry': 10,
+        'chainput_try_delay': 2,
         'pty': True,
         'host_rewrite_func': lambda host: host + ".grid5000.fr"
         }
