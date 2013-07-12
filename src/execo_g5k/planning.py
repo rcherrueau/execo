@@ -207,7 +207,6 @@ class Planning:
             site_free = True
             for job_id, info in site_jobs.iteritems():                
                 if 'kavlan' in info['wanted_resources']:
-                    print info
                     kavlan_planning[p.host().address]['busy'] =  (info['startTime'], info['scheduledStart']+info['walltime'])
         
         for site, planning in kavlan_planning.iteritems():
