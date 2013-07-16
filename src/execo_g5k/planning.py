@@ -32,8 +32,9 @@ from execo_g5k.config import default_frontend_connexion_params
 from execo_g5k.oar import format_oar_date, oar_duration_to_seconds, OarSubmission
 from execo_g5k.oargrid import get_oargridsub_commandline, oargridsub
 try:
-    from matplotlib import pylab as PLT
+    import matplotlib.pyplot as PLT
     import matplotlib.dates as MD
+    
 except ImportError:    
     pass
 
@@ -51,7 +52,7 @@ class Planning:
 
 :param endtime: a timestamp corresponding to the planning end
 
-:param kavlan: a boolean to ask for the kavlan computation
+:param kavlan: a boolean to ask for the global kavlan computation
 """
         logger.debug('Initializing planning computation')
         self.sites_blacklist = [ 'bordeaux' ]
@@ -106,7 +107,7 @@ class Planning:
         
 
     def host(self, host_reservations, startstamp = None, endstamp = None):
-        """ Compute the planning from the dict of reservations gathered from the API"""
+        """ Compute the planning of an host from the data of the monitoring API"""
         if startstamp is None:
             startstamp = self.startstamp
         if endstamp is None:
@@ -195,7 +196,7 @@ class Planning:
 
 
     def kavlan_global(self, sites, startstamp, endstamp):
-        """ Add to the planning"""
+        """ Compute the occupation of the global KaVLAN"""
         
         
         kavlan_planning = {}            
@@ -246,7 +247,7 @@ class Planning:
                         break
 
     def slots_limits(self):
-        """Compute the limits of slots"""
+        """Compute the limits of slots (defined by a host state change)"""
         if not hasattr(self, 'planning'):
             self.compute()
         self.limits = []
@@ -300,7 +301,7 @@ class Planning:
     def compute_slots(self, walltime):
         """ Determine all the slots limits and find the number of available nodes for each elements"""
         
-        logger.info('%s', set_style('Computings slots', 'log_header'))
+        logger.info('%s', set_style('Computing slots', 'log_header'))
         slots = []
         if not hasattr(self, 'planning'):
             self.compute()
@@ -344,7 +345,7 @@ class Planning:
         
         if not hasattr(self, 'slots'):
             self.compute_slots()
-        
+        logger.debug(pformat(resources))
         logger.info('Filtering slots with enough resources')
         duration = oar_duration_to_seconds(walltime)
         slots_ok = []
@@ -360,7 +361,7 @@ class Planning:
         return slots_ok
         
     def find_max_slot(self, walltime, resources = None):                    
-        """ """ 
+        """ Find the slots that has the maximum resources""" 
         duration = oar_duration_to_seconds(walltime)
         if not hasattr(self, 'slots'):
             self.compute_slots()
@@ -427,7 +428,18 @@ def distribute_hosts(slot, resources):
                     resources[site] = resources[cluster]
                 else:
                     resources[site] += resources[cluster]
-    
+    for site in sites:
+        cluster_nodes=0
+        
+        for cluster in API.get_site_clusters(site):
+            if cluster in resources:
+                cluster_nodes += resources[cluster]
+                if site not in resources:
+                    resources[site] = resources[cluster]
+                else:
+                    resources[site] += resources[cluster]
+    if slot[2].has_key('kavlan'):
+        resources['kavlan'] = slot[2]['kavlan']
     return resources
     
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t deploy', 
@@ -436,42 +448,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
     
     subs=[]
     
-#    if resources.has_key('grid5000'):
-#        logger.info('Determining which sites to use for your reservation')
-#        total_nodes = 0
-#        sites_nodes = {}
-#        sites = API.get_g5k_sites()
-#        for site in sites:
-#            if resources.has_key(site):
-#                sites_nodes[site] = resources[site]
-#            else:
-#                sites_nodes[site]=0
-#        while total_nodes != resources['grid5000']:
-#            max_site=''
-#            max_nodes=0
-#            for site in sites:
-#                #hosts = [ [ host for host in cluster ] for cluster in self.get_hosts_element(site) ]
-#                host_available = 0
-#                start = int(T.mktime(self.chosen_slot.timetuple()))
-#                if start+self.duration <self.enddate_stamp:
-#                    stop=start+self.duration 
-#                else:
-#                    stop=self.enddate_stamp
-#                for slots in hosts.itervalues():
-#                    for freeslot in slots['free']:
-#                        if start>=freeslot[0] and stop<=freeslot[1]:
-#                            host_available+=1
-#                if max_nodes<host_available-sites_nodes[site]:
-#                    max_site=site
-#                    max_nodes=host_available-sites_nodes[site]
-#            sites_nodes[max_site]+=1
-#            total_nodes+=1
-#        self.resources.clear()
-#        for site, n_nodes in sites_nodes.iteritems():
-#            if n_nodes>0:
-#                self.resources[site]=n_nodes
-#
-
+    logger.debug(pformat(resources))
     sites = API.get_g5k_sites()
     sites.remove('bordeaux')
     for site in sites:
@@ -488,34 +465,10 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
             if resources[site]-cluster_nodes > 0:
                 sub_resources+="nodes="+str(resources[site]-cluster_nodes)+'+'
             subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )    
-#    for site in self.sites:
-#        sub_resources=''
-#        cluster_nodes=0
-#        
-#        if getkavlan:
-#            sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
-#        if self.vlan is not None:
-#            sub_resources+=self.vlan+'+'
-#            
-#        
-#        for cluster in API.get_site_clusters(site):
-#            if cluster in self.resources:
-#                sub_resources+="{cluster=\\'"+cluster+"\\'}/nodes="+str(self.resources[cluster])+'+'
-#                cluster_nodes+=self.resources[cluster]
-#                if site not in self.resources:
-#                    self.resources[site]=self.resources[cluster]
-#                else:
-#                    self.resources[site]+=self.resources[cluster]
-#            
-#        if site in self.resources:
-#            sub_resources+="nodes="+str(self.resources[site]-cluster_nodes)+'+'
-#            subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )
     
     logger.info('Reservation command: \n\033[1m%s\033[0m',
         get_oargridsub_commandline(subs, walltime = walltime, 
             additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate)) )
-#    oargridsub(subs, walltime = walltime, additional_options = oargridsub_opts,
-#               reservation_date = format_oar_date(startdate))
     
     if auto_reservation:            
         reservation = 'y'
