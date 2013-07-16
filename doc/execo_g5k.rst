@@ -355,13 +355,13 @@ Virtual machines utilities
 
 .. automodule:: execo_g5k.vmutils
 
-Deployment
+deployment
 ----------
 
 .. autoclass:: execo_g5k.vmutils.deployment.Virsh_Deployment
    :members:
 
-Actions
+actions
 -------
 
 .. automodule:: execo_g5k.vmutils.actions
