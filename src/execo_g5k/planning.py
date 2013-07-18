@@ -446,7 +446,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
                        auto_reservation = False):
     """ Perform the reservation for the given slot """ 
     
-    subs=[]
+    subs = []
     
     logger.debug(pformat(resources))
     sites = API.get_g5k_sites()
@@ -465,6 +465,8 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
             if resources[site]-cluster_nodes > 0:
                 sub_resources+="nodes="+str(resources[site]-cluster_nodes)+'+'
             subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )    
+    
+    
     
     logger.info('Reservation command: \n\033[1m%s\033[0m',
         get_oargridsub_commandline(subs, walltime = walltime, 
