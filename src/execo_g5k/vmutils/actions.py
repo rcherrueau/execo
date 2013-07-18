@@ -15,11 +15,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
+"""A set of functions to manipulate virtual machines on Grid'5000"""
 
-
-
-from pprint import pformat
-from execo import SshProcess, Remote, Put, logger, TaktukRemote
+from pprint import pformat, pprint
+from execo import SshProcess, Remote, Put, logger, get_remote, get_remote
 from execo.log import set_style
 from execo.time_utils import sleep
 
@@ -27,9 +26,9 @@ from execo.time_utils import sleep
 def list_vm( host, all = False ):
     """ Return the list of VMs on host """
     if all :
-        list_vm = Remote('virsh list --all', [host] ).run()
+        list_vm = Remote('virsh list --all', [host], connexion_params = {'user': 'root'} ).run()
     else:
-        list_vm = Remote('virsh list', [host] ).run()
+        list_vm = Remote('virsh list', [host], connexion_params = {'user': 'root'} ).run()
     vms_id = []
     for p in list_vm.processes():
         lines = p.stdout().split('\n')
@@ -60,24 +59,20 @@ def define_vms( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets =
     return vms
 
 
-
-
-def create_disks(vms, taktuk_params = None, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
+def create_disks(vms, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
     """ Return an action to create the disks for the VMs on the hosts"""
-    hosts = []
-    cmds = []
+    hosts_cmds = {}
     for vm in vms:
-        cmds.append('qemu-img create -f qcow2 -o backing_file='+backing_file+',backing_fmt='+backing_file_fmt+' /tmp/'+\
-            vm['vm_id']+'.qcow2 '+str(vm['hdd_size'])+'G')
-#        cmds.append('qemu-img create -f qcow2 -b '+backing_file+' /tmp/'+vm['vm_id']+'.qcow2 '+str(vm['hdd_size'])+'G')
-        hosts.append(vm['host'])
+        cmd = 'qemu-img create -f qcow2 -o backing_file='+backing_file+',backing_fmt='+backing_file_fmt+' /tmp/'+\
+            vm['vm_id']+'.qcow2 '+str(vm['hdd_size'])+'G ; '
+        hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd
+    
+    logger.debug(pformat(hosts_cmds.values()))
+    
+    return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    
 
-    if taktuk_params is not None:
-        return TaktukRemote('{{cmds}}', hosts, connexion_params = taktuk_params)
-    else:
-        return Remote('{{cmds}}', hosts)
-
-def install_vms(vms, taktuk_params = None):
+def install_vms(vms):
     """ Return an action to install the VM on the hosts"""
     hosts_cmds = {}
     for vm in vms:
@@ -87,24 +82,22 @@ def install_vms(vms, taktuk_params = None):
         ' --vcpus='+ str(vm['vcpus'])+' --cpuset='+vm['cpuset']+' ; '
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
-    if taktuk_params is not None:
-        return TaktukRemote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = taktuk_params)
-    else:
-        return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()))
+    logger.debug(pformat(hosts_cmds))
+    return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
     
-def start_vms(vms, taktuk_params = None):
+    
+def start_vms(vms):
     """ Return an action to start the VMs on the hosts """
     hosts_cmds = {}
     for vm in vms:
         cmd = 'virsh --connect qemu:///system start '+vm['vm_id']+' ; '
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
-    if taktuk_params is not None:
-        return TaktukRemote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = taktuk_params)
-    else:
-        return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()))
+    logger.debug(pformat(hosts_cmds))
+    return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    
 
-def wait_vms_have_started(vms, taktuk_params = None):
+def wait_vms_have_started(vms):
     """ Try to make a ls on all vms and return True when all process are ok", need a taktuk gateway"""
     host = vms[0]['host']
     vms = [vm['ip'] for vm in vms ] 
@@ -115,7 +108,7 @@ def wait_vms_have_started(vms, taktuk_params = None):
     Put([host], '/tmp/vmips').run()
     nmap_tries = 0
     ssh_open = False
-    while (not ssh_open) and nmap_tries < 100:
+    while (not ssh_open) and nmap_tries < 10:
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
         nmap = SshProcess('nmap -i vmips -p 22', host).run()
@@ -124,6 +117,9 @@ def wait_vms_have_started(vms, taktuk_params = None):
             if 'Nmap done' in line:
                 logger.debug(line)
                 ssh_open = line.split()[2] == line.split()[5].replace('(','')
+                started_vms = line.split()[5].replace('(','')
+        if not ssh_open:
+            logger.info(  started_vms+'/'+str(len(vms)) )
         sleep(20)
     if ssh_open:
         logger.info('All VM have been started')
@@ -132,7 +128,7 @@ def wait_vms_have_started(vms, taktuk_params = None):
     
     
 #    nmap_tries = 0   
-#    test_vm = TaktukRemote('ls', vms, connexion_params = taktuk_params, log_exit_code = False, log_error = False)
+#    test_vm = get_remote('ls', vms, , log_exit_code = False, log_error = False)
 #    while (not ssh_open) and ls_tries < 50:
 #        print ls_tries
 #        test_vm.run()
@@ -143,8 +139,8 @@ def wait_vms_have_started(vms, taktuk_params = None):
 #            test_vm.reset()
 #    
 #    while (not ssh_open) and ls_tries < 50:
-#        if taktuk_params is not None:
-#            test_vm = TaktukRemote('ls', vms, connexion_params = taktuk_params, log_exit_code = False, log_error = False).run()
+#        
+#            test_vm = get_remote('ls', vms, , log_exit_code = False, log_error = False).run()
 #        else:
 #            test_vm = Remote('ls', vms, log_exit_code = False, log_error = False).run()
 #        ls_tries += 1
@@ -157,7 +153,7 @@ def wait_vms_have_started(vms, taktuk_params = None):
 
 
 
-def destroy_vms( hosts, taktuk_params = None):
+def destroy_vms( hosts):
     """Destroy all the VM on the hosts"""
     
     cmds = []
@@ -169,10 +165,8 @@ def destroy_vms( hosts, taktuk_params = None):
             hosts_with_vms.append(host)
         
     if len(cmds) > 0:
-        if taktuk_params is not None:
-            TaktukRemote('{{cmds}}', hosts_with_vms, connexion_params = taktuk_params).run()
-        else:
-            Remote('{{cmds}}', hosts_with_vms, connexion_params = taktuk_params).run()
+        Remote('{{cmds}}', hosts_with_vms, connexion_params = {'user': 'root'}).run()
+        
     
 
 
