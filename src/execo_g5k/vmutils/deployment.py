@@ -19,7 +19,7 @@
 
 from logging import DEBUG
 from pprint import pprint, pformat
-import time, xml.etree.ElementTree as ETree, re, os
+import time, xml.etree.ElementTree as ETree, re, os, tempfile
 from itertools import cycle
 import random
 import execo as EX, execo_g5k as EX5
@@ -57,7 +57,7 @@ class Virsh_Deployment(object):
         self.oarjob_id  = oarjob_id
         self.env_name   = env_name if env_name is not None else 'wheezy-x64-base'
         self.env_file   = env_file
-        self.outdir     = '/tmp/deploy_'+ time.strftime("%Y%m%d_%H%M%S_%z") if outdir is None else outdir
+        self.outdir     = tempfile.mkdtemp(prefix = 'deploy_' + time.strftime("%Y%m%d_%H%M%S_%z") + '_') if outdir is None else outdir
         try:
             os.mkdir(self.outdir)
         except:
@@ -101,19 +101,19 @@ class Virsh_Deployment(object):
     def configure_apt(self):
         """ Add testing and unstable to /etc/apt/sources.list and set the priority wheezy > testing > unstable """
         logger.info('Configuring APT')
-        f = open('/tmp/sources.list', 'w')
+        f = open(self.outdir + '/sources.list', 'w')
         f.write('deb http://ftp.debian.org/debian stable main contrib non-free\n'+\
                 'deb http://ftp.debian.org/debian testing main \n'+\
                 'deb http://ftp.debian.org/debian unstable main \n')
         f.close()
-        f = open('/tmp/preferences', 'w')
+        f = open(self.outdir + '/preferences', 'w')
         f.write('Package: * \nPin: release a=stable \nPin-Priority: 900\n\n'+\
                 'Package: * \nPin: release a=testing \nPin-Priority: 850\n\n'+\
                 'Package: * \nPin: release a=unstable \nPin-Priority: 800\n\n')
         f.close()
         
-        apt_conf = EX.SequentialActions([self.fact.fileput(self.hosts, '/tmp/sources.list', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
-            self.fact.fileput(self.hosts, '/tmp/preferences', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
+        apt_conf = EX.SequentialActions([self.fact.fileput(self.hosts, self.outdir + '/sources.list', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
+            self.fact.fileput(self.hosts, self.outdir + '/preferences', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
         
         if apt_conf.ok():
             logger.debug('apt configured successfully')
