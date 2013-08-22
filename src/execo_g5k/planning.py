@@ -443,7 +443,7 @@ def distribute_hosts(slot, resources):
     return resources
     
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t deploy', 
-                       auto_reservation = False):
+                       auto_reservation = False, prog = None):
     """ Perform the reservation for the given slot """ 
     
     subs = []
@@ -467,7 +467,8 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
             subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )    
     
     
-    
+    if prog is not None:
+        oargridsub_opts += ' -p '+prog
     logger.info('Reservation command: \n\033[1m%s\033[0m',
         get_oargridsub_commandline(subs, walltime = walltime, 
             additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate)) )
@@ -476,6 +477,8 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
         reservation = 'y'
     else:            
         reservation = raw_input('Do you want me to do the reservation (y/n): ')
+        
+    oargrid_job_id = None
     if reservation == 'y':
         (oargrid_job_id, ssh_key) = oargridsub(subs, walltime = walltime,
                 additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate))
@@ -486,10 +489,18 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
         else:
             logger.info('Error in performing the reservation ')
 
-        
-    return None
     
+    return oargrid_job_id
     
+def g5k_charter_time(t):
+    # - param: a unix timestamp
+    # - returns a boolean, True if the given timestamp is in a period
+    #   where the g5k charter needs to be respected, False if it is in
+    #   a period where charter is not applicable (night, weekends)
+    l = time.localtime(t)
+    if l.tm_wday in [5, 6]: return False # week-end
+    if l.tm_hour < 8 or l.tm_hour >= 19: return False # nuit
+    return True 
 
 def get_first_cluster_available( clusters, walltime, n_nodes = 1):
     """Compute the planning of the clusters list and find the first one available for a given walltime
@@ -498,7 +509,8 @@ def get_first_cluster_available( clusters, walltime, n_nodes = 1):
     starttime = time() + timedelta_to_seconds(timedelta(seconds = 30))
     endtime = starttime + timedelta_to_seconds(timedelta(days = 3))
     planning = Planning(clusters, starttime, endtime)
-    planning.compute_slots()
+    print walltime
+    planning.compute_slots(walltime)
     
     first_slots = {}
     for cluster in clusters:
