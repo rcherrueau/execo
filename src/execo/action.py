@@ -1520,14 +1520,14 @@ class ChainPut(ParallelActions):
                 self._hosts.append(h)
                 tmphostsset.add(h)
         actual_connexion_params = make_connexion_params(connexion_params)
-        forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(destination_dir, source_file),
+        forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(destination_dir, os.path.basename(source_file)),
                                                                                                                                                                                      actual_connexion_params['chainput_num_retry'],
                                                                                                                                                                                      actual_connexion_params['nc'],
                                                                                                                                                                                      host.address,
                                                                                                                                                                                      actual_connexion_params['chainput_port'],
                                                                                                                                                                                      actual_connexion_params['chainput_try_delay'])
                        for host in self._hosts[1:] ]
-        forwardcmd.append("> %s" % (os.path.join(destination_dir, source_file),))
+        forwardcmd.append("> %s" % (os.path.join(destination_dir, os.path.basename(source_file)),))
         plch = ChainPutProcessLifecycleHandler(self)
         chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
                                                        actual_connexion_params['chainput_port']),
