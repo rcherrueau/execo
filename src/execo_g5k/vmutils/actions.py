@@ -18,9 +18,10 @@
 """A set of functions to manipulate virtual machines on Grid'5000"""
 
 from pprint import pformat, pprint
-from execo import SshProcess, Remote, Put, logger, get_remote, get_remote, Process
+from execo import SshProcess, Remote, Put, logger, get_remote, get_remote, Process, ParallelActions
 from execo.log import set_style
 from execo.time_utils import sleep
+from execo_g5k.api_utils import get_host_site
 import tempfile
 
 
@@ -100,7 +101,7 @@ def start_vms(vms):
 
 def wait_vms_have_started(vms):
     """ Try to make a ls on all vms and return True when all process are ok", need a taktuk gateway"""
-    host = vms[0]['host']
+    host = get_host_site(vms[0]['host'])
     vms = [vm['ip'] for vm in vms ] 
     tmpdir = tempfile.mkdtemp()
     f = open(tmpdir + '/vmips', 'w')
@@ -111,7 +112,7 @@ def wait_vms_have_started(vms):
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
     ssh_open = False
-    while (not ssh_open) and nmap_tries < 10:
+    while (not ssh_open) and nmap_tries < 20:
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
         nmap = SshProcess('nmap -i vmips -p 22', host).run()
@@ -124,6 +125,7 @@ def wait_vms_have_started(vms):
         if not ssh_open:
             logger.info(  started_vms+'/'+str(len(vms)) )
         sleep(20)
+        
     if ssh_open:
         logger.info('All VM have been started')
     else:
