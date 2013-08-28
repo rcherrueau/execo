@@ -248,7 +248,7 @@ class Virsh_Deployment(object):
         logger.info('Configuring the bridge')
         
         
-        bridge_exists = self.fact.remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }'", self.hosts,
+        bridge_exists = self.fact.remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1", self.hosts,
                          connexion_params = {'user': 'root'}, log_exit_code = False).run()
         nobr_hosts = []
         for p in bridge_exists.processes():
@@ -365,10 +365,12 @@ class Virsh_Deployment(object):
                                     connexion_params = {'user': 'root'}).run()
         else:
             logger.info("Copying backing file from frontends")
-            frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
-            copy_file = EX.ChainPut('scp '+default_frontend_connexion_params['user']+\
-                                    '@{{frontends}}:'+disk_image+' /tmp/', self.hosts,
+            copy_file = EX.ChainPut(self.hosts, disk_image, destination_dir='/tmp/',
                                     connexion_params = {'user': 'root'}).run()
+#            frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
+#            dests = [ host.address for host in self.hosts]
+#            copy_file = EX.TaktukRemote('scp '+disk_image+' root@{{dests}}:/tmp/', frontends,
+#                                    connexion_params = default_frontend_connexion_params).run()
             if not copy_file.ok():
                 logger.error('Unable to copy the backing file')
                 exit()               
@@ -380,6 +382,12 @@ class Virsh_Deployment(object):
     def ssh_keys_on_vmbase(self, ssh_key = None):
         """ Copy your public key into the .ssh/authorized_keys """
         logger.info('Copying ssh key on vm-base ...')
+        
+        copy_on_host = self.fact.fileput(self.hosts, ['~/.ssh/id_rsa', '~/.ssh/id_rsa.pub'],
+                                        remote_location = '/root/.ssh', 
+                                      connexion_params = {'user': 'root'}).run()
+        
+        
         ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
 
         cmd = 'modprobe nbd max_part=1; '+ \
