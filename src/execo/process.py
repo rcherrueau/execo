@@ -234,6 +234,8 @@ class ProcessBase(object):
         # reinitialize an object. If redefined in a child class,
         # _common_reset() must then explicitely call _common_reset()
         # of its parent class.
+        # not synchronized. This is the job of calling code to
+        # synchronize.
         self._started = False
         self._start_date = None
         self._ended = False
@@ -504,13 +506,16 @@ class ProcessBase(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting;
         """
+        # not synchronized: instead, self._lock managed explicitely
+        # where needed
         logger.debug(set_style("reset:", 'emph') + " %s" % (str(self),))
         if self._started and not self._ended:
             self.kill()
             self.wait()
         for handler in self.lifecycle_handlers:
             handler.reset(self)
-        self._common_reset()
+        with self._lock():
+            self._common_reset()
         return self
 
     def host(self):
@@ -705,7 +710,8 @@ class Process(ProcessBase):
     def start(self):
         """Start the subprocess."""
         # not synchronized: instead, self._lock managed explicitely to
-        # avoid deadlock with conductor lock
+        # avoid deadlock with conductor lock, and to allow calling
+        # lifecycle handlers outside the lock
         with self._lock:
             if self._started:
                 raise ValueError, "unable to start an already started process"
@@ -835,7 +841,6 @@ class Process(ProcessBase):
             else:
                 self.kill()
 
-    @synchronized
     def _set_terminated(self, exit_code):
         """Update process state: set it to terminated.
 
@@ -845,37 +850,41 @@ class Process(ProcessBase):
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
         """
-        logger.debug("set terminated %s, exit_code=%s" % (str(self), exit_code))
-        self._exit_code = exit_code
-        self._end_date = time.time()
-        self._ended = True
-        if self._ptymaster != None:
-            try:
-                os.close(self._ptymaster)
-            except OSError, e:
-                if e.errno == errno.EBADF: pass
-                else: raise e
-            self._ptymaster = None
-        if self._ptyslave != None:
-            try:
-                os.close(self._ptyslave)
-            except OSError, e:
-                if e.errno == errno.EBADF: pass
-                else: raise e
-            self._ptyslave = None
-        if self._process.stdin:
-            self._process.stdin.close()
-        if self._process.stdout:
-            self._process.stdout.close()
-        if self._process.stderr:
-            self._process.stderr.close()
-        for h in self._stdout_files:
-            self._stdout_files[h].close()
-            del self._stdout_files[h]
-        for h in self._stderr_files:
-            self._stderr_files[h].close()
-            del self._stderr_files[h]
-        self._log_terminated()
+        with self._lock:
+            # not synchronized: instead, self._lock managed
+            # explicitely to allow calling lifecycle handlers outside
+            # the lock
+            logger.debug("set terminated %s, exit_code=%s" % (str(self), exit_code))
+            self._exit_code = exit_code
+            self._end_date = time.time()
+            self._ended = True
+            if self._ptymaster != None:
+                try:
+                    os.close(self._ptymaster)
+                except OSError, e:
+                    if e.errno == errno.EBADF: pass
+                    else: raise e
+                self._ptymaster = None
+            if self._ptyslave != None:
+                try:
+                    os.close(self._ptyslave)
+                except OSError, e:
+                    if e.errno == errno.EBADF: pass
+                    else: raise e
+                self._ptyslave = None
+            if self._process.stdin:
+                self._process.stdin.close()
+            if self._process.stdout:
+                self._process.stdout.close()
+            if self._process.stderr:
+                self._process.stderr.close()
+            for h in self._stdout_files:
+                self._stdout_files[h].close()
+                del self._stdout_files[h]
+            for h in self._stderr_files:
+                self._stderr_files[h].close()
+                del self._stderr_files[h]
+            self._log_terminated()
         for handler in self.lifecycle_handlers:
             handler.end(self)
 
@@ -992,25 +1001,26 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         else:
             return self._name
 
-    @synchronized
     def start(self):
         """Notify TaktukProcess of actual remote process start.
 
         This method is intended to be used by
         `execo.action.TaktukRemote`.
         """
-        if self._started:
-            raise ValueError, "unable to start an already started process"
-        logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
-        self._started = True
-        self._start_date = time.time()
-        if self._timeout != None:
-            self._timeout_date = self._start_date + self._timeout
+        # not synchronized: instead, self._lock managed explicitely to
+        # allow calling lifecycle handlers outside the lock
+        with self._lock:
+            if self._started:
+                raise ValueError, "unable to start an already started process"
+            logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
+            self._started = True
+            self._start_date = time.time()
+            if self._timeout != None:
+                self._timeout_date = self._start_date + self._timeout
         for handler in self.lifecycle_handlers:
             handler.start(self)
         return self
 
-    @synchronized
     def _set_terminated(self, exit_code = None, error = False, error_reason = None, timeouted = None, forced_kill = None):
         """Update TaktukProcess state: set it to terminated.
 
@@ -1019,28 +1029,31 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
         """
-        if not self._started:
-            self.start()
-        logger.debug("set terminated %s, exit_code=%s, error=%s" % (str(self), exit_code, error))
-        if error != None:
-            self._error = error
-        if error_reason != None:
-            self._error_reason = error_reason
-        if exit_code != None:
-            self._exit_code = exit_code
-        if timeouted == True:
-            self._timeouted = True
-        if forced_kill == True:
-            self._forced_kill = True
-        self._end_date = time.time()
-        self._ended = True
-        for h in self._stdout_files:
-            self._stdout_files[h].close()
-            del self._stdout_files[h]
-        for h in self._stderr_files:
-            self._stderr_files[h].close()
-            del self._stderr_files[h]
-        self._log_terminated()
+        # not synchronized: instead, self._lock managed explicitely to
+        # allow calling lifecycle handlers outside the lock
+        with self._lock:
+            if not self._started:
+                self.start()
+            logger.debug("set terminated %s, exit_code=%s, error=%s" % (str(self), exit_code, error))
+            if error != None:
+                self._error = error
+            if error_reason != None:
+                self._error_reason = error_reason
+            if exit_code != None:
+                self._exit_code = exit_code
+            if timeouted == True:
+                self._timeouted = True
+            if forced_kill == True:
+                self._forced_kill = True
+            self._end_date = time.time()
+            self._ended = True
+            for h in self._stdout_files:
+                self._stdout_files[h].close()
+                del self._stdout_files[h]
+            for h in self._stderr_files:
+                self._stderr_files[h].close()
+                del self._stderr_files[h]
+            self._log_terminated()
         for handler in self.lifecycle_handlers:
             handler.end(self)
 
