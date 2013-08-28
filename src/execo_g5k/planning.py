@@ -24,7 +24,7 @@ from time import time, localtime, mktime
 from datetime import timedelta
 from math import ceil
 from execo.time_utils import timedelta_to_seconds, format_seconds, format_date, get_seconds, unixts_to_datetime
-#import time as T, datetime as DT, execo.time_utils as ET, math
+
 from execo.log import set_style, logger
 from execo import Host, Remote
 from execo_g5k import *
@@ -681,8 +681,6 @@ def draw_slots(slots, endstamp, colors = None, show = False, save = True):
     total_list = []
     i_slot = 0
     for slot in slots:
-        
-        
         slot_limits.append(slot[0])
         if i_slot+1 < len(slots):
             slot_limits.append(slots[i_slot+1][0])
