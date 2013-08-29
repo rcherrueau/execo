@@ -500,12 +500,11 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                 return False
             if infos['state'] == "Running":
                 return True
-        if infos.has_key('start_date'):
-            if now >= infos['start_date']:
+        if infos.has_key('start_date') or infos.has_key('scheduled_start'):
+            if now >= new_prediction:
                 sleep(mymin(g5k_configuration.get('tiny_polling_interval'), countdown.remaining()))
                 continue
-        if infos.has_key('start_date') or infos.has_key('scheduled_start'):
-            if new_prediction < now + g5k_configuration.get('polling_interval'):
+            elif now + g5k_configuration.get('polling_interval') > new_prediction:
                 sleep(until = mymin(new_prediction, now + countdown.remaining() if countdown.remaining() != None else None))
                 continue
         sleep(mymin(g5k_configuration.get('polling_interval'), countdown.remaining()))
