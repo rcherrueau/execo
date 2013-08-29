@@ -583,10 +583,12 @@ def _run_debug_thread(interval = 10, processes = None):
                     print >> sys.stderr, "  stdout = %s" % process.stdout()
                     print >> sys.stderr, "  stderr = %s" % process.stderr()
                     print >> sys.stderr
+            idx=0
             for thread_id, frame in sys._current_frames().iteritems():
                 if thread_id != thread.get_ident():
-                    print >> sys.stderr, "===== [%#x] refcount = %s" % (thread_id, sys.getrefcount(frame))
+                    print >> sys.stderr, "===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame))
                     traceback.print_stack(frame, file = sys.stderr)
+                    idx += 1
             print >> sys.stderr
     t = threading.Thread(target = runforever, name = "Debug")
     t.setDaemon(True)
