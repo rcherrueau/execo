@@ -480,16 +480,17 @@ class ProcessBase(object):
         """
         return self._started and self._ended and self.ok()
 
-    @synchronized
     def _log_terminated(self):
         """To be called (in subclasses) when a process terminates.
 
         This method will log process termination as needed.
         """
-        s = set_style("terminated:", 'emph') + self.dump()
-        if ((self._error and (self.log_error if self.log_error != None else not self.ignore_error))
-            or (self._timeouted and (self.log_timeout if self.log_timeout != None else not self.ignore_timeout))
-            or (self._exit_code != 0 and (self.log_exit_code if self.log_exit_code != None else not self.ignore_exit_code))):
+        with self._lock:
+            s = set_style("terminated:", 'emph') + self.dump()
+            warn = ((self._error and (self.log_error if self.log_error != None else not self.ignore_error))
+                    or (self._timeouted and (self.log_timeout if self.log_timeout != None else not self.ignore_timeout))
+                    or (self._exit_code != 0 and (self.log_exit_code if self.log_exit_code != None else not self.ignore_exit_code)))
+        if warn:
             logger.warning(s)
         else:
             logger.debug(s)
@@ -715,13 +716,13 @@ class Process(ProcessBase):
         with self._lock:
             if self._started:
                 raise ValueError, "unable to start an already started process"
-            logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
             self._started = True
             self._start_date = time.time()
             if self._timeout != None:
                 self._timeout_date = self._start_date + self._timeout
             if self._pty:
                 (self._ptymaster, self._ptyslave) = openpty()
+        logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
         for handler in self.lifecycle_handlers:
             handler.start(self)
         try:
@@ -760,7 +761,6 @@ class Process(ProcessBase):
                 handler.end(self)
         return self
 
-    @synchronized
     def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
 
@@ -771,57 +771,59 @@ class Process(ProcessBase):
           when it has received a SIGTERM, and automatically send
           SIGKILL if the subprocess is not yet terminated
         """
-        if self._pid != None and not self._ended:
-            logger.debug(set_style("kill with signal %s:" % sig, 'emph') + " %s" % (str(self),))
-            if sig == signal.SIGTERM:
-                self._already_got_sigterm = True
-                if auto_sigterm_timeout == True:
-                    self._timeout_date = time.time() + configuration.get('kill_timeout')
-                    the_conductor.update_process(self)
-            if sig == signal.SIGKILL:
-                self._forced_kill = True
-            if (self._kill_subprocesses == True
-                or (self._kill_subprocesses == None
-                    and self._shell == True)):
-                additionnal_processes_to_kill = _get_childs(self._pid)
-            else:
-                additionnal_processes_to_kill = []
-            try:
-                os.kill(self._pid, sig)
-            except OSError, e:
-                if e.errno == errno.EPERM:
-                    if (self._pty
-                        and (sig == signal.SIGTERM
-                             or sig == signal.SIGHUP
-                             or sig == signal.SIGINT
-                             or sig == signal.SIGKILL
-                             or sig == signal.SIGPIPE
-                             or sig == signal.SIGQUIT)):
-                        # unable to send signal to process due to lack
-                        # of permissions. If _pty == True, then there
-                        # is a pty, we can close its master side, it should
-                        # trigger a signal (SIGPIPE?) on the other side
-                        try:
-                            logger.debug("EPERM for signal %s -> closing pty master side of %s" % (sig, str(self)))
-                            os.close(self._ptymaster)
-                        except OSError, e:
-                            pass
-                    else:
-                        logger.debug(set_style("EPERM: unable to send signal", 'emph') + " to %s" % (str(self),))
-                elif e.errno == errno.ESRCH:
-                    # process terminated so recently that self._ended
-                    # has not been updated yet
-                    pass
-                else:
-                    raise e
-            for p in additionnal_processes_to_kill:
+        logger.debug(set_style("kill with signal %s:" % sig, 'emph') + " %s" % (str(self),))
+        other_debug_logs=[]
+        additionnal_processes_to_kill = []
+        with self._lock:
+            if self._pid != None and not self._ended:
+                if sig == signal.SIGTERM:
+                    self._already_got_sigterm = True
+                    if auto_sigterm_timeout == True:
+                        self._timeout_date = time.time() + configuration.get('kill_timeout')
+                        the_conductor.update_process(self)
+                if sig == signal.SIGKILL:
+                    self._forced_kill = True
+                if (self._kill_subprocesses == True
+                    or (self._kill_subprocesses == None
+                        and self._shell == True)):
+                    additionnal_processes_to_kill = _get_childs(self._pid)
                 try:
-                    os.kill(p, sig)
+                    os.kill(self._pid, sig)
                 except OSError, e:
-                    if e.errno == errno.EPERM or e.errno == errno.ESRCH:
+                    if e.errno == errno.EPERM:
+                        if (self._pty
+                            and (sig == signal.SIGTERM
+                                 or sig == signal.SIGHUP
+                                 or sig == signal.SIGINT
+                                 or sig == signal.SIGKILL
+                                 or sig == signal.SIGPIPE
+                                 or sig == signal.SIGQUIT)):
+                            # unable to send signal to process due to lack
+                            # of permissions. If _pty == True, then there
+                            # is a pty, we can close its master side, it should
+                            # trigger a signal (SIGPIPE?) on the other side
+                            try:
+                                other_debug_logs.append("EPERM for signal %s -> closing pty master side of %s" % (sig, str(self)))
+                                os.close(self._ptymaster)
+                            except OSError, e:
+                                pass
+                        else:
+                            other_debug_logs.append(set_style("EPERM: unable to send signal", 'emph') + " to %s" % (str(self),))
+                    elif e.errno == errno.ESRCH:
+                        # process terminated so recently that self._ended
+                        # has not been updated yet
                         pass
                     else:
                         raise e
+        for l in other_debug_logs: logger.debug(l)
+        for p in additionnal_processes_to_kill:
+            try:
+                os.kill(p, sig)
+            except OSError, e:
+                if e.errno == errno.EPERM or e.errno == errno.ESRCH:
+                    pass
+                else:
+                    raise e
         return self
 
     @synchronized
@@ -850,11 +852,11 @@ class Process(ProcessBase):
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
         """
+        logger.debug("set terminated %s, exit_code=%s" % (str(self), exit_code))
         with self._lock:
             # not synchronized: instead, self._lock managed
             # explicitely to allow calling lifecycle handlers outside
             # the lock
-            logger.debug("set terminated %s, exit_code=%s" % (str(self), exit_code))
             self._exit_code = exit_code
             self._end_date = time.time()
             self._ended = True
@@ -884,18 +886,17 @@ class Process(ProcessBase):
             for h in self._stderr_files:
                 self._stderr_files[h].close()
                 del self._stderr_files[h]
-            self._log_terminated()
+        self._log_terminated()
         for handler in self.lifecycle_handlers:
             handler.end(self)
 
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
-        with the_conductor.get_lock():
-            if self._error:
-                return self
-            if not self._started or self._pid == None:
+        with self._lock:
+            if not self._started:
                 raise ValueError, "Trying to wait a process which has not been started"
-            logger.debug(set_style("wait:", 'emph') + " %s" % (str(self),))
+        logger.debug(set_style("wait:", 'emph') + " %s" % (str(self),))
+        with the_conductor.get_lock():
             timeout = get_seconds(timeout)
             if timeout != None:
                 end = time.time() + timeout
@@ -903,7 +904,7 @@ class Process(ProcessBase):
                 the_conductor.get_condition().wait(timeout)
                 if timeout != None:
                     timeout = end - time.time()
-            logger.debug(set_style("wait finished:", 'emph') + " %s" % (str(self),))
+        logger.debug(set_style("wait finished:", 'emph') + " %s" % (str(self),))
         return self
 
     def run(self, timeout = None):
@@ -1012,11 +1013,11 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         with self._lock:
             if self._started:
                 raise ValueError, "unable to start an already started process"
-            logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
             self._started = True
             self._start_date = time.time()
             if self._timeout != None:
                 self._timeout_date = self._start_date + self._timeout
+        logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
         for handler in self.lifecycle_handlers:
             handler.start(self)
         return self
@@ -1031,10 +1032,10 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         """
         # not synchronized: instead, self._lock managed explicitely to
         # allow calling lifecycle handlers outside the lock
+        logger.debug("set terminated %s, exit_code=%s, error=%s" % (str(self), exit_code, error))
         with self._lock:
             if not self._started:
                 self.start()
-            logger.debug("set terminated %s, exit_code=%s, error=%s" % (str(self), exit_code, error))
             if error != None:
                 self._error = error
             if error_reason != None:
@@ -1053,7 +1054,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             for h in self._stderr_files:
                 self._stderr_files[h].close()
                 del self._stderr_files[h]
-            self._log_terminated()
+        self._log_terminated()
         for handler in self.lifecycle_handlers:
             handler.end(self)
 
