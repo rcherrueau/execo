@@ -43,10 +43,12 @@ def list_vm( host, all = False ):
     return [ {'vm_id': vm_id} for vm_id in vms_id ]
 
 
-def define_vms( n_vm, ip_mac, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms = None, offset = 0 ):
+def define_vms( n_vm, ip_mac = None, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms = None, offset = 0 ):
     """ Create a dict of the VM parameters """
     if vms is None:
         vms = []
+    if ip_mac is None:
+        ip_mac = [ '0.0.0.0' for i in range(n_vm)]
     if cpusets is None:
         cpusets = {}
         for i in range(n_vm): cpusets['vm-'+str(i)] = 'auto'
@@ -104,15 +106,16 @@ def wait_vms_have_started(vms):
     host = get_host_site(vms[0]['host'])
     vms = [vm['ip'] for vm in vms ] 
     tmpdir = tempfile.mkdtemp()
-    f = open(tmpdir + '/vmips', 'w')
+    tmpfile = tempfile.mkstemp(prefix='vmips')
+    f = open(tmpfile[1], 'w')
     for ip in vms:
         f.write(ip+'\n')
     f.close()
-    Put([host], tmpdir + '/vmips').run()
+    Put([host], tmpfile[1]).run()
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
     ssh_open = False
-    while (not ssh_open) and nmap_tries < 20:
+    while (not ssh_open) and nmap_tries < 40:
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
         nmap = SshProcess('nmap -i vmips -p 22', host).run()
