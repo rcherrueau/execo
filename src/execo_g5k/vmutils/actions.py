@@ -118,7 +118,7 @@ def wait_vms_have_started(vms):
     while (not ssh_open) and nmap_tries < 40:
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
-        nmap = SshProcess('nmap -i vmips -p 22', host).run()
+        nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host).run()
         logger.debug('%s', nmap.cmd())
         for line in nmap.stdout().split('\n'):
             if 'Nmap done' in line:
