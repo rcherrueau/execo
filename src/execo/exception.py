@@ -27,4 +27,4 @@ class ProcessesFailed(Exception):
         s = "<ProcessesFailed> - failed process(es):\n"
         for p in self._processes:
             s += " " + p.dump() + "\n"
-            return s
+        return s
