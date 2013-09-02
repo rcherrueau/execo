@@ -759,7 +759,7 @@ class Put(Remote):
 
     """Copy local files to several remote host, with ``scp`` or a similar connexion tool."""
 
-    def __init__(self, hosts, local_files, remote_location = ".", create_dirs = False, connexion_params = None, name = None, **kwargs):
+    def __init__(self, hosts, local_files, remote_location = ".", connexion_params = None, name = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -771,9 +771,6 @@ class Put(Remote):
         :param remote_location: the directory on the remote hosts were
           the files will be copied. substitions described in
           `execo.substitutions.remote_substitute` will be performed.
-
-        :param create_dirs: boolean indicating if remote_location is a
-          directory to be created
 
         :param connexion_params: a dict similar to
           `execo.config.default_connexion_params` whose values will
@@ -793,16 +790,11 @@ class Put(Remote):
         self._processes = list()
         self._local_files = local_files
         self._remote_location = remote_location
-        self._create_dirs = create_dirs
         self._connexion_params = connexion_params
         self._other_kwargs = kwargs
         self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
-            prepend_dir_creation = ()
-            if self._create_dirs:
-                created_dir = remote_substitute(self._remote_location, self._hosts, index, self._caller_context)
-                prepend_dir_creation = get_ssh_command(host.user, host.keyfile, host.port, self._connexion_params) + (get_rewritten_host_address(host.address, self._connexion_params),) + ('\'mkdir -p "%(dir)s" || test -d "%(dir)s"\'' % {'dir': created_dir}, '&&')
-            real_command = list(prepend_dir_creation) + list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self._connexion_params), remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
+            real_command = list(get_scp_command(host.user, host.keyfile, host.port, self._connexion_params)) + [ remote_substitute(local_file, self._hosts, index, self._caller_context) for local_file in self._local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self._connexion_params), remote_substitute(self._remote_location, self._hosts, index, self._caller_context)),]
             real_command = ' '.join(real_command)
             p = Process(real_command,
                         shell = True,
@@ -818,7 +810,6 @@ class Put(Remote):
     def _kwargs(self):
         kwargs = []
         if self._remote_location: kwargs.append("remote_location=%r" % (self._remote_location,))
-        if self._create_dirs: kwargs.append("create_dirs=%r" % (self._create_dirs,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
@@ -833,7 +824,7 @@ class Get(Remote):
 
     """Copy remote files from several remote host to a local directory, with ``scp`` or a similar connexion tool."""
 
-    def __init__(self, hosts, remote_files, local_location = ".", create_dirs = False, connexion_params = None, name = None, **kwargs):
+    def __init__(self, hosts, remote_files, local_location = ".", connexion_params = None, name = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` from which to get
           the files.
@@ -845,9 +836,6 @@ class Get(Remote):
         :param local_location: the local directory were the files will
           be copied. substitions described in
           `execo.substitutions.remote_substitute` will be performed.
-
-        :param create_dirs: boolean indicating if local_location is a
-          directory to be created
 
         :param connexion_params: a dict similar to
           `execo.config.default_connexion_params` whose values will
@@ -867,19 +855,14 @@ class Get(Remote):
         self._processes = list()
         self._remote_files = remote_files
         self._local_location = local_location
-        self._create_dirs = create_dirs
         self._connexion_params = connexion_params
         self._other_kwargs = kwargs
         self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
         for (index, host) in enumerate(self._hosts):
-            prepend_dir_creation = ()
-            if self._create_dirs:
-                created_dir = remote_substitute(local_location, self._hosts, index, self._caller_context)
-                prepend_dir_creation = ('mkdir', '-p', created_dir, '||', 'test', '-d', created_dir, '&&')
             remote_specs = ()
             for path in self._remote_files:
                 remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self._connexion_params), remote_substitute(path, self._hosts, index, self._caller_context)),)
-            real_command = prepend_dir_creation + get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, self._hosts, index, self._caller_context),)
+            real_command = get_scp_command(host.user, host.keyfile, host.port, self._connexion_params) + remote_specs + (remote_substitute(self._local_location, self._hosts, index, self._caller_context),)
             real_command = ' '.join(real_command)
             p = Process(real_command,
                         shell = True,
@@ -895,7 +878,6 @@ class Get(Remote):
     def _kwargs(self):
         kwargs = []
         if self._local_location: kwargs.append("local_location=%r" % (self._local_location,))
-        if self._create_dirs: kwargs.append("create_dirs=%r" % (self._create_dirs,))
         if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
         for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%r" % (k, v))
         return kwargs
