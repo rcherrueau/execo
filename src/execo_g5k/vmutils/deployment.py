@@ -32,6 +32,7 @@ from execo.config import TAKTUK, SSH, SCP
 from execo_g5k.config import g5k_configuration, default_frontend_connexion_params
 from execo_g5k.utils import get_kavlan_host_name
 from execo_g5k.api_utils import get_host_cluster, get_cluster_site, get_g5k_sites, get_site_clusters, get_cluster_attributes, get_host_attributes, get_resource_attributes, get_host_site
+from execo.exception import ActionsFailed
 
    
 
@@ -119,7 +120,7 @@ class Virsh_Deployment(object):
             logger.debug('apt configured successfully')
         else:
             logger.error('Error in configuring apt')
-            exit()
+            raise ActionsFailed, [apt_conf]
         
 
     def upgrade_hosts(self):
@@ -134,7 +135,7 @@ class Virsh_Deployment(object):
             logger.debug('Upgrade finished')
         else:
             logger.error('Unable to perform dist-upgrade on the nodes ..')
-            exit()
+            raise ActionsFailed, [upgrade]
 
 
     def install_packages(self, packages_list = None):
@@ -148,7 +149,7 @@ class Virsh_Deployment(object):
             logger.debug('Packages installed')
         else:
             logger.error('Unable to install packages on the nodes ..')
-            exit()
+            raise ActionsFailed, [install_base]
         
         libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 nmap'
         logger.info('Installing libvirt updated packages %s', set_style(libvirt_packages, 'emph'))
@@ -161,7 +162,7 @@ class Virsh_Deployment(object):
             logger.debug('Packages installed')
         else:
             logger.error('Unable to install packages on the nodes ..')
-            exit()
+            raise ActionsFailed, [install_libvirt]
 
     def reboot_nodes(self):
         """ Reboot the nodes to load the new kernel """
@@ -273,7 +274,7 @@ class Virsh_Deployment(object):
                 logger.info('Bridge has been created')
             else:
                 logger.error('Unable to setup the bridge')
-                exit()
+                raise ActionsFailed, [create_br]
         else:
             logger.info('Bridge is already present')
 
@@ -373,7 +374,7 @@ class Virsh_Deployment(object):
 #                                    connexion_params = default_frontend_connexion_params).run()
             if not copy_file.ok():
                 logger.error('Unable to copy the backing file')
-                exit()               
+                raise ActionsFailed, [copy_file]
         
         logger.info("Creating disk image on /tmp/vm-base.img")
         cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'

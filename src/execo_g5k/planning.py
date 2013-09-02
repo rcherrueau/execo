@@ -69,8 +69,7 @@ class Planning:
         hosts planning sorted by {'site': {'cluster': {'host': {'free': [(start, stop)], 'busy': [(start, stop)] }}}}
         """
         if self.elements is None:
-            logger.error('No elements given, aborting')
-            exit()
+            raise ValueError, "No elements given"
         logger.info('%s',set_style('Getting plannings from API', 'log_header'))
         self.planning = {}
 
