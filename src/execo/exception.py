@@ -28,3 +28,16 @@ class ProcessesFailed(Exception):
         for p in self._processes:
             s += " " + p.dump() + "\n"
         return s
+
+class ActionsFailed(Exception):
+    """Raised when one or more `execo.action.Action` have failed."""
+
+    def __init__(self, actions):
+        """:param actions: iterable of failed actions"""
+        self._actions = actions
+
+    def __str__(self):
+        s = "<ActionsFailed> - failed action(s):\n"
+        for a in self._actions:
+            s += " " + str(a) + "\n"
+        return s
