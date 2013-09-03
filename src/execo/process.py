@@ -515,7 +515,7 @@ class ProcessBase(object):
             self.wait()
         for handler in self.lifecycle_handlers:
             handler.reset(self)
-        with self._lock():
+        with self._lock:
             self._common_reset()
         return self
 
