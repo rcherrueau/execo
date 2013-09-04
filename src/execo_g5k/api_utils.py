@@ -137,7 +137,7 @@ def get_g5k_sites():
     """Get the list of Grid5000 sites. Returns an iterable."""
     global _g5k #IGNORE:W0603
     if not _g5k:
-        (_, content) = _get_g5k_api().get('/grid5000/sites')
+        (_, content) = _get_g5k_api().get('/sites')
         sites = json.loads(content)
         _g5k = dict()
         for site in [site['uid'] for site in sites['items']]:
@@ -150,7 +150,7 @@ def get_site_clusters(site):
     if not _g5k.has_key(site):
         raise ValueError, "unknown g5k site %s" % (site,)
     if not _g5k[site]:
-        (_, content) = _get_g5k_api().get('/grid5000/sites/'
+        (_, content) = _get_g5k_api().get('/sites/'
                          + site
                          + '/clusters')
         clusters = json.loads(content)
@@ -165,7 +165,7 @@ def get_cluster_hosts(cluster):
     for site in _g5k.keys():
         if cluster in _g5k[site]:
             if not _g5k[site][cluster]:
-                (_, content) = _get_g5k_api().get('/grid5000/sites/' + site
+                (_, content) = _get_g5k_api().get('/sites/' + site
                                  + '/clusters/' + cluster
                                  + '/nodes')
                 hosts = json.loads(content)
@@ -267,16 +267,16 @@ def get_host_attributes(host):
     host_shortname, _, _ = host.partition(".")
     cluster = get_host_cluster(host)
     site = get_host_site(host)
-    return get_resource_attributes('/grid5000/sites/' + site
+    return get_resource_attributes('/sites/' + site
                                       + '/clusters/' + cluster
                                       + '/nodes/' + host_shortname)
 
 def get_cluster_attributes(cluster):
     """Get the attributes of a cluster (as known to the g5k api) as a dict"""
     site = get_cluster_site(cluster)
-    return get_resource_attributes('/grid5000/sites/' + site
+    return get_resource_attributes('/sites/' + site
                                       + '/clusters/' + cluster)
 
 def get_site_attributes(site):
     """Get the attributes of a site (as known to the g5k api) as a dict"""
-    return get_resource_attributes('/grid5000/sites/' + site)
+    return get_resource_attributes('/sites/' + site)
