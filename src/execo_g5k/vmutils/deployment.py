@@ -390,7 +390,7 @@ class Virsh_Deployment(object):
         cmd = 'modprobe nbd max_part=1; '+ \
                 'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img ; sleep 3 ; '+ \
                 'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
-                'cat '+ssh_key+'.pub >> /mnt/root/.ssh/authorized_keys ; '+ \
+                'cat /root/authorized_keys >> /mnt/root/.ssh/authorized_keys ; '+ \
                 'cp -r '+ssh_key+'* /mnt/root/.ssh/ ;'+ \
                 'umount /mnt; qemu-nbd -d /dev/nbd0 '
         logger.debug(cmd)
