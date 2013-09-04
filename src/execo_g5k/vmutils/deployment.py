@@ -126,7 +126,7 @@ class Virsh_Deployment(object):
                 echo 'debconf debconf/priority select critical' | debconf-set-selections ;      \
                 apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get upgrade -y --force-yes "+\
                 '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" '
-        upgrade = self.fact.remote( cmd, self.hosts, connexion_params = {'user': 'root'}).run()
+        upgrade = self.fact.get_remote( cmd, self.hosts, connexion_params = {'user': 'root'}).run()
         if upgrade.ok():
             logger.debug('Upgrade finished')
         else:
@@ -140,7 +140,7 @@ class Virsh_Deployment(object):
         base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop'
         logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
-        install_base = self.fact.remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()        
+        install_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()        
         if install_base.ok():
             logger.debug('Packages installed')
         else:
@@ -152,7 +152,7 @@ class Virsh_Deployment(object):
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
             '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t unstable '+\
             libvirt_packages
-        install_libvirt = self.fact.remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
+        install_libvirt = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
             
         if install_libvirt.ok():
             logger.debug('Packages installed')
@@ -163,7 +163,7 @@ class Virsh_Deployment(object):
     def reboot_nodes(self):
         """ Reboot the nodes to load the new kernel """
         logger.info('Rebooting nodes')
-        self.fact.remote('shutdown -r now ', self.hosts, connexion_params = {'user': 'root'}).run()
+        self.fact.get_remote('shutdown -r now ', self.hosts, connexion_params = {'user': 'root'}).run()
         n_host = len(self.hosts)
         hosts_list = ' '.join( [host.address for host in self.hosts ])
         
@@ -204,7 +204,7 @@ class Virsh_Deployment(object):
         logger.info('Making libvirt host unique ...')
         cmd = 'uuid=`uuidgen` && sed -i "s/00000000-0000-0000-0000-000000000000/${uuid}/g" /etc/libvirt/libvirtd.conf '\
                 +'&& sed -i "s/#host_uuid/host_uuid/g" /etc/libvirt/libvirtd.conf && service libvirt-bin restart'
-        self.fact.remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
+        self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
         
         self.create_bridge()
         
@@ -223,19 +223,19 @@ class Virsh_Deployment(object):
 
         self.tree.write('default.xml')
         
-        self.fact.remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
+        self.fact.get_remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
                     connexion_params = {'user': 'root'}, log_exit_code = False).run()
         
         self.fact.get_fileput(self.hosts, 'default.xml', remote_location = '/etc/libvirt/qemu/networks/',
                       connexion_params = {'user': 'root'}).run()
               
-        self.fact.remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; virsh net-start default; virsh net-autostart default; ', 
+        self.fact.get_remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; virsh net-start default; virsh net-autostart default; ', 
                         self.hosts, connexion_params = {'user': 'root'}).run()
         
 #        self.setup_virsh_network(n_vms)
         
         logger.info('Restarting libvirt ...')        
-        self.fact.remote('service libvirt-bin restart', self.hosts, connexion_params = {'user': 'root'}).run()
+        self.fact.get_remote('service libvirt-bin restart', self.hosts, connexion_params = {'user': 'root'}).run()
         
         
 
@@ -245,7 +245,7 @@ class Virsh_Deployment(object):
         logger.info('Configuring the bridge')
         
         
-        bridge_exists = self.fact.remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1", self.hosts,
+        bridge_exists = self.fact.get_remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1", self.hosts,
                          connexion_params = {'user': 'root'}, log_exit_code = False).run()
         nobr_hosts = []
         for p in bridge_exists.processes():
@@ -264,7 +264,7 @@ class Virsh_Deployment(object):
                 ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
                 ' echo "bridge_fd 0" >> /etc/network/interfaces ; ifup '+bridge_name
             
-            create_br = self.fact.remote(cmd, nobr_hosts, connexion_params = {'user': 'root'}).run()
+            create_br = self.fact.get_remote(cmd, nobr_hosts, connexion_params = {'user': 'root'}).run()
             
             if create_br.ok():
                 logger.info('Bridge has been created')
@@ -350,7 +350,7 @@ class Virsh_Deployment(object):
         
         if clean:
             logger.info('Removing existing disks')
-            self.fact.remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
+            self.fact.get_remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
                             connexion_params = {'user': 'root'}).run()
         
         ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], ignore_exit_code = True,
@@ -374,7 +374,7 @@ class Virsh_Deployment(object):
         
         logger.info("Creating disk image on /tmp/vm-base.img")
         cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
-        self.fact.remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()  
+        self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()  
         
     def ssh_keys_on_vmbase(self, ssh_key = None):
         """ Copy your public key into the .ssh/authorized_keys """
@@ -394,7 +394,7 @@ class Virsh_Deployment(object):
                 'cp -r '+ssh_key+'* /mnt/root/.ssh/ ;'+ \
                 'umount /mnt; qemu-nbd -d /dev/nbd0 '
         logger.debug(cmd)
-        copy_on_vm_base = self.fact.remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
+        copy_on_vm_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
         logger.debug('%s', copy_on_vm_base.ok())
     
     def write_placement_file(self):
