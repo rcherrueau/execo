@@ -159,6 +159,19 @@ class Virsh_Deployment(object):
         else:
             logger.error('Unable to install packages on the nodes ..')
             raise ActionsFailed, [install_libvirt]
+        
+        if packages_list is not None:
+            logger.info('Installing extra packages %s', set_style(packages_list, 'emph'))
+            cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
+            packages_list
+            install_extra = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
+            
+            if install_extra.ok():
+                logger.debug('Packages installed')
+            else:
+                logger.error('Unable to install packages on the nodes ..')
+                raise ActionsFailed, [install_extra]
+
 
     def reboot_nodes(self):
         """ Reboot the nodes to load the new kernel """
@@ -176,7 +189,7 @@ class Virsh_Deployment(object):
                               connexion_params = default_frontend_connexion_params ).run()
             for line in nmap.stdout().split('\n'):
                 if 'Nmap done' in line:
-                    hosts_down = not line.split()[2] == line.split()[5].replace('(','')
+                    hosts_down = line.split()[5].replace('(','') == str(0)
         
         
         logger.info('Hosts have been shutdown, wait hosts reboot')
