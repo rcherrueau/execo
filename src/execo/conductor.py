@@ -570,26 +570,35 @@ def makeRecord(logger_instance, name, level, fn, lno, msg, args, exc_info, func=
             rv.__dict__[key] = extra[key]
     return rv
 
+
+def _debug_dump_processes():
+    for process in processes:
+        print >> sys.stderr, "%s" % process
+        print >> sys.stderr, "stdout:\n%s" % process.stdout()
+        print >> sys.stderr, "stderr:\n%s" % process.stderr()
+        print >> sys.stderr
+
+def _debug_dump_threads():
+    idx=0
+    for thread_id, frame in sys._current_frames().iteritems():
+        if thread_id != thread.get_ident():
+            print >> sys.stderr, "===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame))
+            traceback.print_stack(frame, file = sys.stderr)
+            idx += 1
+
+def _debug_dump(processes = None):
+    print >> sys.stderr
+    print >> sys.stderr, ">>>>> %s - number of threads = %s - conductor lock = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1, the_conductor.get_lock())
+    print >> sys.stderr
+    if processes != None: _debug_dump_processes()
+    _debug_dump_threads()
+    print >> sys.stderr
+
 def _run_debug_thread(interval = 10, processes = None):
     def runforever():
         while True:
             time.sleep(interval)
-            print >> sys.stderr
-            print >> sys.stderr, ">>>>> %s - number of threads = %s - conductor lock = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1, the_conductor.get_lock())
-            print >> sys.stderr
-            if processes != None:
-                for process in processes:
-                    print >> sys.stderr, "  %s" % process
-                    print >> sys.stderr, "  stdout = %s" % process.stdout()
-                    print >> sys.stderr, "  stderr = %s" % process.stderr()
-                    print >> sys.stderr
-            idx=0
-            for thread_id, frame in sys._current_frames().iteritems():
-                if thread_id != thread.get_ident():
-                    print >> sys.stderr, "===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame))
-                    traceback.print_stack(frame, file = sys.stderr)
-                    idx += 1
-            print >> sys.stderr
+            _debug_dump(processes)
     t = threading.Thread(target = runforever, name = "Debug")
     t.setDaemon(True)
     t.start()
@@ -601,6 +610,8 @@ def enable_full_debug():
     #logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
     logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
     #logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
+    import atexit
+    atexit.register(_debug_dump)
     _run_debug_thread()
 
 the_conductor = _Conductor().start()
