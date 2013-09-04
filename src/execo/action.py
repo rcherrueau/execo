@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from execo.config import make_connexion_params, configuration, SSH, TAKTUK, SCP
+from execo.config import make_connexion_params, configuration, SSH, TAKTUK, SCP, CHAINPUT
 from execo.host import Host
 from execo.process import get_process
 from host import get_hosts_list
@@ -1580,8 +1580,8 @@ class ActionFactory:
         :param remote_tool: can be `execo.config.SSH` or
           `execo.config.TAKTUK`
 
-        :param fileput_tool: can be `execo.config.SCP` or
-          `execo.config.TAKTUK`
+        :param fileput_tool: can be `execo.config.SCP`,
+          `execo.config.TAKTUK` or `execo.config.CHAINPUT`
 
         :param fileget_tool: can be `execo.config.SCP` or
           `execo.config.TAKTUK`
@@ -1593,7 +1593,7 @@ class ActionFactory:
             raise KeyError, "no such remote tool: %s" % remote_tool
         if fileput_tool == None:
             fileput_tool = configuration.get("fileput_tool")
-        if fileput_tool not in [SCP, TAKTUK]:
+        if fileput_tool not in [SCP, TAKTUK, CHAINPUT]:
             raise KeyError, "no such fileput tool: %s" % fileput_tool
         if fileget_tool == None:
             fileget_tool = configuration.get("fileget_tool")
@@ -1611,11 +1611,13 @@ class ActionFactory:
             return TaktukRemote(*args, **kwargs)
 
     def fileput(self, *args, **kwargs):
-        """Instanciates a `execo.action.Put` or `execo.action.TaktukPut`"""
+        """Instanciates a `execo.action.Put`, `execo.action.TaktukPut` or `execo.action.MultiChainPut`"""
         if self.fileput_tool == SCP:
             return Put(*args, **kwargs)
         elif self.fileput_tool == TAKTUK:
             return TaktukPut(*args, **kwargs)
+        elif self.fileput_tool == CHAINPUT:
+            return MultiChainPut(*args, **kwargs)
 
     def fileget(self, *args, **kwargs):
         """Instanciates a `execo.action.Get` or `execo.action.TaktukGet`"""

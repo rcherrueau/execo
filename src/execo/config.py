@@ -23,6 +23,7 @@ import sys
 SSH = 0
 SCP = 1
 TAKTUK = 2
+CHAINPUT = 3
 
 def checktty(f):
     try:
