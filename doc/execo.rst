@@ -111,8 +111,8 @@ needed.
 A configurable `execo.action.ActionFactory` can be created to choose
 which kind of actions to instanciate, ``ssh``/``scp`` or
 ``taktuk``. Functions `execo.action.get_remote`,
-`execo.action.get_fileput`, `execo.action.get_fileget` use a default
-`execo.action.ActionFactory`.
+`execo.action.get_fileput`, `execo.action.get_fileget` use the default
+`execo.action.ActionFactory`: `execo.action.default_action_factory`.
 
 As an example of the usage of the `execo.action.Remote` class, let's
 launch some commands on a few remote hosts::

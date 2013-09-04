@@ -1589,28 +1589,24 @@ class ActionFactory:
 
         if remote_tool == None:
             remote_tool = configuration.get("remote_tool")
-        if remote_tool not in [SSH, TAKTUK]:
-            raise KeyError, "no such remote tool: %s" % remote_tool
         if fileput_tool == None:
             fileput_tool = configuration.get("fileput_tool")
-        if fileput_tool not in [SCP, TAKTUK, CHAINPUT]:
-            raise KeyError, "no such fileput tool: %s" % fileput_tool
         if fileget_tool == None:
             fileget_tool = configuration.get("fileget_tool")
-        if fileget_tool not in [SCP, TAKTUK]:
-            raise KeyError, "no such fileget tool: %s" % fileget_tool
         self.remote_tool = remote_tool
         self.fileput_tool = fileput_tool
         self.fileget_tool = fileget_tool
 
-    def remote(self, *args, **kwargs):
+    def get_remote(self, *args, **kwargs):
         """Instanciates a `execo.action.Remote` or `execo.action.TaktukRemote`"""
         if self.remote_tool == SSH:
             return Remote(*args, **kwargs)
         elif self.remote_tool == TAKTUK:
             return TaktukRemote(*args, **kwargs)
+        else:
+            raise KeyError, "no such remote tool: %s" % self.remote_tool
 
-    def fileput(self, *args, **kwargs):
+    def get_fileput(self, *args, **kwargs):
         """Instanciates a `execo.action.Put`, `execo.action.TaktukPut` or `execo.action.MultiChainPut`"""
         if self.fileput_tool == SCP:
             return Put(*args, **kwargs)
@@ -1618,24 +1614,29 @@ class ActionFactory:
             return TaktukPut(*args, **kwargs)
         elif self.fileput_tool == CHAINPUT:
             return MultiChainPut(*args, **kwargs)
+        else:
+            raise KeyError, "no such fileput tool: %s" % self.fileput_tool
 
-    def fileget(self, *args, **kwargs):
+    def get_fileget(self, *args, **kwargs):
         """Instanciates a `execo.action.Get` or `execo.action.TaktukGet`"""
         if self.fileget_tool == SCP:
             return Get(*args, **kwargs)
         elif self.fileget_tool == TAKTUK:
             return TaktukGet(*args, **kwargs)
+        else:
+            raise KeyError, "no such fileget tool: %s" % self.fileget_tool
 
-_default_action_factory = ActionFactory()
+
+default_action_factory = ActionFactory()
 
 def get_remote(*args, **kwargs):
     """Instanciates a `execo.action.Remote` or `execo.action.TaktukRemote` with the default factory"""
-    return _default_action_factory.remote(*args, **kwargs)
+    return default_action_factory.get_remote(*args, **kwargs)
 
 def get_fileput(*args, **kwargs):
     """Instanciates a `execo.action.Put` or `execo.action.TaktukPut` with the default factory"""
-    return _default_action_factory.fileput(*args, **kwargs)
+    return default_action_factory.get_fileput(*args, **kwargs)
 
 def get_fileget(*args, **kwargs):
     """Instanciates a `execo.action.Get` or `execo.action.TaktukGet` with the default factory"""
-    return _default_action_factory.fileget(*args, **kwargs)
+    return default_action_factory.get_fileget(*args, **kwargs)

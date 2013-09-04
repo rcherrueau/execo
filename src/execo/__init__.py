@@ -22,7 +22,8 @@ Handles remote executions and file copies with ssh or similar tools.
 """
 
 from log import logger
-from config import configuration, default_connexion_params
+from config import configuration, default_connexion_params, \
+  SSH, TAKTUK, SCP, CHAINPUT
 from time_utils import sleep, Timer, format_date, format_duration, \
   get_seconds, get_unixts
 from host import Host
@@ -30,7 +31,7 @@ from process import Process, SshProcess, get_process, \
      ProcessLifecycleHandler, ProcessOutputHandler
 from action import Action, wait_any_actions, wait_all_actions, \
   Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet, Local, \
-  ParallelActions, SequentialActions, \
+  ParallelActions, SequentialActions, default_action_factory, \
   get_remote, get_fileput, get_fileget, \
   ActionLifecycleHandler, ChainPut, MultiChainPut
 from report import Report
