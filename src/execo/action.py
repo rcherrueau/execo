@@ -1540,6 +1540,38 @@ class ChainPut(ParallelActions):
         else:
             return self._name
 
+class MultiChainPut(SequentialActions):
+
+    """Multiple sequential ``execo.action.ChainPut`` for copying multiple files.
+    """
+
+    def __init__(self, hosts, local_files, remote_location = ".", connexion_params = None, name = None, timeout = None):
+        """
+        :param hosts: iterable of `execo.host.Host` onto which to copy
+          the files.
+
+        :param local_files: iterable of source file (local pathes).
+
+        :param remote_location: destination directory (remote path).
+
+        :param connexion_params: a dict similar to
+          `execo.config.default_connexion_params` whose values will
+          override those in default_connexion_params for connexion.
+
+        :param name: action's name
+        """
+        actions = []
+        for lf in local_files:
+            cp = ChainPut(hosts, lf, remote_location, connexion_params)
+            actions.append(cp)
+        super(MultiChainPut, self).__init__(actions, name = name)
+
+    def name(self):
+        if self._name == None:
+            return "%s to %i hosts" % (self.__class__.__name__, len(self._hosts))
+        else:
+            return self._name
+
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
 
