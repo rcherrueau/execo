@@ -1465,6 +1465,10 @@ class ChainPut(ParallelActions):
 
     """Broadcast a local file to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from kastafior).
 
+    Each broadcast is performed with a chain copy (simultaneously:
+    host0 sending to host1, host1 sending to host2, ... hostN to
+    hostN+1)
+
     ChainPut relies on:
 
     - running a bourne shell and netcat being available both on remote
@@ -1477,17 +1481,18 @@ class ChainPut(ParallelActions):
 
     On the security side, data transfers are not crypted, and ChainPut
     briefly opens a TCP server socket on each remote host, accepting any
-    data without authentication.
+    data without authentication. It is thus intended to be used in a
+    secured network environment.
     """
 
-    def __init__(self, hosts, source_file, destination_dir = ".", connexion_params = None, name = None, timeout = None):
+    def __init__(self, hosts, local_file, remote_location = ".", connexion_params = None, name = None, timeout = None):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
 
-        :param source_file: source file (local path).
+        :param local_file: source file (local path).
 
-        :param destination_dir: destination directory (remote path).
+        :param remote_location: destination directory (remote path).
 
         :param connexion_params: a dict similar to
           `execo.config.default_connexion_params` whose values will
@@ -1502,14 +1507,14 @@ class ChainPut(ParallelActions):
                 self._hosts.append(h)
                 tmphostsset.add(h)
         actual_connexion_params = make_connexion_params(connexion_params)
-        forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(destination_dir, os.path.basename(source_file)),
+        forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(remote_location, os.path.basename(local_file)),
                                                                                                                                                                                      actual_connexion_params['chainput_num_retry'],
                                                                                                                                                                                      actual_connexion_params['nc'],
                                                                                                                                                                                      host.address,
                                                                                                                                                                                      actual_connexion_params['chainput_port'],
                                                                                                                                                                                      actual_connexion_params['chainput_try_delay'])
                        for host in self._hosts[1:] ]
-        forwardcmd.append("> %s" % (os.path.join(destination_dir, os.path.basename(source_file)),))
+        forwardcmd.append("> %s" % (os.path.join(remote_location, os.path.basename(local_file)),))
         plch = ChainPutProcessLifecycleHandler(self)
         chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
                                                        actual_connexion_params['chainput_port']),
@@ -1521,7 +1526,7 @@ class ChainPut(ParallelActions):
                                                                                                                                                                              actual_connexion_params['nc'],
                                                                                                                                                                              self._hosts[0].address,
                                                                                                                                                                              actual_connexion_params['chainput_port'],
-                                                                                                                                                                             source_file,
+                                                                                                                                                                             local_file,
                                                                                                                                                                              actual_connexion_params['chainput_try_delay']),
                      shell = True,
                      timeout = timeout)
