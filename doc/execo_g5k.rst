@@ -365,33 +365,12 @@ deployment
 actions
 -------
 
-list_vm
--------
 .. autofunction:: list_vm
-
-define_vms
-----------
 .. autofunction:: define_vms
-
-create_disks
-------------
 .. autofunction:: create_disks
-
-install_vms
------------
 .. autofunction:: install_vms
-
-start_vms
----------
 .. autofunction:: start_vms
-
-
-wait_vms_have_started
----------------------
 .. autofunction:: wait_vms_have_started
-
-destroy_vms
------------
 .. autofunction:: destroy_vms
 
 
