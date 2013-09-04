@@ -70,7 +70,7 @@ class Virsh_Deployment(object):
         logger.debug('sites %s',    pformat (self.sites))
         logger.debug('sites %s',    pformat (self.hosts_attr))
         
-    def deploy_hosts(self, out = False, max_tries = 2):
+    def deploy_hosts(self, out = False, max_tries = 2, check_deployed_command = True):
         """ Deploy the environment specified by env_name or env_file """
         
         if self.env_file is not None:
@@ -82,8 +82,7 @@ class Virsh_Deployment(object):
             deployment = EX5.Deployment( hosts = self.hosts, env_name = self.env_name,
                                         vlan = self.kavlan)
             
-        deployed_hosts, undeployed_hosts = EX5.deploy(deployment, out = out, num_tries = max_tries)
-        
+        deployed_hosts, undeployed_hosts = EX5.deploy(deployment, out = out, num_tries = max_tries, check_deployed_command = check_deployed_command)
         
         if len(list(undeployed_hosts)) > 0 :
             logger.warning('Hosts %s haven\'t been deployed', ', '.join( [node.address for node in undeployed_hosts] ))
@@ -91,11 +90,8 @@ class Virsh_Deployment(object):
         if self.kavlan is not None:
             self.hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in deployed_hosts ]
         else: 
-            self.hosts = list(deployed_hosts)
-            
+            self.hosts = list(deployed_hosts)    
         self.hosts.sort(key = lambda x: x.address)
-        
-        
                 
         logger.info('%s deployed', ' '.join([host.address for host in self.hosts]))
    
@@ -567,7 +563,7 @@ def get_clusters(sites = None, n_nodes = 1, node_flops = 10**1, virt = False, ka
     kavlan_clusters = []
     for site in sites:
         for cluster in get_site_clusters(site):
-            if get_resource_attributes('grid5000/sites/'+site+'/clusters/'+cluster+'/nodes')['total'] >= n_nodes:
+            if get_resource_attributes('sites/'+site+'/clusters/'+cluster+'/nodes')['total'] >= n_nodes:
                 big_clusters.append(cluster)
             if get_host_attributes(cluster+'-1.'+site+'.grid5000.fr')['supported_job_types']['virtual'] in [ 'ivt', 'amd-v']:
                 virt_clusters.append(cluster)
