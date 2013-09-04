@@ -35,3 +35,4 @@ from action import Action, wait_any_actions, wait_all_actions, \
   get_remote, get_fileput, get_fileget, \
   ActionLifecycleHandler, ChainPut, MultiChainPut
 from report import Report
+from exception import ProcessesFailed, ActionsFailed
