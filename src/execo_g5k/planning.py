@@ -139,7 +139,7 @@ class Planning:
             endstamp = self.endstamp
         cluster_planning = {}
         site = API.get_cluster_site(cluster)
-        hosts = API.get_resource_attributes('/grid5000/sites/'+site+'/clusters/'+cluster+'/status?reservations_limit=100')
+        hosts = API.get_resource_attributes('/sites/'+site+'/clusters/'+cluster+'/status?reservations_limit=100')
         for host in hosts['items']:
             if host['hardware_state'] != 'dead':
                 cluster_planning[host['node_uid']] = self.host(host['reservations'], startstamp, endstamp)
@@ -156,7 +156,7 @@ class Planning:
             endstamp = self.endstamp
         site_planning = {}
         try:
-            hosts = API.get_resource_attributes('/grid5000/sites/'+site+'/status?reservations_limit=100')
+            hosts = API.get_resource_attributes('/sites/'+site+'/status?reservations_limit=100')
         except:
             logger.warning('Site %s is not available', site)
             return None
