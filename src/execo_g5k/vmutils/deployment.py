@@ -362,7 +362,7 @@ class Virsh_Deployment(object):
                                     connexion_params = {'user': 'root'}).run()
         else:
             logger.info("Copying backing file from frontends")
-            copy_file = EX.ChainPut(self.hosts, disk_image, destination_dir='/tmp/',
+            copy_file = EX.ChainPut(self.hosts, disk_image, remote_location='/tmp/',
                                     connexion_params = {'user': 'root'}).run()
 #            frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
 #            dests = [ host.address for host in self.hosts]
