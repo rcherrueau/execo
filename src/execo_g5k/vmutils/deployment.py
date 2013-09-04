@@ -109,8 +109,8 @@ class Virsh_Deployment(object):
                 'Package: * \nPin: release a=unstable \nPin-Priority: 800\n\n')
         f.close()
         
-        apt_conf = EX.SequentialActions([self.fact.fileput(self.hosts, self.outdir + '/sources.list', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
-            self.fact.fileput(self.hosts, self.outdir + '/preferences', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
+        apt_conf = EX.SequentialActions([self.fact.get_fileput(self.hosts, self.outdir + '/sources.list', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
+            self.fact.get_fileput(self.hosts, self.outdir + '/preferences', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
         
         if apt_conf.ok():
             logger.debug('apt configured successfully')
@@ -226,7 +226,7 @@ class Virsh_Deployment(object):
         self.fact.remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
                     connexion_params = {'user': 'root'}, log_exit_code = False).run()
         
-        self.fact.fileput(self.hosts, 'default.xml', remote_location = '/etc/libvirt/qemu/networks/',
+        self.fact.get_fileput(self.hosts, 'default.xml', remote_location = '/etc/libvirt/qemu/networks/',
                       connexion_params = {'user': 'root'}).run()
               
         self.fact.remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; virsh net-start default; virsh net-autostart default; ', 
@@ -380,7 +380,7 @@ class Virsh_Deployment(object):
         """ Copy your public key into the .ssh/authorized_keys """
         logger.info('Copying ssh key on vm-base ...')
         
-        copy_on_host = self.fact.fileput(self.hosts, ['~/.ssh/id_rsa', '~/.ssh/id_rsa.pub'],
+        copy_on_host = self.fact.get_fileput(self.hosts, ['~/.ssh/id_rsa', '~/.ssh/id_rsa.pub'],
                                         remote_location = '/root/.ssh', 
                                       connexion_params = {'user': 'root'}).run()
         
