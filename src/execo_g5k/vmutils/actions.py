@@ -23,7 +23,7 @@ from execo.log import set_style
 from execo.time_utils import sleep
 from execo_g5k.api_utils import get_host_site
 import tempfile
-
+from execo.exception import ActionsFailed
 
 def list_vm( host, all = False ):
     """ Return the list of VMs on host """
@@ -74,7 +74,16 @@ def create_disks(vms, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw
     logger.debug(pformat(hosts_cmds.values()))
     
     return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
-    
+
+def create_disks_on_hosts(vms, hosts, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
+    """ Return a Parallel action to create the qcow2 disks on all hosts"""
+    host_actions = []
+    for host in hosts:
+        tmp_vms = vms[:]
+        for vm in tmp_vms:
+            vm['host'] = host
+        host_actions.append(create_disks(tmp_vms, backing_file, backing_file_fmt))
+    return ParallelActions(host_actions)
 
 def install_vms(vms):
     """ Return an action to install the VM on the hosts"""
@@ -100,6 +109,7 @@ def start_vms(vms):
     logger.debug(pformat(hosts_cmds))
     return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
     
+
 
 def wait_vms_have_started(vms):
     """ Try to make a ls on all vms and return True when all process are ok", need a taktuk gateway"""
@@ -159,6 +169,29 @@ def wait_vms_have_started(vms):
 
     return ssh_open
 
+
+def migrate_vm(vm, host):
+    """ Migrate a VM to an host """
+    if vm['host'] is None:
+        raise NameError
+        return None
+    else:
+        src = vm['host']
+        
+    # Check that the disk is here
+    test_disk = Remote('ls /tmp/'+vm['vm_id']+'.qcow2', [host]).run()
+    if not test_disk.ok():
+        vm['host'] = host
+        create_disk_on_dest = create_disks([vm]).run()
+        if not create_disk_on_dest:
+            raise ActionsFailed, [create_disk_on_dest]
+    
+    cmd = 'virsh --connect qemu:///system migrate '+vm['vm_id']+' --live --copy-storage-inc '+\
+            'qemu+ssh://'+host.address+"/system'  "
+    return Remote(cmd, [src], connexion_params = {'user': 'root'} ) 
+    
+    
+    
 
 
 def destroy_vms( hosts):
