@@ -27,19 +27,7 @@ from time_utils import format_unixts, get_seconds
 from utils import compact_output, nice_cmdline
 from report import Report
 import errno, os, re, shlex, signal, subprocess
-import threading, time, functools
-
-def synchronized(func):
-    # decorator (similar to java synchronized) to ensure mutual
-    # exclusion between some methods that may be called by different
-    # threads (the main thread and the _Conductor thread), to ensure
-    # that the Process instances always have a consistent state.
-    # TO BE USED ONLY BY PROCESSBASE OR SUBCLASSES OF
-    @functools.wraps(func)
-    def wrapper(*args, **kw):
-        with args[0]._lock:
-            return func(*args, **kw)
-    return wrapper
+import threading, time
 
 class ProcessLifecycleHandler(object):
 
@@ -234,7 +222,8 @@ class ProcessBase(object):
         # reinitialize an object. If redefined in a child class,
         # _common_reset() must then explicitely call _common_reset()
         # of its parent class.
-        # not synchronized. This is the job of calling code to
+
+        # no lock taken. This is the job of calling code to
         # synchronize.
         self._started = False
         self._start_date = None
@@ -289,19 +278,19 @@ class ProcessBase(object):
                  "exit_code=%s" % (self._exit_code,),
                  "ok=%s" % (self.ok(),) ]
 
-    @synchronized
     def __repr__(self):
         # implemented once for all subclasses
-        return "%s(%s)" % (self.__class__.__name__, ", ".join(self._args()))
+        with self._lock:
+            return "%s(%s)" % (self.__class__.__name__, ", ".join(self._args()))
 
-    @synchronized
     def __str__(self):
         # implemented once for all subclasses
-        return "<" + set_style(self.__class__.__name__, 'object_repr') + "(%s)>" % (", ".join(self._args() + self._infos()),)
+        with self._lock:
+            return "<" + set_style(self.__class__.__name__, 'object_repr') + "(%s)>" % (", ".join(self._args() + self._infos()),)
 
-    @synchronized
     def dump(self):
-        return " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
+        with self._lock:
+            return " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
 
     def name(self):
         """Return process friendly name."""
@@ -330,10 +319,10 @@ class ProcessBase(object):
         """Return the process end date or None if not yet ended."""
         return self._end_date
 
-    @synchronized
     def running(self):
         """Return a boolean indicating if the process is currently running."""
-        return self._started and not self._ended
+        with self._lock:
+            return self._started and not self._ended
 
     def error(self):
         """Return a boolean indicating if there was an error starting the process.
@@ -448,7 +437,6 @@ class ProcessBase(object):
                     self._stderr_files[handler].close()
                     del self._stderr_files[handler]
 
-    @synchronized
     def ok(self):
         """Check process is ok.
 
@@ -465,20 +453,21 @@ class ProcessBase(object):
           - returned 0 (or was instructed to ignore a non zero exit
             code)
         """
-        if not self._started: return True
-        if self._started and not self._ended: return True
-        return ((not self._error or self.ignore_error)
-                and (not self._timeouted or self.ignore_timeout)
-                and (self._exit_code == 0 or self.ignore_exit_code))
+        with self._lock:
+            if not self._started: return True
+            if self._started and not self._ended: return True
+            return ((not self._error or self.ignore_error)
+                    and (not self._timeouted or self.ignore_timeout)
+                    and (self._exit_code == 0 or self.ignore_exit_code))
 
-    @synchronized
     def finished_ok(self):
         """Check process has ran and is ok.
 
         A process is finished_ok if it has started and ended and
         it is ok.
         """
-        return self._started and self._ended and self.ok()
+        with self._lock:
+            return self._started and self._ended and self.ok()
 
     def _log_terminated(self):
         """To be called (in subclasses) when a process terminates.
@@ -490,6 +479,7 @@ class ProcessBase(object):
             warn = ((self._error and (self.log_error if self.log_error != None else not self.ignore_error))
                     or (self._timeouted and (self.log_timeout if self.log_timeout != None else not self.ignore_timeout))
                     or (self._exit_code != 0 and (self.log_exit_code if self.log_exit_code != None else not self.ignore_exit_code)))
+        # actual logging outside the lock to avoid deadlock between process lock and logging lock
         if warn:
             logger.warning(s)
         else:
@@ -507,8 +497,6 @@ class ProcessBase(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting;
         """
-        # not synchronized: instead, self._lock managed explicitely
-        # where needed
         logger.debug(set_style("reset:", 'emph') + " %s" % (str(self),))
         if self._started and not self._ended:
             self.kill()
@@ -523,31 +511,31 @@ class ProcessBase(object):
         """Return the remote host."""
         return self._host
 
-    @synchronized
     def stats(self):
         """Return a dict summarizing the statistics of this process.
 
         see `execo.report.Report.stats`.
         """
-        stats = Report.empty_stats()
-        stats['name'] = self.name()
-        stats['start_date'] = self._start_date
-        stats['end_date'] = self._end_date
-        stats['num_processes'] = 1
-        if self._started: stats['num_started'] += 1
-        if self._ended: stats['num_ended'] += 1
-        if self._error: stats['num_errors'] += 1
-        if self._timeouted: stats['num_timeouts'] += 1
-        if self._forced_kill: stats['num_forced_kills'] += 1
-        if (self._started
-            and self._ended
-            and self._exit_code != 0):
-            stats['num_non_zero_exit_codes'] += 1
-        if self.ok():
-            stats['num_ok'] += 1
-        if self.finished_ok():
-            stats['num_finished_ok'] +=1
-        return stats
+        with self._lock:
+            stats = Report.empty_stats()
+            stats['name'] = self.name()
+            stats['start_date'] = self._start_date
+            stats['end_date'] = self._end_date
+            stats['num_processes'] = 1
+            if self._started: stats['num_started'] += 1
+            if self._ended: stats['num_ended'] += 1
+            if self._error: stats['num_errors'] += 1
+            if self._timeouted: stats['num_timeouts'] += 1
+            if self._forced_kill: stats['num_forced_kills'] += 1
+            if (self._started
+                and self._ended
+                and self._exit_code != 0):
+                stats['num_non_zero_exit_codes'] += 1
+            if self.ok():
+                stats['num_ok'] += 1
+            if self.finished_ok():
+                stats['num_finished_ok'] +=1
+            return stats
 
 def _get_childs(pid):
     childs = []
@@ -669,49 +657,49 @@ class Process(ProcessBase):
         """Return the subprocess's pid, if available (subprocess started) or None."""
         return self._pid
 
-    @synchronized
     def stdout_fd(self):
         """Return the subprocess stdout filehandle.
 
         Or None if not available.
         """
-        if self._process != None:
-            if self._pty:
-                return self._ptymaster
+        with self._lock:
+            if self._process != None:
+                if self._pty:
+                    return self._ptymaster
+                else:
+                    return self._process.stdout.fileno()
             else:
-                return self._process.stdout.fileno()
-        else:
-            return None
+                return None
 
-    @synchronized
     def stderr_fd(self):
         """Return the subprocess stderr filehandle.
 
         Or None if not available.
         """
-        if self._process != None:
-            return self._process.stderr.fileno()
-        else:
-            return None
+        with self._lock:
+            if self._process != None:
+                return self._process.stderr.fileno()
+            else:
+                return None
 
-    @synchronized
     def stdin_fd(self):
         """Return the subprocess stdin filehandle.
 
         Or None if not available.
         """
-        if self._process != None and not self._close_stdin:
-            if self._pty:
-                return self._ptymaster
+        with self._lock:
+            if self._process != None and not self._close_stdin:
+                if self._pty:
+                    return self._ptymaster
+                else:
+                    return self._process.stdin.fileno()
             else:
-                return self._process.stdin.fileno()
-        else:
-            return None
+                return None
 
     def start(self):
         """Start the subprocess."""
-        # not synchronized: instead, self._lock managed explicitely to
-        # avoid deadlock with conductor lock, and to allow calling
+        # careful placement of locked section to avoid deadlock with
+        # conductor lock, with logging lock, and to allow calling
         # lifecycle handlers outside the lock
         with self._lock:
             if self._started:
@@ -826,7 +814,6 @@ class Process(ProcessBase):
                     raise e
         return self
 
-    @synchronized
     def _timeout_kill(self):
         """Send SIGTERM to the subprocess, due to the reaching of its timeout.
 
@@ -836,12 +823,13 @@ class Process(ProcessBase):
         If the subprocess already got a SIGTERM and is still there, it
         is directly killed with SIGKILL.
         """
-        if self._pid != None:
-            self._timeouted = True
-            if self._already_got_sigterm and self._timeout_date >= time.time():
-                self.kill(signal.SIGKILL)
-            else:
-                self.kill()
+        with self._lock:
+            if self._pid != None:
+                self._timeouted = True
+                if self._already_got_sigterm and self._timeout_date >= time.time():
+                    self.kill(signal.SIGKILL)
+                else:
+                    self.kill()
 
     def _set_terminated(self, exit_code):
         """Update process state: set it to terminated.
@@ -854,9 +842,9 @@ class Process(ProcessBase):
         """
         logger.debug("set terminated %s, exit_code=%s" % (str(self), exit_code))
         with self._lock:
-            # not synchronized: instead, self._lock managed
-            # explicitely to allow calling lifecycle handlers outside
-            # the lock
+            # careful placement of locked sections to avoid deadlock
+            # between process lock and logging lock, and to allow
+            # calling lifecycle handlers outside the lock
             self._exit_code = exit_code
             self._end_date = time.time()
             self._ended = True
@@ -1008,8 +996,8 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         This method is intended to be used by
         `execo.action.TaktukRemote`.
         """
-        # not synchronized: instead, self._lock managed explicitely to
-        # allow calling lifecycle handlers outside the lock
+        # ceraful placement of locked sections to allow calling
+        # lifecycle handlers outside the lock
         with self._lock:
             if self._started:
                 raise ValueError, "unable to start an already started process"
@@ -1030,8 +1018,8 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         Update its exit_code, end_date, ended flag, and log its
         termination (INFO or WARNING depending on how it ended).
         """
-        # not synchronized: instead, self._lock managed explicitely to
-        # allow calling lifecycle handlers outside the lock
+        # careful placement of locked sections to allow calling
+        # lifecycle handlers outside the lock
         logger.debug("set terminated %s, exit_code=%s, error=%s" % (str(self), exit_code, error))
         with self._lock:
             if not self._started:
