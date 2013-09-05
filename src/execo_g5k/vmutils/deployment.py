@@ -403,10 +403,10 @@ class Virsh_Deployment(object):
         cmd = 'modprobe nbd max_part=1; '+ \
                 'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img ; sleep 3 ; '+ \
                 'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
-                'cat /root/authorized_keys >> /mnt/root/.ssh/authorized_keys ; '+ \
+                'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+ \
                 'cp -r '+ssh_key+'* /mnt/root/.ssh/ ;'+ \
                 'umount /mnt; qemu-nbd -d /dev/nbd0 '
-        logger.debug(cmd)
+        logger.info(cmd)
         copy_on_vm_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
         logger.debug('%s', copy_on_vm_base.ok())
     
@@ -414,7 +414,8 @@ class Virsh_Deployment(object):
         """ Generate an XML file with the VM deployment topology """
         deployment = ETree.Element('virsh_deployment')  
         for vm in self.vms:
-            host_info = vm['host']
+            host_info = vm['host'].address
+            print host_info
             host_uid =   host_info[0].split('-')[0]+'-'+host_info[0].split('-')[1]
             cluster_uid = host_info[0].split('-')[0]
             site_uid = host_info[1]
