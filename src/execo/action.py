@@ -81,7 +81,6 @@ class Action(object):
         self._end_event.clear()
         self._name = name
         self.lifecycle_handlers = list()
-        self.factory = None
         """List of instances of `execo.action.ActionLifecycleHandler` for being
         notified of action lifecycle events."""
 
@@ -1517,15 +1516,11 @@ class ChainPut(ParallelActions):
                        for host in self._hosts[1:] ]
         forwardcmd.append("> %s" % (os.path.join(remote_location, os.path.basename(local_file)),))
         plch = ChainPutProcessLifecycleHandler(self)
-        if self.factory:
-            factory = self.factory
-        else:
-            factory = default_action_factory
-        chain = factory.get_remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
-                                                                   actual_connexion_params['chainput_port']),
-                                   self._hosts,
-                                   connexion_params,
-                                   timeout = timeout)
+        chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
+                                                       actual_connexion_params['chainput_port']),
+                             self._hosts,
+                             connexion_params,
+                             timeout = timeout)
         [ p.lifecycle_handlers.append(plch) for p in chain.processes() ]
         send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connexion_params['chainput_num_retry'],
                                                                                                                                                                              actual_connexion_params['nc'],
@@ -1605,37 +1600,31 @@ class ActionFactory:
     def get_remote(self, *args, **kwargs):
         """Instanciates a `execo.action.Remote` or `execo.action.TaktukRemote`"""
         if self.remote_tool == SSH:
-            r = Remote(*args, **kwargs)
+            return Remote(*args, **kwargs)
         elif self.remote_tool == TAKTUK:
-            r = TaktukRemote(*args, **kwargs)
+            return TaktukRemote(*args, **kwargs)
         else:
             raise KeyError, "no such remote tool: %s" % self.remote_tool
-        r.factory = self
-        return r
 
     def get_fileput(self, *args, **kwargs):
         """Instanciates a `execo.action.Put`, `execo.action.TaktukPut` or `execo.action.MultiChainPut`"""
         if self.fileput_tool == SCP:
-            p = Put(*args, **kwargs)
+            return Put(*args, **kwargs)
         elif self.fileput_tool == TAKTUK:
-            p = TaktukPut(*args, **kwargs)
+            return TaktukPut(*args, **kwargs)
         elif self.fileput_tool == CHAINPUT:
-            p = MultiChainPut(*args, **kwargs)
+            return MultiChainPut(*args, **kwargs)
         else:
             raise KeyError, "no such fileput tool: %s" % self.fileput_tool
-        p.factory = self
-        return p
 
     def get_fileget(self, *args, **kwargs):
         """Instanciates a `execo.action.Get` or `execo.action.TaktukGet`"""
         if self.fileget_tool == SCP:
-            g = Get(*args, **kwargs)
+            return Get(*args, **kwargs)
         elif self.fileget_tool == TAKTUK:
-            g = TaktukGet(*args, **kwargs)
+            return TaktukGet(*args, **kwargs)
         else:
             raise KeyError, "no such fileget tool: %s" % self.fileget_tool
-        g.factory = self
-        return g
 
 
 default_action_factory = ActionFactory()
