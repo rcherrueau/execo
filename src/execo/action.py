@@ -356,7 +356,7 @@ class Remote(Action):
         self._cmd = cmd
         self._connexion_params = connexion_params
         self._other_kwargs = kwargs
-        self._caller_context = get_caller_context()
+        self._caller_context = get_caller_context(['get_remote'])
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
         self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self._hosts))
@@ -614,7 +614,7 @@ class TaktukRemote(Action):
         self._cmd = cmd
         self._connexion_params = connexion_params
         self._other_kwargs = kwargs
-        self._caller_context = get_caller_context()
+        self._caller_context = get_caller_context(['get_remote'])
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
@@ -785,7 +785,7 @@ class Put(Remote):
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
         super(Remote, self).__init__(name = name)
-        self._caller_context = get_caller_context()
+        self._caller_context = get_caller_context(['get_fileput'])
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
         self._local_files = local_files
@@ -850,7 +850,7 @@ class Get(Remote):
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
         super(Remote, self).__init__(name = name)
-        self._caller_context = get_caller_context()
+        self._caller_context = get_caller_context(['get_fileget'])
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
         self._remote_files = remote_files
@@ -994,7 +994,7 @@ class TaktukPut(TaktukRemote):
         if local_files != None and (not hasattr(local_files, '__iter__')):
             local_files = (local_files,)
         super(TaktukRemote, self).__init__(name = name)
-        self._caller_context = get_caller_context()
+        self._caller_context = get_caller_context(['get_fileput'])
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
         self._local_files = local_files
@@ -1162,7 +1162,7 @@ class TaktukGet(TaktukRemote):
         if remote_files != None and (not hasattr(remote_files, '__iter__')):
             remote_files = (remote_files,)
         super(TaktukRemote, self).__init__(name = name)
-        self._caller_context = get_caller_context()
+        self._caller_context = get_caller_context(['get_fileget'])
         self._hosts = get_hosts_list(hosts)
         self._processes = list()
         self._remote_files = remote_files

@@ -19,9 +19,14 @@
 import inspect
 import re
 
-def get_caller_context():
-    """Return a tuple with (globals, locals) of the calling context."""
-    return (inspect.stack()[2][0].f_globals, inspect.stack()[2][0].f_locals)
+def get_caller_context(filter_out_funcs = None):
+    """Return a tuple with (globals, locals) of the calling context.
+
+    optional keyword arguments is a list of function names which are skipped."""
+    for frame_record in inspect.stack()[2:]:
+        if not filter_out_funcs or frame_record[3] not in filter_out_funcs:
+            return frame_record[0].f_globals, frame_record[0].f_locals
+    return None, None
 
 def remote_substitute(string, all_hosts, index, frame_context):
     """Perform some tag substitutions in a specific context.
