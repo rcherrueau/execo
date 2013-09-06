@@ -18,18 +18,9 @@
 
 from log import set_style, logger, logger_handler
 from time_utils import format_unixts
-import Queue
-import errno
-import fcntl
-import logging
-import os
-import select
-import signal
-import sys
-import thread
-import threading
-import time
-import traceback
+import Queue, errno, fcntl, logging, os, select, \
+  signal, sys, thread, threading, time, traceback, \
+  subprocess
 
 # assuming import of this module is triggered from "the main" thread,
 # the following call is intended to workaround python issue #7980
@@ -41,8 +32,10 @@ except:
     pass
 
 # max number of bytes read when reading asynchronously from a pipe
-# (from _POSIX_SSIZE_MAX)
-_MAXREAD = 32767
+try:
+    _MAXREAD = int(subprocess.Popen(["getconf", "_POSIX_SSIZE_MAX"], stdout=subprocess.PIPE).communicate()[0])
+except:
+    _MAXREAD = 32767
 
 if sys.platform.startswith('darwin') or sys.platform.startswith('win'):
 
