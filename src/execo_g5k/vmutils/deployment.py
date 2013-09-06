@@ -412,32 +412,39 @@ class Virsh_Deployment(object):
     
     def write_placement_file(self):
         """ Generate an XML file with the VM deployment topology """
-        deployment = ETree.Element('virsh_deployment')  
-        for vm in self.vms:
-            host_info = vm['host'].address
-            print host_info
-            host_uid =   host_info[0].split('-')[0]+'-'+host_info[0].split('-')[1]
-            cluster_uid = host_info[0].split('-')[0]
-            site_uid = host_info[1]
-        #    print host_uid, cluster_uid, site_uid
-            if deployment.find("./site[@id='"+site_uid+"']") is None:
-                site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
-            else:
-                site = deployment.find("./site[@id='"+site_uid+"']")
-            if site.find("./cluster/[@id='"+cluster_uid+"']") is None:
-                cluster = ETree.SubElement(site, 'cluster', attrib = {'id': cluster_uid})
-            else:
-                cluster = site.find("./cluster/[@id='"+cluster_uid+"']")
-            if cluster.find("./host/[@id='"+host_uid+"']") is None:
-                host = ETree.SubElement(cluster, 'host', attrib = {'id': host_uid})
-            else:
-                host = cluster.find("./host/[@id='"+host_uid+"']")
-            el_vm = ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
-                        'mem': str(vm['mem_size']), 'cpu': str(vm['vcpus']), 'hdd': str(vm['hdd_size'])})
-        
-        f = open(self.outdir+'/placement.xml', 'w')
-        f.write(prettify(deployment))
-        f.close()
+        raise NotImplementedError
+        pass
+#        deployment = ETree.Element('vm5k')
+#        
+#        
+#        for vm in self.vms:
+#            host_info = vm['host'].address
+#            print host_info
+#            host_uid =   host_info.split('-')[0]+'-'+host_info.split('-')[1]
+#            cluster_uid = host_info.split('-')[0]
+#            site_uid = host_info.split('.')[1]
+#            print host_uid, cluster_uid, site_uid
+#            
+#            
+#            # FUCKING PYTHON 2.6 ....
+#            if deployment.find("./site[@id='"+site_uid+"']") is None:
+#                site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
+#            else:
+#                site = deployment.find("./site[@id='"+site_uid+"']")
+#            if site.find("./cluster/[@id='"+cluster_uid+"']") is None:
+#                cluster = ETree.SubElement(site, 'cluster', attrib = {'id': cluster_uid})
+#            else:
+#                cluster = site.find("./cluster/[@id='"+cluster_uid+"']")
+#            if cluster.find("./host/[@id='"+host_uid+"']") is None:
+#                host = ETree.SubElement(cluster, 'host', attrib = {'id': host_uid})
+#            else:
+#                host = cluster.find("./host/[@id='"+host_uid+"']")
+#            el_vm = ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
+#                        'mem': str(vm['mem_size']), 'cpu': str(vm['vcpus']), 'hdd': str(vm['hdd_size'])})
+#        
+#        f = open(self.outdir+'/placement.xml', 'w')
+#        f.write(prettify(deployment))
+#        f.close()
 
         
     def distribute_vms(self, vms, mode = 'distributed', placement = None):    
