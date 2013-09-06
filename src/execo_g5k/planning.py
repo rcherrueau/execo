@@ -345,7 +345,7 @@ class Planning:
         if not hasattr(self, 'slots'):
             self.compute_slots()
         logger.debug(pformat(resources))
-        logger.info('Filtering slots with enough resources')
+        logger.info('Filtering slots with enough '+set_style('nodes', 'emph') )
         duration = oar_duration_to_seconds(walltime)
         slots_ok = []
         for slot in self.slots:
