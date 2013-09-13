@@ -39,15 +39,10 @@ from execo.exception import ActionsFailed
 class Virsh_Deployment(object):
     """ A object that allow you to deploy some wheezy-based hosts with an up-to-date version of libvirt with
     a pool of ip-MAC addresses for your virtual machines """
-    def __init__(self, hosts = None, env_name = None, env_file = None, kavlan = None, oarjob_id = None, outdir = None, fact = 'TAKTUK' ):
+    def __init__(self, hosts = None, env_name = None, env_file = None, kavlan = None, oarjob_id = None, outdir = None):
         """ Initialization of the object"""
         logger.info('Initializing Virsh_Deployment on %s hosts', len(hosts))
         self.max_vms = 10227
-#        if fact == 'TAKTUK':        
-#            self.fact = ActionFactory(remote_tool = TAKTUK,
-#                                fileput_tool = TAKTUK,
-#                                fileget_tool = TAKTUK)
-#        else:
         self.fact = ActionFactory(remote_tool = SSH,
                                 fileput_tool = SCP,
                                 fileget_tool = SCP)
@@ -109,8 +104,8 @@ class Virsh_Deployment(object):
                 'Package: * \nPin: release a=unstable \nPin-Priority: 800\n\n')
         f.close()
         
-        apt_conf = EX.SequentialActions([self.fact.get_fileput(self.hosts, self.outdir + '/sources.list', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
-            self.fact.get_fileput(self.hosts, self.outdir + '/preferences', remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
+        apt_conf = EX.SequentialActions([self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
+            self.fact.get_fileput(self.hosts, [self.outdir + '/preferences'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
         
         if apt_conf.ok():
             logger.debug('apt configured successfully')
@@ -239,7 +234,7 @@ class Virsh_Deployment(object):
         self.fact.get_remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
                     connexion_params = {'user': 'root'}, log_exit_code = False).run()
         
-        self.fact.get_fileput(self.hosts, 'default.xml', remote_location = '/etc/libvirt/qemu/networks/',
+        self.fact.get_fileput(self.hosts, ['default.xml'], remote_location = '/etc/libvirt/qemu/networks/',
                       connexion_params = {'user': 'root'}).run()
               
         self.fact.get_remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; virsh net-start default; virsh net-autostart default; ', 
@@ -317,7 +312,7 @@ class Virsh_Deployment(object):
         f = open(self.outdir+'/vms.list', 'w')
         f.write('\n')
         for idx, val in enumerate(self.ip_mac):
-            f.write(val[0]+'     vm-'+str(idx)+'\n')
+            f.write('vm-'+str(idx)+'         '+val[0]+'\n')
         f.close()
         get_ip = SshProcess('host '+service_node.address+' |cut -d \' \' -f 4', 'rennes', 
                 connexion_params = default_frontend_connexion_params).run()
@@ -406,7 +401,7 @@ class Virsh_Deployment(object):
                 'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+ \
                 'cp -r '+ssh_key+'* /mnt/root/.ssh/ ;'+ \
                 'umount /mnt; qemu-nbd -d /dev/nbd0 '
-        logger.info(cmd)
+        logger.debug(cmd)
         copy_on_vm_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
         logger.debug('%s', copy_on_vm_base.ok())
     
@@ -456,20 +451,25 @@ class Virsh_Deployment(object):
             host = iter_hosts.next()
             hosts_vm = {}
             max_mem = {}
+            max_cpu = {}
             total_mem = {}
+            total_cpu = {}
             
             if mode is 'distributed':
                 for h in self.hosts:        
-                    max_mem[h.address] = self.hosts_attr[h.address.split('-')[0]]['ram_size']/10**6 
+                    max_mem[h.address] = self.hosts_attr[h.address.split('-')[0]]['ram_size']/1048576 
+                    max_cpu[h.address] = self.hosts_attr[h.address.split('-')[0]]['n_cpu']*2
                     total_mem[h.address] =  0 
+                    total_cpu[h.address] =  0
                         
                 for vm in vms:
-                    if total_mem[host.address] + vm['mem_size'] > max_mem[host.address]:
+                    if total_mem[host.address] + vm['mem_size'] > max_mem[host.address] \
+                        or total_cpu[host.address] + vm['vcpus'] > max_cpu[host.address]:
                         dist_hosts.remove(host)
                         iter_hosts = cycle(dist_hosts)
-                
                     vm['host'] = host
                     total_mem[host.address] += vm['mem_size']
+                    total_cpu[host.address] += vm['vcpus']
                     if not hosts_vm.has_key(host.address):
                         hosts_vm[host.address] = []
                     hosts_vm[host.address].append(vm['vm_id'])
@@ -520,7 +520,7 @@ class Virsh_Deployment(object):
         logger.info( '\n%s', '\n'.join( [set_style(host, 'host')+': '+\
                                           ', '.join( [set_style(vm,'emph')  for vm in host_vms]) for host, host_vms in hosts_vm.iteritems() ] ))
         
-        self.vms = vms
+        return vms
 
     def get_max_vms(self, vm_template):
         """ A basic function that determine the maximum number of VM you can have depending on the vm template"""
@@ -528,7 +528,7 @@ class Virsh_Deployment(object):
         vm_vcpu = int(ETree.fromstring(vm_template).get('cpu'))
         self.get_hosts_attr()
         max_vms_ram = int(self.hosts_attr['total']['ram_size']/vm_ram_size)
-        max_vms_cpu = int(8*self.hosts_attr['total']['n_cpu']/vm_vcpu) 
+        max_vms_cpu = int(2*self.hosts_attr['total']['n_cpu']/vm_vcpu) 
         max_vms = min(max_vms_ram, max_vms_cpu)
         logger.info('Maximum number of VM is %s', str(max_vms))
         return max_vms 

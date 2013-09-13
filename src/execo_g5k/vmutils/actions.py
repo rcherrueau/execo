@@ -54,6 +54,7 @@ def define_vms( n_vm, ip_mac = None, mem_size = 256, hdd_size = 2, n_cpu = 1, cp
         for i in range(n_vm): cpusets['vm-'+str(i)] = 'auto'
     logger.debug('cpusets: %s', pformat(cpusets))
 
+    
     for i_vm in range( len(vms), n_vm + len(vms)):
         vms.append( {'vm_id': 'vm-'+str(i_vm), 'hdd_size': hdd_size,
                 'mem_size': mem_size, 'vcpus': n_cpu, 'cpuset': cpusets['vm-'+str(i_vm)],
@@ -73,13 +74,13 @@ def create_disks(vms, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw
     
     logger.debug(pformat(hosts_cmds.values()))
     
-    return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
 
 def create_disks_on_hosts(vms, hosts, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
     """ Return a Parallel action to create the qcow2 disks on all hosts"""
     host_actions = []
     for host in hosts:
-        tmp_vms = vms[:]
+        tmp_vms = list(vms)
         for vm in tmp_vms:
             vm['host'] = host
         host_actions.append(create_disks(tmp_vms, backing_file, backing_file_fmt))
@@ -96,7 +97,7 @@ def install_vms(vms):
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
     logger.debug(pformat(hosts_cmds))
-    return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
     
     
 def start_vms(vms):
@@ -107,7 +108,7 @@ def start_vms(vms):
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
     logger.debug(pformat(hosts_cmds))
-    return Remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
     
 
 
@@ -179,7 +180,7 @@ def migrate_vm(vm, host):
         src = vm['host']
         
     # Check that the disk is here
-    test_disk = Remote('ls /tmp/'+vm['vm_id']+'.qcow2', [host]).run()
+    test_disk = get_remote('ls /tmp/'+vm['vm_id']+'.qcow2', [host]).run()
     if not test_disk.ok():
         vm['host'] = host
         create_disk_on_dest = create_disks([vm]).run()
@@ -188,7 +189,7 @@ def migrate_vm(vm, host):
     
     cmd = 'virsh --connect qemu:///system migrate '+vm['vm_id']+' --live --copy-storage-inc '+\
             'qemu+ssh://'+host.address+"/system'  "
-    return Remote(cmd, [src], connexion_params = {'user': 'root'} ) 
+    return get_remote(cmd, [src], connexion_params = {'user': 'root'} ) 
     
     
     
@@ -206,7 +207,7 @@ def destroy_vms( hosts):
             hosts_with_vms.append(host)
         
     if len(cmds) > 0:
-        Remote('{{cmds}}', hosts_with_vms, connexion_params = {'user': 'root'}).run()
+        get_remote('{{cmds}}', hosts_with_vms, connexion_params = {'user': 'root'}).run()
         
     
 
