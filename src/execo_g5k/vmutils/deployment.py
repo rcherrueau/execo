@@ -328,7 +328,7 @@ class Virsh_Deployment(object):
         logger.info('Configuring %s as a %s server', set_style(service_node.address.split('.')[0], 'host')
                     , set_style('DNS/DCHP', 'emph'))
         
-        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -t testing -y dnsmasq', [service_node],
+        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew"  -y dnsmasq', [service_node],
                   connexion_params = {'user': 'root'}).run()
         EX.Put([service_node], self.outdir+'/dnsmasq.conf', remote_location='/etc/', connexion_params = { 'user': 'root' }).run()
         
