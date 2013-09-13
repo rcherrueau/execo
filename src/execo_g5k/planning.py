@@ -18,19 +18,17 @@
 
 """This module provides some tools to help you to plan your experiment on grid5000"""
 from pprint import pformat, pprint
-from operator import itemgetter
 from json import loads
-from time import time, localtime, mktime
+from time import time
 from datetime import timedelta
 from math import ceil
-from execo.time_utils import timedelta_to_seconds, format_seconds, format_date, get_seconds, unixts_to_datetime
+from execo.time_utils import timedelta_to_seconds, unixts_to_datetime
 
 from execo.log import set_style, logger
-from execo import Host, Remote
+from execo import Remote
 from execo_g5k import *
-from execo_g5k.config import default_frontend_connexion_params
-from execo_g5k.oar import format_oar_date, oar_duration_to_seconds, OarSubmission
-from execo_g5k.oargrid import get_oargridsub_commandline, oargridsub
+from execo_g5k.oar import format_oar_date, oar_duration_to_seconds
+from execo_g5k.oargrid import get_oargridsub_commandline
 try:
     import matplotlib.pyplot as PLT
     import matplotlib.dates as MD
@@ -57,159 +55,253 @@ class Planning:
         logger.debug('Initializing planning computation')
         self.sites_blacklist = [ 'bordeaux' ]
         self.elements = elements
-        self.startstamp = starttime
-        self.endstamp = endtime
+        self.starttime = starttime
+        self.endtime = endtime
         self.with_kavlan = kavlan
-        if elements is not None and starttime is not None and endtime is not None:
-            self.compute()
         
 
     def compute(self):
-        """Compute the planning from the API data and create a dict that contains all
-        hosts planning sorted by {'site': {'cluster': {'host': {'free': [(start, stop)], 'busy': [(start, stop)] }}}}
-        """
-        if self.elements is None:
-            raise ValueError, "No elements given"
-        logger.info('%s',set_style('Getting plannings from API', 'log_header'))
-        self.planning = {}
-
+        logger.info('Compiling planning from API ...')
+        planning = {}
+        print self.elements
+        print get_g5k_sites()
+        sites = [ site for site in self.elements if site in get_g5k_sites() ] +\
+                [ get_cluster_site(cluster) for cluster in self.elements if cluster in get_g5k_clusters() ]
         
-            
-        if 'grid5000' in self.elements:
-            logger.info('for the %s', set_style('whole platform', 'emph'))
-            self.planning = self.grid5000(self.startstamp, self.endstamp)
-        else:
-            for resource in self.elements:                
-                if resource in sorted(API.get_g5k_sites()):
-                    log = 'for site '+ set_style(resource, 'emph')
-                    self.planning[resource] = self.site(resource, self.startstamp, self.endstamp)
-                else:
-                    log = 'for cluster '+ set_style(resource, 'emph')
-                    site = API.get_cluster_site(resource)
-                    if not self.planning.has_key(site):
-                        self.planning[site] = {}
-                    self.planning[site][resource] = self.cluster(resource, self.startstamp, self.endstamp)
-                logger.info('%s', log)
-
-
-        if self.with_kavlan:
-            self.kavlan_global(self.planning.keys(), self.startstamp, self.endstamp)
-            
-        logger.info('%s', set_style('Merging planning elements', 'log_header'))
-        
-        for site, clusters in self.planning.iteritems():
-            if site != 'kavlan':
-                for hosts in clusters.itervalues():
-                    for planning in hosts.itervalues():
-                        self.merge_planning(planning)
-        logger.debug(pformat(self.planning))
-        
-
-    def host(self, host_reservations, startstamp = None, endstamp = None):
-        """ Compute the planning of an host from the data of the monitoring API"""
-        if startstamp is None:
-            startstamp = self.startstamp
-        if endstamp is None:
-            endstamp = self.endstamp
-        
-        planning = {'busy': [], 'free': []}
-        for job in host_reservations:
-            if job['queue']!='besteffort' and (job['start_time'],job['start_time']+job['walltime']) not in planning['busy']:
-                job['start_time'] = max(job['start_time'], startstamp)
-                job['end_time'] = min(job['start_time']+job['walltime']+61, endstamp)
-                planning['busy'].append( (job['start_time'], job['end_time']) )
-        planning['busy'].sort()
-
-        if len(planning['busy']) > 0:
-            if planning['busy'][0][0] > startstamp:
-                planning['free'].append((startstamp, planning['busy'][0][0]))
-            for i in range(0, len(planning['busy'])-1):
-                planning['free'].append((planning['busy'][i][1], planning['busy'][i+1][0]))
-            if planning['busy'][len(planning['busy'])-1][1]<endstamp:
-                planning['free'].append((planning['busy'][len(planning['busy'])-1][1], endstamp))
-        else:
-            planning['free'].append((startstamp, endstamp))
-        return planning
-
-    def cluster(self, cluster, startstamp = None, endstamp = None):
-        """ Return a dict containing all alive nodes and their planning for a given cluster"""
-        if startstamp is None:
-            startstamp = self.startstamp
-        if endstamp is None:
-            endstamp = self.endstamp
-        cluster_planning = {}
-        site = API.get_cluster_site(cluster)
-        hosts = API.get_resource_attributes('/sites/'+site+'/clusters/'+cluster+'/status?reservations_limit=100')
-        for host in hosts['items']:
-            if host['hardware_state'] != 'dead':
-                cluster_planning[host['node_uid']] = self.host(host['reservations'], startstamp, endstamp)
-        for planning in cluster_planning.itervalues():
-            self.merge_planning(planning)
-        return cluster_planning
-
-
-    def site(self, site, startstamp = None, endstamp = None):
-        """ Return a dict containing all alive nodes and their planning for a given site"""
-        if startstamp is None:
-            startstamp = self.startstamp
-        if endstamp is None:
-            endstamp = self.endstamp
-        site_planning = {}
-        try:
-            hosts = API.get_resource_attributes('/sites/'+site+'/status?reservations_limit=100')
-        except:
-            logger.warning('Site %s is not available', site)
-            return None
-        
-        for host in hosts['items']:
-            cluster = API.get_host_cluster(host['node_uid'])
-            if not site_planning.has_key(cluster):
-                site_planning[cluster] = {}
-            if host['hardware_state'] != 'dead':
-                site_planning[cluster][host['node_uid']] = self.host(host['reservations'], startstamp, endstamp)
-        tmp_planning = site_planning.copy()
-        for cluster in tmp_planning.iterkeys():
-            if len(tmp_planning[cluster]) == 0:
-                del site_planning[cluster]
-        for cluster, cluster_planning in site_planning.iteritems():
-            for planning in cluster_planning.itervalues():
-                self.merge_planning(planning)
-        return site_planning
-
-    def grid5000(self, startstamp = None, endstamp = None):
-        """Return a dict containing all alive nodes and their planning for a the whole platform"""
-        if startstamp is None:
-            startstamp = self.startstamp
-        if endstamp is None:
-            endstamp = self.endstamp
-        grid_planning = {}
-        sites = sorted(API.get_g5k_sites())        
-        if 'bordeaux' in sites:
-            logger.warning('Site Bordeaux is closing, no reservation can be performed')
-            sites.remove('bordeaux')
+        logger.debug(pformat(sites))
         for site in sites:
-            site_planning = self.site(site, startstamp, endstamp)
-            if site_planning is not None: 
-                grid_planning[site] = site_planning 
-        return grid_planning
+            planning[site] = {}
+            dead_nodes = [ node for node, status in \
+                get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] == 'dead' ]
+            for cluster in get_site_clusters(site):
+                planning[site][cluster] = {}
+                for host in sorted(get_cluster_hosts(cluster), key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
+                    if host not in dead_nodes:
+                        planning[site][cluster][host] = {'busy': [], 'free': []}
+            
+            vlans = [x for x in sorted(map(is_a_kavlan, get_vlans(site).itervalues() )) if x is not None]
+            planning[site]['kavlan'] = {}
+            for vlan in vlans:
+                planning[site]['kavlan'][vlan] = {'busy': [], 'free': []}
+#             planning[site]['kavlan'] = {vlan: {'busy': [], 'free': []} for vlan in vlans}
+            
+            jobs_links = [ link['href'] for job in filter(rm_besteffort, \
+                   get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
+                   for link in job['links'] if link['rel'] == 'self' ]
+            logger.info( set_style(site.ljust(10), 'emph')+str( len( jobs_links ) ).rjust(5) )    
+            
+            for link in jobs_links:
+                attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
+                try:
+                    start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
+                    end_time = start_time + attr['walltime']
+                except:
+                    pprint( attr )
+                    pass 
+                nodes = attr['assigned_nodes']
+                
+                for node in sorted(nodes, key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
+                    cluster = node.split('.',1)[0].split('-')[0]
+                    if planning[site][cluster].has_key(node): 
+                        planning[site][cluster][node]['busy'].append( (start_time, end_time))
+                if attr['resources_by_type'].has_key('vlans'):
+                    vlan = attr['resources_by_type']['vlans'][0]
+                    planning[site]['kavlan']['kavlan-'+vlan]['busy'].append( (start_time, end_time))
+  
+        logger.info('Computation')
+        for site, clusters_kavlan in planning.iteritems():
+            for cluster_kavlan, elements in clusters_kavlan.iteritems():
+                for elements, el_planning in elements.iteritems():
+                    el_planning['busy'].sort()
+                    if len(el_planning['busy']) > 0:
+                        if el_planning['busy'][0][0] > self.starttime:
+                            el_planning['free'].append((self.starttime, el_planning['busy'][0][0]))
+                        for i in range(0, len(el_planning['busy'])-1):
+                            el_planning['free'].append((el_planning['busy'][i][1], el_planning['busy'][i+1][0]))
+                        if el_planning['busy'][len(el_planning['busy'])-1][1] < self.endtime:
+                            el_planning['free'].append((el_planning['busy'][len(el_planning['busy'])-1][1], self.endtime))
+                    else:
+                        el_planning['free'].append((self.starttime, self.endtime))
+                    for kind in ['free', 'busy' ]:
+                        slots = el_planning[kind]
+                        if len(slots) > 1:
+                            for i in range(len(slots)):
+                                j = i+1
+                                if j == len(slots)-1:
+                                    break
+                                while True:
+                                    condition = slots[i][1]>=slots[j][0]
+                                    if condition:
+                                        slots[i]=(slots[i][0],slots[j][1])
+                                        slots.pop(j)
+                                        if j == len(slots) - 1:
+                                            break
+                                    else:
+                                        break
+                                if j == len(slots) - 1:
+                                    break
+
+        self.planning = planning
+# 
+#     def compute(self):
+#         """Compute the planning from the API data and create a dict that contains all
+#         hosts planning sorted by {'site': {'cluster': {'host': {'free': [(start, stop)], 'busy': [(start, stop)] }}}}
+#         """
+#         if self.elements is None:
+#             raise ValueError, "No elements given"
+#         logger.info('%s',set_style('Getting plannings from API', 'log_header'))
+#         self.planning = {}
+# 
+#         g5k_sites = sorted(API.get_g5k_sites())      
+#         for site in [ 'bordeaux' ]:        
+#             if site in g5k_sites:
+#                 logger.warning('Site '+site+' is in trouble, no reservation can be performed')
+#                 g5k_sites.remove(site)          
+#             
+#         if 'grid5000' in self.elements:
+#             logger.info('for the %s', set_style('whole platform', 'emph'))
+#             self.planning = self.grid5000(self.starttime, self.endtime)
+#         else:
+#             for resource in self.elements:
+#                 if resource in g5k_sites:
+#                     log = 'for site '+ set_style(resource, 'emph')
+#                     self.planning[resource] = self.site(resource, self.starttime, self.endtime)
+#                 else:
+#                     log = 'for cluster '+ set_style(resource, 'emph')
+#                     site = API.get_cluster_site(resource)
+#                     if not self.planning.has_key(site):
+#                         self.planning[site] = {}
+#                     self.planning[site][resource] = self.cluster(resource, self.starttime, self.endtime)
+#                 logger.info('%s', log)
+# 
+#     
+#         if self.with_kavlan:
+#             self.kavlan(self.planning.keys(), self.starttime, self.endtime)
+#             
+#         logger.info('%s', set_style('Merging planning elements', 'log_header'))
+#         
+#         for site, clusters in self.planning.iteritems():
+#             if site != 'kavlan':
+#                 for hosts in clusters.itervalues():
+#                     for planning in hosts.itervalues():
+#                         self.merge_planning(planning)
+#         logger.debug(pformat(self.planning))
+#         
+# 
+#     def host(self, host_reservations, startstamp = None, endstamp = None):
+#         """ Compute the planning of an host from the data of the monitoring API"""
+#         if startstamp is None:
+#             startstamp = self.starttime
+#         if endstamp is None:
+#             endstamp = self.endtime
+#         
+#         planning = {'busy': [], 'free': []}
+#         for job in host_reservations:
+#             if job['queue']!='besteffort' and (job['start_time'],job['start_time']+job['walltime']) not in planning['busy']:
+#                 job['start_time'] = max(job['start_time'], startstamp)
+#                 job['end_time'] = min(job['start_time']+job['walltime']+61, endstamp)
+#                 planning['busy'].append( (job['start_time'], job['end_time']) )
+#         planning['busy'].sort()
+# 
+#         if len(planning['busy']) > 0:
+#             if planning['busy'][0][0] > startstamp:
+#                 planning['free'].append((startstamp, planning['busy'][0][0]))
+#             for i in range(0, len(planning['busy'])-1):
+#                 planning['free'].append((planning['busy'][i][1], planning['busy'][i+1][0]))
+#             if planning['busy'][len(planning['busy'])-1][1]<endstamp:
+#                 planning['free'].append((planning['busy'][len(planning['busy'])-1][1], endstamp))
+#         else:
+#             planning['free'].append((startstamp, endstamp))
+#         return planning
+# 
+#     def cluster(self, cluster, startstamp = None, endstamp = None):
+#         """ Return a dict containing all alive nodes and their planning for a given cluster"""
+#         if startstamp is None:
+#             startstamp = self.starttime
+#         if endstamp is None:
+#             endstamp = self.endtime
+#         cluster_planning = {}
+#         site = API.get_cluster_site(cluster)
+#         hosts = API.get_resource_attributes('/sites/'+site+'/clusters/'+cluster+'/status?reservations_limit=100')
+#         for host in hosts['items']:
+#             if host['hardware_state'] != 'dead':
+#                 cluster_planning[host['node_uid']] = self.host(host['reservations'], startstamp, endstamp)
+#         for planning in cluster_planning.itervalues():
+#             self.merge_planning(planning)
+#         return cluster_planning
+# 
+# 
+#     def site(self, site, startstamp = None, endstamp = None):
+#         """ Return a dict containing all alive nodes and their planning for a given site"""
+#         if startstamp is None:
+#             startstamp = self.starttime
+#         if endstamp is None:
+#             endstamp = self.endtime
+#         site_planning = {}
+#         try:
+#             hosts = API.get_resource_attributes('/sites/'+site+'/status?reservations_limit=100')
+#         except:
+#             logger.warning('Site %s is not available', site)
+#             return None
+#         
+#         for host in hosts['items']:
+#             cluster = API.get_host_cluster(host['node_uid'])
+#             if not site_planning.has_key(cluster):
+#                 site_planning[cluster] = {}
+#             if host['hardware_state'] != 'dead':
+#                 site_planning[cluster][host['node_uid']] = self.host(host['reservations'], startstamp, endstamp)
+#         tmp_planning = site_planning.copy()
+#         for cluster in tmp_planning.iterkeys():
+#             if len(tmp_planning[cluster]) == 0:
+#                 del site_planning[cluster]
+#         for cluster, cluster_planning in site_planning.iteritems():
+#             for planning in cluster_planning.itervalues():
+#                 self.merge_planning(planning)
+#         return site_planning
+# 
+#     def grid5000(self, startstamp = None, endstamp = None):
+#         """Return a dict containing all alive nodes and their planning for a the whole platform"""
+#         if startstamp is None:
+#             startstamp = self.starttime
+#         if endstamp is None:
+#             endstamp = self.endtime
+#         grid_planning = {}
+#         sites = sorted(API.get_g5k_sites())
+#         for site in [ 'bordeaux' ]:        
+#             if site in sites:
+#                 logger.warning('Site '+site+' is in trouble, no reservation can be performed')
+#                 sites.remove(site)
+#        
+#         for site in sites:
+#             site_planning = self.site(site, startstamp, endstamp)
+#             if site_planning is not None: 
+#                 grid_planning[site] = site_planning
+#         return grid_planning
 
 
-    def kavlan_global(self, sites, startstamp, endstamp):
-        """ Compute the occupation of the global KaVLAN"""
-        
-        
-        kavlan_planning = {}            
+    def kavlan(self, sites, startstamp, endstamp):
+        """ Compute the occupation of the global and local KaVLAN"""
+                            
         get_jobs = Remote('oarstat -J -f', sites, 
                     connexion_params = default_frontend_connexion_params ).run()
-        for p in get_jobs.processes():
-            kavlan_planning[p.host().address] =  {'busy': [], 'free':[]}
-            site_jobs = loads(p.stdout())
-            site_free = True
-            for job_id, info in site_jobs.iteritems():                
-                if 'kavlan' in info['wanted_resources']:
-                    kavlan_planning[p.host().address]['busy'] =  (info['startTime'], info['scheduledStart']+info['walltime'])
         
-        for site, planning in kavlan_planning.iteritems():
+        vlan_planning = {}
+        if len(sites) == 1:
+            vlan_planning[sites[0]] = {'busy': [], 'free': []}
+            # TEMPORARY HACK CONSIDERING THAT NOT MUCH PEOPLE ARE USING KAVLAN SO ONE SHOULD BE FREE
+
+        else:
+            for p in get_jobs.processes():
+                site = p.host().address
+                vlan_planning[site] = {'busy': [], 'free': []}
+                site_jobs = loads(p.stdout())
+                for info in site_jobs.itervalues():
+                    if 'kavlan-global'in info['wanted_resources']:
+                        vlan_planning[site]['busy'].append(( int(info['scheduledStart']), 
+                            int(info['scheduledStart'])+oar_duration_to_seconds(info['wanted_resources'].split('walltime=')[1][:-2])) )
+                        
+        
+        for site, planning in vlan_planning.iteritems():
             if len(planning['busy']) > 0:
                 if planning['busy'][0][0] > startstamp:
                     planning['free'].append((startstamp, planning['busy'][0][0]))
@@ -220,10 +312,9 @@ class Planning:
             else:
                 planning['free'].append((startstamp, endstamp))
                 
-        self.planning['kavlan'] = kavlan_planning
+        self.planning['kavlan'] = vlan_planning
         
-
-
+        
     def merge_planning(self, planning):
         """Merge the different planning elements"""
         for kind in ['free', 'busy' ]:
@@ -251,26 +342,27 @@ class Planning:
             self.compute()
         self.limits = []
 
+        
         for site, clusters in self.planning.iteritems():
             if site != 'kavlan':
                 for hosts in clusters.values():
                     for planning in hosts.itervalues():
                         for limits in planning['busy']:
-                            if limits[0] not in self.limits and limits[0] >= self.startstamp \
-                                    and limits[0] < self.endstamp:
+                            if limits[0] not in self.limits and limits[0] >= self.starttime \
+                                    and limits[0] < self.endtime:
                                 self.limits.append(limits[0])
-                            if limits[1] not in self.limits and limits[1] >= self.startstamp \
-                                    and limits[1] < self.endstamp:
+                            if limits[1] not in self.limits and limits[1] >= self.starttime \
+                                    and limits[1] < self.endtime:
                                 self.limits.append(limits[1])
                         for limits in planning['free']:
-                            if limits[0] not in self.limits and limits[0] >= self.startstamp \
-                                    and limits[0] < self.endstamp:
+                            if limits[0] not in self.limits and limits[0] >= self.starttime \
+                                    and limits[0] < self.endtime:
                                 self.limits.append(limits[0])
-                            if limits[1] not in self.limits and limits[1] >= self.startstamp \
-                                    and limits[1] < self.endstamp:
+                            if limits[1] not in self.limits and limits[1] >= self.starttime \
+                                    and limits[1] < self.endtime:
                                 self.limits.append(limits[1])
-#        if self.endstamp not in self.limits:
-#            self.limits.append(self.endstamp)
+#        if self.endtime not in self.limits:
+#            self.limits.append(self.endtime)
         self.limits.sort()
 
     def merge_slots(self, slots):
@@ -306,15 +398,17 @@ class Planning:
             self.compute()
         if not hasattr(self, 'limits'):
             self.slots_limits()
+        pprint(self.slots_limits())
             
         
         for limit in self.limits:
             log = ''
             free_hosts = {'grid5000': 0}
             for site, site_planning in self.planning.iteritems():
-                if site != 'kavlan':
-                    free_hosts[site] = 0
-                    for cluster, cluster_planning in site_planning.iteritems():
+                
+                free_hosts[site] = 0
+                for cluster, cluster_planning in site_planning.iteritems():
+                    if cluster != 'kavlan':
                         free_hosts[cluster] = 0
                         for host, host_planning in cluster_planning.iteritems():
                             host_free = False
@@ -327,10 +421,12 @@ class Planning:
                                 free_hosts[site] += 1
                                 free_hosts[cluster] += 1
                                 log += ', '+host
-                else:
-                    for kavlan_site, kavlan_planning in site_planning.iteritems():
-                        for free_slot in kavlan_planning['free']:
-                            free_hosts['kavlan'] = kavlan_site
+                    else:
+                        print cluster
+                        print cluster_planning
+                        for kavlan, kavlan_planning in cluster_planning.iteritems():
+                            for free_slot in kavlan_planning['free']:
+                                free_hosts['kavlan'] = kavlan
             
             slots.append( [ limit, limit +oar_duration_to_seconds(walltime), free_hosts] )
         
@@ -343,38 +439,53 @@ class Planning:
         """ Find the slots with enough resources"""
         
         if not hasattr(self, 'slots'):
-            self.compute_slots()
+            self.compute_slots(walltime)
         logger.debug(pformat(resources))
         logger.info('Filtering slots with enough '+set_style('nodes', 'emph') )
-        duration = oar_duration_to_seconds(walltime)
+
+        pprint(self.slots)
         slots_ok = []
         for slot in self.slots:
-            
             slot_ok = True
             for element, n_nodes in slot[2].iteritems():
                 if resources.has_key(element) and resources[element] > n_nodes:
                     slot_ok = False
             if slot_ok:
                 slots_ok.append(slot)
-                
+        
         return slots_ok
         
     def find_max_slot(self, walltime, resources = None):                    
         """ Find the slots that has the maximum resources""" 
         duration = oar_duration_to_seconds(walltime)
         if not hasattr(self, 'slots'):
-            self.compute_slots()
+            self.compute_slots(walltime)
     
         logger.info('Choosing slot with max nodes')
         max_slot = {}
-        max = 0
+        max_nodes = 0
         for slot in self.slots:
-            if slot[1] - slot[0] >= duration:
-                if slot[2]['grid5000'] > max:
-                    max = slot[2]['grid5000']
+            if slot[1] - slot[0] >= duration and  slot[2]['grid5000'] > max_nodes:
+                    max_nodes = slot[2]['grid5000']
                     max_slot = slot 
         
         return max_slot
+
+def self_link(link): 
+    if link['rel'] == 'self': 
+        return link['href'] 
+def rm_besteffort(job): return job['queue'] != 'besteffort'
+def get_job_link(job): return filter(self_link, job['links'])
+def get_vlans(site):
+    equips = get_resource_attributes('/sites/'+site+'/network_equipments/')
+    for equip in equips['items']:
+        if equip.has_key('vlans') and len(equip['vlans']) >2:
+            return equip['vlans']
+def is_a_kavlan(vlan):
+    if type(vlan) == type({}) and vlan.has_key('name') and 'kavlan' in vlan['name']:
+        return vlan['name']
+def node_number(name): return int(name.split('.')[0].split('-')[1])
+
 
 def distribute_hosts(slot, resources):
     """ Distribute the resources on the different clusters """
@@ -406,8 +517,6 @@ def distribute_hosts(slot, resources):
             max_site = ''
             max_nodes = 0
             for site in sites:
-                start = slot[0]
-                stop = slot[1]
  
                 if max_nodes < slot[2][site] - sites_nodes[site]:
                     max_site = site
@@ -445,18 +554,25 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
                        auto_reservation = False, prog = None):
     """ Perform the reservation for the given slot """ 
     
+    pprint( resources )
     subs = []
-    
     logger.debug(pformat(resources))
     sites = API.get_g5k_sites()
     sites.remove('bordeaux')
+    n_sites = 0
+    for resource in resources.iterkeys():
+        if resource in sites:
+            n_sites += 1
     for site in sites:
         cluster_nodes = 0
+        sub_resources = ''
         if site in resources and resources[site] > 0:
-            if resources.has_key('kavlan') and site == resources['kavlan']:
-                sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
-            else:
-                sub_resources = ''                
+            if resources.has_key('kavlan'):
+                if n_sites > 1:
+                    sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
+                else:
+                    sub_resources="{type=\\'kavlan\\'}/vlan=1+"
+                                
             for cluster in API.get_site_clusters(site): 
                 if cluster in resources and resources[cluster] > 0:
                     sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
@@ -479,7 +595,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
         
     oargrid_job_id = None
     if reservation == 'y':
-        (oargrid_job_id, ssh_key) = oargridsub(subs, walltime = walltime,
+        (oargrid_job_id, _) = oargridsub(subs, walltime = walltime,
                 additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate))
         
         if oargrid_job_id is not None:
@@ -669,7 +785,7 @@ def draw_slots(slots, endstamp, colors = None, show = False, save = True):
     
     if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
         x_major_locator = MD.HourLocator(byhour = [9, 19])
-    elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=17)):
+    elif endsself.endtimetartstamp <= timedelta_to_seconds(timedelta(days=17)):
         x_major_locator = MD.HourLocator(byhour = [9])
     else:
         x_major_locator = MD.AutoDateLocator()
