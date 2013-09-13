@@ -312,7 +312,7 @@ class Virsh_Deployment(object):
         f = open(self.outdir+'/vms.list', 'w')
         f.write('\n')
         for idx, val in enumerate(self.ip_mac):
-            f.write('vm-'+str(idx)+'         '+val[0]+'\n')
+            f.write(val[0]+'         '+'vm-'+str(idx)+'\n')
         f.close()
         get_ip = SshProcess('host '+service_node.address+' |cut -d \' \' -f 4', 'rennes', 
                 connexion_params = default_frontend_connexion_params).run()
@@ -350,6 +350,8 @@ class Virsh_Deployment(object):
        # EX.Put([service_node], self.outdir+'/resolv.conf', remote_location= '/root/', connexion_params = { 'user': 'root' }).run()
         EX.Put(clients, self.outdir+'/resolv.conf', remote_location = '/etc/',
                      connexion_params = {'user': 'root'}).run()
+                     
+        self.service_node = service_node
 
     def create_disk_image(self, disk_image = None, clean = True):
         """Create a base image in RAW format for using qemu-img than can be used as the vms backing file """
