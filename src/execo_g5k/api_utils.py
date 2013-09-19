@@ -141,7 +141,7 @@ def get_g5k_sites():
         sites = json.loads(content)
         _g5k = dict()
         for site in [site['uid'] for site in sites['items']]:
-            _g5k[site] = None
+            _g5k[site] = None                
     return _g5k.keys()
 
 def get_site_clusters(site):

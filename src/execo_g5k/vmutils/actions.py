@@ -116,6 +116,7 @@ def wait_vms_have_started(vms, host = None):
     """ Try to make a ls on all vms and return True when all process are ok", need a taktuk gateway"""
     if host is None:
         host = get_host_site(vms[0]['host'])
+        
     vms = [vm['ip'] for vm in vms ] 
     tmpdir = tempfile.mkdtemp()
     tmpfile = tempfile.mkstemp(prefix='vmips')
@@ -123,7 +124,7 @@ def wait_vms_have_started(vms, host = None):
     for ip in vms:
         f.write(ip+'\n')
     f.close()
-    Put([host], tmpfile[1]).run()
+    Put([host], tmpfile[1], connexion_params = {'user': 'root'}).run()
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
     ssh_open = False

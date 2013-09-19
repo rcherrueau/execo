@@ -30,7 +30,7 @@ g5k_configuration = {
     'polling_interval' : 20,
     'tiny_polling_interval' : 10,
     'default_frontend' : None,
-    'api_uri': "https://api.grid5000.fr/2.1/grid5000",
+    'api_uri': "https://api.grid5000.fr/3.0/",
     'api_username': None,
     'oar_job_key_file': None,
     }

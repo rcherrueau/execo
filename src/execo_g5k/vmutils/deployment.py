@@ -132,7 +132,7 @@ class Virsh_Deployment(object):
     def install_packages(self, packages_list = None):
         """ Installation of packages on the nodes """
     
-        base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop'
+        base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop init-system-helpers=1.8'
         logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()        
@@ -328,7 +328,7 @@ class Virsh_Deployment(object):
         logger.info('Configuring %s as a %s server', set_style(service_node.address.split('.')[0], 'host')
                     , set_style('DNS/DCHP', 'emph'))
         
-        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew"  -y dnsmasq', [service_node],
+        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -t unstable -y dnsmasq', [service_node],
                   connexion_params = {'user': 'root'}).run()
         EX.Put([service_node], self.outdir+'/dnsmasq.conf', remote_location='/etc/', connexion_params = { 'user': 'root' }).run()
         
@@ -532,6 +532,7 @@ class Virsh_Deployment(object):
         max_vms_ram = int(self.hosts_attr['total']['ram_size']/vm_ram_size)
         max_vms_cpu = int(2*self.hosts_attr['total']['n_cpu']/vm_vcpu) 
         max_vms = min(max_vms_ram, max_vms_cpu)
+        
         logger.info('Maximum number of VM is %s', str(max_vms))
         return max_vms 
         
@@ -586,11 +587,11 @@ def get_clusters(sites = None, n_nodes = 1, node_flops = 10**1, virt = False, ka
     kavlan_clusters = []
     for site in sites:
         for cluster in get_site_clusters(site):
-            if get_resource_attributes('sites/'+site+'/clusters/'+cluster+'/nodes')['total'] >= n_nodes:
+            if n_nodes > 1 and get_resource_attributes('sites/'+site+'/clusters/'+cluster+'/nodes')['total'] >= n_nodes:
                 big_clusters.append(cluster)
-            if get_host_attributes(cluster+'-1.'+site+'.grid5000.fr')['supported_job_types']['virtual'] in [ 'ivt', 'amd-v']:
+            if virt and get_host_attributes(cluster+'-1.'+site+'.grid5000.fr')['supported_job_types']['virtual'] in [ 'ivt', 'amd-v']:
                 virt_clusters.append(cluster)
-            if get_cluster_attributes(cluster)['kavlan']:
+            if kavlan and get_cluster_attributes(cluster)['kavlan']:
                 kavlan_clusters.append(cluster)
                 
     logger.debug('Clusters with more than '+str(n_nodes)+' nodes \n%s',

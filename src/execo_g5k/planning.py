@@ -63,12 +63,22 @@ class Planning:
     def compute(self):
         logger.info('Compiling planning from API ...')
         planning = {}
-        print self.elements
-        print get_g5k_sites()
-        sites = [ site for site in self.elements if site in get_g5k_sites() ] +\
-                [ get_cluster_site(cluster) for cluster in self.elements if cluster in get_g5k_clusters() ]
+        if 'grid5000' in self.elements:
+            sites = get_g5k_sites()
+        else:
+            sites = [ site for site in self.elements if site in get_g5k_sites() ] +\
+                    [ get_cluster_site(cluster) for cluster in self.elements if cluster in get_g5k_clusters() ]
+        logger.debug('Will explore the planning of '+' '.join( [site for site in sites]))
         
-        logger.debug(pformat(sites))
+    
+        events = get_resource_attributes('status/upcoming.json')
+        for event in events:
+            if 'broken' in event['tags'] and event['status'] != 'RESOLVED':
+                broken_site = list(set(sites) & set(event['tags']))
+                if len(broken_site) > 0:
+                    logger.warn('Site '+broken_site[0]+' is broken ..')
+                    sites.remove(broken_site[0])
+        
         for site in sites:
             planning[site] = {}
             dead_nodes = [ node for node, status in \
@@ -83,7 +93,6 @@ class Planning:
             planning[site]['kavlan'] = {}
             for vlan in vlans:
                 planning[site]['kavlan'][vlan] = {'busy': [], 'free': []}
-#             planning[site]['kavlan'] = {vlan: {'busy': [], 'free': []} for vlan in vlans}
             
             jobs_links = [ link['href'] for job in filter(rm_besteffort, \
                    get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
@@ -96,6 +105,7 @@ class Planning:
                     start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
                     end_time = start_time + attr['walltime']
                 except:
+                    logger.warning('job')
                     pprint( attr )
                     pass 
                 nodes = attr['assigned_nodes']
@@ -140,8 +150,25 @@ class Planning:
                                         break
                                 if j == len(slots) - 1:
                                     break
-
+                                
         self.planning = planning
+        
+        
+        
+#tunnel = Local('ssh lyon.g5k -L13306:mysql.lyon.grid5000.fr:3306 ').start()
+#
+#for p in tunnel.processes():
+#    print p.stdout()
+#    print p.stderr()
+#sleep(5)
+#scan = Local('nmap localhost -p 13306').run()
+#
+#for p in scan.processes():
+#    print p.stdout()
+#    print p.stderr()
+#
+#db =_mysql.connect(host="localhost", port=13306, user="oarreader", passwd="read", db="oar2")
+
 # 
 #     def compute(self):
 #         """Compute the planning from the API data and create a dict that contains all
@@ -398,8 +425,6 @@ class Planning:
             self.compute()
         if not hasattr(self, 'limits'):
             self.slots_limits()
-        pprint(self.slots_limits())
-            
         
         for limit in self.limits:
             log = ''
@@ -422,8 +447,6 @@ class Planning:
                                 free_hosts[cluster] += 1
                                 log += ', '+host
                     else:
-                        print cluster
-                        print cluster_planning
                         for kavlan, kavlan_planning in cluster_planning.iteritems():
                             for free_slot in kavlan_planning['free']:
                                 free_hosts['kavlan'] = kavlan
@@ -443,7 +466,6 @@ class Planning:
         logger.debug(pformat(resources))
         logger.info('Filtering slots with enough '+set_style('nodes', 'emph') )
 
-        pprint(self.slots)
         slots_ok = []
         for slot in self.slots:
             slot_ok = True
@@ -554,7 +576,8 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
                        auto_reservation = False, prog = None):
     """ Perform the reservation for the given slot """ 
     
-    pprint( resources )
+    if resources.has_key('kavlan'):
+        get_kavlan = True
     subs = []
     logger.debug(pformat(resources))
     sites = API.get_g5k_sites()
@@ -567,11 +590,12 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
         cluster_nodes = 0
         sub_resources = ''
         if site in resources and resources[site] > 0:
-            if resources.has_key('kavlan'):
+            if get_kavlan: 
                 if n_sites > 1:
                     sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
                 else:
                     sub_resources="{type=\\'kavlan\\'}/vlan=1+"
+                get_kavlan = False
                                 
             for cluster in API.get_site_clusters(site): 
                 if cluster in resources and resources[cluster] > 0:
@@ -602,7 +626,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
             logger.info('Grid reservation done, oargridjob_id = %s',oargrid_job_id)
             return oargrid_job_id
         else:
-            logger.info('Error in performing the reservation ')
+            logger.error('Error in performing the reservation ')
 
     
     return oargrid_job_id
@@ -689,7 +713,8 @@ def set_colors():
             colors[cluster] = tuple(color)
             i_cluster += 1
         i_site += 1
-    
+    logger.debug('Colors that will be used for the plost '+
+                '\n'.join( [element+':'+ color for element, color in planning.iteritems()]))
     return colors
 
 
