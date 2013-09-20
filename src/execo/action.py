@@ -1516,7 +1516,7 @@ class ChainPut(ParallelActions):
                        for host in self._hosts[1:] ]
         forwardcmd.append("> %s" % (os.path.join(remote_location, os.path.basename(local_file)),))
         plch = ChainPutProcessLifecycleHandler(self)
-        chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
+        chain = TaktukRemote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
                                                        actual_connexion_params['chainput_port']),
                              self._hosts,
                              connexion_params,
@@ -1566,11 +1566,11 @@ class MultiChainPut(SequentialActions):
             actions.append(cp)
         super(MultiChainPut, self).__init__(actions, name = name)
 
-    def name(self):
-        if self._name == None:
-            return "%s to %i hosts" % (self.__class__.__name__, len(self._hosts))
-        else:
-            return self._name
+#    def name(self):
+#        if self._name == None:
+#            return "%s to %i hosts" % (self.__class__.__name__, len(self._hosts))
+#        else:
+#            return self._name
 
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""

@@ -129,6 +129,7 @@ def wait_vms_have_started(vms, host = None):
     nmap_tries = 0
     ssh_open = False
     while (not ssh_open) and nmap_tries < 40:
+        sleep(20)
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
         nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host).run()
@@ -140,7 +141,6 @@ def wait_vms_have_started(vms, host = None):
                 started_vms = line.split()[5].replace('(','')
         if not ssh_open:
             logger.info(  started_vms+'/'+str(len(vms)) )
-        sleep(20)
         
     if ssh_open:
         logger.info('All VM have been started')

@@ -46,7 +46,7 @@ class Virsh_Deployment(object):
         self.fact = ActionFactory(remote_tool = SSH,
                                 fileput_tool = SCP,
                                 fileget_tool = SCP)
-        self.hosts      = hosts
+        self.hosts      = sorted(hosts, key = lambda x: x.address)
         self.clusters   = list(set([ get_host_cluster(host) for host in self.hosts ]))
         self.sites      = list(set([ get_cluster_site(cluster) for cluster in self.clusters ]))
         self.kavlan     = kavlan
@@ -59,6 +59,7 @@ class Virsh_Deployment(object):
         except:
             pass 
         self.get_hosts_attr()
+        self.service_node = self.get_fastest_host()
         
         logger.debug('hosts %s',    pformat (self.hosts))
         logger.debug('clusters %s', pformat (self.clusters))
@@ -103,6 +104,7 @@ class Virsh_Deployment(object):
                 'Package: * \nPin: release a=testing \nPin-Priority: 850\n\n'+\
                 'Package: * \nPin: release a=unstable \nPin-Priority: 800\n\n')
         f.close()
+        
         
         apt_conf = EX.SequentialActions([self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
             self.fact.get_fileput(self.hosts, [self.outdir + '/preferences'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
@@ -301,7 +303,7 @@ class Virsh_Deployment(object):
     def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None):
         """ Generate the hosts lists, the vms list, the dnsmasq configuration and setup a DNS/DHCP server """
               
-        service_node = self.hosts[0]   
+        service_node = self.get_fastest_host  
 #        if dhcp_range is None or dhcp_router is None or dhcp_hosts is None:
 #            dhcp_range, dhcp_router, dhcp_hosts = self.configure_dnsmasq()
         
@@ -352,6 +354,42 @@ class Virsh_Deployment(object):
                      connexion_params = {'user': 'root'}).run()
                      
         self.service_node = service_node
+
+    def setup_munin(self):
+        """ Installing the monitoring service munin """
+        logger.info('Configuring munin server')
+        EX.SshProcess('export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y -t unstable  --force-yes munin', 
+               self.service_node ).run()
+        f = open('munin-nodes', 'w')
+        i_vm =0
+        for host in self.hosts:
+            get_ip = EX.Process('host '+host.address).run()
+            ip =  get_ip.stdout().strip().split(' ')[3]
+            f.write('['+host.address+']\n    address '+ip+'\n   use_node_name yes\n\n')
+        f.close()
+        EX.Put([self.service_node], ['munin-nodes'] , remote_location='/etc/munin').run()
+        SshProcess('[ -f /etc/munin/munin.conf.bak ] && cp /etc/munin/munin.conf.bak /etc/munin/munin.conf'+\
+           ' || cp /etc/munin/munin.conf /etc/munin/munin.conf.bak ;'+\
+           ' cat /etc/munin/munin-nodes >> /etc/munin/munin.conf ; service munin restart', self.service_node).run()
+        
+        
+        logger.info('Install munin-node on all hosts (VM + PM):\n'+','.join([host.address for host in self.hosts ]))
+        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes munin-node', 
+               self.hosts ).run()
+        logger.info('Configuring munin-nodes')
+        get_service_node_ip = EX.Process('host '+self.service_node.address).run()
+        service_node_ip = get_service_node_ip.stdout().strip().split(' ')[3]
+        logger.info('Authorizing connexion from '+service_node_ip)
+        EX.Remote('[ -f /etc/munin/munin-node.conf.bak ] && cp /etc/munin/munin-node.conf.bak /etc/munin/munin-node.conf'+\
+                   ' || cp /etc/munin/munin-node.conf /etc/munin/munin-node.conf.bak ;'+\
+                   ' echo allow ^'+'\.'.join( [ i for i in service_node_ip.split('.') ])+'$ >> /etc/munin/munin-node.conf', self.hosts).run()
+        logger.info('Configuring munin plugins')
+        plugins = [ 'cpu', 'memory', 'iostat']
+        cmd = 'rm /etc/munin/plugins/* ; '+' ; '.join( ['ln -s /usr/share/munin/plugins/'+plugin+' /etc/munin/plugins/' 
+                                                      for plugin in plugins])+\
+                '; killall munin-node ; munin-node ;'
+        EX.Remote(cmd, self.hosts).run()
+
 
     def create_disk_image(self, disk_image = None, clean = True):
         """Create a base image in RAW format for using qemu-img than can be used as the vms backing file """
@@ -561,7 +599,7 @@ class Virsh_Deployment(object):
             self.hosts_attr['total']['ram_size'] += self.hosts_attr[host.address.split('-')[0]]['ram_size']
             self.hosts_attr['total']['n_cpu'] += self.hosts_attr[host.address.split('-')[0]]['n_cpu']
                     
-
+    
 
 def kavname_to_shortname( host):
     """ """
