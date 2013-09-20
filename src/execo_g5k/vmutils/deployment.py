@@ -387,7 +387,7 @@ class Virsh_Deployment(object):
         plugins = [ 'cpu', 'memory', 'iostat']
         cmd = 'rm /etc/munin/plugins/* ; '+' ; '.join( ['ln -s /usr/share/munin/plugins/'+plugin+' /etc/munin/plugins/' 
                                                       for plugin in plugins])+\
-                '; killall munin-node ; munin-node ;'
+                '; ln -s /usr/share/munin/plugins/if_ /etc/munin/plugins/if_eth0; killall munin-node ; munin-node ;'
         EX.Remote(cmd, self.hosts).run()
 
 
