@@ -303,7 +303,7 @@ class Virsh_Deployment(object):
     def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None):
         """ Generate the hosts lists, the vms list, the dnsmasq configuration and setup a DNS/DHCP server """
               
-        service_node = self.get_fastest_host  
+        service_node = self.get_fastest_host()
 #        if dhcp_range is None or dhcp_router is None or dhcp_hosts is None:
 #            dhcp_range, dhcp_router, dhcp_hosts = self.configure_dnsmasq()
         
