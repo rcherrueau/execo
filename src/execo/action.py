@@ -746,16 +746,17 @@ class Put(Remote):
         """A dict similar to `execo.config.default_connexion_params` whose values
         will override those in default_connexion_params for connexion."""
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
-        self._caller_context = get_caller_context(['get_fileput'])
-        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
-        for (index, host) in enumerate(self.hosts):
-            real_command = list(get_scp_command(host.user, host.keyfile, host.port, self.connexion_params)) + [ remote_substitute(local_file, self.hosts, index, self._caller_context) for local_file in self.local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(self.remote_location, self.hosts, index, self._caller_context)),]
-            real_command = ' '.join(real_command)
-            p = Process(real_command)
-            p.shell = True
-            p.lifecycle_handlers.append(self._process_lifecycle_handler)
-            p.host = host
-            self.processes.append(p)
+        if len(local_files) > 0:
+            self._caller_context = get_caller_context(['get_fileput'])
+            self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
+            for (index, host) in enumerate(self.hosts):
+                real_command = list(get_scp_command(host.user, host.keyfile, host.port, self.connexion_params)) + [ remote_substitute(local_file, self.hosts, index, self._caller_context) for local_file in self.local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(self.remote_location, self.hosts, index, self._caller_context)),]
+                real_command = ' '.join(real_command)
+                p = Process(real_command)
+                p.shell = True
+                p.lifecycle_handlers.append(self._process_lifecycle_handler)
+                p.host = host
+                self.processes.append(p)
 
     def _args(self):
         return [ repr(self.hosts),
@@ -801,19 +802,20 @@ class Get(Remote):
         """Dict similar to `execo.config.default_connexion_params` whose values
         will override those in default_connexion_params for connexion."""
         self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
-        self._caller_context = get_caller_context(['get_fileget'])
-        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
-        for (index, host) in enumerate(self.hosts):
-            remote_specs = ()
-            for path in self.remote_files:
-                remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(path, self.hosts, index, self._caller_context)),)
-            real_command = get_scp_command(host.user, host.keyfile, host.port, self.connexion_params) + remote_specs + (remote_substitute(self.local_location, self.hosts, index, self._caller_context),)
-            real_command = ' '.join(real_command)
-            p = Process(real_command)
-            p.shell = True
-            p.lifecycle_handlers.append(self._process_lifecycle_handler)
-            p.host = host
-            self.processes.append(p)
+        if len(remote_files) > 0:
+            self._caller_context = get_caller_context(['get_fileget'])
+            self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
+            for (index, host) in enumerate(self.hosts):
+                remote_specs = ()
+                for path in self.remote_files:
+                    remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(path, self.hosts, index, self._caller_context)),)
+                real_command = get_scp_command(host.user, host.keyfile, host.port, self.connexion_params) + remote_specs + (remote_substitute(self.local_location, self.hosts, index, self._caller_context),)
+                real_command = ' '.join(real_command)
+                p = Process(real_command)
+                p.shell = True
+                p.lifecycle_handlers.append(self._process_lifecycle_handler)
+                p.host = host
+                self.processes.append(p)
 
     def _args(self):
         return [ repr(self.hosts),
