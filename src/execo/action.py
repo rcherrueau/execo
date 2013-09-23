@@ -1445,13 +1445,8 @@ class MultiChainPut(SequentialActions):
         for lf in local_files:
             cp = ChainPut(hosts, lf, remote_location, connexion_params)
             actions.append(cp)
-        super(MultiChainPut, self).__init__(actions, name = name)
-
-    def name(self):
-        if self._name == None:
-            return "%s to %i hosts" % (self.__class__.__name__, len(self._hosts))
-        else:
-            return self._name
+        super(MultiChainPut, self).__init__(actions)
+        self.name = "%s to %i hosts" % (self.__class__.__name__, len(hosts))
 
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
