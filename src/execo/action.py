@@ -1228,8 +1228,12 @@ class ParallelActions(Action):
 
     def start(self):
         retval = super(ParallelActions, self).start()
-        for action in self.actions:
-            action.start()
+        if len(self.actions) == 0:
+            logger.debug("%s contains 0 actions -> immediately terminated", self)
+            self._notify_terminated()
+        else:
+            for action in self.actions:
+                action.start()
         return retval
 
     def kill(self):
@@ -1309,7 +1313,11 @@ class SequentialActions(Action):
 
     def start(self):
         retval = super(SequentialActions, self).start()
-        self.actions[0].start()
+        if len(self.actions) == 0:
+            logger.debug("%s contains 0 actions -> immediately terminated", self)
+            self._notify_terminated()
+        else:
+            self.actions[0].start()
         return retval
 
     def kill(self):
