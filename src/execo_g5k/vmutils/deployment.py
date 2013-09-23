@@ -109,7 +109,7 @@ class Virsh_Deployment(object):
         apt_conf = EX.SequentialActions([self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
             self.fact.get_fileput(self.hosts, [self.outdir + '/preferences'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
         
-        if apt_conf.ok():
+        if apt_conf.ok:
             logger.debug('apt configured successfully')
         else:
             logger.error('Error in configuring apt')
@@ -124,7 +124,7 @@ class Virsh_Deployment(object):
                 apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get upgrade -y --force-yes "+\
                 '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" '
         upgrade = self.fact.get_remote( cmd, self.hosts, connexion_params = {'user': 'root'}).run()
-        if upgrade.ok():
+        if upgrade.ok:
             logger.debug('Upgrade finished')
         else:
             logger.error('Unable to perform dist-upgrade on the nodes ..')
@@ -138,7 +138,7 @@ class Virsh_Deployment(object):
         logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()        
-        if install_base.ok():
+        if install_base.ok:
             logger.debug('Packages installed')
         else:
             logger.error('Unable to install packages on the nodes ..')
@@ -151,7 +151,7 @@ class Virsh_Deployment(object):
             libvirt_packages
         install_libvirt = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
             
-        if install_libvirt.ok():
+        if install_libvirt.ok:
             logger.debug('Packages installed')
         else:
             logger.error('Unable to install packages on the nodes ..')
@@ -163,7 +163,7 @@ class Virsh_Deployment(object):
             packages_list
             install_extra = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
             
-            if install_extra.ok():
+            if install_extra.ok:
                 logger.debug('Packages installed')
             else:
                 logger.error('Unable to install packages on the nodes ..')
@@ -184,7 +184,7 @@ class Virsh_Deployment(object):
             nmap_tries += 1 
             nmap = SshProcess('nmap '+hosts_list+' -p 22', Host('rennes'),
                               connexion_params = default_frontend_connexion_params ).run()
-            for line in nmap.stdout().split('\n'):
+            for line in nmap.stdout.split('\n'):
                 if 'Nmap done' in line:
                     hosts_down = line.split()[5].replace('(','') == str(0)
         
@@ -197,7 +197,7 @@ class Virsh_Deployment(object):
             nmap_tries += 1 
             nmap = SshProcess('nmap '+hosts_list+' -p 22', Host('rennes'),
                               connexion_params = default_frontend_connexion_params ).run()
-            for line in nmap.stdout().split('\n'):
+            for line in nmap.stdout.split('\n'):
                 if 'Nmap done' in line:
                     hosts_up = line.split()[2] == line.split()[5].replace('(','')
             
@@ -233,8 +233,10 @@ class Virsh_Deployment(object):
 
         self.tree.write('default.xml')
         
-        self.fact.get_remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
-                    connexion_params = {'user': 'root'}, log_exit_code = False).run()
+        r = self.fact.get_remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
+                    connexion_params = {'user': 'root'})
+        r.log_exit_code = False
+        r.run()
         
         self.fact.get_fileput(self.hosts, ['default.xml'], remote_location = '/etc/libvirt/qemu/networks/',
                       connexion_params = {'user': 'root'}).run()
@@ -256,17 +258,19 @@ class Virsh_Deployment(object):
         
         
         bridge_exists = self.fact.get_remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1", self.hosts,
-                         connexion_params = {'user': 'root'}, log_exit_code = False).run()
+                         connexion_params = {'user': 'root'})
+        bridge_exists.log_exit_code = False
+        bridge_exists.run()
         nobr_hosts = []
-        for p in bridge_exists.processes():
-            stdout = p.stdout().strip()            
+        for p in bridge_exists.processes:
+            stdout = p.stdout.strip()            
             if len(stdout) == 0:
-                nobr_hosts.append(p.host())
+                nobr_hosts.append(p.host)
             else:
                 if stdout != bridge_name:
                     EX.Remote('ip link set '+stdout+' down ; brctl delbr '+stdout, [p.host()],
                               connexion_params = {'user': 'root'}).run()
-                    nobr_hosts.append(p.host())
+                    nobr_hosts.append(p.host)
         
         if len(nobr_hosts) > 0:
             cmd = 'export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
@@ -276,7 +280,7 @@ class Virsh_Deployment(object):
             
             create_br = self.fact.get_remote(cmd, nobr_hosts, connexion_params = {'user': 'root'}).run()
             
-            if create_br.ok():
+            if create_br.ok:
                 logger.info('Bridge has been created')
             else:
                 logger.error('Unable to setup the bridge')
@@ -318,7 +322,7 @@ class Virsh_Deployment(object):
         f.close()
         get_ip = SshProcess('host '+service_node.address+' |cut -d \' \' -f 4', 'rennes', 
                 connexion_params = default_frontend_connexion_params).run()
-        ip = get_ip.stdout().strip()
+        ip = get_ip.stdout.strip()
         f = open(self.outdir+'/resolv.conf', 'w')
         f.write('domain grid5000.fr\nsearch grid5000.fr '+' '.join( [site+'.grid5000.fr' for site in self.sites] )+' \nnameserver '+ip+ '\n')
         f.close()
@@ -364,7 +368,7 @@ class Virsh_Deployment(object):
         i_vm =0
         for host in self.hosts:
             get_ip = EX.Process('host '+host.address).run()
-            ip =  get_ip.stdout().strip().split(' ')[3]
+            ip =  get_ip.stdout.strip().split(' ')[3]
             f.write('['+host.address+']\n    address '+ip+'\n   use_node_name yes\n\n')
         f.close()
         EX.Put([self.service_node], ['munin-nodes'] , remote_location='/etc/munin').run()
@@ -378,7 +382,7 @@ class Virsh_Deployment(object):
                self.hosts ).run()
         logger.info('Configuring munin-nodes')
         get_service_node_ip = EX.Process('host '+self.service_node.address).run()
-        service_node_ip = get_service_node_ip.stdout().strip().split(' ')[3]
+        service_node_ip = get_service_node_ip.stdout.strip().split(' ')[3]
         logger.info('Authorizing connexion from '+service_node_ip)
         EX.Remote('[ -f /etc/munin/munin-node.conf.bak ] && cp /etc/munin/munin-node.conf.bak /etc/munin/munin-node.conf'+\
                    ' || cp /etc/munin/munin-node.conf /etc/munin/munin-node.conf.bak ;'+\
@@ -401,10 +405,12 @@ class Virsh_Deployment(object):
             self.fact.get_remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
                             connexion_params = {'user': 'root'}).run()
         
-        ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], ignore_exit_code = True,
-                                 connexion_params = {'user': 'root'}).run()
+        ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], connexion_params = {'user': 'root'})
+        ls_image.ignore_exit_code = True
+        ls_image.log_exit_code = False
+        ls_image.run()
                                  
-        if ls_image.stdout().strip() == disk_image:
+        if ls_image.stdout.strip() == disk_image:
             logger.info("Image found in deployed hosts")
             copy_file = EX.TaktukRemote('cp '+disk_image+' /tmp/', self.hosts,
                                     connexion_params = {'user': 'root'}).run()
@@ -416,7 +422,7 @@ class Virsh_Deployment(object):
 #            dests = [ host.address for host in self.hosts]
 #            copy_file = EX.TaktukRemote('scp '+disk_image+' root@{{dests}}:/tmp/', frontends,
 #                                    connexion_params = default_frontend_connexion_params).run()
-            if not copy_file.ok():
+            if not copy_file.ok:
                 logger.error('Unable to copy the backing file')
                 raise ActionsFailed, [copy_file]
         
@@ -443,7 +449,7 @@ class Virsh_Deployment(object):
                 'umount /mnt; qemu-nbd -d /dev/nbd0 '
         logger.debug(cmd)
         copy_on_vm_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
-        logger.debug('%s', copy_on_vm_base.ok())
+        logger.debug('%s', copy_on_vm_base.ok)
     
     def write_placement_file(self):
         """ Generate an XML file with the VM deployment topology """
@@ -461,7 +467,7 @@ class Virsh_Deployment(object):
 #            print host_uid, cluster_uid, site_uid
 #            
 #            
-#            # FUCKING PYTHON 2.6 ....
+#            #FUCKING PYTHON 2.6 ....
 #            if deployment.find("./site[@id='"+site_uid+"']") is None:
 #                site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
 #            else:

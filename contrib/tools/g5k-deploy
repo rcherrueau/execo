@@ -148,7 +148,7 @@ if options.check_method == "KAENV":
         env_dsc = open(deployment_spec.env_file, "r").read()
     elif deployment_spec.env_name: # or if it is registered to kenv3
         logger.info("reading env description %s", deployment_spec.env_name)
-        env_dsc = execo.Process("kaenv3 -u $(kaenv3 -l | grep ^debian-x64-5-prod | awk \"{print \$3}\") -p $(kaenv3 -l | grep ^debian-x64-5-prod | awk \"{print \$1}\")").run().stdout()
+        env_dsc = execo.Process("kaenv3 -u $(kaenv3 -l | grep ^debian-x64-5-prod | awk \"{print \$3}\") -p $(kaenv3 -l | grep ^debian-x64-5-prod | awk \"{print \$1}\")").run().stdout
     # get the image tgz and its type (only tgz handled here)
     if env_dsc:
         mo = re.search("^tarball : ([^|]*)\|(.*)", env_dsc, re.MULTILINE)

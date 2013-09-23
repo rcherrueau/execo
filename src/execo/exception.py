@@ -21,11 +21,12 @@ class ProcessesFailed(Exception):
 
     def __init__(self, processes):
         """:param processes: iterable of failed processes"""
-        self._processes = processes
+        self.processes = processes
+        """iterable of failed processes"""
 
     def __str__(self):
         s = "<ProcessesFailed> - failed process(es):\n"
-        for p in self._processes:
+        for p in self.processes:
             s += " " + p.dump() + "\n"
         return s
 
@@ -34,10 +35,11 @@ class ActionsFailed(Exception):
 
     def __init__(self, actions):
         """:param actions: iterable of failed actions"""
-        self._actions = actions
+        self.actions = actions
+        """iterable of failed actions"""
 
     def __str__(self):
         s = "<ActionsFailed> - failed action(s):\n"
-        for a in self._actions:
+        for a in self.actions:
             s += " " + str(a) + "\n"
         return s

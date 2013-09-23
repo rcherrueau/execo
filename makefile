@@ -30,7 +30,7 @@ cleansphinxdoc:
 epydoc: epydoc/redirect.html
 
 epydoc/redirect.html: src
-	epydoc -v --docformat "restructuredtext en" --parse-only --html --output=epydoc src/execo src/execo_g5k src/execo_engine
+	epydoc -v --docformat "restructuredtext en" --parse-only --graph classtree --inheritance listed --html --output=epydoc src/execo src/execo_g5k src/execo_engine
 
 cleanepydoc:
 	rm -rf epydoc

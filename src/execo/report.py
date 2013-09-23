@@ -31,19 +31,26 @@ class Report(object):
     reports.
     """
 
-    def __init__(self, stats_objects = None, name = None):
+    def __init__(self, stats_objects = None):
         """
         :param stats_objects:
-
-        :param name a name given to this report. If None, a default
-          name will be given.
         """
-        if not name:
-            name = "%s" % (self.__class__.__name__,)
+        self.__name = "%s" % (self.__class__.__name__,)
         self._stats = Report.empty_stats()
-        self._stats['name'] = name
+        self._stats['name'] = self.__name
         if stats_objects:
             self.add(stats_objects)
+
+    @property
+    def name(self):
+        """Name given to this report. If None, a default
+        name will be given."""
+        return self.__name
+
+    @name.setter
+    def name(self, value):
+        self.__name = value
+        self._stats['name'] = self.__name
 
     def add(self, stats_objects):
         """Add some sub-`execo.report.Report` or `execo.action.Action` to this report.

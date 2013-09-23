@@ -66,6 +66,7 @@ class Host(object):
         """
         if isinstance(address, Host):
             self.address = address.address
+            """the host address"""
             self.user = address.user
             self.keyfile = address.keyfile
             self.port = address.port
@@ -75,8 +76,11 @@ class Host(object):
             self.keyfile = None
             self.port = None
         if user != False: self.user = user
+        """login name for remote connexions"""
         if keyfile != False: self.keyfile = keyfile
+        """keyfile to use for remote connexions"""
         if port != False: self.port = port
+        """tcp port to use for remote connexion"""
 
     def __eq__(self, other):
         if not other or not isinstance(other, Host):
@@ -106,12 +110,25 @@ class Host(object):
         return "Host(%s)" % (self._args())
 
 def get_hosts_list(hosts):
-    """Deep copy an iterable of `execo.host.Host` to a list of `execo.host.Host`.
+    """Deep copy an iterable of `execo.host.Host` or hostnames to a list of `execo.host.Host`.
 
     order is preserved
     """
     return [ Host(host) for host in hosts ]
 
+def get_unique_hosts_list(hosts):
+    """Deep copy an iterable of `execo.host.Host` or hostnames to a list of unique `execo.host.Host`.
+
+    order is preserved
+    """
+    tmphostsset = set()
+    newhosts = []
+    for h in get_hosts_list(hosts):
+        if h not in tmphostsset:
+            newhosts.append(h)
+            tmphostsset.add(h)
+    return newhosts
+
 def get_hosts_set(hosts):
-    """Deep copy an iterable of `execo.host.Host` to a set of `execo.host.Host`."""
+    """Deep copy an iterable of `execo.host.Host` or hostnames to a set of `execo.host.Host`."""
     return set(get_hosts_list(hosts))

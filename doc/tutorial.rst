@@ -91,23 +91,28 @@ List all files in the root directory::
  process = Process("ls /")
  process.run()
  print "process:\n%s" + str(process)
- print "process stdout:\n" + process.stdout()
- print "process stderr:\n" + process.stderr()
+ print "process stdout:\n" + process.stdout
+ print "process stderr:\n" + process.stderr
 
-The ``ls`` process was directly spawned, not using a subshell. Use
-option ``shell = True`` if a full shell environment is needed (e.g. to
-expand environment variables or to use pipes). To find all files
-in /tmp belonging to me::
+The ``ls`` process was directly spawned, not using a subshell. Set
+process property ``shell`` to True if a full shell environment
+is needed (e.g. to expand environment variables or to use pipes). To
+find all files in /tmp belonging to me::
 
- process = Process("find /tmp -user $USERNAME", shell = True).run()
+ process = Process("find /tmp -user $USERNAME")
+ process.shell = True
+ process.run()
 
 Here a warning log was probably displayed, because if you are not
 root, there are probably some directories in ``/tmp`` that ``find``
 could not visit (lack of permissions), ``find`` does not return 0 in
 this case. The default behavior of execo is to issue warning logs when
 processes are in error, do not return 0, or timeout. If needed we can
-instruct execo to ignore the exit code with option ``ignore_exit_code
-= True``.
+instruct execo to ignore the exit code by setting process property
+``log_exit_code`` to False. Still in this case, no log will be issued
+but the process will still be considered in error from execo's point
+of view. You can also instruct execo to ignore the exit code by
+setting process property ``ignore_exit_code``.
 
 Remote process over ssh
 '''''''''''''''''''''''
@@ -125,7 +130,7 @@ sender, then wait wait for *process_B* termination, then kill
  sleep(1)
  process_B.run()
  process_A.wait()
- print process_A.stdout()
+ print process_A.stdout
 
 We sleep for 1 second after starting the servers to make sure that
 they are ready to receive incoming connexions.
@@ -190,7 +195,7 @@ generate traffic in both directions::
  servers.wait()
  print Report([ servers, clients ]).to_string()
  for s in servers.processes() + clients.processes():
-   print "%s\nstdout:\n%s\nstderr:\n%s" % (s, s.stdout(), s.stderr())
+   print "%s\nstdout:\n%s\nstderr:\n%s" % (s, s.stdout, s.stderr)
 
 The netcat command line on clients shows the usage of *substitutions*:
 In the command line given for Remote and in pathes given to Get, Put,
@@ -269,8 +274,8 @@ the OAR job afterwards::
    g5k_host_get_cluster) ]
  servers = Remote("iperf -s",
                   targets,
-                  connexion_params = default_oarsh_oarcp_params,
-                  ignore_exit_code = True)
+                  connexion_params = default_oarsh_oarcp_params)
+ servers.ignore_exit_code = True
  clients = Remote("iperf -c {{[t.address for t in targets]}}",
                   sources,
                   connexion_params = default_oarsh_oarcp_params)

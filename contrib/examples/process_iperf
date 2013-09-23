@@ -7,7 +7,10 @@ num_processes_to_test = (1, 2, 4, 8, 16, 32, 64)
 iperf_length = 20
 
 timer = Timer()
-server = Process('iperf -s', ignore_exit_code = True, log_exit_code = False).start()
+server = Process('iperf -s')
+server.ignore_exit_code = True
+server.log_exit_code = False
+server.start()
 experiments = dict()
 for simultaneous in num_processes_to_test:
     clients = [ Process('iperf -c localhost -t %i' % iperf_length) for _ in xrange(0, simultaneous) ]
@@ -17,14 +20,14 @@ for simultaneous in num_processes_to_test:
     bandwidths_num = []
     bandwidths_str = []
     for client in clients:
-        exit_codes.append(client.exit_code())
-        (bw, unit) = re.search(' ([.0-9]+) (.?)bits/sec', client.stdout()).group(1, 2)
+        exit_codes.append(client.exit_code)
+        (bw, unit) = re.search(' ([.0-9]+) (.?)bits/sec', client.stdout).group(1, 2)
         bandwidth = float(bw)
         if unit == 'G': bandwidth *= 1e9
         elif unit == 'M': bandwidth *= 1e6
         elif unit == 'K': bandwidth *= 1e3
         bandwidths_num.append(bandwidth)
-        bandwidths_str.append(re.search(' ([.0-9]+ .?bits/sec)', client.stdout()).group(1))
+        bandwidths_str.append(re.search(' ([.0-9]+ .?bits/sec)', client.stdout).group(1))
         experiments[simultaneous] = {
             'exit_codes': exit_codes,
             'bandwidths_num': bandwidths_num,

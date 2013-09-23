@@ -232,9 +232,9 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
         p = get_process(oarsub_cmdline,
                         host = get_frontend_host(frontend),
                         connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                 default_frontend_connexion_params),
-                        timeout = timeout,
-                        pty = True)
+                                                                 default_frontend_connexion_params))
+        p.timeout = timeout
+        p.pty = True
         p.frontend = frontend
         processes.append(p)
     oar_job_ids = []
@@ -245,8 +245,8 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
     failed_processes = []
     for process in processes:
         job_id = None
-        if process.ok():
-            mo = re.search("^OAR_JOB_ID=(\d+)\s*$", process.stdout(), re.MULTILINE)
+        if process.ok:
+            mo = re.search("^OAR_JOB_ID=(\d+)\s*$", process.stdout, re.MULTILINE)
             if mo != None:
                 job_id = int(mo.group(1))
         if job_id == None:
@@ -280,13 +280,14 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for (job_id, frontend) in job_specs:
-        processes.append(get_process("oardel %i" % (job_id,),
-                                     host = get_frontend_host(frontend),
-                                     connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                              default_frontend_connexion_params),
-                                     timeout = timeout,
-                                     log_exit_code = False,
-                                     pty = True))
+        p = get_process("oardel %i" % (job_id,),
+                        host = get_frontend_host(frontend),
+                        connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                 default_frontend_connexion_params))
+        p.timeout = timeout
+        p.log_exit_code = False
+        p.pty = True
+        processes.append(p)
     for process in processes: process.start()
     for process in processes: process.wait()
 
@@ -335,9 +336,9 @@ def get_current_oar_jobs(frontends = None,
         p = get_process("oarstat -u",
                         host = get_frontend_host(frontend),
                         connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                 default_frontend_connexion_params),
-                        timeout = timeout,
-                        pty = True)
+                                                                 default_frontend_connexion_params))
+        p.timeout = timeout
+        p.pty = True
         p.frontend = frontend
         processes.append(p)
     oar_job_ids = []
@@ -347,8 +348,8 @@ def get_current_oar_jobs(frontends = None,
     for process in processes: process.wait()
     failed_processes = []
     for process in processes:
-        if process.ok():
-            jobs = re.findall("^(\d+)\s", process.stdout(), re.MULTILINE)
+        if process.ok:
+            jobs = re.findall("^(\d+)\s", process.stdout, re.MULTILINE)
             oar_job_ids.extend([ (int(jobid), process.frontend) for jobid in jobs ])
         else:
             failed_processes.append(process)
@@ -411,27 +412,27 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
     process = get_process("oarstat -fj %i" % (oar_job_id,),
                           host = get_frontend_host(frontend),
                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params),
-                          timeout = timeout,
-                          pty = True,
-                          log_exit_code = log_exit_code,
-                          log_timeout = log_timeout,
-                          log_error = log_error)
+                                                                   default_frontend_connexion_params))
+    process.timeout = timeout
+    process.pty = True
+    process.log_exit_code = log_exit_code
+    process.log_timeout = log_timeout
+    process.log_error = log_error
     process.run()
     job_info = dict()
-    start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
+    start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout, re.MULTILINE)
     if start_date_result:
         start_date = oar_date_to_unixts(start_date_result.group(1))
         job_info['start_date'] = start_date
-    walltime_result = re.search("^\s*walltime = (\d+:\d?\d:\d?\d)\s*$", process.stdout(), re.MULTILINE)
+    walltime_result = re.search("^\s*walltime = (\d+:\d?\d:\d?\d)\s*$", process.stdout, re.MULTILINE)
     if walltime_result:
         walltime = oar_duration_to_seconds(walltime_result.group(1))
         job_info['walltime'] = walltime
-    scheduled_start_result = re.search("^\s*scheduledStart = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout(), re.MULTILINE)
+    scheduled_start_result = re.search("^\s*scheduledStart = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout, re.MULTILINE)
     if scheduled_start_result:
         scheduled_start = oar_date_to_unixts(scheduled_start_result.group(1))
         job_info['scheduled_start'] = scheduled_start
-    state_result = re.search("^\s*state = (\w*)\s*$", process.stdout(), re.MULTILINE)
+    state_result = re.search("^\s*state = (\w*)\s*$", process.stdout, re.MULTILINE)
     if state_result:
         job_info['state'] = state_result.group(1)
     return job_info
@@ -544,12 +545,12 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
     process = get_process("(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
                           host = get_frontend_host(frontend),
                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params),
-                          timeout = countdown.remaining(),
-                          pty = True)
+                                                                   default_frontend_connexion_params))
+    process.timeout = countdown.remaining()
+    process.pty = True
     process.run()
-    if process.ok():
-        host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
+    if process.ok:
+        host_addresses = re.findall("(\S+)", process.stdout, re.MULTILINE)
         return [ Host(host_address) for host_address in host_addresses ]
     else:
         raise ProcessesFailed, [process]
@@ -590,9 +591,9 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
         host = get_frontend_host(frontend),
         connexion_params = make_connexion_params(
             frontend_connexion_params,
-            default_frontend_connexion_params),
-        timeout = countdown.remaining(),
-        pty = True)
+            default_frontend_connexion_params))
+    process_ip.timeout = countdown.remaining()
+    process_ip.pty = True
     process_ip.run()
     # Get network parameters
     process_net = get_process(
@@ -600,14 +601,14 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
         host = get_frontend_host(frontend),
         connexion_params = make_connexion_params(
             frontend_connexion_params,
-            default_frontend_connexion_params),
-        timeout = countdown.remaining(),
-        pty = True)
+            default_frontend_connexion_params))
+    process_net.timeout = countdown.remaining()
+    process_net.pty = True
     process_net.run()
 
-    if process_net.ok() and process_ip.ok():
-        subnet_addresses = re.findall("(\S+)\s+(\S+)", process_ip.stdout(), re.MULTILINE)
-        process_net_out = process_net.stdout().rstrip().split('\t')
+    if process_net.ok and process_ip.ok:
+        subnet_addresses = re.findall("(\S+)\s+(\S+)", process_ip.stdout, re.MULTILINE)
+        process_net_out = process_net.stdout.rstrip().split('\t')
         network_params = dict()
         if len(process_net_out) == 7:
             network_params = {
@@ -621,7 +622,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
                 }
         return (subnet_addresses, network_params)
     else:
-        raise ProcessesFailed, [ p for p in [process_net, process_ip] if not p.ok() ]
+        raise ProcessesFailed, [ p for p in [process_net, process_ip] if not p.ok ]
 
 def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
     """Return the vlan id of a job (if any).
@@ -655,16 +656,16 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connexion_pa
         host = get_frontend_host(frontend),
         connexion_params = make_connexion_params(
             frontend_connexion_params,
-            default_frontend_connexion_params),
-        timeout = countdown.remaining(),
-        pty = True,
-        ignore_exit_code = True) # kavlan exit code != 0 if request is
-                                 # for a job without a vlan
-                                 # reservation
+            default_frontend_connexion_params))
+    process.timeout = countdown.remaining()
+    process.pty = True
+    process.ignore_exit_code = True # kavlan exit code != 0 if request
+    process.log_exit_code = False   # is for a job without a vlan
+                                    # reservation
     process.run()
-    if process.ok():
+    if process.ok:
         try:
-            return int(process.stdout().strip().rstrip())
+            return int(process.stdout.strip().rstrip())
         except:
             return None # handles cases where the job has no kavlan
                         # resource or when kavlan isn't available

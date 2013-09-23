@@ -115,89 +115,74 @@ class ProcessBase(object):
     and `execo.process.ProcessOutputHandler`.
     """
 
-    def __init__(self, cmd, timeout = None,
-                 ignore_exit_code = False, log_exit_code = None,
-                 ignore_timeout = False, log_timeout = None,
-                 ignore_error = False, log_error = None,
-                 default_stdout_handler = True, default_stderr_handler = True,
-                 name = None):
+    def __init__(self, cmd):
         """
         :param cmd: string or tuple containing the command and args to
           run.
-
-        :param timeout: timeout (in seconds, or None for no timeout)
-          after which the process will automatically be sent a SIGTERM
-
-        :param ignore_exit_code: if True, a process with a return code
-          != 0 will still be considered ok
-
-        :param log_exit_code: if True, termination of a process with a
-          return code != 0 will cause a warning in logs
-
-        :param ignore_timeout: if True, a process which reaches its
-          timeout will be sent a SIGTERM, but will still be considered
-          ok (but it will most probably have an exit code != 0)
-
-        :param log_timeout: if True, a process which reaches its
-          timeout and is sent a SIGTERM will cause a warning in logs
-
-        :param ignore_error: if True, a process raising an OS level
-          error will still be considered ok
-
-        :param log_error: if True, a process raising an OS level
-          error will cause a warning in logs
-
-        :param default_stdout_handler: if True, a default handler
-          sends stdout stream output to the member string accessed
-          with self.stdout(). Default: True.
-
-        :param default_stderr_handler: if True, a default handler
-          sends stderr stream output to the member string accessed
-          with self.stderr(). Default: True.
-
-        :param name: optional user-friendly name. a default will be
-          generated if None given.
         """
-        self._host = None
-        self._started = False
-        self._start_date = None
-        self._ended = False
-        self._end_date = None
-        self._error = False
-        self._error_reason = None
-        self._exit_code = None
-        self._timeout_date = None
-        self._timeouted = False
-        self._forced_kill = False
-        self._stdout = ""
-        self._stderr = ""
-        self._stdout_ioerror = False
-        self._stderr_ioerror = False
-        self._lock = threading.RLock()
-        self._cmd = cmd
-        self._timeout = timeout
-        self.ignore_exit_code = ignore_exit_code
+        self.cmd = cmd
+        """Process command line: string or tuple containing the command and args to
+        run."""
+        self.host = None
+        """Remote host, if relevant"""
+        self.started = False
+        """Whether the process was started or not"""
+        self.start_date = None
+        """Process start date or None if not yet started"""
+        self.ended = False
+        """Whether the process has ended or not"""
+        self.end_date = None
+        """Process end date or None if not yet ended"""
+        self.error = False
+        """Whether there was an error starting the process. This is not the process
+        return code."""
+        self.error_reason = None
+        """Operating system level errno, if there was an error starting the
+        process, or None"""
+        self.exit_code = None
+        """Process exit code if available (if the process ended correctly from the
+        operating system point of view), or None"""
+        self.timeout = None
+        """timeout (in seconds, or None for no timeout) after which the process
+        will automatically be sent a SIGTERM"""
+        self.timeout_date = None
+        """The date at wich this process will timeout or none if not available."""
+        self.timeouted = False
+        """Whether the process has reached its timeout, or None if we don't know yet
+        (process still running, timeout not reached)."""
+        self.forced_kill = False
+        """Whether the process was killed forcibly. When a process is killed with
+        SIGTERM (either manually or automatically, due to reaching a
+        timeout), execo will wait some time (constant set in execo
+        source) and if after this timeout the process is still running,
+        it will be killed forcibly with a SIGKILL."""
+        self.stdout = ""
+        """Process stdout"""
+        self.stderr = ""
+        """Process stderr"""
+        self.ignore_exit_code = False
         """Boolean. If True, a process with a return code != 0 will still be
         considered ok"""
-        self.ignore_timeout = ignore_timeout
+        self.ignore_timeout = False
         """Boolean. If True, a process which reaches its timeout will be sent a
         SIGTERM, but will still be considered ok (but it will most
         probably have an exit code != 0)"""
-        self.ignore_error = ignore_error
+        self.ignore_error = False
         """Boolean. If True, a process raising an OS level error will still be
         considered ok"""
-        self.log_exit_code = log_exit_code
+        self.log_exit_code = True
         """Boolean. If True, termination of a process with a return code != 0 will
         cause a warning in logs"""
-        self.log_timeout = log_timeout
+        self.log_timeout = True
         """Boolean. If True, a process which reaches its timeout and is sent a
         SIGTERM will cause a warning in logs"""
-        self.log_error = log_error
+        self.log_error = True
         """Boolean. If True, a process raising an OS level error will cause a
         warning in logs"""
-        self._default_stdout_handler = default_stdout_handler
-        self._default_stderr_handler = default_stderr_handler
-        self._name = name
+        self.default_stdout_handler = True
+        """if True, a default handler sends stdout stream output to the member string self.stdout"""
+        self.default_stderr_handler = True
+        """if True, a default handler sends stderr stream output to the member string self.stderr"""
         self.lifecycle_handlers = list()
         """List of instances of `execo.process.ProcessLifecycleHandler` for being
         notified of process lifecycle events."""
@@ -213,6 +198,11 @@ class ProcessBase(object):
         descriptors (positive integer), or existing file objects, or
         filenames, to which stderr will be sent. If a filename is given,
         it will be opened in write mode, and closed on eof"""
+        self.name = nice_cmdline(self.cmd)
+        """User-friendly name. A default is generated and can be changed."""
+        self.stdout_ioerror = False
+        self.stderr_ioerror = False
+        self._lock = threading.RLock()
         self._stdout_files = dict()
         self._stderr_files = dict()
 
@@ -225,58 +215,62 @@ class ProcessBase(object):
 
         # no lock taken. This is the job of calling code to
         # synchronize.
-        self._started = False
-        self._start_date = None
-        self._ended = False
-        self._end_date = None
-        self._error = False
-        self._error_reason = None
-        self._exit_code = None
-        self._timeout_date = None
-        self._timeouted = False
-        self._forced_kill = False
-        self._stdout = ""
-        self._stderr = ""
-        self._stdout_ioerror = False
-        self._stderr_ioerror = False
+        self.started = False
+        self.start_date = None
+        self.ended = False
+        self.end_date = None
+        self.error = False
+        self.error_reason = None
+        self.exit_code = None
+        self.timeout_date = None
+        self.timeouted = False
+        self.forced_kill = False
+        self.stdout = ""
+        self.stderr = ""
+        self.stdout_ioerror = False
+        self.stderr_ioerror = False
 
     def _args(self):
         # to be implemented in all subclasses. Must return a list with
         # all arguments to the constructor, beginning by the
         # positionnal arguments, finishing by keyword arguments. This
         # list will be directly used in __repr__ methods.
-        return [ set_style(repr(self._cmd), 'command') ] + ProcessBase._kwargs(self)
+        return [ set_style(repr(self.cmd), 'command') ] + ProcessBase._kwargs(self)
 
     def _kwargs(self):
         # to be implemented in all subclasses. Must return a list with
         # all keyword arguments to the constructor. This list will be
         # used to build the list returned by _args() of this class or
         # child classes.
-        kwargs = []
-        if self._timeout: kwargs.append("timeout=%r" % (self._timeout,))
-        if self.ignore_exit_code != False: kwargs.append("ignore_exit_code=%r" % (self.ignore_exit_code,))
-        if self.ignore_timeout != False: kwargs.append("ignore_timeout=%r" % (self.ignore_timeout,))
-        if self.ignore_error != False: kwargs.append("ignore_error=%r" % (self.ignore_error,))
-        if self.log_exit_code != None: kwargs.append("log_exit_code=%r" % (self.log_exit_code,))
-        if self.log_timeout != None: kwargs.append("log_timeout=%r" % (self.log_timeout,))
-        if self.log_error != None: kwargs.append("log_error=%r" % (self.log_error,))
-        if self._default_stdout_handler != True: kwargs.append("default_stdout_handler=%r" % (self._default_stdout_handler,))
-        if self._default_stderr_handler != True: kwargs.append("default_stderr_handler=%r" % (self._default_stderr_handler,))
-        return kwargs
+        return []
 
     def _infos(self):
         # to be implemented in all subclasses. Must return a list with
         # all relevant infos other than those returned by _args(), for
         # use in __str__ methods.
-        return [ "started=%s" % (self._started,),
-                 "start_date=%s" % (format_unixts(self._start_date),),
-                 "ended=%s" % (self._ended,),
-                 "end_date=%s" % (format_unixts(self._end_date),),
-                 "error=%s" % (self._error,),
-                 "error_reason=%s" % (self._error_reason,),
-                 "timeouted=%s" % (self._timeouted,),
-                 "exit_code=%s" % (self._exit_code,),
-                 "ok=%s" % (self.ok(),) ]
+        infos = []
+        if self.timeout: infos.append("timeout=%r" % (self.timeout,))
+        if self.ignore_exit_code != False: infos.append("ignore_exit_code=%r" % (self.ignore_exit_code,))
+        if self.ignore_timeout != False: infos.append("ignore_timeout=%r" % (self.ignore_timeout,))
+        if self.ignore_error != False: infos.append("ignore_error=%r" % (self.ignore_error,))
+        if self.log_exit_code != True: infos.append("log_exit_code=%r" % (self.log_exit_code,))
+        if self.log_timeout != True: infos.append("log_timeout=%r" % (self.log_timeout,))
+        if self.log_error != True: infos.append("log_error=%r" % (self.log_error,))
+        if self.default_stdout_handler != True: infos.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
+        if self.default_stderr_handler != True: infos.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
+        if self.forced_kill: infos.append("forced_kill=%s" % (self.forced_kill,))
+        infos.extend([
+            "name=%s" % (self.name,),
+            "started=%s" % (self.started,),
+            "start_date=%s" % (format_unixts(self.start_date),),
+            "ended=%s" % (self.ended,),
+            "end_date=%s" % (format_unixts(self.end_date),),
+            "error=%s" % (self.error,),
+            "error_reason=%s" % (self.error_reason,),
+            "timeouted=%s" % (self.timeouted,),
+            "exit_code=%s" % (self.exit_code,),
+            "ok=%s" % (self.ok,) ])
+        return infos
 
     def __repr__(self):
         # implemented once for all subclasses
@@ -290,96 +284,13 @@ class ProcessBase(object):
 
     def dump(self):
         with self._lock:
-            return " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self._stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self._stderr),)
+            return " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self.stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self.stderr),)
 
-    def name(self):
-        """Return process friendly name."""
-        if self._name == None:
-            return nice_cmdline(self._cmd)
-        else:
-            return self._name
-
-    def cmd(self):
-        """Return the process command line."""
-        return self._cmd
-
-    def started(self):
-        """Return a boolean indicating if the process was started or not."""
-        return self._started
-
-    def start_date(self):
-        """Return the process start date or None if not yet started."""
-        return self._start_date
-
-    def ended(self):
-        """Return a boolean indicating if the process ended or not."""
-        return self._ended
-
-    def end_date(self):
-        """Return the process end date or None if not yet ended."""
-        return self._end_date
-
+    @property
     def running(self):
-        """Return a boolean indicating if the process is currently running."""
+        """If the process is currently running."""
         with self._lock:
-            return self._started and not self._ended
-
-    def error(self):
-        """Return a boolean indicating if there was an error starting the process.
-
-        This is *not* the process's return code.
-        """
-        return self._error
-
-    def error_reason(self):
-        """Return the operating system level errno, if there was an error starting the process, or None."""
-        return self._error_reason
-
-    def exit_code(self):
-        """Return the process exit code.
-
-        If available (if the process ended correctly from the OS point
-        of view), or None.
-        """
-        return self._exit_code
-
-    def timeout(self):
-        """Return the timeout in seconds after which the process would be killed."""
-        return self._timeout
-
-    def timeout_date(self):
-        """Return the date at which the process will reach its timeout.
-
-        Or none if not available.
-        """
-        return self._timeout_date
-
-    def timeouted(self):
-        """Return a boolean indicating if the process has reached its timeout.
-
-        Or None if we don't know yet (process still running, timeout
-        not reached).
-        """
-        return self._timeouted
-
-    def forced_kill(self):
-        """Return a boolean indicating if the process was killed forcibly.
-
-        When a process is killed with SIGTERM (either manually or
-        automatically, due to reaching a timeout), execo will wait
-        some time (constant set in execo source) and if after this
-        timeout the process is still running, it will be killed
-        forcibly with a SIGKILL.
-        """
-        return self._forced_kill
-
-    def stdout(self):
-        """Return a string containing the process stdout."""
-        return self._stdout
-
-    def stderr(self):
-        """Return a string containing the process stderr."""
-        return self._stderr
+            return self.started and not self.ended
 
     def _handle_stdout(self, string, eof = False, error = False):
         """Handle stdout activity.
@@ -390,10 +301,10 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        if self._default_stdout_handler:
-            self._stdout += string
+        if self.default_stdout_handler:
+            self.stdout += string
         if error == True:
-            self._stdout_ioerror = True
+            self.stdout_ioerror = True
         for handler in self.stdout_handlers:
             if isinstance(handler, int):
                 os.write(handler, string)
@@ -418,10 +329,10 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        if self._default_stderr_handler:
-            self._stderr += string
+        if self.default_stderr_handler:
+            self.stderr += string
         if error == True:
-            self._stderr_ioerror = True
+            self.stderr_ioerror = True
         for handler in self.stderr_handlers:
             if isinstance(handler, int):
                 os.write(handler, string)
@@ -437,6 +348,7 @@ class ProcessBase(object):
                     self._stderr_files[handler].close()
                     del self._stderr_files[handler]
 
+    @property
     def ok(self):
         """Check process is ok.
 
@@ -454,12 +366,13 @@ class ProcessBase(object):
             code)
         """
         with self._lock:
-            if not self._started: return True
-            if self._started and not self._ended: return True
-            return ((not self._error or self.ignore_error)
-                    and (not self._timeouted or self.ignore_timeout)
-                    and (self._exit_code == 0 or self.ignore_exit_code))
+            if not self.started: return True
+            if self.started and not self.ended: return True
+            return ((not self.error or self.ignore_error)
+                    and (not self.timeouted or self.ignore_timeout)
+                    and (self.exit_code == 0 or self.ignore_exit_code))
 
+    @property
     def finished_ok(self):
         """Check process has ran and is ok.
 
@@ -467,7 +380,7 @@ class ProcessBase(object):
         it is ok.
         """
         with self._lock:
-            return self._started and self._ended and self.ok()
+            return self.started and self.ended and self.ok
 
     def _log_terminated(self):
         """To be called (in subclasses) when a process terminates.
@@ -476,9 +389,9 @@ class ProcessBase(object):
         """
         with self._lock:
             s = set_style("terminated:", 'emph') + self.dump()
-            warn = ((self._error and (self.log_error if self.log_error != None else not self.ignore_error))
-                    or (self._timeouted and (self.log_timeout if self.log_timeout != None else not self.ignore_timeout))
-                    or (self._exit_code != 0 and (self.log_exit_code if self.log_exit_code != None else not self.ignore_exit_code)))
+            warn = ((self.error and self.log_error)
+                    or (self.timeouted and self.log_timeout)
+                    or (self.exit_code != 0 and self.log_exit_code))
         # actual logging outside the lock to avoid deadlock between process lock and logging lock
         if warn:
             logger.warning(s)
@@ -498,7 +411,7 @@ class ProcessBase(object):
         its termination before reseting;
         """
         logger.debug(set_style("reset:", 'emph') + " %s" % (str(self),))
-        if self._started and not self._ended:
+        if self.started and not self.ended:
             self.kill()
             self.wait()
         for handler in self.lifecycle_handlers:
@@ -507,10 +420,6 @@ class ProcessBase(object):
             self._common_reset()
         return self
 
-    def host(self):
-        """Return the remote host."""
-        return self._host
-
     def stats(self):
         """Return a dict summarizing the statistics of this process.
 
@@ -518,22 +427,22 @@ class ProcessBase(object):
         """
         with self._lock:
             stats = Report.empty_stats()
-            stats['name'] = self.name()
-            stats['start_date'] = self._start_date
-            stats['end_date'] = self._end_date
+            stats['name'] = self.name
+            stats['start_date'] = self.start_date
+            stats['end_date'] = self.end_date
             stats['num_processes'] = 1
-            if self._started: stats['num_started'] += 1
-            if self._ended: stats['num_ended'] += 1
-            if self._error: stats['num_errors'] += 1
-            if self._timeouted: stats['num_timeouts'] += 1
-            if self._forced_kill: stats['num_forced_kills'] += 1
-            if (self._started
-                and self._ended
-                and self._exit_code != 0):
+            if self.started: stats['num_started'] += 1
+            if self.ended: stats['num_ended'] += 1
+            if self.error: stats['num_errors'] += 1
+            if self.timeouted: stats['num_timeouts'] += 1
+            if self.forced_kill: stats['num_forced_kills'] += 1
+            if (self.started
+                and self.ended
+                and self.exit_code != 0):
                 stats['num_non_zero_exit_codes'] += 1
-            if self.ok():
+            if self.ok:
                 stats['num_ok'] += 1
-            if self.finished_ok():
+            if self.finished_ok:
                 stats['num_finished_ok'] +=1
             return stats
 
@@ -584,56 +493,58 @@ class Process(ProcessBase):
     True
     """
 
-    def __init__(self, cmd,
-                 close_stdin = None,
-                 shell = False,
-                 pty = False,
-                 kill_subprocesses = None,
-                 **kwargs):
+    def __init__(self, cmd):
         """
         :param cmd: string or tuple containing the command and args to
           run.
-
-        :param close_stdin: boolean. whether or not to close
-          subprocess's stdin. If None (default value), automatically
-          choose based on pty.
-
-        :param shell: whether or not to use a shell to run the
-          cmd. See ``subprocess.Popen``
-
-        :param pty: open a pseudo tty and connect process's stdin and
-          stdout to it (stderr is still connected as a pipe). Make
-          process a session leader. If lacking permissions to send
-          signals to the process, try to simulate sending control
-          characters to its pty.
-
-        :param kill_subprocesses: if True, signals are also sent to
-          subprocesses. If None, automatically decide based on
-          shell = True/False.
         """
-        super(Process, self).__init__(cmd, **kwargs)
-        self._process = None
-        self._pid = None
+        super(Process, self).__init__(cmd)
+        self.close_stdin = None
+        """Whether or not to close subprocess's stdin. If None (default value),
+        automatically choose based on pty."""
+        self.shell = False
+        """Whether or not to use a shell to run the cmd. See ``subprocess.Popen``"""
+        self.pty = False
+        """If True, open a pseudo tty and connect process's stdin and stdout to it
+        (stderr is still connected as a pipe). Make process a session
+        leader. If lacking permissions to send signals to the process,
+        try to simulate sending control characters to its pty."""
+        self.kill_subprocesses = None
+        """If True, signals are also sent to subprocesses. If None, automatically
+        decide based on shell = True/False."""
+        self.process = None
+        self.pid = None
+        """Subprocess's pid, if available (subprocess started) or None"""
         self._already_got_sigterm = False
         self._ptymaster = None
         self._ptyslave = None
-        self._shell = shell
-        self._pty = pty
-        if close_stdin == None:
-            if self._pty:
-                self._close_stdin = False
-            else:
-                self._close_stdin = True
+
+    def _actual_close_stdin(self):
+        # return actual close_stdin behavior
+        if self.close_stdin == None:
+            if self.pty: return False
+            else: return True
         else:
-            self._close_stdin = close_stdin
-        self._kill_subprocesses = kill_subprocesses
-        if self._shell == False and isinstance(self._cmd, str):
-            self._cmd = shlex.split(self._cmd)
+            return self.close_stdin
+
+    def _actual_kill_subprocesses(self):
+        # return actual kill_subprocesses behavior
+        if self.kill_subprocesses == None:
+            return self.shell
+        else:
+            return self.kill_subprocesses
+
+    def _actual_cmd(self):
+        # return actual cmd
+        if self.shell == False and isinstance(self.cmd, str):
+            return shlex.split(self.cmd)
+        else:
+            return self.cmd
 
     def _common_reset(self):
         super(Process, self)._common_reset()
-        self._process = None
-        self._pid = None
+        self.process = None
+        self.pid = None
         self._already_got_sigterm = False
         self._ptymaster = None
         self._ptyslave = None
@@ -642,57 +553,56 @@ class Process(ProcessBase):
         return ProcessBase._args(self) + Process._kwargs(self)
 
     def _kwargs(self):
-        kwargs = []
-        if self._close_stdin: kwargs.append("close_stdin=%r" % (self._close_stdin,))
-        if self._shell != False: kwargs.append("shell=%r" % (self._shell,))
-        if self._pty != False: kwargs.append("pty=%r" % (self._pty,))
-        if self._kill_subprocesses != None: kwargs.append("kill_subprocesses=%r" % (self._kill_subprocesses,))
-        return kwargs
+        return []
 
     def _infos(self):
-        return ProcessBase._infos(self) + [ "pid=%s" % (self._pid,),
-                                            "forced_kill=%s" % (self._forced_kill,) ]
+        infos = []
+        if self.close_stdin != None: infos.append("close_stdin=%r" % (self.close_stdin,))
+        if self.shell != False: infos.append("shell=%r" % (self.shell,))
+        if self.pty != False: infos.append("pty=%r" % (self.pty,))
+        if self.kill_subprocesses != None: infos.append("kill_subprocesses=%r" % (self.kill_subprocesses,))
+        infos.append("pid=%s" % (self.pid,))
+        return ProcessBase._infos(self) + infos
 
-    def pid(self):
-        """Return the subprocess's pid, if available (subprocess started) or None."""
-        return self._pid
-
+    @property
     def stdout_fd(self):
         """Return the subprocess stdout filehandle.
 
         Or None if not available.
         """
         with self._lock:
-            if self._process != None:
-                if self._pty:
+            if self.process != None:
+                if self.pty:
                     return self._ptymaster
                 else:
-                    return self._process.stdout.fileno()
+                    return self.process.stdout.fileno()
             else:
                 return None
 
+    @property
     def stderr_fd(self):
         """Return the subprocess stderr filehandle.
 
         Or None if not available.
         """
         with self._lock:
-            if self._process != None:
-                return self._process.stderr.fileno()
+            if self.process != None:
+                return self.process.stderr.fileno()
             else:
                 return None
 
+    @property
     def stdin_fd(self):
         """Return the subprocess stdin filehandle.
 
         Or None if not available.
         """
         with self._lock:
-            if self._process != None and not self._close_stdin:
-                if self._pty:
+            if self.process != None and not self._actual_close_stdin():
+                if self.pty:
                     return self._ptymaster
                 else:
-                    return self._process.stdin.fileno()
+                    return self.process.stdin.fileno()
             else:
                 return None
 
@@ -702,48 +612,48 @@ class Process(ProcessBase):
         # conductor lock, with logging lock, and to allow calling
         # lifecycle handlers outside the lock
         with self._lock:
-            if self._started:
+            if self.started:
                 raise ValueError, "unable to start an already started process"
-            self._started = True
-            self._start_date = time.time()
-            if self._timeout != None:
-                self._timeout_date = self._start_date + self._timeout
-            if self._pty:
+            self.started = True
+            self.start_date = time.time()
+            if self.timeout != None:
+                self.timeout_date = self.start_date + self.timeout
+            if self.pty:
                 (self._ptymaster, self._ptyslave) = openpty()
         logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
         for handler in self.lifecycle_handlers:
             handler.start(self)
         try:
-            with the_conductor.get_lock():
+            with the_conductor.lock:
                 # this lock is needed to ensure that
                 # Conductor.__update_terminated_processes() won't be
                 # called before the process has been registered to the
                 # conductor
-                if self._pty:
-                    self._process = subprocess.Popen(self._cmd,
-                                                     stdin = self._ptyslave,
-                                                     stdout = self._ptyslave,
-                                                     stderr = subprocess.PIPE,
-                                                     close_fds = True,
-                                                     shell = self._shell,
-                                                     preexec_fn = os.setsid)
+                if self.pty:
+                    self.process = subprocess.Popen(self._actual_cmd(),
+                                                    stdin = self._ptyslave,
+                                                    stdout = self._ptyslave,
+                                                    stderr = subprocess.PIPE,
+                                                    close_fds = True,
+                                                    shell = self.shell,
+                                                    preexec_fn = os.setsid)
                 else:
-                    self._process = subprocess.Popen(self._cmd,
-                                                     stdin = subprocess.PIPE,
-                                                     stdout = subprocess.PIPE,
-                                                     stderr = subprocess.PIPE,
-                                                     close_fds = True,
-                                                     shell = self._shell)
-                self._pid = self._process.pid
+                    self.process = subprocess.Popen(self._actual_cmd(),
+                                                    stdin = subprocess.PIPE,
+                                                    stdout = subprocess.PIPE,
+                                                    stderr = subprocess.PIPE,
+                                                    close_fds = True,
+                                                    shell = self.shell)
+                self.pid = self.process.pid
                 the_conductor.add_process(self)
-            if self._close_stdin:
-                self._process.stdin.close()
+            if self._actual_close_stdin():
+                self.process.stdin.close()
         except OSError, e:
             with self._lock:
-                self._error = True
-                self._error_reason = e
-                self._ended = True
-                self._end_date = self._start_date
+                self.error = True
+                self.error_reason = e
+                self.ended = True
+                self.end_date = time.time()
                 self._log_terminated()
             for handler in self.lifecycle_handlers:
                 handler.end(self)
@@ -763,23 +673,21 @@ class Process(ProcessBase):
         other_debug_logs=[]
         additionnal_processes_to_kill = []
         with self._lock:
-            if self._pid != None and not self._ended:
+            if self.pid != None and not self.ended:
                 if sig == signal.SIGTERM:
                     self._already_got_sigterm = True
                     if auto_sigterm_timeout == True:
-                        self._timeout_date = time.time() + configuration.get('kill_timeout')
+                        self.timeout_date = time.time() + configuration.get('kill_timeout')
                         the_conductor.update_process(self)
                 if sig == signal.SIGKILL:
-                    self._forced_kill = True
-                if (self._kill_subprocesses == True
-                    or (self._kill_subprocesses == None
-                        and self._shell == True)):
+                    self.forced_kill = True
+                if self._actual_kill_subprocesses():
                     additionnal_processes_to_kill = _get_childs(self._pid)
                 try:
-                    os.kill(self._pid, sig)
+                    os.kill(self.pid, sig)
                 except OSError, e:
                     if e.errno == errno.EPERM:
-                        if (self._pty
+                        if (self.pty
                             and (sig == signal.SIGTERM
                                  or sig == signal.SIGHUP
                                  or sig == signal.SIGINT
@@ -787,7 +695,7 @@ class Process(ProcessBase):
                                  or sig == signal.SIGPIPE
                                  or sig == signal.SIGQUIT)):
                             # unable to send signal to process due to lack
-                            # of permissions. If _pty == True, then there
+                            # of permissions. If pty == True, then there
                             # is a pty, we can close its master side, it should
                             # trigger a signal (SIGPIPE?) on the other side
                             try:
@@ -824,9 +732,9 @@ class Process(ProcessBase):
         is directly killed with SIGKILL.
         """
         with self._lock:
-            if self._pid != None:
-                self._timeouted = True
-                if self._already_got_sigterm and self._timeout_date >= time.time():
+            if self.pid != None:
+                self.timeouted = True
+                if self._already_got_sigterm and self.timeout_date >= time.time():
                     self.kill(signal.SIGKILL)
                 else:
                     self.kill()
@@ -845,9 +753,9 @@ class Process(ProcessBase):
             # careful placement of locked sections to avoid deadlock
             # between process lock and logging lock, and to allow
             # calling lifecycle handlers outside the lock
-            self._exit_code = exit_code
-            self._end_date = time.time()
-            self._ended = True
+            self.exit_code = exit_code
+            self.end_date = time.time()
+            self.ended = True
             if self._ptymaster != None:
                 try:
                     os.close(self._ptymaster)
@@ -862,12 +770,12 @@ class Process(ProcessBase):
                     if e.errno == errno.EBADF: pass
                     else: raise e
                 self._ptyslave = None
-            if self._process.stdin:
-                self._process.stdin.close()
-            if self._process.stdout:
-                self._process.stdout.close()
-            if self._process.stderr:
-                self._process.stderr.close()
+            if self.process.stdin:
+                self.process.stdin.close()
+            if self.process.stdout:
+                self.process.stdout.close()
+            if self.process.stderr:
+                self.process.stderr.close()
             for h in self._stdout_files:
                 self._stdout_files[h].close()
                 del self._stdout_files[h]
@@ -881,15 +789,15 @@ class Process(ProcessBase):
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
         with self._lock:
-            if not self._started:
+            if not self.started:
                 raise ValueError, "Trying to wait a process which has not been started"
         logger.debug(set_style("wait:", 'emph') + " %s" % (str(self),))
-        with the_conductor.get_lock():
+        with the_conductor.lock:
             timeout = get_seconds(timeout)
             if timeout != None:
                 end = time.time() + timeout
-            while self._ended != True and (timeout == None or timeout > 0):
-                the_conductor.get_condition().wait(timeout)
+            while self.ended != True and (timeout == None or timeout > 0):
+                the_conductor.condition.wait(timeout)
                 if timeout != None:
                     timeout = end - time.time()
         logger.debug(set_style("wait finished:", 'emph') + " %s" % (str(self),))
@@ -910,25 +818,16 @@ class SshProcess(Process):
     ``execo.config.default_connexion_params``.
     """
 
-    def __init__(self, cmd, host = None, connexion_params = None, **kwargs):
+    def __init__(self, cmd, host, connexion_params = None):
         """:param host: `execo.host.Host` to connect to
 
         :param connexion_params: connexion parameters
-
-        :param kwargs: passed to `execo.process.Process`. Special case
-          for keyword argument ``pty``: if this keyword argument is
-          not given, use the ``pty`` field of the connexion params,
-          else use the ``pty`` keyword argument, which takes
-          precedence. This allows setting default pty behaviors in
-          connexion_params shared by various remote processes (this
-          was motivated by allowing
-          `execo_g5k.config.default_oarsh_oarcp_params` to set pty to
-          True, because oarsh/oarcp are run sudo which forbids to send
-          signals).
         """
         host = Host(host)
-        self._remote_cmd = cmd
-        self._connexion_params = connexion_params
+        self.remote_cmd = cmd
+        """The command executed remotely"""
+        self.connexion_params = connexion_params
+        """Remote connexion params"""
         real_cmd = (get_ssh_command(host.user,
                                     host.keyfile,
                                     host.port,
@@ -938,57 +837,42 @@ class SshProcess(Process):
             real_cmd += cmd
         else:
             real_cmd += (cmd,)
-        if not 'pty' in kwargs:
-            kwargs['pty'] = make_connexion_params(connexion_params).get('pty')
-        super(SshProcess, self).__init__(real_cmd, **kwargs)
-        self._host = host
+        super(SshProcess, self).__init__(real_cmd)
+        self.host = host
+        self.pty = make_connexion_params(connexion_params).get('pty')
+        """For ssh processes, pty is initialized by the connexion params. This
+        allows setting default pty behaviors in connexion_params shared
+        by various remote processes (this was motivated by allowing
+        `execo_g5k.config.default_oarsh_oarcp_params` to set pty to
+        True, because oarsh/oarcp are run sudo which forbids to send
+        signals)."""
+        self.name = nice_cmdline(self.remote_cmd)
 
     def _args(self):
-        return [ set_style(repr(self._remote_cmd), 'command'),
-                 repr(self._host) ] + Process._kwargs(self) + SshProcess._kwargs(self)
+        return [ set_style(repr(self.remote_cmd), 'command'),
+                 repr(self.host) ] + Process._kwargs(self) + SshProcess._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
-        if self._connexion_params: kwargs.append("connexion_params=%r" % (self._connexion_params,))
+        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
         return kwargs
 
     def _infos(self):
-        return [ "real cmd=%r" % (self._cmd,) ] + Process._infos(self)
-
-    def name(self):
-        """Return process friendly name."""
-        if self._name == None:
-            return nice_cmdline(self._remote_cmd)
-        else:
-            return self._name
-
-    def remote_cmd(self):
-        """Return the command line executed remotely through ssh."""
-        return self._remote_cmd
-
-    def connexion_params(self):
-        """Return ssh connexion parameters."""
-        return self._connexion_params
+        return [ "real cmd=%r" % (self.cmd,) ] + Process._infos(self)
 
 class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     r"""Dummy process similar to `execo.process.SshProcess`."""
 
-    def __init__(self, cmd, host = None, **kwargs):
-        super(TaktukProcess, self).__init__(cmd, **kwargs)
-        self._host = Host(host)
-        self._remote_cmd = cmd
+    def __init__(self, cmd, host):
+        super(TaktukProcess, self).__init__(cmd)
+        self.host = Host(host)
+        self.remote_cmd = cmd
+        self.name = nice_cmdline(self.remote_cmd)
 
     def _args(self):
-        return [ repr(self._remote_cmd),
-                 repr(self._host) ] + ProcessBase._kwargs(self)
-
-    def name(self):
-        """Return process friendly name."""
-        if self._name == None:
-            return nice_cmdline(self._remote_cmd)
-        else:
-            return self._name
+        return [ set_style(repr(self.remote_cmd), 'command'),
+                 repr(self.host) ] + ProcessBase._kwargs(self)
 
     def start(self):
         """Notify TaktukProcess of actual remote process start.
@@ -999,12 +883,12 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         # ceraful placement of locked sections to allow calling
         # lifecycle handlers outside the lock
         with self._lock:
-            if self._started:
+            if self.started:
                 raise ValueError, "unable to start an already started process"
-            self._started = True
-            self._start_date = time.time()
-            if self._timeout != None:
-                self._timeout_date = self._start_date + self._timeout
+            self.started = True
+            self.start_date = time.time()
+            if self.timeout != None:
+                self.timeout_date = self.start_date + self.timeout
         logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
         for handler in self.lifecycle_handlers:
             handler.start(self)
@@ -1022,20 +906,20 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         # lifecycle handlers outside the lock
         logger.debug("set terminated %s, exit_code=%s, error=%s" % (str(self), exit_code, error))
         with self._lock:
-            if not self._started:
+            if not self.started:
                 self.start()
             if error != None:
-                self._error = error
+                self.error = error
             if error_reason != None:
-                self._error_reason = error_reason
+                self.error_reason = error_reason
             if exit_code != None:
-                self._exit_code = exit_code
+                self.exit_code = exit_code
             if timeouted == True:
-                self._timeouted = True
+                self.timeouted = True
             if forced_kill == True:
-                self._forced_kill = True
-            self._end_date = time.time()
-            self._ended = True
+                self.forced_kill = True
+            self.end_date = time.time()
+            self.ended = True
             for h in self._stdout_files:
                 self._stdout_files[h].close()
                 del self._stdout_files[h]

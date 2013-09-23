@@ -191,14 +191,8 @@ class _Conductor(object):
     """
 
     def __init__(self):
-        self.__conductor_thread = threading.Thread(target = self.__main_run_func, name = "Conductor")
-        self.__conductor_thread.setDaemon(True)
-        # thread will terminate automatically when the main thread
-        # exits.  once in a while, this can trigger an exception, but
-        # this seems to be safe and to be related to this issue:
-        # http://bugs.python.org/issue1856
-        self.__lock = threading.RLock()
-        self.__condition = threading.Condition(self.__lock)
+        self.lock = threading.RLock()
+        self.condition = threading.Condition(self.lock)
         # this lock and conditions are used for:
         #
         # - mutual exclusion and synchronization beetween sections of
@@ -208,6 +202,13 @@ class _Conductor(object):
         # - mutual exclusion beetween sections of code in
         #   _Conductor.__io_loop() (conductor thread) and in
         #   _Conductor.__reaper_run_func() (reaper thread)
+
+        self.__conductor_thread = threading.Thread(target = self.__main_run_func, name = "Conductor")
+        self.__conductor_thread.setDaemon(True)
+        # thread will terminate automatically when the main thread
+        # exits.  once in a while, this can trigger an exception, but
+        # this seems to be safe and to be related to this issue:
+        # http://bugs.python.org/issue1856
         self.__rpipe, self.__wpipe = os.pipe()  # pipe used to wakeup
                                                 # the conductor thread
                                                 # from the main thread
@@ -251,12 +252,6 @@ class _Conductor(object):
     def __wakeup(self):
         # wakeup the conductor thread
         os.write(self.__wpipe, ".")
-
-    def get_lock(self):
-        return self.__lock
-
-    def get_condition(self):
-        return self.__condition
 
     def start(self):
         """Start the conductor thread."""
@@ -311,9 +306,9 @@ class _Conductor(object):
         # register a process to conductor
         if _fulldebug: logger.debug("add %s to %s", str(process), self)
         if process not in self.__processes:
-            if not process.ended():
-                fileno_stdout = process.stdout_fd()
-                fileno_stderr = process.stderr_fd()
+            if not process.ended:
+                fileno_stdout = process.stdout_fd
+                fileno_stderr = process.stderr_fd
                 self.__processes.add(process)
                 _set_fd_nonblocking(fileno_stdout)
                 _set_fd_nonblocking(fileno_stderr)
@@ -325,9 +320,9 @@ class _Conductor(object):
                 self.__poller.register(fileno_stderr,
                                        POLLIN
                                        | POLLERR)
-                self.__pids[process.pid()] = process
-                if process.timeout_date() != None:
-                    self.__timeline.append((process.timeout_date(), process))
+                self.__pids[process.pid] = process
+                if process.timeout_date != None:
+                    self.__timeline.append((process.timeout_date, process))
                 if self.__reaper_thread_running == False:
                     self.__reaper_thread_running = True
                     reaper_thread = threading.Thread(target = self.__reaper_run_func, name = "Reaper")
@@ -347,8 +342,8 @@ class _Conductor(object):
                     # quickly because the process will already be
                     # killed and reaped before __handle_update_process
                     # is called
-        if process.timeout_date() != None:
-            self.__timeline.append((process.timeout_date(), process))
+        if process.timeout_date != None:
+            self.__timeline.append((process.timeout_date, process))
 
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
@@ -357,9 +352,9 @@ class _Conductor(object):
         if process not in self.__processes:
             raise ValueError, "trying to remove a process which was not yet added to conductor"
         self.__timeline = [ x for x in self.__timeline if x[1] != process ]
-        del self.__pids[process.pid()]
-        fileno_stdout = process.stdout_fd()
-        fileno_stderr = process.stderr_fd()
+        del self.__pids[process.pid]
+        fileno_stdout = process.stdout_fd
+        fileno_stderr = process.stderr_fd
         if self.__fds.has_key(fileno_stdout):
             del self.__fds[fileno_stdout]
             self.__poller.unregister(fileno_stdout)
@@ -403,7 +398,7 @@ class _Conductor(object):
         remove_in_timeline = []
         for i in xrange(0, len(self.__timeline)):
             process = self.__timeline[i][1]
-            if now >= process.timeout_date():
+            if now >= process.timeout_date:
                 logger.debug("timeout on %s", str(process))
                 process._timeout_kill()
                 remove_in_timeline.append(i)
@@ -501,7 +496,7 @@ class _Conductor(object):
                 if event_on_rpipe & POLLERR:
                     finished = True
                     raise IOError, "Error on inter-thread communication pipe"
-            with self.__lock:
+            with self.lock:
                 while True:
                     try:
                         # call (in the right order!) all functions
@@ -511,7 +506,7 @@ class _Conductor(object):
                         break
                     func(*args)
                 self.__update_terminated_processes()
-                self.__condition.notifyAll()
+                self.condition.notifyAll()
         self.__poller.unregister(self.__rpipe)
         os.close(self.__rpipe)
         os.close(self.__wpipe)
@@ -521,7 +516,7 @@ class _Conductor(object):
         # notified by the operating system of terminated processes
         while True:
             exit_pid, exit_code = _checked_waitpid(-1, 0)
-            with self.__lock:
+            with self.lock:
                 # this lock is needed to ensure that:
                 #
                 # - Conductor.__update_terminated_processes() won't be
@@ -550,9 +545,9 @@ class _Conductor(object):
 class _ConductorDebugLogRecord(logging.LogRecord):
     def __init__(self, name, level, fn, lno, msg, args, exc_info, func):
         logging.LogRecord.__init__(self, name, level, fn, lno, msg, args, exc_info, func)
-        self.conductor_lock = None
-        if the_conductor != None:
-            self.conductor_lock = the_conductor.get_lock()
+        # self.conductor_lock = None
+        # if the_conductor != None:
+        #     self.conductor_lock = the_conductor.lock
 
 def makeRecord(logger_instance, name, level, fn, lno, msg, args, exc_info, func=None, extra=None): #IGNORE:W0613
     rv = _ConductorDebugLogRecord(name, level, fn, lno, msg, args, exc_info, func)
@@ -567,8 +562,8 @@ def makeRecord(logger_instance, name, level, fn, lno, msg, args, exc_info, func=
 def _debug_dump_processes():
     for process in processes:
         print >> sys.stderr, "%s" % process
-        print >> sys.stderr, "stdout:\n%s" % process.stdout()
-        print >> sys.stderr, "stderr:\n%s" % process.stderr()
+        print >> sys.stderr, "stdout:\n%s" % process.stdout
+        print >> sys.stderr, "stderr:\n%s" % process.stderr
         print >> sys.stderr
 
 _debug_thread_id = None
@@ -583,7 +578,7 @@ def _debug_dump_threads():
 
 def _debug_dump(processes = None):
     print >> sys.stderr
-    print >> sys.stderr, ">>>>> %s - number of threads = %s - conductor lock = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1, the_conductor.get_lock())
+    print >> sys.stderr, ">>>>> %s - number of threads = %s - conductor lock = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1, the_conductor.lock)
     print >> sys.stderr
     if processes != None: _debug_dump_processes()
     _debug_dump_threads()

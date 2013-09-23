@@ -32,8 +32,8 @@ def list_vm( host, all = False ):
     else:
         list_vm = Remote('virsh list', [host], connexion_params = {'user': 'root'} ).run()
     vms_id = []
-    for p in list_vm.processes():
-        lines = p.stdout().split('\n')
+    for p in list_vm.processes:
+        lines = p.stdout.split('\n')
         for line in lines:
             if 'vm' in line:
                 std = line.split()
@@ -133,8 +133,8 @@ def wait_vms_have_started(vms, host = None):
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
         nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host).run()
-        logger.debug('%s', nmap.cmd())
-        for line in nmap.stdout().split('\n'):
+        logger.debug('%s', nmap.cmd)
+        for line in nmap.stdout.split('\n'):
             if 'Nmap done' in line:
                 logger.debug(line)
                 ssh_open = line.split()[2] == line.split()[5].replace('(','')
@@ -149,11 +149,14 @@ def wait_vms_have_started(vms, host = None):
     
     
 #    nmap_tries = 0   
-#    test_vm = get_remote('ls', vms, , log_exit_code = False, log_error = False)
+#    test_vm = get_remote('ls', vms)
+#    for p in test_vm.processes:
+#        p.log_exit_code = False
+#        p.log_error = False
 #    while (not ssh_open) and ls_tries < 50:
 #        print ls_tries
 #        test_vm.run()
-#        if test_vm.finished_ok():
+#        if test_vm.finished_ok:
 #            ssh_open = True
 #            return ssh_open
 #        else:
@@ -161,12 +164,16 @@ def wait_vms_have_started(vms, host = None):
 #    
 #    while (not ssh_open) and ls_tries < 50:
 #        
-#            test_vm = get_remote('ls', vms, , log_exit_code = False, log_error = False).run()
+#            test_vm = get_remote('ls', vms)
 #        else:
-#            test_vm = Remote('ls', vms, log_exit_code = False, log_error = False).run()
+#            test_vm = Remote('ls', vms)
+#        for p in test_vm.processes:
+#            p.log_exit_code = False
+#            p.log_error = False
+#        test_vm.run()
 #        ls_tries += 1
 #        logger.debug(str(ls_tries))
-#        if test_vm.finished_ok():
+#        if test_vm.finished_ok:
 #            ssh_open = True
 #            return ssh_open
 
@@ -183,7 +190,7 @@ def migrate_vm(vm, host):
         
     # Check that the disk is here
     test_disk = get_remote('ls /tmp/'+vm['vm_id']+'.qcow2', [host]).run()
-    if not test_disk.ok():
+    if not test_disk.ok:
         vm['host'] = host
         create_disk_on_dest = create_disks([vm]).run()
         if not create_disk_on_dest:

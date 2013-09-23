@@ -110,7 +110,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stdout."""
 
-    def __init__(self, kadeployer, out = False):
+    def __init__(self, kadeployer):
         """
         :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
           which this `execo.process.ProcessOutputHandler` is attached.
@@ -123,13 +123,13 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         self._bad_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
-        self._out = out
+        self.out = False
 
     def action_reset(self):
         self._current_section = self._SECTION_NONE
 
     def read_line(self, process, string, eof = False, error = False):
-        if self._out:
+        if self.out:
             print string,
         if self._good_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_GOODNODES
@@ -141,28 +141,28 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
             so = self._good_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self._kadeployer._add_good_host_address(host_address)
+                self._kadeployer.good_hosts.add(host_address)
         elif self._current_section == self._SECTION_BADNODES:
             so = self._bad_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self._kadeployer._add_bad_host_address(host_address)
+                self._kadeployer.bad_hosts.add(host_address)
 
 class _KadeployStderrHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stderr."""
 
-    def __init__(self, kadeployer, out = False):
+    def __init__(self, kadeployer):
         """
         :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
           which this `execo.process.ProcessOutputHandler` is attached.
         """
         super(_KadeployStderrHandler, self).__init__()
         self._kadeployer = kadeployer
-        self._out = out
+        self.out = False
 
     def read_line(self, process, string, eof = False, error = False):
-        if self._out:
+        if self.out:
             print string,
 
 class Kadeployer(Remote):
@@ -172,7 +172,7 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple frontends.
     """
 
-    def __init__(self, deployment, frontend_connexion_params = None, out = False, name = None, **kwargs):
+    def __init__(self, deployment, frontend_connexion_params = None):
         """
         :param deployment: instance of Deployment class describing the
           intended kadeployment.
@@ -180,22 +180,22 @@ class Kadeployer(Remote):
         :param frontend_connexion_params: connexion params for
           connecting to frontends if needed. Values override those in
           `execo_g5k.config.default_frontend_connexion_params`.
-
-        :param out: if True, output kadeploy stdout / stderr to
-          stdout.
-
-        :param name: action's name
-
-        :param kwargs: passed to the instanciated processes.
         """
-        super(Remote, self).__init__(name = name)
-        self._good_hosts = set()
-        self._bad_hosts = set()
-        self._frontend_connexion_params = frontend_connexion_params
-        self._deployment = deployment
-        self._out = out
-        self._other_kwargs = kwargs
-        self._fhosts = get_hosts_set(deployment.hosts)
+        super(Remote, self).__init__()
+        self.good_hosts = set()
+        """Iterable of `Host` containing the deployed hosts. This iterable won't be
+        complete if the Kadeployer has not terminated."""
+        self.bad_hosts = set()
+        """Iterable of `Host` containing the hosts not deployed. This iterable
+        won't be complete if the Kadeployer has not terminated."""
+        self.out = False
+        """If True, output kadeploy stdout / stderr to stdout."""
+        self.frontend_connexion_params = frontend_connexion_params
+        """Connexion params for connecting to frontends if needed. Values override
+        those in `execo_g5k.config.default_frontend_connexion_params`."""
+        self.deployment = deployment
+        """Instance of Deployment class describing the intended kadeployment."""
+        self._fhosts = get_hosts_set(self.deployment.hosts)
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
         searchre3 = re.compile("^[^ \t\n\r\f\v\.]+$")
@@ -219,95 +219,64 @@ class Kadeployer(Remote):
                 frontends[frontend].append(host)
             else:
                 frontends[frontend] = [host]
-        self._processes = list()
         lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(frontends))
         for frontend in frontends.keys():
-            kadeploy_command = self._deployment._get_common_kadeploy_command_line()
+            kadeploy_command = self.deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
                 kadeploy_command += " -m %s" % (host.address,)
             p = get_process(kadeploy_command,
                             host = get_frontend_host(frontend),
-                            connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                     default_frontend_connexion_params),
-                            pty = True,
-                            **self._other_kwargs)
-            p.stdout_handlers.append(_KadeployStdoutHandler(self, out = self._out))
-            p.stderr_handlers.append(_KadeployStderrHandler(self, out = self._out))
+                            connexion_params = make_connexion_params(self.frontend_connexion_params,
+                                                                     default_frontend_connexion_params))
+            p.pty = True
+            kdstdouthandler = _KadeployStdoutHandler(self)
+            kdstdouthandler.out = self.out
+            p.stdout_handlers.append(kdstdouthandler)
+            kdstderrhandler = _KadeployStderrHandler(self)
+            kdstderrhandler.out = self.out
+            p.stderr_handlers.append(kdstderrhandler)
             p.lifecycle_handlers.append(lifecycle_handler)
-            self._processes.append(p)
+            self.processes.append(p)
+        self.name = "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._fhosts), len(self.processes))
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()
-        self._good_hosts = set()
-        self._bad_hosts = set()
+        self.good_hosts = set()
+        self.bad_hosts = set()
 
     def _args(self):
-        return [ repr(self._deployment) ] + Action._args(self) + Kadeployer._kwargs(self)
+        return [ repr(self.deployment) ] + Action._args(self) + Kadeployer._kwargs(self)
 
     def _kwargs(self):
         kwargs = []
-        if self._frontend_connexion_params: kwargs.append("frontend_connexion_params=%r" % (self._frontend_connexion_params,))
-        if self._out: kwargs.append("out=%r" % (self._out,))
-        for (k, v) in self._other_kwargs.iteritems(): kwargs.append("%s=%s" % (k, v))
+        if self.frontend_connexion_params: kwargs.append("frontend_connexion_params=%r" % (self.frontend_connexion_params,))
         return kwargs
 
     def _infos(self):
-        return Remote._infos(self) + [ "cmds=%r" % ([ process.cmd() for process in self._processes],),
-                                       "deployed_hosts=%r" % (self._good_hosts,),
-                                       "error_hosts=%r" % (self._bad_hosts,) ]
-
-    def name(self):
-        if self._name == None:
-            return "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._fhosts), len(self._processes))
-        else:
-            return self._name
-
-    def _add_good_host_address(self, host_address):
-        """Add a host to the deployed hosts list. Intended to be called from the `execo.process.ProcessOutputHandler`."""
-        self._good_hosts.add(Host(host_address))
-
-    def _add_bad_host_address(self, host_address):
-        """Add a host to the hosts not deployed list. Intended to be called from the `execo.process.ProcessOutputHandler`."""
-        self._bad_hosts.add(Host(host_address))
-
-    def get_deployed_hosts(self):
-        """Return an iterable of `Host` containing the deployed hosts.
-
-        this iterable won't be complete if
-        `execo_g5k.kadeploy.Kadeployer` has not terminated.
-        """
-        return list(self._good_hosts)
-
-    def get_error_hosts(self):
-        """Return an iterable of `Host` containing the hosts not deployed.
-
-        this iterable won't be complete if
-        `execo_g5k.kadeploy.Kadeployer` has not terminated.
-        """
-        return list(self._fhosts.difference(self._good_hosts))
+        return Remote._infos(self) + [ "cmds=%r" % ([ process.cmd() for process in self.processes],),
+                                       "deployed_hosts=%r" % (self.good_hosts,),
+                                       "error_hosts=%r" % (self.bad_hosts,) ]
 
     def ok(self):
-        ok = super(Kadeployer, self).ok()
-        if self.ended():
-            if len(self._good_hosts.intersection(self._bad_hosts)) != 0:
+        ok = super(Kadeployer, self).ok
+        if self.ended:
+            if len(self.good_hosts.intersection(self.bad_hosts)) != 0:
                 ok = False
-            if len(self._good_hosts.union(self._bad_hosts).symmetric_difference(self._fhosts)) != 0:
+            if len(self.good_hosts.union(self.bad_hosts).symmetric_difference(self._fhosts)) != 0:
                 ok = False
         return ok
 
     def reset(self):
         retval = super(Kadeployer, self).reset()
-        for process in self._processes:
+        for process in self.processes:
             [ h.action_reset() for h in process.stdout_handlers ]
         return retval
 
-def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout = None):
+def kadeploy(deployment, frontend_connexion_params = None, timeout = None, out = False):
     """Deploy hosts with kadeploy3.
 
     :param deployment: instance of Deployment class describing the
       intended kadeployment.
-
-    :param out: if True, output kadeploy stdout / stderr to stdout.
 
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
@@ -316,33 +285,33 @@ def kadeploy(deployment, out = False, frontend_connexion_params = None, timeout 
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
 
+    :param out: if True, output kadeploy stdout / stderr to stdout.
+
     Returns a tuple (iterable of `execo.host.Host` containing the
     deployed host, iterable of `execo.host.Host` containing the nodes
     not deployed).
     """
     kadeployer = Kadeployer(deployment,
-                            out = out,
-                            frontend_connexion_params = frontend_connexion_params,
-                            timeout = timeout).run()
-    if not kadeployer.ok():
+                            frontend_connexion_params = frontend_connexion_params).run()
+    if not kadeployer.ok:
         logoutput = set_style("deployment error:", 'emph') + " %s\n" % (kadeployer,) + set_style("kadeploy processes:\n", 'emph')
-        for p in kadeployer.processes():
+        for p in kadeployer.processes:
             logoutput += "%s\n" % (p,)
-            logoutput += set_style("stdout:", 'emph') + "\n%s\n" % (p.stdout())
-            logoutput += set_style("stderr:", 'emph') + "\n%s\n" % (p.stderr())
+            logoutput += set_style("stdout:", 'emph') + "\n%s\n" % (p.stdout)
+            logoutput += set_style("stderr:", 'emph') + "\n%s\n" % (p.stderr)
         logger.error(logoutput)
-    return (kadeployer.get_deployed_hosts(), kadeployer.get_error_hosts())
+    return (kadeployer.good_hosts, kadeployer.bad_hosts)
 
 def deploy(deployment,
            check_deployed_command = True,
            node_connexion_params = {'user': 'root'},
            num_tries = 2,
            check_enough_func = None,
-           out = False,
            frontend_connexion_params = None,
            deploy_timeout = None,
            check_timeout = 30,
-           timeout = False):
+           timeout = False,
+           out = False):
     """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
     - loop `num_tries` times:
@@ -394,8 +363,6 @@ def deploy(deployment,
       a boolean indicating if there is already enough nodes (in this
       case, no further deployement will be attempted).
 
-    :param out: if True, output kadeploy stdout / stderr to stdout.
-
     :param frontend_connexion_params: connexion params for connecting
       to frontends if needed. Values override those in
       `execo_g5k.config.default_frontend_connexion_params`.
@@ -410,6 +377,8 @@ def deploy(deployment,
       Default is False, which means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
+
+    :param out: if True, output kadeploy stdout / stderr to stdout.
     """
 
     if isinstance(timeout, bool) and timeout == False:
@@ -432,23 +401,23 @@ def deploy(deployment,
                 deployment_hostnames_mapping[host.address] = host
         deployed_check = get_remote(check_deployed_command,
                                     deployment_hostnames_mapping.keys(),
-                                    connexion_params = node_connexion_params,
-                                    log_exit_code = False,
-                                    log_timeout = False,
-                                    log_error = False,
-                                    timeout = check_timeout)
+                                    connexion_params = node_connexion_params)
+        for p in deployed_check.processes:
+                p.log_exit_code = False
+                p.log_timeout = False
+                p.log_error = False
         deployed_check.run()
         newly_deployed = list()
-        for process in deployed_check.processes():
-            logger.debug(set_style("check on %s:" % (process.host(),), 'emph')
+        for process in deployed_check.processes:
+            logger.debug(set_style("check on %s:" % (process.host,), 'emph')
                          + " %s\n" % (process,)
-                         + set_style("stdout:", 'emph') + "\n%s\n" % (process.stdout())
-                         + set_style("stderr:", 'emph') + "\n%s\n" % (process.stderr()))
-            if (process.ok()):
-                newly_deployed.append(deployment_hostnames_mapping[process.host().address])
-                logger.info("OK %s", deployment_hostnames_mapping[process.host().address])
+                         + set_style("stdout:", 'emph') + "\n%s\n" % (process.stdout)
+                         + set_style("stderr:", 'emph') + "\n%s\n" % (process.stderr))
+            if (process.ok):
+                newly_deployed.append(deployment_hostnames_mapping[process.host.address])
+                logger.info("OK %s", deployment_hostnames_mapping[process.host.address])
             else:
-                logger.info("KO %s", deployment_hostnames_mapping[process.host().address])
+                logger.info("KO %s", deployment_hostnames_mapping[process.host.address])
         return newly_deployed
 
     start_time = time.time()
@@ -475,10 +444,9 @@ def deploy(deployment,
         logger.info(set_style("try %i, deploying on:" % (num_tries_done,), 'emph') + " %s", undeployed_hosts)
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
-        (kadeploy_newly_deployed, _) = kadeploy(tmp_deployment,
-                                                out = out,
-                                                frontend_connexion_params = frontend_connexion_params,
-                                                timeout = deploy_timeout)
+        kadeploy_newly_deployed, _ = kadeploy(tmp_deployment,
+                                              frontend_connexion_params = frontend_connexion_params,
+                                              out = out)
         my_newly_deployed = []
         if check_deployed_command:
             my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params, deployment.vlan)

@@ -115,17 +115,17 @@ def oargridsub(job_specs, reservation_date = None,
     process = get_process(oargridsub_cmdline,
                           host = get_frontend_host(),
                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params),
-                          timeout = timeout,
-                          pty = True)
+                                                                   default_frontend_connexion_params))
+    process.timeout = timeout
+    process.pty = True
     process.run()
     job_id = None
     ssh_key = None
-    if process.ok():
-        mo = re.search("^\[OAR_GRIDSUB\] Grid reservation id = (\d+)\s*$", process.stdout(), re.MULTILINE)
+    if process.ok:
+        mo = re.search("^\[OAR_GRIDSUB\] Grid reservation id = (\d+)\s*$", process.stdout, re.MULTILINE)
         if mo != None:
             job_id = int(mo.group(1))
-        mo = re.search("^\[OAR_GRIDSUB\] SSH KEY : (.*)\s*$", process.stdout(), re.MULTILINE)
+        mo = re.search("^\[OAR_GRIDSUB\] SSH KEY : (.*)\s*$", process.stdout, re.MULTILINE)
         if mo != None:
             ssh_key = mo.group(1)
     if job_id != None:
@@ -154,13 +154,14 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
         timeout = g5k_configuration.get('default_timeout')
     processes = []
     for job_id in job_ids:
-        processes.append(get_process("oargriddel %i" % (job_id,),
-                                     host = get_frontend_host(),
-                                     connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                              default_frontend_connexion_params),
-                                     timeout = timeout,
-                                     log_exit_code = False,
-                                     pty = True))
+        p = get_process("oargriddel %i" % (job_id,),
+                        host = get_frontend_host(),
+                        connexion_params = make_connexion_params(frontend_connexion_params,
+                                                                 default_frontend_connexion_params))
+        p.timeout = timeout
+        p.log_exit_code = False
+        p.pty = True
+        processes.append(p)
     for process in processes: process.start()
     for process in processes: process.wait()
 
@@ -193,11 +194,12 @@ def get_current_oargrid_jobs(start_between = None,
     process = get_process("oargridstat",
                           host = get_frontend_host(),
                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params),
-                          timeout = timeout,
-                          pty = True).run()
-    if process.ok():
-        jobs = re.findall("Reservation # (\d+):", process.stdout(), re.MULTILINE)
+                                                                   default_frontend_connexion_params))
+    process.timeout = timeout
+    process.pty = True
+    process.run()
+    if process.ok:
+        jobs = re.findall("Reservation # (\d+):", process.stdout, re.MULTILINE)
         oargrid_job_ids = [ int(j) for j in jobs ]
         if start_between or end_between:
             filtered_job_ids = []
@@ -236,16 +238,16 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
     process = get_process("oargridstat %i" % (oargrid_job_id,),
                           host = get_frontend_host(),
                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params),
-                          timeout = timeout,
-                          pty = True)
+                                                                   default_frontend_connexion_params))
+    process.timeout = timeout
+    process.pty = True
     process.run()
     job_info = dict()
-    start_date_result = re.search("start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)", process.stdout(), re.MULTILINE)
+    start_date_result = re.search("start date : (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)", process.stdout, re.MULTILINE)
     if start_date_result:
         start_date = oar_date_to_unixts(start_date_result.group(1))
         job_info['start_date'] = start_date
-    walltime_result = re.search("walltime : (\d+:\d?\d:\d?\d)", process.stdout(), re.MULTILINE)
+    walltime_result = re.search("walltime : (\d+:\d?\d:\d?\d)", process.stdout, re.MULTILINE)
     if walltime_result:
         walltime = oar_duration_to_seconds(walltime_result.group(1))
         job_info['walltime'] = walltime
@@ -270,13 +272,13 @@ def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connexion_params = 
     process = get_process("oargridstat %i" % (oargrid_job_id,),
                           host = get_frontend_host(),
                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params),
-                          timeout = timeout,
-                          pty = True)
+                                                                   default_frontend_connexion_params))
+    process.timeout = timeout
+    process.pty = True
     process.run()
-    if process.ok():
+    if process.ok:
         job_specs = []
-        for m in re.finditer("^\t(\w+) --> (\d+)", process.stdout(), re.MULTILINE):
+        for m in re.finditer("^\t(\w+) --> (\d+)", process.stdout, re.MULTILINE):
             job_specs.append((int(m.group(2)), m.group(1)))
         return job_specs
     else:
@@ -317,12 +319,12 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
     process = get_process("oargridstat -wl %i 2>/dev/null || oargridstat -l %i 2>/dev/null" % (oargrid_job_id, oargrid_job_id),
                           host = get_frontend_host(),
                           connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params),
-                          timeout = timeout,
-                          pty = True)
+                                                                   default_frontend_connexion_params))
+    process.timeout = timeout
+    process.pty = True
     process.run()
-    if process.ok():
-        host_addresses = re.findall("(\S+)", process.stdout(), re.MULTILINE)
+    if process.ok:
+        host_addresses = re.findall("(\S+)", process.stdout, re.MULTILINE)
         return list(set([ Host(host_address) for host_address in host_addresses ]))
     else:
         raise ProcessesFailed, [process]

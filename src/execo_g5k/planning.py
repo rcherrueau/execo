@@ -157,15 +157,15 @@ class Planning:
         
 #tunnel = Local('ssh lyon.g5k -L13306:mysql.lyon.grid5000.fr:3306 ').start()
 #
-#for p in tunnel.processes():
-#    print p.stdout()
-#    print p.stderr()
+#for p in tunnel.processes:
+#    print p.stdout
+#    print p.stderr
 #sleep(5)
 #scan = Local('nmap localhost -p 13306').run()
 #
-#for p in scan.processes():
-#    print p.stdout()
-#    print p.stderr()
+#for p in scan.processes:
+#    print p.stdout
+#    print p.stderr
 #
 #db =_mysql.connect(host="localhost", port=13306, user="oarreader", passwd="read", db="oar2")
 
@@ -318,10 +318,10 @@ class Planning:
             # TEMPORARY HACK CONSIDERING THAT NOT MUCH PEOPLE ARE USING KAVLAN SO ONE SHOULD BE FREE
 
         else:
-            for p in get_jobs.processes():
-                site = p.host().address
+            for p in get_jobs.processes:
+                site = p.host.address
                 vlan_planning[site] = {'busy': [], 'free': []}
-                site_jobs = loads(p.stdout())
+                site_jobs = loads(p.stdout)
                 for info in site_jobs.itervalues():
                     if 'kavlan-global'in info['wanted_resources']:
                         vlan_planning[site]['busy'].append(( int(info['scheduledStart']), 
