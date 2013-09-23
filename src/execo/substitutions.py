@@ -19,12 +19,18 @@
 import inspect
 import re
 
-def get_caller_context(filter_out_funcs = None):
+def get_caller_context(filter_out_funcs = None, scope_limit_funcs = ["__init__"]):
     """Return a tuple with (globals, locals) of the calling context.
 
-    optional keyword arguments is a list of function names which are skipped."""
-    for frame_record in inspect.stack()[2:]:
-        if not filter_out_funcs or frame_record[3] not in filter_out_funcs:
+    Locate the calling context by walking down the call stack, and
+    finding the first context below any of the functions in
+    scope_limit_funcs, and ignoring any function in filter_out_funcs."""
+    scope_limit = False
+    for frame_record in inspect.stack():
+        if frame_record[3] in scope_limit_funcs:
+            scope_limit = True
+            continue
+        if scope_limit and (not filter_out_funcs or frame_record[3] not in filter_out_funcs):
             return frame_record[0].f_globals, frame_record[0].f_locals
     return None, None
 
