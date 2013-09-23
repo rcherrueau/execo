@@ -1406,30 +1406,33 @@ class ChainPut(ParallelActions):
           override those in default_connexion_params for connexion.
         """
         self.hosts = get_unique_hosts_list(hosts)
-        actual_connexion_params = make_connexion_params(connexion_params)
-        forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(remote_location, os.path.basename(local_file)),
-                                                                                                                                                                                     actual_connexion_params['chainput_num_retry'],
-                                                                                                                                                                                     actual_connexion_params['nc'],
-                                                                                                                                                                                     host.address,
-                                                                                                                                                                                     actual_connexion_params['chainput_port'],
-                                                                                                                                                                                     actual_connexion_params['chainput_try_delay'])
-                       for host in self.hosts[1:] ]
-        forwardcmd.append("> %s" % (os.path.join(remote_location, os.path.basename(local_file)),))
-        plch = ChainPutProcessLifecycleHandler(self)
-        chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
-                                                       actual_connexion_params['chainput_port']),
-                             self.hosts,
-                             connexion_params)
-        [ p.lifecycle_handlers.append(plch) for p in chain.processes ]
-        send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connexion_params['chainput_num_retry'],
-                                                                                                                                                                             actual_connexion_params['nc'],
-                                                                                                                                                                             self.hosts[0].address,
-                                                                                                                                                                             actual_connexion_params['chainput_port'],
-                                                                                                                                                                             local_file,
-                                                                                                                                                                             actual_connexion_params['chainput_try_delay']))
-        send.shell = True
-        [ p.lifecycle_handlers.append(plch) for p in send.processes ]
-        actions = [chain, send]
+        if len(self.hosts) > 0:
+            actual_connexion_params = make_connexion_params(connexion_params)
+            forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(remote_location, os.path.basename(local_file)),
+                                                                                                                                                                                         actual_connexion_params['chainput_num_retry'],
+                                                                                                                                                                                         actual_connexion_params['nc'],
+                                                                                                                                                                                         host.address,
+                                                                                                                                                                                         actual_connexion_params['chainput_port'],
+                                                                                                                                                                                         actual_connexion_params['chainput_try_delay'])
+                           for host in self.hosts[1:] ]
+            forwardcmd.append("> %s" % (os.path.join(remote_location, os.path.basename(local_file)),))
+            plch = ChainPutProcessLifecycleHandler(self)
+            chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
+                                                           actual_connexion_params['chainput_port']),
+                                 self.hosts,
+                                 connexion_params)
+            [ p.lifecycle_handlers.append(plch) for p in chain.processes ]
+            send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connexion_params['chainput_num_retry'],
+                                                                                                                                                                                 actual_connexion_params['nc'],
+                                                                                                                                                                                 self.hosts[0].address,
+                                                                                                                                                                                 actual_connexion_params['chainput_port'],
+                                                                                                                                                                                 local_file,
+                                                                                                                                                                                 actual_connexion_params['chainput_try_delay']))
+            send.processes[0].shell = True
+            [ p.lifecycle_handlers.append(plch) for p in send.processes ]
+            actions = [chain, send]
+        else:
+            actions = []
         super(ChainPut, self).__init__(actions)
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
 
