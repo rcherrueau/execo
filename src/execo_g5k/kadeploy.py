@@ -116,14 +116,14 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
           which this `execo.process.ProcessOutputHandler` is attached.
         """
         super(_KadeployStdoutHandler, self).__init__()
-        self._kadeployer = kadeployer
+        self.kadeployer = kadeployer
+        self.out = False
         self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
         self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
         self._good_node_re = re.compile("^(\S+)\s*$")
         self._bad_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
-        self.out = False
 
     def action_reset(self):
         self._current_section = self._SECTION_NONE
@@ -141,12 +141,12 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
             so = self._good_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self._kadeployer.good_hosts.add(host_address)
+                self.kadeployer.good_hosts.add(host_address)
         elif self._current_section == self._SECTION_BADNODES:
             so = self._bad_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self._kadeployer.bad_hosts.add(host_address)
+                self.kadeployer.bad_hosts.add(host_address)
 
 class _KadeployStderrHandler(ProcessOutputHandler):
 
@@ -158,7 +158,7 @@ class _KadeployStderrHandler(ProcessOutputHandler):
           which this `execo.process.ProcessOutputHandler` is attached.
         """
         super(_KadeployStderrHandler, self).__init__()
-        self._kadeployer = kadeployer
+        self.kadeployer = kadeployer
         self.out = False
 
     def read_line(self, process, string, eof = False, error = False):
