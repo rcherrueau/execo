@@ -76,6 +76,10 @@ class Action(object):
         """whether this Action was started (boolean)"""
         self.ended = False
         """whether this Action has ended (boolean)"""
+        # self.timeout = timeout
+        # """Timeout in seconds, or None"""
+        # self.factory = factory
+        # """Factory which created this action, or None"""
         self.processes = []
         """Iterable of all `execo.process.ProcessBase`"""
         self.name = "%s 0x%08.8x" % (self.__class__.__name__, id(self))
@@ -94,6 +98,7 @@ class Action(object):
         self.started = False
         self.ended = False
         self._end_event.clear()
+        self._init_processes()
 
     def _args(self):
         # to be implemented in all subclasses. Must return a list with
@@ -146,6 +151,9 @@ class Action(object):
             self.ended = True
             self._end_event.set()
             Action._wait_multiple_actions_condition.notifyAll()
+
+    def _init_processes(self):
+        self.processes = []
 
     def start(self):
         """Start all processes.
@@ -291,10 +299,10 @@ def wait_all_actions(actions, timeout = None):
                 timeout = end - time.time()
         return finished
 
-class ActionNotificationProcessLifecycleHandler(ProcessLifecycleHandler):
+class ActionNotificationProcessLH(ProcessLifecycleHandler):
 
     def __init__(self, action, total_processes):
-        super(ActionNotificationProcessLifecycleHandler, self).__init__()
+        super(ActionNotificationProcessLH, self).__init__()
         self.action = action
         self.total_processes = total_processes
         self.terminated_processes = 0
@@ -342,13 +350,7 @@ class Remote(Action):
         self.hosts = get_hosts_list(hosts)
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
-        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
-        for (index, host) in enumerate(self.hosts):
-            p = SshProcess(remote_substitute(self.cmd, self.hosts, index, self._caller_context),
-                           host = host,
-                           connexion_params = self.connexion_params)
-            p.lifecycle_handlers.append(self._process_lifecycle_handler)
-            self.processes.append(p)
+        self._init_processes()
 
     def _args(self):
         return [ repr(self.cmd),
@@ -358,6 +360,16 @@ class Remote(Action):
         kwargs = []
         if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
         return kwargs
+
+    def _init_processes(self):
+        self.processes = []
+        processlh = ActionNotificationProcessLH(self, len(self.hosts))
+        for (index, host) in enumerate(self.hosts):
+            p = SshProcess(remote_substitute(self.cmd, self.hosts, index, self._caller_context),
+                           host = host,
+                           connexion_params = self.connexion_params)
+            p.lifecycle_handlers.append(processlh)
+            self.processes.append(p)
 
     def start(self):
         retval = super(Remote, self).start()
@@ -374,13 +386,6 @@ class Remote(Action):
         for process in self.processes:
             if process.running:
                 process.kill()
-        return retval
-
-    def reset(self):
-        retval = super(Remote, self).reset()
-        for process in self.processes:
-            process.reset()
-        self._process_lifecycle_handler.action_reset()
         return retval
 
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
@@ -505,12 +510,12 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
             logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
             logger.critical("line received = %s", string.rstrip('\n'))
 
-class _TaktukLifecycleHandler(ProcessLifecycleHandler):
+class _TaktukLH(ProcessLifecycleHandler):
 
     """Notify `execo.process.TaktukProcess` of their real taktuk process lifecyle."""
 
     def __init__(self, taktukremote):
-        super(_TaktukLifecycleHandler, self).__init__()
+        super(_TaktukLH, self).__init__()
         self.taktukremote = taktukremote
 
     def end(self, process):
@@ -587,8 +592,7 @@ class TaktukRemote(Action):
         self._caller_context = get_caller_context(['get_remote'])
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
-        self._process_lifecycle_handler = None
-        self._taktuk_common_init()
+        self._init_processes()
 
     def _args(self):
         return [ repr(self.cmd),
@@ -600,11 +604,11 @@ class TaktukRemote(Action):
         return kwargs
 
     def _gen_taktukprocesses(self):
-        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
+        processlh = ActionNotificationProcessLH(self, len(self.hosts))
         for (index, host) in enumerate(self.hosts):
             p = TaktukProcess(remote_substitute(self.cmd, self.hosts, index, self._caller_context),
                               host = host)
-            p.lifecycle_handlers.append(self._process_lifecycle_handler)
+            p.lifecycle_handlers.append(processlh)
             self.processes.append(p)
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
@@ -615,9 +619,10 @@ class TaktukRemote(Action):
             self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connexion_params), "-[", "exec", "[", _quote_taktuk_brackets(repr(self.processes[index].cmd)[1:-1]), "]", "-]",)
             self._taktuk_hosts_order.append(index)
 
-    def _taktuk_common_init(self):
+    def _init_processes(self):
         # taktuk code common to TaktukRemote and subclasses TaktukGet
         # TaktukPut
+        self.processes = []
         self._taktuk_hosts_order = []
         self._taktuk_commands = ()
         self._taktuk = None
@@ -682,7 +687,7 @@ class TaktukRemote(Action):
         #self._taktuk.default_stderr_handler = False
         self._taktuk.stdout_handlers.append(self._taktuk_stdout_output_handler)
         #self._taktuk.stderr_handlers.append(self._taktuk_stderr_output_handler)
-        self._taktuk.lifecycle_handlers.append(_TaktukLifecycleHandler(self))
+        self._taktuk.lifecycle_handlers.append(_TaktukLH(self))
 
     def start(self):
         retval = super(TaktukRemote, self).start()
@@ -696,19 +701,6 @@ class TaktukRemote(Action):
     def kill(self):
         retval = super(TaktukRemote, self).kill()
         self._taktuk.kill()
-        return retval
-
-    def reset(self):
-        retval = super(TaktukRemote, self).reset()
-        # from here
-        self._taktuk.reset()
-        for process in self.processes:
-            process.reset()
-        self._process_lifecycle_handler.action_reset()
-        # to here this is not really needed as anyway we regenerate everything
-        self._process_lifecycle_handler = None
-        self.processes = []
-        self._taktuk_common_init()
         return retval
 
 class Put(Remote):
@@ -746,17 +738,8 @@ class Put(Remote):
         """A dict similar to `execo.config.default_connexion_params` whose values
         will override those in default_connexion_params for connexion."""
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
-        if len(local_files) > 0:
-            self._caller_context = get_caller_context(['get_fileput'])
-            self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
-            for (index, host) in enumerate(self.hosts):
-                real_command = list(get_scp_command(host.user, host.keyfile, host.port, self.connexion_params)) + [ remote_substitute(local_file, self.hosts, index, self._caller_context) for local_file in self.local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(self.remote_location, self.hosts, index, self._caller_context)),]
-                real_command = ' '.join(real_command)
-                p = Process(real_command)
-                p.shell = True
-                p.lifecycle_handlers.append(self._process_lifecycle_handler)
-                p.host = host
-                self.processes.append(p)
+        self._caller_context = get_caller_context(['get_fileput'])
+        self._init_processes()
 
     def _args(self):
         return [ repr(self.hosts),
@@ -767,6 +750,19 @@ class Put(Remote):
         kwargs.append("remote_location=%r" % (self.remote_location,))
         if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
         return kwargs
+
+    def _init_processes(self):
+        self.processes = []
+        if len(self.local_files) > 0:
+            processlh = ActionNotificationProcessLH(self, len(self.hosts))
+            for (index, host) in enumerate(self.hosts):
+                real_command = list(get_scp_command(host.user, host.keyfile, host.port, self.connexion_params)) + [ remote_substitute(local_file, self.hosts, index, self._caller_context) for local_file in self.local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(self.remote_location, self.hosts, index, self._caller_context)),]
+                real_command = ' '.join(real_command)
+                p = Process(real_command)
+                p.shell = True
+                p.lifecycle_handlers.append(processlh)
+                p.host = host
+                self.processes.append(p)
 
 class Get(Remote):
 
@@ -802,20 +798,8 @@ class Get(Remote):
         """Dict similar to `execo.config.default_connexion_params` whose values
         will override those in default_connexion_params for connexion."""
         self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
-        if len(remote_files) > 0:
-            self._caller_context = get_caller_context(['get_fileget'])
-            self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
-            for (index, host) in enumerate(self.hosts):
-                remote_specs = ()
-                for path in self.remote_files:
-                    remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(path, self.hosts, index, self._caller_context)),)
-                real_command = get_scp_command(host.user, host.keyfile, host.port, self.connexion_params) + remote_specs + (remote_substitute(self.local_location, self.hosts, index, self._caller_context),)
-                real_command = ' '.join(real_command)
-                p = Process(real_command)
-                p.shell = True
-                p.lifecycle_handlers.append(self._process_lifecycle_handler)
-                p.host = host
-                self.processes.append(p)
+        self._caller_context = get_caller_context(['get_fileget'])
+        self._init_processes()
 
     def _args(self):
         return [ repr(self.hosts),
@@ -826,6 +810,22 @@ class Get(Remote):
         kwargs.append("local_location=%r" % (self.local_location,))
         if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
         return kwargs
+
+    def _init_processes(self):
+        self.processes = []
+        if len(self.remote_files) > 0:
+            processlh = ActionNotificationProcessLH(self, len(self.hosts))
+            for (index, host) in enumerate(self.hosts):
+                remote_specs = ()
+                for path in self.remote_files:
+                    remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(path, self.hosts, index, self._caller_context)),)
+                real_command = get_scp_command(host.user, host.keyfile, host.port, self.connexion_params) + remote_specs + (remote_substitute(self.local_location, self.hosts, index, self._caller_context),)
+                real_command = ' '.join(real_command)
+                p = Process(real_command)
+                p.shell = True
+                p.lifecycle_handlers.append(processlh)
+                p.host = host
+                self.processes.append(p)
 
 class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
 
@@ -942,8 +942,7 @@ class TaktukPut(TaktukRemote):
         self._caller_context = get_caller_context(['get_fileput'])
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
-        self._process_lifecycle_handler = None
-        self._taktuk_common_init()
+        self._init_processes()
 
     def _args(self):
         return [ repr(self.hosts),
@@ -956,11 +955,11 @@ class TaktukPut(TaktukRemote):
         return kwargs
 
     def _gen_taktukprocesses(self):
-        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
+        processlh = ActionNotificationProcessLH(self, len(self.hosts))
         for (index, host) in enumerate(self.hosts):
             process = TaktukProcess("",
                                     host = host)
-            process.lifecycle_handlers.append(self._process_lifecycle_handler)
+            process.lifecycle_handlers.append(processlh)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -976,15 +975,6 @@ class TaktukPut(TaktukRemote):
             self._taktuk_hosts_order.append(index)
         for src in self.local_files:
             self._taktuk_commands += ("broadcast", "put", "[", src, "]", "[", self.remote_location, "]", ";")
-
-    def reset(self):
-        retval = super(TaktukPut, self).reset()
-        for process in self.processes:
-            process._num_transfers_started = 0
-            process._num_transfers_terminated = 0
-            process._num_transfers_failed = 0
-        self._process_lifecycle_handler.action_reset()
-        return retval
 
 class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
 
@@ -1102,8 +1092,7 @@ class TaktukGet(TaktukRemote):
         self._caller_context = get_caller_context(['get_fileget'])
         self._taktuk_stdout_output_handler = _TaktukGetOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
-        self._process_lifecycle_handler = None
-        self._taktuk_common_init()
+        self._init_processes()
 
     def _args(self):
         return [ repr(self.hosts),
@@ -1116,11 +1105,11 @@ class TaktukGet(TaktukRemote):
         return kwargs
 
     def _gen_taktukprocesses(self):
-        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(self.hosts))
+        processlh = ActionNotificationProcessLH(self, len(self.hosts))
         for (index, host) in enumerate(self.hosts):
             process = TaktukProcess("",
                                     host = host)
-            process.lifecycle_handlers.append(self._process_lifecycle_handler)
+            process.lifecycle_handlers.append(processlh)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
             process._num_transfers_failed = 0
@@ -1137,15 +1126,6 @@ class TaktukGet(TaktukRemote):
         for src in self.remote_files:
             self._taktuk_commands += ("broadcast", "get", "[", src, "]", "[", self.local_location, "]", ";")
 
-    def reset(self):
-        retval = super(TaktukGet, self).reset()
-        for process in self.processes:
-            process._num_transfers_started = 0
-            process._num_transfers_terminated = 0
-            process._num_transfers_failed = 0
-        self._process_lifecycle_handler.action_reset()
-        return retval
-
 class Local(Action):
 
     """Launch a command localy."""
@@ -1158,16 +1138,20 @@ class Local(Action):
         self.cmd = cmd
         """the command to run"""
         self.name = nice_cmdline(self.cmd)
-        p = Process(self.cmd)
-        self._process_lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, 1)
-        p.lifecycle_handlers.append(self._process_lifecycle_handler)
-        self.processes.append(p)
+        self._init_processes()
 
     def _args(self):
         return [ repr(self.cmd) ] + Action._args(self) + Local._kwargs(self)
 
     def _kwargs(self):
         return []
+
+    def _init_processes(self):
+        self.processes = []
+        p = Process(self.cmd)
+        processlh = ActionNotificationProcessLH(self, 1)
+        p.lifecycle_handlers.append(processlh)
+        self.processes.append(p)
 
     def start(self):
         retval = super(Local, self).start()
@@ -1179,31 +1163,24 @@ class Local(Action):
         [ p.kill() for p in self.processes if p.running ]
         return retval
 
-    def reset(self):
-        retval = super(Local, self).reset()
-        [ p.reset() for p in self.processes ]
-        self._process_lifecycle_handler.action_reset()
-        return retval
+class ParallelSubActionLH(ActionLifecycleHandler):
 
-class ParallelSubActionLifecycleHandler(ActionLifecycleHandler):
-
-    def __init__(self, parallelaction, total_parallel_subactions):
-        super(ParallelSubActionLifecycleHandler, self).__init__()
-        self.parallelaction = parallelaction
-        self._total_parallel_subactions = total_parallel_subactions
-        self._terminated_subactions = 0
+    def __init__(self, parallel_action):
+        super(ParallelSubActionLH, self).__init__()
+        self.parallel_action = parallel_action
+        self._num_terminated = 0
 
     def reset(self, action):
-        self._terminated_subactions = 0
+        self._num_terminated = 0
 
     def end(self, action):
-        self._terminated_subactions += 1
+        self._num_terminated += 1
         logger.debug("%i/%i subactions terminated in %s",
-            self._terminated_subactions,
-            self._total_parallel_subactions,
-            self.parallelaction)
-        if self._terminated_subactions == self._total_parallel_subactions:
-            self.parallelaction._notify_terminated()
+            self._num_terminated,
+            len(self.parallel_action.actions),
+            self.parallel_action)
+        if self._num_terminated == len(self.parallel_action.actions):
+            self.parallel_action._notify_terminated()
 
 class ParallelActions(Action):
 
@@ -1216,15 +1193,19 @@ class ParallelActions(Action):
         super(ParallelActions, self).__init__()
         self.actions = actions
         self.name = "%s %i actions" % (self.__class__.__name__, len(self.actions))
-        self._subactions_lifecycle_handler = ParallelSubActionLifecycleHandler(self, len(self.actions))
-        for action in self.actions:
-            action.lifecycle_handlers.append(self._subactions_lifecycle_handler)
+        self._init_actions()
 
     def _args(self):
         return [ repr(self.actions) ] + Action._args(self) + ParallelActions._kwargs(self)
 
     def _kwargs(self):
         return []
+
+    def _init_actions(self):
+        subactionslh = ParallelSubActionLH(self)
+        for action in self.actions:
+            action.lifecycle_handlers = [ lh for lh in action.lifecycle_handlers if not isinstance(lh, ParallelSubActionLH) ]
+            action.lifecycle_handlers.append(subactionslh)
 
     def start(self):
         retval = super(ParallelActions, self).start()
@@ -1246,6 +1227,7 @@ class ParallelActions(Action):
         retval = super(ParallelActions, self).reset()
         for action in self.actions:
             action.reset()
+        self._init_actions()
         return retval
 
     @property
@@ -1265,24 +1247,26 @@ class ParallelActions(Action):
         stats['sub_stats'] = [action.stats() for action in self.actions]
         return Report.aggregate_stats(stats)
 
-class SequentialSubActionLifecycleHandler(ActionLifecycleHandler):
+class SequentialSubActionLH(ActionLifecycleHandler):
 
-    def __init__(self, sequentialaction, index, total, next_subaction):
-        super(SequentialSubActionLifecycleHandler, self).__init__()
-        self.sequentialaction = sequentialaction
-        self._index = index
-        self._total = total
-        self._next_subaction = next_subaction
+    def __init__(self, sequential_action):
+        super(SequentialSubActionLH, self).__init__()
+        self.sequential_action = sequential_action
+        self._num_terminated = 0
+
+    def reset(self, action):
+        self._num_terminated = 0
 
     def end(self, action):
+        self._num_terminated += 1
         logger.debug("%i/%i subactions terminated in %s",
-            self._index,
-            self._total,
-            self.sequentialaction)
-        if self._next_subaction:
-            self._next_subaction.start()
+            self._num_terminated,
+            len(self.sequential_action.actions),
+            self.sequential_action)
+        if self._num_terminated < len(self.sequential_action.actions):
+            self.sequential_action.actions[self._num_terminated].start()
         else:
-            self.sequentialaction._notify_terminated()
+            self.sequential_action._notify_terminated()
 
 class SequentialActions(Action):
 
@@ -1295,21 +1279,19 @@ class SequentialActions(Action):
         super(SequentialActions, self).__init__()
         self.actions = actions
         self.name = "%s %i actions" % (self.__class__.__name__, len(self.actions))
-        for (index, action) in enumerate(self.actions):
-            if index + 1 < len(self.actions):
-                next_action = self.actions[index + 1]
-            else:
-                next_action = None
-            action.lifecycle_handlers.append(SequentialSubActionLifecycleHandler(self,
-                                                                                   index,
-                                                                                   len(self.actions),
-                                                                                   next_action))
+        self._init_actions()
 
     def _args(self):
         return [ repr(self.actions) ] + Action._args(self) + SequentialActions._kwargs(self)
 
     def _kwargs(self):
         return []
+
+    def _init_actions(self):
+        subactionslh = SequentialSubActionLH(self)
+        for action in self.actions:
+            action.lifecycle_handlers = [ lh for lh in action.lifecycle_handlers if not isinstance(lh, SequentialSubActionLH) ]
+            action.lifecycle_handlers.append(subactionslh)
 
     def start(self):
         retval = super(SequentialActions, self).start()
@@ -1330,6 +1312,7 @@ class SequentialActions(Action):
         retval = super(SequentialActions, self).reset()
         for action in self.actions:
             action.reset()
+        self._init_actions()
         return retval
 
     @property
@@ -1349,7 +1332,7 @@ class SequentialActions(Action):
         stats['sub_stats'] = [action.stats() for action in self.actions]
         return Report.aggregate_stats(stats)
 
-class ChainPutProcessLifecycleHandler(ProcessLifecycleHandler):
+class ChainPutProcessLH(ProcessLifecycleHandler):
 
     def __init__(self, chainput):
         self.chainput = chainput
@@ -1406,35 +1389,41 @@ class ChainPut(ParallelActions):
           override those in default_connexion_params for connexion.
         """
         self.hosts = get_unique_hosts_list(hosts)
+        self.local_file = local_file
+        self.remote_location = remote_location
+        self.connexion_params = connexion_params
+        super(ChainPut, self).__init__([])
+        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+
+    def _init_actions(self):
         if len(self.hosts) > 0:
-            actual_connexion_params = make_connexion_params(connexion_params)
-            forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(remote_location, os.path.basename(local_file)),
+            actual_connexion_params = make_connexion_params(self.connexion_params)
+            forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(self.remote_location, os.path.basename(self.local_file)),
                                                                                                                                                                                          actual_connexion_params['chainput_num_retry'],
                                                                                                                                                                                          actual_connexion_params['nc'],
                                                                                                                                                                                          host.address,
                                                                                                                                                                                          actual_connexion_params['chainput_port'],
                                                                                                                                                                                          actual_connexion_params['chainput_try_delay'])
                            for host in self.hosts[1:] ]
-            forwardcmd.append("> %s" % (os.path.join(remote_location, os.path.basename(local_file)),))
-            plch = ChainPutProcessLifecycleHandler(self)
+            forwardcmd.append("> %s" % (os.path.join(self.remote_location, os.path.basename(self.local_file)),))
+            plch = ChainPutProcessLH(self)
             chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
                                                            actual_connexion_params['chainput_port']),
                                  self.hosts,
-                                 connexion_params)
+                                 self.connexion_params)
             [ p.lifecycle_handlers.append(plch) for p in chain.processes ]
             send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connexion_params['chainput_num_retry'],
                                                                                                                                                                                  actual_connexion_params['nc'],
                                                                                                                                                                                  self.hosts[0].address,
                                                                                                                                                                                  actual_connexion_params['chainput_port'],
-                                                                                                                                                                                 local_file,
+                                                                                                                                                                                 self.local_file,
                                                                                                                                                                                  actual_connexion_params['chainput_try_delay']))
             send.processes[0].shell = True
             [ p.lifecycle_handlers.append(plch) for p in send.processes ]
-            actions = [chain, send]
+            self.actions = [chain, send]
         else:
-            actions = []
-        super(ChainPut, self).__init__(actions)
-        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+            self.actions = []
+        super(ChainPut, self)._init_actions()
 
 class MultiChainPut(SequentialActions):
 
@@ -1454,12 +1443,16 @@ class MultiChainPut(SequentialActions):
           `execo.config.default_connexion_params` whose values will
           override those in default_connexion_params for connexion.
         """
-        actions = []
-        for lf in local_files:
-            cp = ChainPut(hosts, lf, remote_location, connexion_params)
-            actions.append(cp)
-        super(MultiChainPut, self).__init__(actions)
+        self.hosts = hosts
+        self.local_files = local_files
+        self.remote_location = remote_location
+        self.connexion_params = connexion_params
+        super(MultiChainPut, self).__init__([])
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(hosts))
+
+    def _init_actions(self):
+        self.actions = [ ChainPut(self.hosts, local_file, self.remote_location, self.connexion_params) for local_file in self.local_files ]
+        super(MultiChainPut, self)._init_actions()
 
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""

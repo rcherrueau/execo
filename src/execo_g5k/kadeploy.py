@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import g5k_configuration
-from execo.action import Remote, ActionNotificationProcessLifecycleHandler, \
+from execo.action import Remote, ActionNotificationProcessLH, \
     Action, get_remote
 from execo.config import make_connexion_params
 from execo.host import get_hosts_set, Host
@@ -195,6 +195,11 @@ class Kadeployer(Remote):
         those in `execo_g5k.config.default_frontend_connexion_params`."""
         self.deployment = deployment
         """Instance of Deployment class describing the intended kadeployment."""
+        self._init_processes()
+        self.name = "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._fhosts), len(self.processes))
+
+    def _init_processes(self):
+        self.processes = []
         self._fhosts = get_hosts_set(self.deployment.hosts)
         searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
         searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
@@ -219,7 +224,7 @@ class Kadeployer(Remote):
                 frontends[frontend].append(host)
             else:
                 frontends[frontend] = [host]
-        lifecycle_handler = ActionNotificationProcessLifecycleHandler(self, len(frontends))
+        lifecycle_handler = ActionNotificationProcessLH(self, len(frontends))
         for frontend in frontends.keys():
             kadeploy_command = self.deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
@@ -237,7 +242,6 @@ class Kadeployer(Remote):
             p.stderr_handlers.append(kdstderrhandler)
             p.lifecycle_handlers.append(lifecycle_handler)
             self.processes.append(p)
-        self.name = "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._fhosts), len(self.processes))
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()
@@ -265,12 +269,6 @@ class Kadeployer(Remote):
             if len(self.good_hosts.union(self.bad_hosts).symmetric_difference(self._fhosts)) != 0:
                 ok = False
         return ok
-
-    def reset(self):
-        retval = super(Kadeployer, self).reset()
-        for process in self.processes:
-            [ h.action_reset() for h in process.stdout_handlers ]
-        return retval
 
 def kadeploy(deployment, frontend_connexion_params = None, timeout = None, out = False):
     """Deploy hosts with kadeploy3.
