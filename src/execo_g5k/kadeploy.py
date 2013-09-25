@@ -106,6 +106,11 @@ class Deployment(object):
         if self.other_options: s = comma_join(s, "other_options=%r" % (self.other_options,))
         return "Deployment(%s)" % (s,)
 
+_ksoh_good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
+_ksoh_bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
+_ksoh_good_node_re = re.compile("^(\S+)\s*$")
+_ksoh_bad_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
+
 class _KadeployStdoutHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stdout."""
@@ -118,10 +123,6 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         super(_KadeployStdoutHandler, self).__init__()
         self.kadeployer = kadeployer
         self.out = False
-        self._good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
-        self._bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
-        self._good_node_re = re.compile("^(\S+)\s*$")
-        self._bad_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
 
@@ -131,19 +132,19 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
     def read_line(self, process, string, eof = False, error = False):
         if self.out:
             print string,
-        if self._good_nodes_header_re.search(string) != None:
+        if _ksoh_good_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_GOODNODES
             return
-        if self._bad_nodes_header_re.search(string) != None:
+        if _ksoh_bad_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_BADNODES
             return
         if self._current_section == self._SECTION_GOODNODES:
-            so = self._good_node_re.search(string)
+            so = _ksoh_good_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
                 self.kadeployer.good_hosts.add(host_address)
         elif self._current_section == self._SECTION_BADNODES:
-            so = self._bad_node_re.search(string)
+            so = _ksoh_bad_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
                 self.kadeployer.bad_hosts.add(host_address)
@@ -164,6 +165,41 @@ class _KadeployStderrHandler(ProcessOutputHandler):
     def read_line(self, process, string, eof = False, error = False):
         if self.out:
             print string,
+
+_host_site_re1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
+_host_site_re2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
+_host_site_re3 = re.compile("^[^ \t\n\r\f\v\.]+$")
+
+def _get_host_frontend(host):
+    # Get the frontend of a host.
+    #
+    # This function is specific to kadeploy because:
+    #
+    # - only handles execo.Host
+    #
+    # - we could use get_host_site but api_utils is not always
+    #   available (if api is down or if httplib2 is not available)
+    #
+    # - special bahavior: fallback to default frontend if unable to
+    #   extract site from host name
+    #
+    # - raises exception if host name format invalid (not sure we
+    #   would want this for a generic function
+    frontend = None
+    mo1 = _host_site_re1.search(host.address)
+    if mo1 != None:
+        frontend = mo1.group(1)
+    else:
+        mo2 = _host_site_re2.search(host.address)
+        if mo2 != None:
+            frontend = mo1.group(1)
+        else:
+            mo3 = _host_site_re3.search(host.address)
+            if mo3 != None:
+                frontend = get_default_frontend()
+            else:
+                raise ValueError, "unknown frontend for host %s" % host.address
+    return frontend
 
 class Kadeployer(Remote):
 
@@ -201,25 +237,9 @@ class Kadeployer(Remote):
     def _init_processes(self):
         self.processes = []
         self._fhosts = get_hosts_set(self.deployment.hosts)
-        searchre1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
-        searchre2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
-        searchre3 = re.compile("^[^ \t\n\r\f\v\.]+$")
         frontends = dict()
         for host in self._fhosts:
-            frontend = None
-            mo1 = searchre1.search(host.address)
-            if mo1 != None:
-                frontend = mo1.group(1)
-            else:
-                mo2 = searchre2.search(host.address)
-                if mo2 != None:
-                    frontend = mo1.group(1)
-                else:
-                    mo3 = searchre3.search(host.address)
-                    if mo3 != None:
-                        frontend = get_default_frontend()
-                    else:
-                        raise ValueError, "unknown frontend for host %s" % host.address
+            frontend = _get_host_frontend(host)
             if frontends.has_key(frontend):
                 frontends[frontend].append(host)
             else:
