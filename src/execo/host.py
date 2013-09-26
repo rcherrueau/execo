@@ -26,8 +26,8 @@ class Host(object):
     - Has an address (mandatory)
 
     - Can optionaly have a user, a keyfile, a port, which are used for
-      remote connexion and authentification (with a ssh like remote
-      connexion tool).
+      remote connection and authentification (with a ssh like remote
+      connection tool).
 
     Has an intuitive comparison and hashing behavior: two `execo.host.Host` with
     the same members (address, user, keyfile, port) will hash equally
@@ -76,11 +76,11 @@ class Host(object):
             self.keyfile = None
             self.port = None
         if user != False: self.user = user
-        """login name for remote connexions"""
+        """login name for remote connections"""
         if keyfile != False: self.keyfile = keyfile
-        """keyfile to use for remote connexions"""
+        """keyfile to use for remote connections"""
         if port != False: self.port = port
-        """tcp port to use for remote connexion"""
+        """tcp port to use for remote connection"""
 
     def __eq__(self, other):
         if not other or not isinstance(other, Host):

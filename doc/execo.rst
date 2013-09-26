@@ -86,9 +86,9 @@ processes. It is an abstract class. Child classes are:
 `execo.action.Get`, `execo.action.Put`, `execo.action.TaktukGet`,
 `execo.action.TaktukPut`, `execo.action.Local`. A
 `execo.action.Remote` or `execo.action.TaktukRemote` is a remote
-process execution on a group of hosts. The remote connexion is
+process execution on a group of hosts. The remote connection is
 performed by ssh or a similar tool. `execo.action.Remote` uses as many
-ssh connexions as remote hosts, whereas `execo.action.TaktukRemote`
+ssh connections as remote hosts, whereas `execo.action.TaktukRemote`
 uses taktuk internally (http://taktuk.gforge.inria.fr/) to build a
 communication tree, thus is more scalable. `Put` and `Get` are actions
 for copying files or directories to or from groups of hosts. The copy
@@ -367,8 +367,8 @@ Configuration
 
 This module may be configured at import time by modifiing execo module
 variables `execo.config.configuration`,
-`execo.config.default_connexion_params` or by defining two dicts
-`configuration` and `default_connexion_params` in the file
+`execo.config.default_connection_params` or by defining two dicts
+`configuration` and `default_connection_params` in the file
 ``~/.execo.conf.py``
 
 configuration
@@ -385,33 +385,33 @@ Its default values are:
    :end-before: # _ENDOF_ configuration
    :language: python
 
-default_connexion_params
-------------------------
+default_connection_params
+-------------------------
 
-The `default_connexion_params` dict contains default parameters for
-remote connexions.
+The `default_connection_params` dict contains default parameters for
+remote connections.
 
-.. autodata:: execo.config.default_connexion_params
+.. autodata:: execo.config.default_connection_params
 
 Its default values are:
 
 .. literalinclude:: ../src/execo/config.py
-   :start-after: # _STARTOF_ default_connexion_params
-   :end-before: # _ENDOF_ default_connexion_params
+   :start-after: # _STARTOF_ default_connection_params
+   :end-before: # _ENDOF_ default_connection_params
    :language: python
 
-These default connexion parameters are the ones used when no other
-specific connexion parameters are given to `execo.process.SshProcess`,
+These default connection parameters are the ones used when no other
+specific connection parameters are given to `execo.process.SshProcess`,
 `execo.action.Remote`, `execo.action.TaktukRemote`,
 `execo.action.Get`, `execo.action.TaktukGet`, `execo.action.Put`,
 `execo.action.TaktukPut`, or given to the `execo.host.Host`. When
-connecting to a remote host, the connexion parameters are first taken
-from the `execo.host.Host` instance to which the connexion is made,
-then from the ``connexion_params`` given to the
+connecting to a remote host, the connection parameters are first taken
+from the `execo.host.Host` instance to which the connection is made,
+then from the ``connection_params`` given to the
 `execo.process.SshProcess` / `execo.action.TaktukRemote` /
 `execo.action.Remote` / `execo.action.Get` / `execo.action.TaktukGet`
 / `execo.action.Put` / `execo.action.TaktukPut`, if there are some,
-then from the `default_connexion_params`, which has default values
+then from the `default_connection_params`, which has default values
 which can be changed by directly modifying its global value, or in
 ``~/.execo.conf.py``
 
@@ -421,7 +421,7 @@ ssh/scp configuration for SshProcess, Remote, TaktukRemote, Get, TaktukGet, Put,
 For `execo.process.SshProcess`, `execo.action.Remote`,
 `execo.action.TaktukRemote`, `execo.action.Get`,
 `execo.action.TaktukGet`, `execo.action.Put`, `execo.action.TaktukPut`
-to work correctly, ssh/scp connexions need to be fully automatic: No
+to work correctly, ssh/scp connections need to be fully automatic: No
 password has to be asked. The default configuration in execo is to
 force a passwordless, public key based authentification. As this tool
 is growing in a cluster/grid environment where servers are frequently

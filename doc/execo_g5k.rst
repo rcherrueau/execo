@@ -190,16 +190,16 @@ get_site_attributes
 -------------------
 .. autofunction:: get_site_attributes
 
-APIConnexion
-------------
-.. autoclass:: APIConnexion
+APIConnection
+-------------
+.. autoclass:: APIConnection
    :members:
 
 Configuration
 =============
 
 This module may be configured at import time by defining two dicts
-`g5k_configuration` and `default_frontend_connexion_params` in the
+`g5k_configuration` and `default_frontend_connection_params` in the
 file ``~/.execo.conf.py``
 
 The `g5k_configuration` dict contains global g5k configuration
@@ -214,24 +214,24 @@ Its default values are:
    :end-before: # _ENDOF_ g5k_configuration
    :language: python
 
-The `default_frontend_connexion_params` dict contains default
-parameters for remote connexions to grid5000 frontends.
+The `default_frontend_connection_params` dict contains default
+parameters for remote connections to grid5000 frontends.
 
-.. autodata:: execo_g5k.config.default_frontend_connexion_params
+.. autodata:: execo_g5k.config.default_frontend_connection_params
 
 Its default values are:
 
 .. literalinclude:: ../src/execo_g5k/config.py
-   :start-after: # _STARTOF_ default_frontend_connexion_params
-   :end-before: # _ENDOF_ default_frontend_connexion_params
+   :start-after: # _STARTOF_ default_frontend_connection_params
+   :end-before: # _ENDOF_ default_frontend_connection_params
    :language: python
 
-in default_frontend_connexion_params, the ``host_rewrite_func``
+in default_frontend_connection_params, the ``host_rewrite_func``
 configuration variable is set to automatically map a site name to its
 corresponding frontend, so that all commands are run on the proper
 frontends.
 
-`default_oarsh_oarcp_params` contains default connexion parameters
+`default_oarsh_oarcp_params` contains default connection parameters
 suitable to connect to grid5000 nodes with oarsh / oarcp.
 
 .. autodata:: execo_g5k.config.default_oarsh_oarcp_params
@@ -263,10 +263,10 @@ Running from another host than a frontend
 
 Note that when running a script from another host than a frontend
 (from a node or from your laptop outside Grid5000), everything will
-work except ``oarsh`` / ``oarcp`` connexions, since these executables
+work except ``oarsh`` / ``oarcp`` connections, since these executables
 only exist on frontends. In this case you can still connect by using
 ``ssh`` / ``scp`` as user ``oar`` on port 6667 (ie. use
-``connexion_params = {'user': 'oar', 'port': 6667}``). This is the
+``connection_params = {'user': 'oar', 'port': 6667}``). This is the
 port where an oar-specific ssh server is listening. This server will
 then change user from oar to the user currently owning the node.
 
@@ -276,7 +276,7 @@ Running from outside Grid5000
 Execo scripts can be run from outside grid5000 with a subtle
 configuration of both execo and ssh.
 
-First, in ``~/.ssh/config``, declare aliases for g5k connexion
+First, in ``~/.ssh/config``, declare aliases for g5k connection
 (through the access machine). For example, here is an alias ``g5k``
 for connecting through the lyon access::
 
@@ -287,13 +287,13 @@ Then in ``~/.execo.conf.py`` put this code::
 
  import re
 
- default_connexion_params = {
+ default_connection_params = {
      'host_rewrite_func': lambda host: re.sub("\.grid5000\.fr$", ".g5k", host),
      'taktuk_gateway': 'g5k'
      }
 
 
- default_frontend_connexion_params = {
+ default_frontend_connection_params = {
      'host_rewrite_func': lambda host: host + ".g5k"
      }
 
@@ -302,13 +302,13 @@ Then in ``~/.execo.conf.py`` put this code::
      }
 
 Now, every time execo tries to connect to a host, the host name is
-rewritten as to be reached through the Grid5000 ssh proxy connexion
+rewritten as to be reached through the Grid5000 ssh proxy connection
 alias, and the same for the frontends.
 
 .. _execo_g5k-perfect_configuration:
 
-The perfect grid5000 connexion configuration
-============================================
+The perfect grid5000 connection configuration
+=============================================
 
 * use separate ssh keys for connecting from outside to grid5000 and
   inside grid5000:
@@ -328,11 +328,11 @@ The perfect grid5000 connexion configuration
 * add ``export OAR_JOB_KEY_FILE=~/.ssh/id_dsa`` (or id_rsa) to each
   site's ``~/.bash_profile``
 
-* Connexions should then work directly with oarsh/oarcp if you use
-  `execo_g5k.config.default_oarsh_oarcp_params` connexion
-  parameters. Connexions should also work directly with ssh for nodes
+* Connections should then work directly with oarsh/oarcp if you use
+  `execo_g5k.config.default_oarsh_oarcp_params` connection
+  parameters. Connections should also work directly with ssh for nodes
   reserved with the ``allow_classic_ssh`` option. Finally, for
-  deployed nodes, connexions should work directly because option
+  deployed nodes, connections should work directly because option
   ``-k`` is passed to kadeploy3 by default.
 
 TODO: Currently, due to an ongoing bug or misconfiguration (see

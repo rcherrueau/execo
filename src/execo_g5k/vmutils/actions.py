@@ -28,9 +28,9 @@ from execo.exception import ActionsFailed
 def list_vm( host, all = False ):
     """ Return the list of VMs on host """
     if all :
-        list_vm = Remote('virsh list --all', [host], connexion_params = {'user': 'root'} ).run()
+        list_vm = Remote('virsh list --all', [host], connection_params = {'user': 'root'} ).run()
     else:
-        list_vm = Remote('virsh list', [host], connexion_params = {'user': 'root'} ).run()
+        list_vm = Remote('virsh list', [host], connection_params = {'user': 'root'} ).run()
     vms_id = []
     for p in list_vm.processes:
         lines = p.stdout.split('\n')
@@ -74,7 +74,7 @@ def create_disks(vms, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw
     
     logger.debug(pformat(hosts_cmds.values()))
     
-    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connection_params = {'user': 'root'})
 
 def create_disks_on_hosts(vms, hosts, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
     """ Return a Parallel action to create the qcow2 disks on all hosts"""
@@ -97,7 +97,7 @@ def install_vms(vms):
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
     logger.debug(pformat(hosts_cmds))
-    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connection_params = {'user': 'root'})
     
     
 def start_vms(vms):
@@ -108,7 +108,7 @@ def start_vms(vms):
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
     logger.debug(pformat(hosts_cmds))
-    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connexion_params = {'user': 'root'})
+    return get_remote('{{hosts_cmds.values()}}', list(hosts_cmds.keys()), connection_params = {'user': 'root'})
     
 
 
@@ -124,7 +124,7 @@ def wait_vms_have_started(vms, host = None):
     for ip in vms:
         f.write(ip+'\n')
     f.close()
-    Put([host], tmpfile[1], connexion_params = {'user': 'root'}).run()
+    Put([host], tmpfile[1], connection_params = {'user': 'root'}).run()
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
     ssh_open = False
@@ -198,7 +198,7 @@ def migrate_vm(vm, host):
     
     cmd = 'virsh --connect qemu:///system migrate '+vm['vm_id']+' --live --copy-storage-inc '+\
             'qemu+ssh://'+host.address+"/system'  "
-    return get_remote(cmd, [src], connexion_params = {'user': 'root'} ) 
+    return get_remote(cmd, [src], connection_params = {'user': 'root'} ) 
     
     
     
@@ -216,7 +216,7 @@ def destroy_vms( hosts):
             hosts_with_vms.append(host)
         
     if len(cmds) > 0:
-        get_remote('{{cmds}}', hosts_with_vms, connexion_params = {'user': 'root'}).run()
+        get_remote('{{cmds}}', hosts_with_vms, connection_params = {'user': 'root'}).run()
         
     
 

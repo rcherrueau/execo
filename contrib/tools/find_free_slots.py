@@ -7,9 +7,9 @@ import matplotlib.pyplot as PLT, matplotlib.dates as MD
 from optparse import OptionParser, OptionGroup
 import execo.time_utils as ET
 import execo_g5k as EX5
-from execo_g5k.api_utils import APIConnexion,get_g5k_sites, get_g5k_hosts, get_site_clusters, get_cluster_site, get_cluster_hosts, _get_api_password
-from execo_g5k.config import default_frontend_connexion_params, g5k_configuration
-from execo_g5k.oargrid import default_frontend_connexion_params,get_oargridsub_commandline
+from execo_g5k.api_utils import APIConnection,get_g5k_sites, get_g5k_hosts, get_site_clusters, get_cluster_site, get_cluster_hosts, _get_api_password
+from execo_g5k.config import default_frontend_connection_params, g5k_configuration
+from execo_g5k.oargrid import default_frontend_connection_params,get_oargridsub_commandline
 
 
 class g5k_find_free_slots(object):
@@ -58,7 +58,7 @@ class g5k_find_free_slots(object):
         self.logger.info('Starting \033[1m%s\033[0m ...',self.__class__.__name__)
 
     def compute_hosts_planning(self):
-        self.g5k_api=APIConnexion( "https://api.grid5000.fr/2.1",
+        self.g5k_api=APIConnection( "https://api.grid5000.fr/2.1",
                         password = _get_api_password(g5k_configuration.get('api_username')))
         self.logger.info('Retrieving Grid5000 sites, clusters, hosts and reservations from API ...')
         self.g5k_sites=get_g5k_sites()

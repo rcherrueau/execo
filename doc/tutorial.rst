@@ -72,11 +72,11 @@ Processes
   - shell; pty
 
 - `execo.process.SshProcess`: Same thing but through ssh. Additional
-  parameter: Host, ConnexionParams
+  parameter: Host, ConnectionParams
 
   - Host: abstraction of a remote host: address, user, keyfile, port
 
-  - ConnexionParams: connexion parameters, ssh options, ssh path,
+  - ConnectionParams: connection parameters, ssh options, ssh path,
     keyfile, port, user, etc.
 
 Process examples
@@ -133,13 +133,13 @@ sender, then wait wait for *process_B* termination, then kill
  print process_A.stdout
 
 We sleep for 1 second after starting the servers to make sure that
-they are ready to receive incoming connexions.
+they are ready to receive incoming connections.
 
 The netcat option ``-i 1`` is important in this example because as
 process_A and process_B are started almost simultaneously, we want to
 introduce a little delay (1 second) before process_B tries to connect
 to process_A, to be sure that process_A has finished its
-initialization and is ready to receive incoming connexions.
+initialization and is ready to receive incoming connections.
 
 This example shows the asynchronous control of processes: while a
 process is running (the netcat receiver), the code can do something
@@ -274,11 +274,11 @@ the OAR job afterwards::
    g5k_host_get_cluster) ]
  servers = Remote("iperf -s",
                   targets,
-                  connexion_params = default_oarsh_oarcp_params)
+                  connection_params = default_oarsh_oarcp_params)
  servers.ignore_exit_code = True
  clients = Remote("iperf -c {{[t.address for t in targets]}}",
                   sources,
-                  connexion_params = default_oarsh_oarcp_params)
+                  connection_params = default_oarsh_oarcp_params)
  servers.start()
  sleep(1)
  clients.run()
@@ -305,14 +305,14 @@ delete the directory, on all frontends simultaneously::
  sites = get_g5k_sites()
  Remote("mkdir -p execo_tutorial/",
         sites,
-        connexion_params = default_frontend_connexion_params).run()
+        connection_params = default_frontend_connection_params).run()
  Put(sites,
      ["~/.profile"],
      "execo_tutorial/",
-     connexion_params = default_frontend_connexion_params).run()
+     connection_params = default_frontend_connection_params).run()
  Remote("rm -r execo_tutorial/",
         sites,
-        connexion_params = default_frontend_connexion_params).run()
+        connection_params = default_frontend_connection_params).run()
 
 If ssh proxycommand and execo configuration are configured as
 described in :ref:`tutorial-configuration`, this example can be run
@@ -358,8 +358,8 @@ connect to the nodes from outside::
      'api_username' : 'g5k_username'
      }
 
- default_connexion_params = {'host_rewrite_func': host_rewrite_func}
- default_frontend_connexion_params = {'host_rewrite_func': frontend_rewrite_func}
+ default_connection_params = {'host_rewrite_func': host_rewrite_func}
+ default_frontend_connection_params = {'host_rewrite_func': frontend_rewrite_func}
 
  default_oarsh_oarcp_params = {
      'user':        "oar",

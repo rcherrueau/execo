@@ -103,9 +103,9 @@ configuration = {
 
 """
 
-def make_default_connexion_params():
-# _STARTOF_ default_connexion_params
-    default_connexion_params = {
+def make_default_connection_params():
+# _STARTOF_ default_connection_params
+    default_connection_params = {
         'user':        None,
         'keyfile':     None,
         'port':        None,
@@ -138,11 +138,11 @@ def make_default_connexion_params():
         'pty': False,
         'host_rewrite_func': None
         }
-# _ENDOF_ default_connexion_params
-    return default_connexion_params
+# _ENDOF_ default_connection_params
+    return default_connection_params
 
-default_connexion_params = make_default_connexion_params()
-"""Default connexion params for ``ssh``/``scp``/``taktuk`` connexions.
+default_connection_params = make_default_connection_params()
+"""Default connection params for ``ssh``/``scp``/``taktuk`` connections.
 
 - ``user``: the user to connect with.
 
@@ -177,7 +177,7 @@ default_connexion_params = make_default_connexion_params()
   on the chain
 
 - ``chainput_try_delay``: delay in seconds between TCP client to
-  server connexion attempts.
+  server connection attempts.
 
 - ``pty``: boolean. Wether to allocate or not a pty for
   ssh/scp.
@@ -186,12 +186,12 @@ default_connexion_params = make_default_connexion_params()
   addresses. Takes a host address, returns a host address.
 """
 
-def make_connexion_params(connexion_params = None, default_params = None):
-    return_params = make_default_connexion_params()
+def make_connection_params(connection_params = None, default_params = None):
+    return_params = make_default_connection_params()
     if default_params == None:
-        default_params = default_connexion_params
+        default_params = default_connection_params
     return_params.update(default_params)
-    if connexion_params: return_params.update(connexion_params)
+    if connection_params: return_params.update(connection_params)
     return return_params
 
 def load_configuration(filename, dicts_confs):
@@ -226,4 +226,4 @@ def get_user_config_filename():
 load_configuration(
   get_user_config_filename(),
   ((configuration, 'configuration'),
-   (default_connexion_params, 'default_connexion_params')))
+   (default_connection_params, 'default_connection_params')))

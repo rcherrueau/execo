@@ -19,7 +19,7 @@
 """Execo extension and tools for Grid5000."""
 
 from config import g5k_configuration, \
-  default_frontend_connexion_params, default_oarsh_oarcp_params
+  default_frontend_connection_params, default_oarsh_oarcp_params
 
 from oar import OarSubmission, oarsub, oardel, get_current_oar_jobs, \
   get_oar_job_info, wait_oar_job_start, get_oar_job_nodes, \
@@ -37,7 +37,7 @@ from utils import get_kavlan_host_name
 try:
     from api_utils import get_g5k_sites, get_site_clusters, \
       get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
-      get_cluster_site, APIConnexion, get_host_site, \
+      get_cluster_site, APIConnection, get_host_site, \
       get_host_cluster, group_hosts, get_resource_attributes, \
       get_host_attributes, get_cluster_attributes, \
       get_site_attributes

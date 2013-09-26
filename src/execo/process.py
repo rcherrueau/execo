@@ -18,7 +18,7 @@
 
 from conductor import the_conductor
 from config import configuration
-from execo.config import make_connexion_params
+from execo.config import make_connection_params
 from execo.host import Host
 from log import set_style, logger
 from pty import openpty
@@ -815,33 +815,33 @@ class SshProcess(Process):
     SshProcess depends on the ssh (or ssh-like) command behavior. With
     openssh, this can be obtained by passing options -tt (force tty
     creation), thus these are the default options in
-    ``execo.config.default_connexion_params``.
+    ``execo.config.default_connection_params``.
     """
 
-    def __init__(self, cmd, host, connexion_params = None):
+    def __init__(self, cmd, host, connection_params = None):
         """:param host: `execo.host.Host` to connect to
 
-        :param connexion_params: connexion parameters
+        :param connection_params: connection parameters
         """
         host = Host(host)
         self.remote_cmd = cmd
         """The command executed remotely"""
-        self.connexion_params = connexion_params
-        """Remote connexion params"""
+        self.connection_params = connection_params
+        """Remote connection params"""
         real_cmd = (get_ssh_command(host.user,
                                     host.keyfile,
                                     host.port,
-                                    connexion_params)
-                    + (get_rewritten_host_address(host.address, connexion_params),))
+                                    connection_params)
+                    + (get_rewritten_host_address(host.address, connection_params),))
         if hasattr(cmd, '__iter__'):
             real_cmd += cmd
         else:
             real_cmd += (cmd,)
         super(SshProcess, self).__init__(real_cmd)
         self.host = host
-        self.pty = make_connexion_params(connexion_params).get('pty')
-        """For ssh processes, pty is initialized by the connexion params. This
-        allows setting default pty behaviors in connexion_params shared
+        self.pty = make_connection_params(connection_params).get('pty')
+        """For ssh processes, pty is initialized by the connection params. This
+        allows setting default pty behaviors in connection_params shared
         by various remote processes (this was motivated by allowing
         `execo_g5k.config.default_oarsh_oarcp_params` to set pty to
         True, because oarsh/oarcp are run sudo which forbids to send
@@ -854,7 +854,7 @@ class SshProcess(Process):
 
     def _kwargs(self):
         kwargs = []
-        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
     def _infos(self):
@@ -936,5 +936,5 @@ def get_process(*args, **kwargs):
         return SshProcess(*args, **kwargs)
     else:
         del kwargs["host"]
-        if "connexion_params" in kwargs: del kwargs["connexion_params"]
+        if "connection_params" in kwargs: del kwargs["connection_params"]
         return Process(*args, **kwargs)

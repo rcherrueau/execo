@@ -310,7 +310,7 @@ class Planning:
         """ Compute the occupation of the global and local KaVLAN"""
                             
         get_jobs = Remote('oarstat -J -f', sites, 
-                    connexion_params = default_frontend_connexion_params ).run()
+                    connection_params = default_frontend_connection_params ).run()
         
         vlan_planning = {}
         if len(sites) == 1:

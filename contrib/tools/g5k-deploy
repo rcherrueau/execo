@@ -11,7 +11,7 @@
 #
 #   g5k-deploy -c "{'user':'root','ssh':'sshpass','ssh_options':('-pgrid5000','ssh','-o','StrictHostKeyChecking=no','-o','UserKnownHostsFile=/dev/null','-o','ConnectTimeout=20')}" -CEXECO -e lenny-x64-base -j XXXXXX
 #
-# - for deploying a production environment on a cluster (TODO: fix connexion_params)
+# - for deploying a production environment on a cluster (TODO: fix connection_params)
 #
 #   g5k-deploy -c "{'user':'root','ssh':'sshpass','ssh_options':('-pgrid5000','ssh','-o','StrictHostKeyChecking=no','-o','UserKnownHostsFile=/dev/null','-o','ConnectTimeout=20')}" -CKAENV -e debian-x64-5-prod capricorne
 
@@ -33,13 +33,13 @@ whole cluster. Needs g5k_api_tools and python rest client)."""
 epilog = """Check method selects the way to decide if a node has been successfully
 deployed.  Three methods are: KADEPLOY: the default, relies on
 kadeploy3 to know which nodes where successfully deployed. EXECO:
-connect (with the given connexion_params) to the nodes and run the
+connect (with the given connection_params) to the nodes and run the
 execo supplied check command (see:
 execo_g5k.g5k_configuration['check_deployed_command']) to decide if
 the node was deployed. KAENV: connect (with the given
-connexion_params) to the nodes and compare ENV_DATE in
+connection_params) to the nodes and compare ENV_DATE in
 /etc/kaenv/kaenv of the image and on the node. Correct
-connexion_params are mandatory for EXECO and KAENV check methods.
+connection_params are mandatory for EXECO and KAENV check methods.
 """
 parser = optparse.OptionParser(usage = usage,
                                description = description,
@@ -67,8 +67,8 @@ parser.add_option("-g",
                   action = "append",
                   type = "int")
 parser.add_option("-c",
-                  dest = "connexion_params",
-                  help = "connexion parameters. Default = %default",
+                  dest = "connection_params",
+                  help = "connection parameters. Default = %default",
                   default = None)
 parser.add_option("-C",
                   dest = "check_method",
@@ -97,11 +97,11 @@ if options.debug:
     options.verbose = True
     execo.logger.setLevel(logging.DEBUG)
 
-connexion_params = execo.default_connexion_params.copy()
-if options.connexion_params:
-    cmdline_connexion_params = eval(options.connexion_params)
-    for k in cmdline_connexion_params.keys():
-        connexion_params[k] = cmdline_connexion_params[k]
+connection_params = execo.default_connection_params.copy()
+if options.connection_params:
+    cmdline_connection_params = eval(options.connection_params)
+    for k in cmdline_connection_params.keys():
+        connection_params[k] = cmdline_connection_params[k]
 
 if g5k_api:
     hostnames = set([ arg for arg in args if arg.find(".") != -1 ])
@@ -191,7 +191,7 @@ else:
 logger.info("starting deployment(s) with retries")
 (deployed, undeployed) = execo_g5k.deploy(
     deployment_spec,
-    connexion_params = connexion_params,
+    connection_params = connection_params,
     check_deployed_command = check_deployed_command,
     num_deploy_retries = options.num_tries,
     out = options.verbose)

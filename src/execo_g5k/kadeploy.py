@@ -19,13 +19,13 @@
 from config import g5k_configuration
 from execo.action import Remote, ActionNotificationProcessLH, \
     Action, get_remote
-from execo.config import make_connexion_params
+from execo.config import make_connection_params
 from execo.host import get_hosts_set, Host
 from execo.log import set_style, logger
 from execo.process import ProcessOutputHandler, get_process
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
-from execo_g5k.config import default_frontend_connexion_params
+from execo_g5k.config import default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host, get_kavlan_host_name
 from utils import get_default_frontend
 import copy
@@ -208,14 +208,14 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple frontends.
     """
 
-    def __init__(self, deployment, frontend_connexion_params = None):
+    def __init__(self, deployment, frontend_connection_params = None):
         """
         :param deployment: instance of Deployment class describing the
           intended kadeployment.
 
-        :param frontend_connexion_params: connexion params for
+        :param frontend_connection_params: connection params for
           connecting to frontends if needed. Values override those in
-          `execo_g5k.config.default_frontend_connexion_params`.
+          `execo_g5k.config.default_frontend_connection_params`.
         """
         super(Remote, self).__init__()
         self.good_hosts = set()
@@ -226,9 +226,9 @@ class Kadeployer(Remote):
         won't be complete if the Kadeployer has not terminated."""
         self.out = False
         """If True, output kadeploy stdout / stderr to stdout."""
-        self.frontend_connexion_params = frontend_connexion_params
-        """Connexion params for connecting to frontends if needed. Values override
-        those in `execo_g5k.config.default_frontend_connexion_params`."""
+        self.frontend_connection_params = frontend_connection_params
+        """Connection params for connecting to frontends if needed. Values override
+        those in `execo_g5k.config.default_frontend_connection_params`."""
         self.deployment = deployment
         """Instance of Deployment class describing the intended kadeployment."""
         self._init_processes()
@@ -251,8 +251,8 @@ class Kadeployer(Remote):
                 kadeploy_command += " -m %s" % (host.address,)
             p = get_process(kadeploy_command,
                             host = get_frontend_host(frontend),
-                            connexion_params = make_connexion_params(self.frontend_connexion_params,
-                                                                     default_frontend_connexion_params))
+                            connection_params = make_connection_params(self.frontend_connection_params,
+                                                                     default_frontend_connection_params))
             p.pty = True
             kdstdouthandler = _KadeployStdoutHandler(self)
             kdstdouthandler.out = self.out
@@ -273,7 +273,7 @@ class Kadeployer(Remote):
 
     def _kwargs(self):
         kwargs = []
-        if self.frontend_connexion_params: kwargs.append("frontend_connexion_params=%r" % (self.frontend_connexion_params,))
+        if self.frontend_connection_params: kwargs.append("frontend_connection_params=%r" % (self.frontend_connection_params,))
         return kwargs
 
     def _infos(self):
@@ -290,15 +290,15 @@ class Kadeployer(Remote):
                 ok = False
         return ok
 
-def kadeploy(deployment, frontend_connexion_params = None, timeout = None, out = False):
+def kadeploy(deployment, frontend_connection_params = None, timeout = None, out = False):
     """Deploy hosts with kadeploy3.
 
     :param deployment: instance of Deployment class describing the
       intended kadeployment.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: deployment timeout. None (which is the default
       value) means no timeout.
@@ -310,7 +310,7 @@ def kadeploy(deployment, frontend_connexion_params = None, timeout = None, out =
     not deployed).
     """
     kadeployer = Kadeployer(deployment,
-                            frontend_connexion_params = frontend_connexion_params).run()
+                            frontend_connection_params = frontend_connection_params).run()
     if not kadeployer.ok:
         logoutput = set_style("deployment error:", 'emph') + " %s\n" % (kadeployer,) + set_style("kadeploy processes:\n", 'emph')
         for p in kadeployer.processes:
@@ -322,10 +322,10 @@ def kadeploy(deployment, frontend_connexion_params = None, timeout = None, out =
 
 def deploy(deployment,
            check_deployed_command = True,
-           node_connexion_params = {'user': 'root'},
+           node_connection_params = {'user': 'root'},
            num_tries = 2,
            check_enough_func = None,
-           frontend_connexion_params = None,
+           frontend_connection_params = None,
            deploy_timeout = None,
            check_timeout = 30,
            timeout = False,
@@ -335,9 +335,9 @@ def deploy(deployment,
     - loop `num_tries` times:
 
       - if ``check_deployed_command`` given, try to connect to these
-        hosts using the supplied `node_connexion_params` (or the
+        hosts using the supplied `node_connection_params` (or the
         default ones), and to execute ``check_deployed_command``. If
-        connexion succeeds and the command returns 0, the host is
+        connection succeeds and the command returns 0, the host is
         assumed to be deployed, else it is assumed to be undeployed.
 
       - optionnaly call user-supplied ``check_enough_func``, passing
@@ -367,9 +367,9 @@ def deploy(deployment,
       no check is made and deployed/undeployed status will be taken
       from kadeploy's output.
 
-    :param node_connexion_params: a dict similar to
-      `execo.config.default_connexion_params` whose values will
-      override those in `execo.config.default_connexion_params` when
+    :param node_connection_params: a dict similar to
+      `execo.config.default_connection_params` whose values will
+      override those in `execo.config.default_connection_params` when
       connecting to check node deployment with
       ``check_deployed_command`` (see below).
 
@@ -381,9 +381,9 @@ def deploy(deployment,
       a boolean indicating if there is already enough nodes (in this
       case, no further deployement will be attempted).
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param deploy_timeout: timeout for deployement. Default is None,
       which means no timeout.
@@ -408,7 +408,7 @@ def deploy(deployment,
     if check_deployed_command == True:
         check_deployed_command = g5k_configuration.get('check_deployed_command')
 
-    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params, vlan): #IGNORE:W0613
+    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, vlan): #IGNORE:W0613
         logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s", undeployed_hosts)
         deployment_hostnames_mapping = dict()
         if vlan:
@@ -419,7 +419,7 @@ def deploy(deployment,
                 deployment_hostnames_mapping[host.address] = host
         deployed_check = get_remote(check_deployed_command,
                                     deployment_hostnames_mapping.keys(),
-                                    connexion_params = node_connexion_params)
+                                    connection_params = node_connection_params)
         for p in deployed_check.processes:
                 p.log_exit_code = False
                 p.log_timeout = False
@@ -443,7 +443,7 @@ def deploy(deployment,
     undeployed_hosts = get_hosts_set(deployment.hosts)
     my_newly_deployed = []
     if check_deployed_command:
-        my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params, deployment.vlan)
+        my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
         deployed_hosts.update(my_newly_deployed)
         undeployed_hosts.difference_update(my_newly_deployed)
     num_tries_done = 0
@@ -463,11 +463,11 @@ def deploy(deployment,
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         kadeploy_newly_deployed, _ = kadeploy(tmp_deployment,
-                                              frontend_connexion_params = frontend_connexion_params,
+                                              frontend_connection_params = frontend_connection_params,
                                               out = out)
         my_newly_deployed = []
         if check_deployed_command:
-            my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connexion_params, deployment.vlan)
+            my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
             deployed_hosts.update(my_newly_deployed)
             undeployed_hosts.difference_update(my_newly_deployed)
         else:

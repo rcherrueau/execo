@@ -17,14 +17,14 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import g5k_configuration
-from execo.config import make_connexion_params
+from execo.config import make_connection_params
 from execo.exception import ProcessesFailed
 from execo.host import Host
 from execo.process import get_process
 from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
 from execo.utils import comma_join
-from execo_g5k.config import default_frontend_connexion_params
+from execo_g5k.config import default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host
 import os
 import re
@@ -200,15 +200,15 @@ def get_oarsub_commandline(job_spec):
         oarsub_cmdline += ' "sleep 31536000"'
     return oarsub_cmdline
 
-def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_on_error = False):
+def oarsub(job_specs, frontend_connection_params = None, timeout = False, abort_on_error = False):
     """Submit jobs.
 
     :param job_specs: iterable of tuples (execo_g5k.oar.OarSubmission,
       frontend) with None for default frontend
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for submitting. Default is False, which
       means use
@@ -231,8 +231,8 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
         oarsub_cmdline = get_oarsub_commandline(spec)
         p = get_process(oarsub_cmdline,
                         host = get_frontend_host(frontend),
-                        connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                 default_frontend_connexion_params))
+                        connection_params = make_connection_params(frontend_connection_params,
+                                                                   default_frontend_connection_params))
         p.timeout = timeout
         p.pty = True
         p.frontend = frontend
@@ -257,7 +257,7 @@ def oarsub(job_specs, frontend_connexion_params = None, timeout = False, abort_o
     else:
         return oar_job_ids
 
-def oardel(job_specs, frontend_connexion_params = None, timeout = False):
+def oardel(job_specs, frontend_connection_params = None, timeout = False):
     """Delete oar jobs.
 
     Ignores any error, so you can delete inexistant jobs, already
@@ -267,9 +267,9 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     :param job_specs: iterable of tuples (job_id, frontend) with None
       for default frontend
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for deleting. Default is False, which
       means use
@@ -282,8 +282,8 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
     for (job_id, frontend) in job_specs:
         p = get_process("oardel %i" % (job_id,),
                         host = get_frontend_host(frontend),
-                        connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                 default_frontend_connexion_params))
+                        connection_params = make_connection_params(frontend_connection_params,
+                                                                   default_frontend_connection_params))
         p.timeout = timeout
         p.log_exit_code = False
         p.pty = True
@@ -294,7 +294,7 @@ def oardel(job_specs, frontend_connexion_params = None, timeout = False):
 def get_current_oar_jobs(frontends = None,
                          start_between = None,
                          end_between = None,
-                         frontend_connexion_params = None,
+                         frontend_connection_params = None,
                          timeout = False,
                          abort_on_error = False):
     """Return a list of current active oar job ids.
@@ -312,9 +312,9 @@ def get_current_oar_jobs(frontends = None,
     :param end_between: a tuple (low, high) of endpoints. Filters and
       returns only jobs whose end date is in between these endpoints.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -335,8 +335,8 @@ def get_current_oar_jobs(frontends = None,
     for frontend in frontends:
         p = get_process("oarstat -u",
                         host = get_frontend_host(frontend),
-                        connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                 default_frontend_connexion_params))
+                        connection_params = make_connection_params(frontend_connection_params,
+                                                                   default_frontend_connection_params))
         p.timeout = timeout
         p.pty = True
         p.frontend = frontend
@@ -360,7 +360,7 @@ def get_current_oar_jobs(frontends = None,
             filtered_job_ids = []
             for jobfrontend in oar_job_ids:
                 info = get_oar_job_info(jobfrontend[0], jobfrontend[1],
-                                        frontend_connexion_params, timeout,
+                                        frontend_connection_params, timeout,
                                         log_exit_code = False, log_timeout = False,
                                         log_error = False)
                 if (_date_in_range(info['start_date'], start_between)
@@ -370,7 +370,7 @@ def get_current_oar_jobs(frontends = None,
         return oar_job_ids
 
 def get_oar_job_info(oar_job_id = None, frontend = None,
-                     frontend_connexion_params = None, timeout = False,
+                     frontend_connection_params = None, timeout = False,
                      log_exit_code = True, log_timeout = True, log_error = True):
     """Return a dict with informations about an oar job.
 
@@ -380,9 +380,9 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
     :param frontend: the frontend of the oar job. If None given, use
       default frontend
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -411,8 +411,8 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     process = get_process("oarstat -fj %i" % (oar_job_id,),
                           host = get_frontend_host(frontend),
-                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params))
+                          connection_params = make_connection_params(frontend_connection_params,
+                                                                     default_frontend_connection_params))
     process.timeout = timeout
     process.pty = True
     process.log_exit_code = log_exit_code
@@ -438,7 +438,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
     return job_info
 
 def wait_oar_job_start(oar_job_id = None, frontend = None,
-                       frontend_connexion_params = None,
+                       frontend_connection_params = None,
                        timeout = None,
                        prediction_callback = None):
     """Sleep until an oar job's start time.
@@ -458,9 +458,9 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     :param frontend: the frontend of the oar job. If None given, use
       default frontend.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is None (no
       timeout).
@@ -486,7 +486,7 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     prediction = None
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
-        infos = get_oar_job_info(oar_job_id, frontend, frontend_connexion_params,
+        infos = get_oar_job_info(oar_job_id, frontend, frontend_connection_params,
                                  countdown.remaining(), log_exit_code = False,
                                  log_timeout = False, log_error = False)
         now = time.time()
@@ -512,7 +512,7 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     return False
 
 def get_oar_job_nodes(oar_job_id = None, frontend = None,
-                      frontend_connexion_params = None, timeout = False):
+                      frontend_connection_params = None, timeout = False):
     """Return an iterable of `execo.host.Host` containing the hosts of an oar job.
 
     This method waits for the job start (the list of nodes isn't fixed
@@ -524,9 +524,9 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
     :param frontend: the frontend of the oar job. If None given, use
       default frontend.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -541,11 +541,11 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
-    wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
+    wait_oar_job_start(oar_job_id, frontend, frontend_connection_params, countdown.remaining())
     process = get_process("(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
                           host = get_frontend_host(frontend),
-                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params))
+                          connection_params = make_connection_params(frontend_connection_params,
+                                                                     default_frontend_connection_params))
     process.timeout = countdown.remaining()
     process.pty = True
     process.run()
@@ -555,7 +555,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
     else:
         raise ProcessesFailed, [process]
 
-def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
+def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_params = None, timeout = False):
     """Return a tuple containing an iterable of tuples (IP, MAC) and a dict containing the subnet parameters of the reservation (if any).
 
     subnet parameters dict has keys: 'ip_prefix', 'broadcast',
@@ -567,9 +567,9 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     :param frontend: the frontend of the oar job. If None given, use
       default frontend.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -584,14 +584,14 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
-    wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
+    wait_oar_job_start(oar_job_id, frontend, frontend_connection_params, countdown.remaining())
     # Get ip adresses
     process_ip = get_process(
         "(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && g5k-subnets -i -m -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
         host = get_frontend_host(frontend),
-        connexion_params = make_connexion_params(
-            frontend_connexion_params,
-            default_frontend_connexion_params))
+        connection_params = make_connection_params(
+            frontend_connection_params,
+            default_frontend_connection_params))
     process_ip.timeout = countdown.remaining()
     process_ip.pty = True
     process_ip.run()
@@ -599,9 +599,9 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     process_net = get_process(
         "(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && g5k-subnets -a -j %(oar_job_id)i" % {'oar_job_id': oar_job_id},
         host = get_frontend_host(frontend),
-        connexion_params = make_connexion_params(
-            frontend_connexion_params,
-            default_frontend_connexion_params))
+        connection_params = make_connection_params(
+            frontend_connection_params,
+            default_frontend_connection_params))
     process_net.timeout = countdown.remaining()
     process_net.pty = True
     process_net.run()
@@ -624,7 +624,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connexion_p
     else:
         raise ProcessesFailed, [ p for p in [process_net, process_ip] if not p.ok ]
 
-def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connexion_params = None, timeout = False):
+def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_params = None, timeout = False):
     """Return the vlan id of a job (if any).
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -633,9 +633,9 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connexion_pa
     :param frontend: the frontend of the oar job. If None given, use
       default frontend.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -650,13 +650,13 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connexion_pa
         else:
             raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
     countdown = Timer(timeout)
-    wait_oar_job_start(oar_job_id, frontend, frontend_connexion_params, countdown.remaining())
+    wait_oar_job_start(oar_job_id, frontend, frontend_connection_params, countdown.remaining())
     process = get_process(
         'kavlan -j %s -V ' % oar_job_id,
         host = get_frontend_host(frontend),
-        connexion_params = make_connexion_params(
-            frontend_connexion_params,
-            default_frontend_connexion_params))
+        connection_params = make_connection_params(
+            frontend_connection_params,
+            default_frontend_connection_params))
     process.timeout = countdown.remaining()
     process.pty = True
     process.ignore_exit_code = True # kavlan exit code != 0 if request

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 import os, re, json, pprint as PP
-from execo_g5k.api_utils import APIConnexion, _get_api_password, get_g5k_sites
+from execo_g5k.api_utils import APIConnection, _get_api_password, get_g5k_sites
 from execo_g5k.config import  g5k_configuration
 from operator import itemgetter
 from itertools import groupby
@@ -84,7 +84,7 @@ def legend(graph):
 
 # Creating a dict with all the informations from the API
 topology ={}
-g5k_api=APIConnexion( "https://api.grid5000.fr/sid/", password = _get_api_password(g5k_configuration.get('api_username')))
+g5k_api=APIConnection( "https://api.grid5000.fr/sid/", password = _get_api_password(g5k_configuration.get('api_username')))
 
 sites = get_g5k_sites()+['backbone']
 

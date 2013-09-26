@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from execo.config import make_connexion_params, configuration, SSH, TAKTUK, SCP, CHAINPUT
+from execo.config import make_connection_params, configuration, SSH, TAKTUK, SCP, CHAINPUT
 from execo.host import Host
 from execo.process import get_process
 from host import get_hosts_list, get_unique_hosts_list
@@ -321,12 +321,12 @@ class ActionNotificationProcessLH(ProcessLifecycleHandler):
 
 class Remote(Action):
 
-    """Launch a command remotely on several host, with ``ssh`` or a similar remote connexion tool.
+    """Launch a command remotely on several host, with ``ssh`` or a similar remote connection tool.
 
-    One ssh process is launched for each connexion.
+    One ssh process is launched for each connection.
     """
 
-    def __init__(self, cmd, hosts, connexion_params = None):
+    def __init__(self, cmd, hosts, connection_params = None):
         """
         :param cmd: the command to run remotely. substitions
           described in `execo.substitutions.remote_substitute` will be
@@ -335,18 +335,18 @@ class Remote(Action):
         :param hosts: iterable of `execo.host.Host` to which to
           connect and run the command.
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         super(Remote, self).__init__()
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
         self.name = nice_cmdline(self.cmd)
-        self.connexion_params = connexion_params
-        """A dict similar to `execo.config.default_connexion_params` whose values
-        will override those in default_connexion_params for connexion."""
+        self.connection_params = connection_params
+        """A dict similar to `execo.config.default_connection_params` whose values
+        will override those in default_connection_params for connection."""
         self.hosts = get_hosts_list(hosts)
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
@@ -358,7 +358,7 @@ class Remote(Action):
 
     def _kwargs(self):
         kwargs = []
-        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
     def _init_processes(self):
@@ -367,7 +367,7 @@ class Remote(Action):
         for (index, host) in enumerate(self.hosts):
             p = SshProcess(remote_substitute(self.cmd, self.hosts, index, self._caller_context),
                            host = host,
-                           connexion_params = self.connexion_params)
+                           connection_params = self.connection_params)
             p.lifecycle_handlers.append(processlh)
             self.processes.append(p)
 
@@ -493,13 +493,13 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                                 process.start()
                             else: # 7: remote command exec failed
                                 process._set_terminated(error = True, error_reason = "taktuk remote command execution failed")
-                        elif state_code == 3 or state_code == 5: # connexion failed or lost
+                        elif state_code == 3 or state_code == 5: # connection failed or lost
                             peer_position = int(peer_position)
                             process = self.taktukaction.processes[self.taktukaction._taktuk_hosts_order[peer_position-1]]
-                            if state_code == 3: # connexion failed
-                                process._set_terminated(error = True, error_reason = "taktuk connexion failed")
-                            else: # 5: connexion lost
-                                process._set_terminated(error = True, error_reason = "taktuk connexion lost")
+                            if state_code == 3: # connection failed
+                                process._set_terminated(error = True, error_reason = "taktuk connection failed")
+                            else: # 5: connection lost
+                                process._set_terminated(error = True, error_reason = "taktuk connection lost")
                         elif state_code in (0, 1, 2, 4, 8):
                             pass
                         else:
@@ -555,7 +555,7 @@ class TaktukRemote(Action):
 
     - we can provide per-host user with taktuk, but we cannot provide
       per-host port or keyfile, so a check is made that all hosts and
-      connexion_params have the same port / keyfile (or None). If not,
+      connection_params have the same port / keyfile (or None). If not,
       an exception is raised during initialization.
 
     - remote processes are not killed when killing the
@@ -563,10 +563,10 @@ class TaktukRemote(Action):
       http://taktuk.gforge.inria.fr/taktuk.html#bugs. With ssh the
       workaround is to pass options -tt but passing these options to
       taktuk connector causes immediate closing of the connector upon
-      connexion.
+      connection.
     """
 
-    def __init__(self, cmd, hosts, connexion_params = None):
+    def __init__(self, cmd, hosts, connection_params = None):
         """
         :param cmd: the command to run remotely. substitions
           described in `execo.substitutions.remote_substitute` will be
@@ -575,18 +575,18 @@ class TaktukRemote(Action):
         :param hosts: iterable of `execo.host.Host` to which to
           connect and run the command.
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         super(TaktukRemote, self).__init__()
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
         self.name = nice_cmdline(self.cmd)
-        self.connexion_params = connexion_params
-        """A dict similar to `execo.config.default_connexion_params` whose values
-        will override those in default_connexion_params for connexion."""
+        self.connection_params = connection_params
+        """A dict similar to `execo.config.default_connection_params` whose values
+        will override those in default_connection_params for connection."""
         self.hosts = get_hosts_list(hosts)
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
@@ -600,7 +600,7 @@ class TaktukRemote(Action):
 
     def _kwargs(self):
         kwargs = []
-        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
     def _gen_taktukprocesses(self):
@@ -613,10 +613,10 @@ class TaktukRemote(Action):
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connexion_params), "-[", "exec", "[", _quote_taktuk_brackets(repr(self.processes[index].cmd)[1:-1]), "]", "-]",)
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(repr(self.processes[index].cmd)[1:-1]), "]", "-]",)
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connexion_params), "-[", "exec", "[", _quote_taktuk_brackets(repr(self.processes[index].cmd)[1:-1]), "]", "-]",)
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(repr(self.processes[index].cmd)[1:-1]), "]", "-]",)
             self._taktuk_hosts_order.append(index)
 
     def _init_processes(self):
@@ -628,10 +628,10 @@ class TaktukRemote(Action):
         self._taktuk = None
         # we can provide per-host user with taktuk, but we cannot
         # provide per-host port or keyfile, so check that all hosts
-        # and connexion_params have the same port / keyfile (or None)
-        actual_connexion_params = make_connexion_params(self.connexion_params)
-        check_default_port = actual_connexion_params['port']
-        check_default_keyfile = actual_connexion_params['keyfile']
+        # and connection_params have the same port / keyfile (or None)
+        actual_connection_params = make_connection_params(self.connection_params)
+        check_default_port = actual_connection_params['port']
+        check_default_keyfile = actual_connection_params['keyfile']
         check_keyfiles = set()
         check_ports = set()
         hosts_with_explicit_user = set()
@@ -647,7 +647,7 @@ class TaktukRemote(Action):
             else:
                 check_ports.add(check_default_port)
         if len(check_keyfiles) > 1 or len(check_ports) > 1:
-            raise ValueError, "unable to provide more than one keyfile / port for taktuk remote connexion"
+            raise ValueError, "unable to provide more than one keyfile / port for taktuk remote connection"
         global_keyfile = None
         global_port = None
         if len(check_keyfiles) == 1:
@@ -663,8 +663,8 @@ class TaktukRemote(Action):
         os.write(taktuk_options_filehandle, self._taktuk_commands + "\n")
         os.close(taktuk_options_filehandle)
         logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_commands)
-        real_taktuk_cmdline = (actual_connexion_params['taktuk'],)
-        real_taktuk_cmdline += actual_connexion_params['taktuk_options']
+        real_taktuk_cmdline = (actual_connection_params['taktuk'],)
+        real_taktuk_cmdline += actual_connection_params['taktuk_options']
         real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
                                 "-o", 'error="B $position # $line\\n"',
                                 "-o", 'status="C $position # $line\\n"',
@@ -677,7 +677,7 @@ class TaktukRemote(Action):
         real_taktuk_cmdline += ("-c", " ".join(
             get_taktuk_connector_command(keyfile = global_keyfile,
                                          port = global_port,
-                                         connexion_params = self.connexion_params)))
+                                         connection_params = self.connection_params)))
         real_taktuk_cmdline += ("-F", taktuk_options_filename)
         real_taktuk_cmdline = " ".join([pipes.quote(arg) for arg in real_taktuk_cmdline])
         real_taktuk_cmdline += " && rm -f " + taktuk_options_filename
@@ -705,9 +705,9 @@ class TaktukRemote(Action):
 
 class Put(Remote):
 
-    """Copy local files to several remote host, with ``scp`` or a similar connexion tool."""
+    """Copy local files to several remote host, with ``scp`` or a similar connection tool."""
 
-    def __init__(self, hosts, local_files, remote_location = ".", connexion_params = None):
+    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -720,9 +720,9 @@ class Put(Remote):
           the files will be copied. substitions described in
           `execo.substitutions.remote_substitute` will be performed.
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         super(Remote, self).__init__()
         self.hosts = get_hosts_list(hosts)
@@ -734,9 +734,9 @@ class Put(Remote):
         """The directory on the remote hosts were the files will be
         copied. substitions described in `execo.substitutions.remote_substitute`
         will be performed."""
-        self.connexion_params = connexion_params
-        """A dict similar to `execo.config.default_connexion_params` whose values
-        will override those in default_connexion_params for connexion."""
+        self.connection_params = connection_params
+        """A dict similar to `execo.config.default_connection_params` whose values
+        will override those in default_connection_params for connection."""
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context(['get_fileput'])
         self._init_processes()
@@ -748,7 +748,7 @@ class Put(Remote):
     def _kwargs(self):
         kwargs = []
         kwargs.append("remote_location=%r" % (self.remote_location,))
-        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
     def _init_processes(self):
@@ -756,7 +756,7 @@ class Put(Remote):
         if len(self.local_files) > 0:
             processlh = ActionNotificationProcessLH(self, len(self.hosts))
             for (index, host) in enumerate(self.hosts):
-                real_command = list(get_scp_command(host.user, host.keyfile, host.port, self.connexion_params)) + [ remote_substitute(local_file, self.hosts, index, self._caller_context) for local_file in self.local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(self.remote_location, self.hosts, index, self._caller_context)),]
+                real_command = list(get_scp_command(host.user, host.keyfile, host.port, self.connection_params)) + [ remote_substitute(local_file, self.hosts, index, self._caller_context) for local_file in self.local_files ] + ["%s:%s" % (get_rewritten_host_address(host.address, self.connection_params), remote_substitute(self.remote_location, self.hosts, index, self._caller_context)),]
                 real_command = ' '.join(real_command)
                 p = Process(real_command)
                 p.shell = True
@@ -766,9 +766,9 @@ class Put(Remote):
 
 class Get(Remote):
 
-    """Copy remote files from several remote host to a local directory, with ``scp`` or a similar connexion tool."""
+    """Copy remote files from several remote host to a local directory, with ``scp`` or a similar connection tool."""
 
-    def __init__(self, hosts, remote_files, local_location = ".", connexion_params = None):
+    def __init__(self, hosts, remote_files, local_location = ".", connection_params = None):
         """
         :param hosts: iterable of `execo.host.Host` from which to get
           the files.
@@ -781,9 +781,9 @@ class Get(Remote):
           be copied. substitions described in
           `execo.substitutions.remote_substitute` will be performed.
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         super(Remote, self).__init__()
         self.hosts = get_hosts_list(hosts)
@@ -794,9 +794,9 @@ class Get(Remote):
         self.local_location = local_location
         """The local directory were the files will be copied. substitions described
         in `execo.substitutions.remote_substitute` will be performed."""
-        self.connexion_params = connexion_params
-        """Dict similar to `execo.config.default_connexion_params` whose values
-        will override those in default_connexion_params for connexion."""
+        self.connection_params = connection_params
+        """Dict similar to `execo.config.default_connection_params` whose values
+        will override those in default_connection_params for connection."""
         self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context(['get_fileget'])
         self._init_processes()
@@ -808,7 +808,7 @@ class Get(Remote):
     def _kwargs(self):
         kwargs = []
         kwargs.append("local_location=%r" % (self.local_location,))
-        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
     def _init_processes(self):
@@ -818,8 +818,8 @@ class Get(Remote):
             for (index, host) in enumerate(self.hosts):
                 remote_specs = ()
                 for path in self.remote_files:
-                    remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self.connexion_params), remote_substitute(path, self.hosts, index, self._caller_context)),)
-                real_command = get_scp_command(host.user, host.keyfile, host.port, self.connexion_params) + remote_specs + (remote_substitute(self.local_location, self.hosts, index, self._caller_context),)
+                    remote_specs += ("%s:%s" % (get_rewritten_host_address(host.address, self.connection_params), remote_substitute(path, self.hosts, index, self._caller_context)),)
+                real_command = get_scp_command(host.user, host.keyfile, host.port, self.connection_params) + remote_specs + (remote_substitute(self.local_location, self.hosts, index, self._caller_context),)
                 real_command = ' '.join(real_command)
                 p = Process(real_command)
                 p.shell = True
@@ -873,13 +873,13 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                                 process._num_transfers_started += 1
                                 process._num_transfers_failed += 1
                                 self._update_taktukprocess_end_state(process)
-                        elif state_code == 3 or state_code == 5: # connexion failed or lost
+                        elif state_code == 3 or state_code == 5: # connection failed or lost
                             peer_position = int(peer_position)
                             process = self.taktukaction.processes[self.taktukaction._taktuk_hosts_order[peer_position-1]]
-                            if state_code == 3: # connexion failed
-                                process._set_terminated(error = True, error_reason = "taktuk connexion failed")
-                            else: # 5: connexion lost
-                                process._set_terminated(error = True, error_reason = "taktuk connexion lost")
+                            if state_code == 3: # connection failed
+                                process._set_terminated(error = True, error_reason = "taktuk connection failed")
+                            else: # 5: connection lost
+                                process._set_terminated(error = True, error_reason = "taktuk connection lost")
                         elif state_code in (0, 1, 2, 4):
                             pass
                         else:
@@ -901,7 +901,7 @@ class TaktukPut(TaktukRemote):
 
     """Copy local files to several remote host, with ``taktuk``."""
 
-    def __init__(self, hosts, local_files, remote_location = ".", connexion_params = None):
+    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -918,9 +918,9 @@ class TaktukPut(TaktukRemote):
           performed, but taktuk substitutions can be used (see
           http://taktuk.gforge.inria.fr/taktuk.html#item_put__2a_src__2a__2a_dest__2a)
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         super(TaktukRemote, self).__init__()
         self.hosts = get_hosts_list(hosts)
@@ -935,9 +935,9 @@ class TaktukPut(TaktukRemote):
         copied. substitions described in `execo.substitutions.remote_substitute`
         will not be performed, but taktuk substitutions can be used (see
         http://taktuk.gforge.inria.fr/taktuk.html#item_put__2a_src__2a__2a_dest__2a)"""
-        self.connexion_params = connexion_params
-        """Dict similar to `execo.config.default_connexion_params` whose values
-        will override those in default_connexion_params for connexion."""
+        self.connection_params = connection_params
+        """Dict similar to `execo.config.default_connection_params` whose values
+        will override those in default_connection_params for connection."""
         self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context(['get_fileput'])
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
@@ -951,7 +951,7 @@ class TaktukPut(TaktukRemote):
     def _kwargs(self):
         kwargs = []
         kwargs.append("remote_location=%r" % (self.remote_location,))
-        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
     def _gen_taktukprocesses(self):
@@ -968,10 +968,10 @@ class TaktukPut(TaktukRemote):
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connexion_params))
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params))
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connexion_params))
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params))
             self._taktuk_hosts_order.append(index)
         for src in self.local_files:
             self._taktuk_commands += ("broadcast", "put", "[", src, "]", "[", self.remote_location, "]", ";")
@@ -1023,13 +1023,13 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                                 process._num_transfers_started += 1
                                 process._num_transfers_failed += 1
                                 self._update_taktukprocess_end_state(process)
-                        elif state_code == 3 or state_code == 5: # connexion failed or lost
+                        elif state_code == 3 or state_code == 5: # connection failed or lost
                             peer_position = int(peer_position)
                             process = self.taktukaction.processes[self.taktukaction._taktuk_hosts_order[peer_position-1]]
-                            if state_code == 3: # connexion failed
-                                process._set_terminated(error = True, error_reason = "taktuk connexion failed")
-                            else: # 5: connexion lost
-                                process._set_terminated(error = True, error_reason = "taktuk connexion lost")
+                            if state_code == 3: # connection failed
+                                process._set_terminated(error = True, error_reason = "taktuk connection failed")
+                            else: # 5: connection lost
+                                process._set_terminated(error = True, error_reason = "taktuk connection lost")
                         elif state_code in (0, 1, 2, 4, 19):
                             pass
                         else:
@@ -1051,7 +1051,7 @@ class TaktukGet(TaktukRemote):
 
     """Copy remote files from several remote host to a local directory, with ``taktuk``."""
 
-    def __init__(self, hosts, remote_files, local_location = ".", connexion_params = None):
+    def __init__(self, hosts, remote_files, local_location = ".", connection_params = None):
         """
         :param hosts: iterable of `execo.host.Host` from which to get
           the files.
@@ -1068,9 +1068,9 @@ class TaktukGet(TaktukRemote):
           performed, but taktuk substitutions can be used (see
           http://taktuk.gforge.inria.fr/taktuk.html#item_get__2a_src__2a__2a_dest__2a)
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         super(TaktukRemote, self).__init__()
         self.hosts = get_hosts_list(hosts)
@@ -1085,9 +1085,9 @@ class TaktukGet(TaktukRemote):
         in `execo.substitutions.remote_substitute` will not be performed, but
         taktuk substitutions can be used (see
         http://taktuk.gforge.inria.fr/taktuk.html#item_get__2a_src__2a__2a_dest__2a)"""
-        self.connexion_params = connexion_params
-        """Dict similar to `execo.config.default_connexion_params` whose values
-        will override those in default_connexion_params for connexion."""
+        self.connection_params = connection_params
+        """Dict similar to `execo.config.default_connection_params` whose values
+        will override those in default_connection_params for connection."""
         self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context(['get_fileget'])
         self._taktuk_stdout_output_handler = _TaktukGetOutputHandler(self)
@@ -1101,7 +1101,7 @@ class TaktukGet(TaktukRemote):
     def _kwargs(self):
         kwargs = []
         kwargs.append("local_location=%r" % (self.local_location,))
-        if self.connexion_params: kwargs.append("connexion_params=%r" % (self.connexion_params,))
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
     def _gen_taktukprocesses(self):
@@ -1118,10 +1118,10 @@ class TaktukGet(TaktukRemote):
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         self._taktuk_hosts_order = []
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connexion_params))
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params))
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connexion_params))
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params))
             self._taktuk_hosts_order.append(index)
         for src in self.remote_files:
             self._taktuk_commands += ("broadcast", "get", "[", src, "]", "[", self.local_location, "]", ";")
@@ -1364,8 +1364,8 @@ class ChainPut(ParallelActions):
     - running a bourne shell and netcat being available both on remote
       hosts and on localhost.
 
-    - direct TCP connexions allowed between any nodes among localhost
-      and remote hosts. The exact chain of TCP connexions is: localhost
+    - direct TCP connections allowed between any nodes among localhost
+      and remote hosts. The exact chain of TCP connections is: localhost
       to first remote host, first remote host to second remote host, and
       so on up to the last remote host.
 
@@ -1375,7 +1375,7 @@ class ChainPut(ParallelActions):
     secured network environment.
     """
 
-    def __init__(self, hosts, local_file, remote_location = ".", connexion_params = None):
+    def __init__(self, hosts, local_file, remote_location = ".", connection_params = None):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -1384,40 +1384,40 @@ class ChainPut(ParallelActions):
 
         :param remote_location: destination directory (remote path).
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         self.hosts = get_unique_hosts_list(hosts)
         self.local_file = local_file
         self.remote_location = remote_location
-        self.connexion_params = connexion_params
+        self.connection_params = connection_params
         super(ChainPut, self).__init__([])
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
 
     def _init_actions(self):
         if len(self.hosts) > 0:
-            actual_connexion_params = make_connexion_params(self.connexion_params)
+            actual_connection_params = make_connection_params(self.connection_params)
             forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(self.remote_location, os.path.basename(self.local_file)),
-                                                                                                                                                                                         actual_connexion_params['chainput_num_retry'],
-                                                                                                                                                                                         actual_connexion_params['nc'],
+                                                                                                                                                                                         actual_connection_params['chainput_num_retry'],
+                                                                                                                                                                                         actual_connection_params['nc'],
                                                                                                                                                                                          host.address,
-                                                                                                                                                                                         actual_connexion_params['chainput_port'],
-                                                                                                                                                                                         actual_connexion_params['chainput_try_delay'])
+                                                                                                                                                                                         actual_connection_params['chainput_port'],
+                                                                                                                                                                                         actual_connection_params['chainput_try_delay'])
                            for host in self.hosts[1:] ]
             forwardcmd.append("> %s" % (os.path.join(self.remote_location, os.path.basename(self.local_file)),))
             plch = ChainPutProcessLH(self)
-            chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connexion_params['nc'],
-                                                           actual_connexion_params['chainput_port']),
+            chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connection_params['nc'],
+                                                           actual_connection_params['chainput_port']),
                                  self.hosts,
-                                 self.connexion_params)
+                                 self.connection_params)
             [ p.lifecycle_handlers.append(plch) for p in chain.processes ]
-            send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connexion_params['chainput_num_retry'],
-                                                                                                                                                                                 actual_connexion_params['nc'],
+            send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connection_params['chainput_num_retry'],
+                                                                                                                                                                                 actual_connection_params['nc'],
                                                                                                                                                                                  self.hosts[0].address,
-                                                                                                                                                                                 actual_connexion_params['chainput_port'],
+                                                                                                                                                                                 actual_connection_params['chainput_port'],
                                                                                                                                                                                  self.local_file,
-                                                                                                                                                                                 actual_connexion_params['chainput_try_delay']))
+                                                                                                                                                                                 actual_connection_params['chainput_try_delay']))
             send.processes[0].shell = True
             [ p.lifecycle_handlers.append(plch) for p in send.processes ]
             self.actions = [chain, send]
@@ -1430,7 +1430,7 @@ class MultiChainPut(SequentialActions):
     """Multiple sequential ``execo.action.ChainPut`` for copying multiple files.
     """
 
-    def __init__(self, hosts, local_files, remote_location = ".", connexion_params = None):
+    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -1439,19 +1439,19 @@ class MultiChainPut(SequentialActions):
 
         :param remote_location: destination directory (remote path).
 
-        :param connexion_params: a dict similar to
-          `execo.config.default_connexion_params` whose values will
-          override those in default_connexion_params for connexion.
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
         """
         self.hosts = hosts
         self.local_files = local_files
         self.remote_location = remote_location
-        self.connexion_params = connexion_params
+        self.connection_params = connection_params
         super(MultiChainPut, self).__init__([])
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(hosts))
 
     def _init_actions(self):
-        self.actions = [ ChainPut(self.hosts, local_file, self.remote_location, self.connexion_params) for local_file in self.local_files ]
+        self.actions = [ ChainPut(self.hosts, local_file, self.remote_location, self.connection_params) for local_file in self.local_files ]
         super(MultiChainPut, self)._init_actions()
 
 class ActionFactory:

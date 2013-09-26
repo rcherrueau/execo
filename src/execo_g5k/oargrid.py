@@ -17,12 +17,12 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import g5k_configuration
-from execo.config import make_connexion_params
+from execo.config import make_connection_params
 from execo.exception import ProcessesFailed
 from execo.host import Host
 from execo.process import get_process
 from execo.time_utils import get_unixts, sleep
-from execo_g5k.config import default_frontend_connexion_params
+from execo_g5k.config import default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host
 from oar import format_oar_date, format_oar_duration, _date_in_range, \
     oar_date_to_unixts, oar_duration_to_seconds
@@ -71,7 +71,7 @@ def oargridsub(job_specs, reservation_date = None,
                walltime = None, job_type = None,
                queue = None, directory = None,
                additional_options = None,
-               frontend_connexion_params = None,
+               frontend_connection_params = None,
                timeout = False):
     """Submit oargrid jobs.
 
@@ -95,9 +95,9 @@ def oargridsub(job_specs, reservation_date = None,
     :param additional_options: passed directly to oargridsub on the
       command line.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -114,8 +114,8 @@ def oargridsub(job_specs, reservation_date = None,
                                                     directory, additional_options)
     process = get_process(oargridsub_cmdline,
                           host = get_frontend_host(),
-                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params))
+                          connection_params = make_connection_params(frontend_connection_params,
+                                                                     default_frontend_connection_params))
     process.timeout = timeout
     process.pty = True
     process.run()
@@ -133,7 +133,7 @@ def oargridsub(job_specs, reservation_date = None,
     else:
         return (None, None)
 
-def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
+def oargriddel(job_ids, frontend_connection_params = None, timeout = False):
     """Delete oargrid jobs.
 
     Ignores any error, so you can delete inexistant jobs, already
@@ -142,9 +142,9 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
 
     :param job_ids: iterable of oar grid job ids.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use ``g5k_configuration['default_timeout']``. None means no
@@ -156,8 +156,8 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
     for job_id in job_ids:
         p = get_process("oargriddel %i" % (job_id,),
                         host = get_frontend_host(),
-                        connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                 default_frontend_connexion_params))
+                        connection_params = make_connection_params(frontend_connection_params,
+                                                                   default_frontend_connection_params))
         p.timeout = timeout
         p.log_exit_code = False
         p.pty = True
@@ -167,7 +167,7 @@ def oargriddel(job_ids, frontend_connexion_params = None, timeout = False):
 
 def get_current_oargrid_jobs(start_between = None,
                              end_between = None,
-                             frontend_connexion_params = None,
+                             frontend_connection_params = None,
                              timeout = False):
     """Return a list of current active oargrid job ids.
 
@@ -178,9 +178,9 @@ def get_current_oargrid_jobs(start_between = None,
     :param end_between: a tuple (low, high) of endpoints. Filters and
       returns only jobs whose end date is in between these endpoints.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -193,8 +193,8 @@ def get_current_oargrid_jobs(start_between = None,
     if end_between: end_between = [ get_unixts(t) for t in end_between ]
     process = get_process("oargridstat",
                           host = get_frontend_host(),
-                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params))
+                          connection_params = make_connection_params(frontend_connection_params,
+                                                                     default_frontend_connection_params))
     process.timeout = timeout
     process.pty = True
     process.run()
@@ -213,14 +213,14 @@ def get_current_oargrid_jobs(start_between = None,
     else:
         raise ProcessesFailed, [process]
 
-def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
+def get_oargrid_job_info(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -237,8 +237,8 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
         timeout = g5k_configuration.get('default_timeout')
     process = get_process("oargridstat %i" % (oargrid_job_id,),
                           host = get_frontend_host(),
-                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params))
+                          connection_params = make_connection_params(frontend_connection_params,
+                                                                     default_frontend_connection_params))
     process.timeout = timeout
     process.pty = True
     process.run()
@@ -253,14 +253,14 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connexion_params = None
         job_info['walltime'] = walltime
     return job_info
 
-def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
+def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
     """Return a list of tuples (oar job id, site), the list of individual oar jobs which make an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -271,8 +271,8 @@ def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connexion_params = 
         timeout = g5k_configuration.get('default_timeout')
     process = get_process("oargridstat %i" % (oargrid_job_id,),
                           host = get_frontend_host(),
-                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params))
+                          connection_params = make_connection_params(frontend_connection_params,
+                                                                     default_frontend_connection_params))
     process.timeout = timeout
     process.pty = True
     process.run()
@@ -284,30 +284,30 @@ def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connexion_params = 
     else:
         raise ProcessesFailed, [process]
 
-def wait_oargrid_job_start(oargrid_job_id = None, frontend_connexion_params = None, timeout = False):
+def wait_oargrid_job_start(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
     """Sleep until an oargrid job's start time.
 
     :param oargrid_job_id: the oargrid job id.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
       ``execo_g5k.config.g5k_configuration['default_timeout']``. None
       means no timeout.
     """
-    sleep(until = get_oargrid_job_info(oargrid_job_id, frontend_connexion_params, timeout)['start_date'])
+    sleep(until = get_oargrid_job_info(oargrid_job_id, frontend_connection_params, timeout)['start_date'])
 
-def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, timeout = False):
+def get_oargrid_job_nodes(oargrid_job_id, frontend_connection_params = None, timeout = False):
     """Return an iterable of `execo.host.Host` containing the hosts of an oargrid job.
 
     :param oargrid_job_id: the oargrid job id.
 
-    :param frontend_connexion_params: connexion params for connecting
+    :param frontend_connection_params: connection params for connecting
       to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connexion_params`.
+      `execo_g5k.config.default_frontend_connection_params`.
 
     :param timeout: timeout for retrieving. Default is False, which
       means use
@@ -318,8 +318,8 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connexion_params = None, time
         timeout = g5k_configuration.get('default_timeout')
     process = get_process("oargridstat -wl %i 2>/dev/null || oargridstat -l %i 2>/dev/null" % (oargrid_job_id, oargrid_job_id),
                           host = get_frontend_host(),
-                          connexion_params = make_connexion_params(frontend_connexion_params,
-                                                                   default_frontend_connexion_params))
+                          connection_params = make_connection_params(frontend_connection_params,
+                                                                     default_frontend_connection_params))
     process.timeout = timeout
     process.pty = True
     process.run()

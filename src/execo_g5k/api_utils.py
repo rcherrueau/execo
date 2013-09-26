@@ -69,7 +69,7 @@ def _get_api_password(username):
                 pass
     return __api_passwords[username]
 
-class APIConnexion:
+class APIConnection:
     """Basic class for easily getting url contents.
 
     Intended to be used to get content from restfull apis, particularly the grid5000 api.
@@ -79,19 +79,19 @@ class APIConnexion:
         """:param base_uri: server base uri. defaults to
           ``g5k_configuration.get('api_uri')``
 
-        :param username: username for the http connexion. If None
+        :param username: username for the http connection. If None
           (default), use default from
           ``g5k_configuration.get('api_username')``. If False, don't
           use a username at all.
 
-        :param password: password for the http connexion. If None
+        :param password: password for the http connection. If None
           (default), get the password from a keyring (if available) or
           interactively.
 
         :param headers: http headers to use. If None (default),
           default headers accepting json answer will be used.
 
-        :param timeout: timeout for the http connexion.
+        :param timeout: timeout for the http connection.
         """
         if not base_uri:
             base_uri = g5k_configuration.get('api_uri')
@@ -130,7 +130,7 @@ def _get_g5k_api():
     """Get a singleton instance of a g5k api rest resource."""
     global _g5k_api #IGNORE:W0603
     if not _g5k_api:
-        _g5k_api = APIConnexion()
+        _g5k_api = APIConnection()
     return _g5k_api
 
 def get_g5k_sites():
@@ -141,7 +141,7 @@ def get_g5k_sites():
         sites = json.loads(content)
         _g5k = dict()
         for site in [site['uid'] for site in sites['items']]:
-            _g5k[site] = None                
+            _g5k[site] = None
     return _g5k.keys()
 
 def get_site_clusters(site):

@@ -22,7 +22,7 @@ Handles remote executions and file copies with ssh or similar tools.
 """
 
 from log import logger
-from config import configuration, default_connexion_params, \
+from config import configuration, default_connection_params, \
   SSH, TAKTUK, SCP, CHAINPUT
 from time_utils import sleep, Timer, format_date, format_duration, \
   get_seconds, get_unixts
