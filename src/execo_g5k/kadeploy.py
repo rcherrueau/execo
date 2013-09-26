@@ -277,7 +277,7 @@ class Kadeployer(Remote):
         return kwargs
 
     def _infos(self):
-        return Remote._infos(self) + [ "cmds=%r" % ([ process.cmd() for process in self.processes],),
+        return Remote._infos(self) + [ "cmds=%r" % ([ process.cmd for process in self.processes],),
                                        "deployed_hosts=%r" % (self.good_hosts,),
                                        "error_hosts=%r" % (self.bad_hosts,) ]
 
