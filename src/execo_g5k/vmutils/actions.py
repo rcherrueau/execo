@@ -144,8 +144,10 @@ def wait_vms_have_started(vms, host = None):
         
     if ssh_open:
         logger.info('All VM have been started')
+        return True
     else:
         logger.error('All VM have not been started')
+        return False
     
     
 #    nmap_tries = 0   
