@@ -106,8 +106,8 @@ class Virsh_Deployment(object):
         f.close()
         
         
-        apt_conf = EX.SequentialActions([self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}),
-            self.fact.get_fileput(self.hosts, [self.outdir + '/preferences'], remote_location = '/etc/apt/', connexion_params = {'user': 'root'}) ]).run()
+        apt_conf = self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list', self.outdir + '/preferences'], 
+                                         remote_location = '/etc/apt/', connexion_params = {'user': 'root'}).run()
         
         if apt_conf.ok():
             logger.debug('apt configured successfully')
