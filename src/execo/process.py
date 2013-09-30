@@ -620,7 +620,7 @@ class Process(ProcessBase):
                 self.timeout_date = self.start_date + self.timeout
             if self.pty:
                 (self._ptymaster, self._ptyslave) = openpty()
-        logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
+        logger.debug(set_style("start:", 'emph') + str(self))
         for handler in self.lifecycle_handlers:
             handler.start(self)
         try:
