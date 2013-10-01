@@ -265,12 +265,12 @@ class _Conductor(object):
         logger.debug("terminating I/O thread of %s", self)
         os.close(self.__wpipe)
 
-    def add_process(self, process):
-        """Register a new `execo.process.Process` to the conductor.
+    def start_process(self, process):
+        """Register a new `execo.process.Process` to be started and handled by the conductor.
 
         Intended to be called from main thread.
         """
-        self.__process_actions.put_nowait((self.__handle_add_process, (process,)))
+        self.__process_actions.put_nowait((self.__handle_start_process, (process,)))
         self.__wakeup()
 
     def update_process(self, process):
@@ -301,35 +301,32 @@ class _Conductor(object):
         self.__process_actions.put_nowait((self.__handle_notify_process_terminated, (pid, exit_code)))
         self.__wakeup()
 
-    def __handle_add_process(self, process):
-        # intended to be called from conductor thread
-        # register a process to conductor
-        if _fulldebug: logger.debug("add %s to %s", str(process), self)
-        if process not in self.__processes:
-            if not process.ended:
-                fileno_stdout = process.stdout_fd
-                fileno_stderr = process.stderr_fd
-                self.__processes.add(process)
-                _set_fd_nonblocking(fileno_stdout)
-                _set_fd_nonblocking(fileno_stderr)
-                self.__fds[fileno_stdout] = (process, process._handle_stdout)
-                self.__fds[fileno_stderr] = (process, process._handle_stderr)
-                self.__poller.register(fileno_stdout,
-                                       POLLIN
-                                       | POLLERR)
-                self.__poller.register(fileno_stderr,
-                                       POLLIN
-                                       | POLLERR)
-                self.__pids[process.pid] = process
-                if process.timeout_date != None:
-                    self.__timeline.append((process.timeout_date, process))
-                if self.__reaper_thread_running == False:
-                    self.__reaper_thread_running = True
-                    reaper_thread = threading.Thread(target = self.__reaper_run_func, name = "Reaper")
-                    reaper_thread.setDaemon(True)
-                    reaper_thread.start()
-            else:
-                raise ValueError, "trying to add an already finished process to conductor"
+    def __handle_start_process(self, process):
+        assert(not process.started and not process.ended)
+        assert(process not in self.__processes)
+        process._actual_start()
+        if not process.ended:
+            fileno_stdout = process.stdout_fd
+            fileno_stderr = process.stderr_fd
+            self.__processes.add(process)
+            _set_fd_nonblocking(fileno_stdout)
+            _set_fd_nonblocking(fileno_stderr)
+            self.__fds[fileno_stdout] = (process, process._handle_stdout)
+            self.__fds[fileno_stderr] = (process, process._handle_stderr)
+            self.__poller.register(fileno_stdout,
+                                   POLLIN
+                                   | POLLERR)
+            self.__poller.register(fileno_stderr,
+                                   POLLIN
+                                   | POLLERR)
+            self.__pids[process.pid] = process
+            if process.timeout_date != None:
+                self.__timeline.append((process.timeout_date, process))
+            if self.__reaper_thread_running == False:
+                self.__reaper_thread_running = True
+                reaper_thread = threading.Thread(target = self.__reaper_run_func, name = "Reaper")
+                reaper_thread.setDaemon(True)
+                reaper_thread.start()
 
     def __handle_update_process(self, process):
         # intended to be called from conductor thread
@@ -524,7 +521,7 @@ class _Conductor(object):
                 #   the conductor
                 #
                 # - the following code cannot run while
-                #    __handle_add_process() is running
+                #    __handle_start_process() is running
                 if (exit_pid, exit_code) == (0, 0):
                     if len(self.__processes) == 0:
                         # no more child processes, we stop this thread
@@ -537,7 +534,7 @@ class _Conductor(object):
                     # _checked_waitpid has returned because there are
                     # no more child and at the same time (but before
                     # entering the locked section)
-                    # __handle_add_process() just added a process.
+                    # __handle_start_process() just added a process.
                 else:
                     logger.debug("process with pid=%s terminated, exit_code=%s", exit_pid, exit_code)
                     self.notify_process_terminated(exit_pid, exit_code)

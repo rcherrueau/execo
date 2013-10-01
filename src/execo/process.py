@@ -518,6 +518,7 @@ class Process(ProcessBase):
         self._already_got_sigterm = False
         self._ptymaster = None
         self._ptyslave = None
+        self.__start_pending = False
 
     def _actual_close_stdin(self):
         # return actual close_stdin behavior
@@ -608,13 +609,22 @@ class Process(ProcessBase):
 
     def start(self):
         """Start the subprocess."""
-        # careful placement of locked section to avoid deadlock with
-        # conductor lock, with logging lock, and to allow calling
-        # lifecycle handlers outside the lock
         with self._lock:
-            if self.started:
-                raise ValueError, "unable to start an already started process"
+            if self.started or self.ended or self.__start_pending:
+                return self
+            self.__start_pending = True
+        logger.debug("enqueue start of " + str(self))
+        the_conductor.start_process(self)
+        return self
+
+    def _actual_start(self):
+        # intended to be called from the conductor thread, in a
+        # specific section of the conductor loop.  careful placement
+        # of locked section to avoid deadlock with logging lock, and
+        # to allow calling lifecycle handlers outside the lock
+        with self._lock:
             self.started = True
+            self.__start_pending = False
             self.start_date = time.time()
             if self.timeout != None:
                 self.timeout_date = self.start_date + self.timeout
@@ -624,28 +634,22 @@ class Process(ProcessBase):
         for handler in self.lifecycle_handlers:
             handler.start(self)
         try:
-            with the_conductor.lock:
-                # this lock is needed to ensure that
-                # Conductor.__update_terminated_processes() won't be
-                # called before the process has been registered to the
-                # conductor
-                if self.pty:
-                    self.process = subprocess.Popen(self._actual_cmd(),
-                                                    stdin = self._ptyslave,
-                                                    stdout = self._ptyslave,
-                                                    stderr = subprocess.PIPE,
-                                                    close_fds = True,
-                                                    shell = self.shell,
-                                                    preexec_fn = os.setsid)
-                else:
-                    self.process = subprocess.Popen(self._actual_cmd(),
-                                                    stdin = subprocess.PIPE,
-                                                    stdout = subprocess.PIPE,
-                                                    stderr = subprocess.PIPE,
-                                                    close_fds = True,
-                                                    shell = self.shell)
-                self.pid = self.process.pid
-                the_conductor.add_process(self)
+            if self.pty:
+                self.process = subprocess.Popen(self._actual_cmd(),
+                                                stdin = self._ptyslave,
+                                                stdout = self._ptyslave,
+                                                stderr = subprocess.PIPE,
+                                                close_fds = True,
+                                                shell = self.shell,
+                                                preexec_fn = os.setsid)
+            else:
+                self.process = subprocess.Popen(self._actual_cmd(),
+                                                stdin = subprocess.PIPE,
+                                                stdout = subprocess.PIPE,
+                                                stderr = subprocess.PIPE,
+                                                close_fds = True,
+                                                shell = self.shell)
+            self.pid = self.process.pid
             if self._actual_close_stdin():
                 self.process.stdin.close()
         except OSError, e:
@@ -657,7 +661,6 @@ class Process(ProcessBase):
                 self._log_terminated()
             for handler in self.lifecycle_handlers:
                 handler.end(self)
-        return self
 
     def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
@@ -670,6 +673,11 @@ class Process(ProcessBase):
           SIGKILL if the subprocess is not yet terminated
         """
         logger.debug(set_style("kill with signal %s:" % sig, 'emph') + " %s" % (str(self),))
+        if self.__start_pending:
+            while self.started != True:
+                logger.debug("waiting for process to be actually started: " + str(self))
+                with the_conductor.lock:
+                    the_conductor.condition.wait()
         other_debug_logs=[]
         additionnal_processes_to_kill = []
         with self._lock:
@@ -788,9 +796,14 @@ class Process(ProcessBase):
 
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
+        logger.debug(set_style("wait: ", 'emph') + " %s" % (str(self),))
+        if self.__start_pending:
+            while self.started != True:
+                logger.debug("waiting for process to be actually started: " + str(self))
+                with the_conductor.lock:
+                    the_conductor.condition.wait()
         if not self.started:
             raise ValueError, "Trying to wait a process which has not been started"
-        logger.debug(set_style("wait:", 'emph') + " %s" % (str(self),))
         timeout = get_seconds(timeout)
         if timeout != None:
             end = time.time() + timeout
