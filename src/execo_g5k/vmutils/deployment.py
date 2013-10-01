@@ -454,7 +454,6 @@ class Virsh_Deployment(object):
         deployment = ETree.Element('vm5k')
         
         for vm in vms:
-            pprint(vm)
             host_info = vm['host'].address
             print host_info
             host_uid =   host_info.split('-')[0]+'-'+host_info.split('-')[1]
