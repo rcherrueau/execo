@@ -788,18 +788,17 @@ class Process(ProcessBase):
 
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
-        with self._lock:
-            if not self.started:
-                raise ValueError, "Trying to wait a process which has not been started"
+        if not self.started:
+            raise ValueError, "Trying to wait a process which has not been started"
         logger.debug(set_style("wait:", 'emph') + " %s" % (str(self),))
-        with the_conductor.lock:
-            timeout = get_seconds(timeout)
-            if timeout != None:
-                end = time.time() + timeout
-            while self.ended != True and (timeout == None or timeout > 0):
+        timeout = get_seconds(timeout)
+        if timeout != None:
+            end = time.time() + timeout
+        while self.ended != True and (timeout == None or timeout > 0):
+            with the_conductor.lock:
                 the_conductor.condition.wait(timeout)
-                if timeout != None:
-                    timeout = end - time.time()
+            if timeout != None:
+                timeout = end - time.time()
         logger.debug(set_style("wait finished:", 'emph') + " %s" % (str(self),))
         return self
 
