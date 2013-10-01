@@ -106,8 +106,8 @@ class Virsh_Deployment(object):
         f.close()
         
         
-        apt_conf = EX.SequentialActions([self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list'], remote_location = '/etc/apt/', connection_params = {'user': 'root'}),
-            self.fact.get_fileput(self.hosts, [self.outdir + '/preferences'], remote_location = '/etc/apt/', connection_params = {'user': 'root'}) ]).run()
+        apt_conf = self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list', self.outdir + '/preferences'], 
+                                         remote_location = '/etc/apt/', connection_params = {'user': 'root'}).run()
         
         if apt_conf.ok:
             logger.debug('apt configured successfully')
@@ -134,7 +134,7 @@ class Virsh_Deployment(object):
     def install_packages(self, packages_list = None):
         """ Installation of packages on the nodes """
     
-        base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop init-system-helpers=1.8'
+        base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop init-system-helpers'
         logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()        
@@ -451,41 +451,42 @@ class Virsh_Deployment(object):
         copy_on_vm_base = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()
         logger.debug('%s', copy_on_vm_base.ok)
     
-    def write_placement_file(self):
+    def write_placement_file(self, vms = None):
         """ Generate an XML file with the VM deployment topology """
-        raise NotImplementedError
-        pass
-#        deployment = ETree.Element('vm5k')
-#        
-#        
-#        for vm in self.vms:
-#            host_info = vm['host'].address
-#            print host_info
-#            host_uid =   host_info.split('-')[0]+'-'+host_info.split('-')[1]
-#            cluster_uid = host_info.split('-')[0]
-#            site_uid = host_info.split('.')[1]
-#            print host_uid, cluster_uid, site_uid
-#            
-#            
-#            #FUCKING PYTHON 2.6 ....
-#            if deployment.find("./site[@id='"+site_uid+"']") is None:
-#                site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
-#            else:
-#                site = deployment.find("./site[@id='"+site_uid+"']")
-#            if site.find("./cluster/[@id='"+cluster_uid+"']") is None:
-#                cluster = ETree.SubElement(site, 'cluster', attrib = {'id': cluster_uid})
-#            else:
-#                cluster = site.find("./cluster/[@id='"+cluster_uid+"']")
-#            if cluster.find("./host/[@id='"+host_uid+"']") is None:
-#                host = ETree.SubElement(cluster, 'host', attrib = {'id': host_uid})
-#            else:
-#                host = cluster.find("./host/[@id='"+host_uid+"']")
-#            el_vm = ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
-#                        'mem': str(vm['mem_size']), 'cpu': str(vm['vcpus']), 'hdd': str(vm['hdd_size'])})
-#        
-#        f = open(self.outdir+'/placement.xml', 'w')
-#        f.write(prettify(deployment))
-#        f.close()
+       
+       
+        if vms is None:
+            vms = self.vms
+        deployment = ETree.Element('vm5k')
+        
+        for vm in vms:
+            host_info = vm['host'].address
+            print host_info
+            host_uid =   host_info.split('-')[0]+'-'+host_info.split('-')[1]
+            cluster_uid = host_info.split('-')[0]
+            site_uid = host_info.split('.')[1]
+            print host_uid, cluster_uid, site_uid
+            
+            
+            # FUCKING PYTHON 2.6 ....
+            if deployment.find("./site[@id='"+site_uid+"']") is None:
+                site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
+            else:
+                site = deployment.find("./site[@id='"+site_uid+"']")
+            if site.find("./cluster/[@id='"+cluster_uid+"']") is None:
+                cluster = ETree.SubElement(site, 'cluster', attrib = {'id': cluster_uid})
+            else:
+                cluster = site.find("./cluster/[@id='"+cluster_uid+"']")
+            if cluster.find("./host/[@id='"+host_uid+"']") is None:
+                host = ETree.SubElement(cluster, 'host', attrib = {'id': host_uid})
+            else:
+                host = cluster.find("./host/[@id='"+host_uid+"']")
+            el_vm = ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
+                        'mem': str(vm['mem_size']), 'cpu': str(vm['vcpus']), 'hdd': str(vm['hdd_size'])})
+        
+        f = open(self.outdir+'/placement.xml', 'w')
+        f.write(prettify(deployment))
+        f.close()
 
         
     def distribute_vms(self, vms, mode = 'distributed', placement = None):    
@@ -500,8 +501,7 @@ class Virsh_Deployment(object):
             max_cpu = {}
             total_mem = {}
             total_cpu = {}
-            
-            if mode is 'distributed':
+            if mode == 'distributed':
                 for h in self.hosts:        
                     max_mem[h.address] = self.hosts_attr[h.address.split('-')[0]]['ram_size']/1048576 
                     max_cpu[h.address] = self.hosts_attr[h.address.split('-')[0]]['n_cpu']*2
@@ -521,9 +521,9 @@ class Virsh_Deployment(object):
                     hosts_vm[host.address].append(vm['vm_id'])
                     host = iter_hosts.next()
                     
-            elif mode is 'concentrated':
+            elif mode == 'concentrated':
                 api_host = kavname_to_shortname(host)
-                max_mem = get_host_attributes(api_host)['main_memory']['ram_size']/10**6
+                max_mem = self.hosts_attr[host.address.split('-')[0]]['ram_size']/1048576
                 total_mem = 0
                 for vm in vms:
                     total_mem += vm['mem_size']
@@ -535,6 +535,13 @@ class Virsh_Deployment(object):
                         hosts_vm[host.address] = []
                     vm['host'] = host
                     hosts_vm[host.address].append(vm['vm_id'])
+            elif mode == 'n_by_hosts':
+                i_vm = 0
+                for host in self.hosts:
+                    for i in range(len(vms)/len(self.hosts)):
+                        vms[i_vm]['host'] = host
+                        i_vm += 1
+                
         else: 
             clusters = []
             sites = []
