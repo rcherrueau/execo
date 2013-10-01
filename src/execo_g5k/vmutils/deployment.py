@@ -494,8 +494,7 @@ class Virsh_Deployment(object):
             max_cpu = {}
             total_mem = {}
             total_cpu = {}
-            
-            if mode is 'distributed':
+            if mode == 'distributed':
                 for h in self.hosts:        
                     max_mem[h.address] = self.hosts_attr[h.address.split('-')[0]]['ram_size']/1048576 
                     max_cpu[h.address] = self.hosts_attr[h.address.split('-')[0]]['n_cpu']*2
@@ -515,9 +514,9 @@ class Virsh_Deployment(object):
                     hosts_vm[host.address].append(vm['vm_id'])
                     host = iter_hosts.next()
                     
-            elif mode is 'concentrated':
+            elif mode == 'concentrated':
                 api_host = kavname_to_shortname(host)
-                max_mem = get_host_attributes(api_host)['main_memory']['ram_size']/10**6
+                max_mem = self.hosts_attr[host.address.split('-')[0]]['ram_size']/1048576
                 total_mem = 0
                 for vm in vms:
                     total_mem += vm['mem_size']
