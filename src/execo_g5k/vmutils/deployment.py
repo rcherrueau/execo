@@ -445,13 +445,15 @@ class Virsh_Deployment(object):
         copy_on_vm_base = self.fact.get_remote(cmd, self.hosts, connexion_params = {'user': 'root'}).run()
         logger.debug('%s', copy_on_vm_base.ok())
     
-    def write_placement_file(self):
+    def write_placement_file(self, vms = None):
         """ Generate an XML file with the VM deployment topology """
        
+       
+        if vms is None:
+            vms = self.vms
         deployment = ETree.Element('vm5k')
         
-        
-        for vm in self.vms:
+        for vm in vms:
             host_info = vm['host'].address
             print host_info
             host_uid =   host_info.split('-')[0]+'-'+host_info.split('-')[1]
