@@ -690,7 +690,7 @@ class Process(ProcessBase):
                 if sig == signal.SIGKILL:
                     self.forced_kill = True
                 if self._actual_kill_subprocesses():
-                    additionnal_processes_to_kill = _get_childs(self._pid)
+                    additionnal_processes_to_kill = _get_childs(self.pid)
                 try:
                     os.kill(self.pid, sig)
                 except OSError, e:
