@@ -594,7 +594,9 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t dep
                 if n_sites > 1:
                     sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
                 else:
-                    sub_resources="{type=\\'kavlan\\'}/vlan=1+"
+                    #sub_resources="{\\\" type=\\'kavlan\\' or type=\'kavlan-bod\'\\\"}/vlan=1+"
+                    ## TEMPORARY SOLUTION TO BE SURE TO HAVE A KAVLAN ;)
+                    sub_resources="{type=\\'kavlan-bod\\'}/vlan=1+"
                 get_kavlan = False
                                 
             for cluster in API.get_site_clusters(site): 
@@ -810,7 +812,7 @@ def draw_slots(slots, endstamp, colors = None, show = False, save = True):
     
     if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
         x_major_locator = MD.HourLocator(byhour = [9, 19])
-    elif endsself.endtimetartstamp <= timedelta_to_seconds(timedelta(days=17)):
+    elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=17)):
         x_major_locator = MD.HourLocator(byhour = [9])
     else:
         x_major_locator = MD.AutoDateLocator()

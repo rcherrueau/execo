@@ -461,14 +461,9 @@ class Virsh_Deployment(object):
         
         for vm in vms:
             host_info = vm['host'].address
-            print host_info
             host_uid =   host_info.split('-')[0]+'-'+host_info.split('-')[1]
             cluster_uid = host_info.split('-')[0]
             site_uid = host_info.split('.')[1]
-            print host_uid, cluster_uid, site_uid
-            
-            
-            # FUCKING PYTHON 2.6 ....
             if deployment.find("./site[@id='"+site_uid+"']") is None:
                 site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
             else:

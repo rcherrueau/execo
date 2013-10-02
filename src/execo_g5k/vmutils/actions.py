@@ -23,6 +23,7 @@ from execo.log import set_style
 from execo.time_utils import sleep
 from execo_g5k.api_utils import get_host_site
 import tempfile
+from copy import deepcopy
 from execo.exception import ActionsFailed
 
 def list_vm( host, all = False ):
@@ -80,10 +81,11 @@ def create_disks_on_hosts(vms, hosts, backing_file = '/tmp/vm-base.img', backing
     """ Return a Parallel action to create the qcow2 disks on all hosts"""
     host_actions = []
     for host in hosts:
-        tmp_vms = list(vms)
+        tmp_vms = deepcopy(vms)
         for vm in tmp_vms:
             vm['host'] = host
         host_actions.append(create_disks(tmp_vms, backing_file, backing_file_fmt))
+    
     return ParallelActions(host_actions)
 
 def install_vms(vms):
