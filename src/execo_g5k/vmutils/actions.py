@@ -129,7 +129,7 @@ def wait_vms_have_started(vms, host = None):
     Put([host], tmpfile[1], connexion_params = {'user': 'root'}).run()
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
-    started_vms = 0
+    started_vms = '0'
     ssh_open = False
     while (not ssh_open) and nmap_tries < 40:
         sleep(20)
