@@ -280,3 +280,20 @@ def get_cluster_attributes(cluster):
 def get_site_attributes(site):
     """Get the attributes of a site (as known to the g5k api) as a dict"""
     return get_resource_attributes('/sites/' + site)
+
+
+def get_g5k_measures(host, metric, startstamp, endstamp, resolution = 5):
+    """ Return a dict with the api values"""
+    if isinstance(host, execo.Host):
+        host = host.address
+    host_shortname, _, _ = host.partition(".")
+    site = get_host_site(host)
+    return get_resource_attributes('/sites/' + site 
+                                   + '/metrics/' + metric
+                                   + '/timeseries/' + host_shortname
+                                   + '?resolution=' + str(resolution)
+                                   + '&from=' + str(startstamp) 
+                                   + '&to=' + str(endstamp))
+    
+    
+
