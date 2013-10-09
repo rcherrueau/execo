@@ -27,7 +27,7 @@ from time_utils import format_unixts, get_seconds
 from utils import compact_output, nice_cmdline
 from report import Report
 import errno, os, re, shlex, signal, subprocess
-import threading, time
+import threading, time, pipes
 
 class ProcessLifecycleHandler(object):
 
@@ -539,6 +539,8 @@ class Process(ProcessBase):
         # return actual cmd
         if self.shell == False and isinstance(self.cmd, str):
             return shlex.split(self.cmd)
+        elif self.shell == True and hasattr(self.cmd, '__iter__'):
+            return " ".join([ pipes.quote(arg) for arg in self.cmd ])
         else:
             return self.cmd
 
