@@ -9,3 +9,4 @@
 /execo-run
 /execo.conf.py.sample
 *.pyc
+*.orig
