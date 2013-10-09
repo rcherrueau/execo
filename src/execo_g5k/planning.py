@@ -103,7 +103,7 @@ class Planning:
                 attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
                 try:
                     start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
-                    end_time = start_time + attr['walltime']
+                    end_time = start_time + attr['walltime']+timedelta_to_seconds(timedelta(minutes = 1, seconds =5))
                 except:
                     logger.warning('job')
                     pprint( attr )
@@ -325,7 +325,8 @@ class Planning:
                 for info in site_jobs.itervalues():
                     if 'kavlan-global'in info['wanted_resources']:
                         vlan_planning[site]['busy'].append(( int(info['scheduledStart']), 
-                            int(info['scheduledStart'])+oar_duration_to_seconds(info['wanted_resources'].split('walltime=')[1][:-2])) )
+                            int(info['scheduledStart'])+oar_duration_to_seconds(info['wanted_resources'].split('walltime=')[1][:-2])
+                            +timedelta_to_seconds(timedelta(minutes = 1, seconds =5))) )
                         
         
         for site, planning in vlan_planning.iteritems():

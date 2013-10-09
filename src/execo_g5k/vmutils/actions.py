@@ -129,12 +129,13 @@ def wait_vms_have_started(vms, host = None):
     Put([host], tmpfile[1], connection_params = {'user': 'root'}).run()
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
+    started_vms = '0'
     ssh_open = False
     while (not ssh_open) and nmap_tries < 40:
         sleep(20)
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
-        nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host).run()
+        nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host, connection_params = {'user': 'root'}).run()
         logger.debug('%s', nmap.cmd)
         for line in nmap.stdout.split('\n'):
             if 'Nmap done' in line:
