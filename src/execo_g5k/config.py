@@ -84,37 +84,10 @@ g5k_configuration = {
 def make_default_oarsh_oarcp_params():
 # _STARTOF_ default_oarsh_oarcp_params
     default_oarsh_oarcp_params = {
-        'user':        None,
-        'keyfile':     None,
-        'port':        None,
         'ssh':         'oarsh',
         'scp':         'oarcp',
-        'taktuk':      'taktuk',
-        'ssh_options': ( '-tt',
-                         '-o', 'BatchMode=yes',
-                         '-o', 'PasswordAuthentication=no',
-                         '-o', 'StrictHostKeyChecking=no',
-                         '-o', 'UserKnownHostsFile=/dev/null',
-                         '-o', 'ConnectTimeout=20' ),
-        'scp_options': ( '-o', 'BatchMode=yes',
-                         '-o', 'PasswordAuthentication=no',
-                         '-o', 'StrictHostKeyChecking=no',
-                         '-o', 'UserKnownHostsFile=/dev/null',
-                         '-o', 'ConnectTimeout=20',
-                         '-rp' ),
-        'taktuk_options': ( '-s', ),
         'taktuk_connector': 'oarsh',
-        'taktuk_connector_options': ( '-o', 'BatchMode=yes',
-                                      '-o', 'PasswordAuthentication=no',
-                                      '-o', 'StrictHostKeyChecking=no',
-                                      '-o', 'UserKnownHostsFile=/dev/null',
-                                      '-o', 'ConnectTimeout=20'),
-        'nc': '/bin/nc.traditional',
-        'chainput_port': 64208,
-        'chainput_num_retry': 10,
-        'chainput_try_delay': 2,
         'pty': True,
-        'host_rewrite_func': None
         }
 # _ENDOF_ default_oarsh_oarcp_params
     return default_oarsh_oarcp_params
@@ -128,35 +101,6 @@ See `execo.config.make_default_connection_params`
 def make_default_frontend_connection_params():
 # _STARTOF_ default_frontend_connection_params
     default_frontend_connection_params = {
-        'user':        None,
-        'keyfile':     None,
-        'port':        None,
-        'ssh':         'ssh',
-        'scp':         'scp',
-        'taktuk':      'taktuk',
-        'ssh_options': ( '-tt',
-                         '-o', 'BatchMode=yes',
-                         '-o', 'PasswordAuthentication=no',
-                         '-o', 'StrictHostKeyChecking=no',
-                         '-o', 'UserKnownHostsFile=/dev/null',
-                         '-o', 'ConnectTimeout=20' ),
-        'scp_options': ( '-o', 'BatchMode=yes',
-                         '-o', 'PasswordAuthentication=no',
-                         '-o', 'StrictHostKeyChecking=no',
-                         '-o', 'UserKnownHostsFile=/dev/null',
-                         '-o', 'ConnectTimeout=20',
-                         '-rp' ),
-        'taktuk_options': ( '-s', ),
-        'taktuk_connector': 'ssh',
-        'taktuk_connector_options': ( '-o', 'BatchMode=yes',
-                                      '-o', 'PasswordAuthentication=no',
-                                      '-o', 'StrictHostKeyChecking=no',
-                                      '-o', 'UserKnownHostsFile=/dev/null',
-                                      '-o', 'ConnectTimeout=20'),
-        'nc': '/bin/nc.traditional',
-        'chainput_port': 64208,
-        'chainput_num_retry': 10,
-        'chainput_try_delay': 2,
         'pty': True,
         'host_rewrite_func': lambda host: host + ".grid5000.fr"
         }
