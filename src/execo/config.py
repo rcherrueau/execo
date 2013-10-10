@@ -133,7 +133,7 @@ def make_default_connection_params():
                                       '-o', 'ConnectTimeout=20'),
         'nc': '/bin/nc.traditional',
         'chainput_port': 64208,
-        'chainput_num_retry': 10,
+        'chainput_num_retry': 30,
         'chainput_try_delay': 2,
         'pty': False,
         'host_rewrite_func': None
