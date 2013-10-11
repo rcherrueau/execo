@@ -26,10 +26,10 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import nice_cmdline
+from utils import nice_cmdline, find_exe
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
-import threading, time, pipes, tempfile, os
+import threading, time, pipes, tempfile, os, shutil
 
 class ActionLifecycleHandler(object):
 
@@ -1332,28 +1332,10 @@ class SequentialActions(Action):
         stats['sub_stats'] = [action.stats() for action in self.actions]
         return Report.aggregate_stats(stats)
 
-class ChainPutProcessLH(ProcessLifecycleHandler):
+_execo_chainput = find_exe("execo-chainput")
+class ChainPut(SequentialActions):
 
-    def __init__(self, chainput):
-        self.chainput = chainput
-        self._triggered = False
-
-    def end(self, process):
-        if not process.ok:
-            if not self._triggered:
-                logger.warn("%s: one process failure in chainput - aborting. Failed process: %s", self.chainput, process)
-                for p in self.chainput.processes:
-                    if p != process: p.log_exit_code = False # don't polute log with killing of other processes in the chain
-                self.chainput.kill()
-                self._triggered = True
-
-    def reset(self, process):
-        self._triggered = False
-
-
-class ChainPut(ParallelActions):
-
-    """Broadcast a local file to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from kastafior).
+    """Broadcast local files to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from kastafior).
 
     Each broadcast is performed with a chain copy (simultaneously:
     host0 sending to host1, host1 sending to host2, ... hostN to
@@ -1370,17 +1352,18 @@ class ChainPut(ParallelActions):
       so on up to the last remote host.
 
     On the security side, data transfers are not crypted, and ChainPut
-    briefly opens a TCP server socket on each remote host, accepting any
-    data without authentication. It is thus intended to be used in a
-    secured network environment.
+    briefly opens a TCP server socket on each remote host, accepting
+    any data without authentication. Insecure temporary files are
+    used. It is thus intended to be used in a secured network
+    environment.
     """
 
-    def __init__(self, hosts, local_file, remote_location = ".", connection_params = None):
+    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
 
-        :param local_file: source file (local path).
+        :param local_file: iterable of source file (local pathes).
 
         :param remote_location: destination directory (remote path).
 
@@ -1389,7 +1372,7 @@ class ChainPut(ParallelActions):
           override those in default_connection_params for connection.
         """
         self.hosts = get_unique_hosts_list(hosts)
-        self.local_file = local_file
+        self.local_files = local_files
         self.remote_location = remote_location
         self.connection_params = connection_params
         super(ChainPut, self).__init__([])
@@ -1398,61 +1381,58 @@ class ChainPut(ParallelActions):
     def _init_actions(self):
         if len(self.hosts) > 0:
             actual_connection_params = make_connection_params(self.connection_params)
-            forwardcmd = [ "| tee %s | ( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (os.path.join(self.remote_location, os.path.basename(self.local_file)),
-                                                                                                                                                                                         actual_connection_params['chainput_num_retry'],
-                                                                                                                                                                                         actual_connection_params['nc'],
-                                                                                                                                                                                         host.address,
-                                                                                                                                                                                         actual_connection_params['chainput_port'],
-                                                                                                                                                                                         actual_connection_params['chainput_try_delay'])
-                           for host in self.hosts[1:] ]
-            forwardcmd.append("> %s" % (os.path.join(self.remote_location, os.path.basename(self.local_file)),))
-            plch = ChainPutProcessLH(self)
-            chain = Remote("%s -l -p %i {{forwardcmd}}" % (actual_connection_params['nc'],
-                                                           actual_connection_params['chainput_port']),
-                                 self.hosts,
-                                 self.connection_params)
-            [ p.lifecycle_handlers.append(plch) for p in chain.processes ]
-            send = Local("( NT=%i ; while [ $NT -gt 0 ] ; do NT=`expr $NT - 1` ; %s -q 0 %s %i < %s ; S=$? ; if [ $S -eq 0 ] ; then break ; fi ; sleep %i ; done ; exit $S )" % (actual_connection_params['chainput_num_retry'],
-                                                                                                                                                                                 actual_connection_params['nc'],
-                                                                                                                                                                                 self.hosts[0].address,
-                                                                                                                                                                                 actual_connection_params['chainput_port'],
-                                                                                                                                                                                 self.local_file,
-                                                                                                                                                                                 actual_connection_params['chainput_try_delay']))
-            send.processes[0].shell = True
-            [ p.lifecycle_handlers.append(plch) for p in send.processes ]
-            self.actions = [chain, send]
+
+            chainhosts_handle, chainhosts_filename = tempfile.mkstemp(prefix = 'tmp_execo_chainhosts_')
+            chainhosts = "\n".join([h.address for h in self.hosts]) + "\n"
+            os.write(chainhosts_handle, chainhosts)
+            os.close(chainhosts_handle)
+
+            chainscript_filename = tempfile.mktemp(prefix = 'tmp_execo_chainscript_')
+            shutil.copy2(_execo_chainput, chainscript_filename)
+
+            preparechain = TaktukPut(self.hosts,
+                                     [ chainhosts_filename, chainscript_filename ],
+                                     "/tmp",
+                                     actual_connection_params
+                                     )
+
+            chains = []
+            for f in self.local_files:
+
+                chaincmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i '%s' --autoremove" % (
+                        chainscript_filename,
+                        f,
+                        self.remote_location,
+                        actual_connection_params['nc'],
+                        actual_connection_params['chainput_port'],
+                        actual_connection_params['chainput_num_retry'],
+                        actual_connection_params['chainput_try_delay'],
+                        idx+1,
+                        chainhosts_filename,
+                        ) for idx, host in enumerate(self.hosts) ]
+
+                chain = TaktukRemote("{{chaincmd}}",
+                                     self.hosts,
+                                     actual_connection_params)
+
+                send = Local("%s '%s' '%s' '%s' %i %i %i %i %i '%s' --autoremove" % (
+                        chainscript_filename,
+                        f,
+                        self.remote_location,
+                        actual_connection_params['nc'],
+                        actual_connection_params['chainput_port'],
+                        actual_connection_params['chainput_num_retry'],
+                        actual_connection_params['chainput_try_delay'],
+                        0,
+                        chainhosts_filename
+                        ))
+
+                chains.append(ParallelActions([send, chain]))
+
+            self.actions = [ preparechain ] + chains
         else:
             self.actions = []
         super(ChainPut, self)._init_actions()
-
-class MultiChainPut(SequentialActions):
-
-    """Multiple sequential ``execo.action.ChainPut`` for copying multiple files.
-    """
-
-    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
-        """
-        :param hosts: iterable of `execo.host.Host` onto which to copy
-          the files.
-
-        :param local_files: iterable of source file (local pathes).
-
-        :param remote_location: destination directory (remote path).
-
-        :param connection_params: a dict similar to
-          `execo.config.default_connection_params` whose values will
-          override those in default_connection_params for connection.
-        """
-        self.hosts = hosts
-        self.local_files = local_files
-        self.remote_location = remote_location
-        self.connection_params = connection_params
-        super(MultiChainPut, self).__init__([])
-        self.name = "%s to %i hosts" % (self.__class__.__name__, len(hosts))
-
-    def _init_actions(self):
-        self.actions = [ ChainPut(self.hosts, local_file, self.remote_location, self.connection_params) for local_file in self.local_files ]
-        super(MultiChainPut, self)._init_actions()
 
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
@@ -1489,13 +1469,13 @@ class ActionFactory:
             raise KeyError, "no such remote tool: %s" % self.remote_tool
 
     def get_fileput(self, *args, **kwargs):
-        """Instanciates a `execo.action.Put`, `execo.action.TaktukPut` or `execo.action.MultiChainPut`"""
+        """Instanciates a `execo.action.Put`, `execo.action.TaktukPut` or `execo.action.ChainPut`"""
         if self.fileput_tool == SCP:
             return Put(*args, **kwargs)
         elif self.fileput_tool == TAKTUK:
             return TaktukPut(*args, **kwargs)
         elif self.fileput_tool == CHAINPUT:
-            return MultiChainPut(*args, **kwargs)
+            return ChainPut(*args, **kwargs)
         else:
             raise KeyError, "no such fileput tool: %s" % self.fileput_tool
 
@@ -1507,7 +1487,6 @@ class ActionFactory:
             return TaktukGet(*args, **kwargs)
         else:
             raise KeyError, "no such fileget tool: %s" % self.fileget_tool
-
 
 default_action_factory = ActionFactory()
 

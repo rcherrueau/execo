@@ -1,0 +1,88 @@
+#!/bin/bash
+
+usage() {
+    cat <<EOF
+
+WARNING: this program is intended to be used from within execo, users
+         should not run it directly
+usage:
+  $(basename $0) <filename> <dest dir> <nc> <port> <num tries> <delay> <index> <remote hosts file> [--autoremove]
+
+  <filename>: name of the file to send
+  <dest dir>: destination dir on remote hosts
+  <nc>: path of netcat executable
+  <port>: port to use for netcat
+  <num tries>: number of netcat client connection retries
+  <delay>: delay between netcat client connection retries
+  <index>: index of the remote or local host on which this command is run
+      index is 0 based:
+          0 = localhost, the host sending the file
+          1-n = remote hosts
+  <remote hosts file>: path to file containing the list of remote hosts
+
+  if there is an additional argument --autoremove, the script will
+  autodelete itself and the hostfile
+
+EOF
+}
+
+if [ $# -lt 8 ] ; then usage ; exit 1; fi
+FILENAME="$1"
+DESTDIR="$2"
+NC="$3"
+PORT=$4
+NUMTRIES=$5
+DELAY=$6
+INDEX=$7
+HOSTSFILE="$8"
+AUTOREMOVE=1
+if [ $# -eq 9 -a "$9" == "--autoremove" ] ; then
+    AUTOREMOVE=0
+fi
+
+IFS=$'\n' read -d '' -r -a HOSTS < "$HOSTSFILE"
+
+set -o pipefail
+set -e
+
+forwarddata() {
+    (
+        S=1
+        while [ $INDEX -lt ${#HOSTS[*]} -a $S -ne 0 ] ; do
+            echo "trying sending to ${HOSTS[INDEX]}"
+            NUMTRY=$NUMTRIES
+            while [ $NUMTRY -gt 0 ] ; do
+                NUMTRY=$((NUMTRY-1))
+                echo "try $((NUMTRIES-NUMTRY))..."
+                "$NC" -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
+                if [ $S -eq 0 ] ; then
+                    echo "...success"
+                    break
+                fi
+                echo "...failed"
+                sleep $DELAY
+            done
+            INDEX=$((INDEX+1))
+        done
+        if [ $S -ne 0 ] ; then
+            echo "end of chain"
+            cat > /dev/null
+        fi
+        exit 0
+    )
+}
+
+if [ $INDEX -eq 0 ] ; then
+    echo "localhost starting chain"
+    forwarddata < "$FILENAME"
+else
+    echo "host ${HOSTS[INDEX-1]} ($INDEX/${#HOSTS[*]}) receiving and forwarding"
+    timeout $LISTENTIMEOUT "$NC" -l -p $PORT | tee "$DESTDIR/$(basename $FILENAME)" | forwarddata
+fi
+echo "end"
+if [ $AUTOREMOVE -eq 0 ] ; then
+    SCRIPTFILE=$(cd `dirname "$0"` && pwd)/`basename "$0"`
+    echo "auto deleting $HOSTSFILE and $SCRIPTFILE"
+    rm -f "$HOSTSFILE"
+    rm -f "$SCRIPTFILE"
+fi
