@@ -69,6 +69,21 @@ def _get_api_password(username):
                 pass
     return __api_passwords[username]
 
+class APIGetException(Exception):
+    """Raised when an API request fails"""
+
+    def __init__(self, uri, response, content):
+        self.uri = uri
+        """the HTTP URI to which the request failed"""
+        self.response = response
+        """HTTP response"""
+        self.content = content
+        """HTTP content"""
+
+    def __str__(self):
+        return "<APIGetException uri=%r response=%s content=%r>" % (self.uri, self.response, self.content)
+
+
 class APIConnection:
     """Basic class for easily getting url contents.
 
@@ -123,7 +138,7 @@ class APIConnection:
         response, content = self.http.request(uri,
                                               headers = self.headers)
         if response['status'] not in ['200', '304']:
-            raise Exception, "unable to retrieve %s http response = %s, http content = %s" % (uri, response, content)
+            raise APIGetException(uri, response, content)
         return response, content
 
 def _get_g5k_api():
