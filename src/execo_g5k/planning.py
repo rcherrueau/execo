@@ -78,46 +78,53 @@ class Planning:
                 if len(broken_site) > 0:
                     logger.warn('Site '+broken_site[0]+' is broken ..')
                     sites.remove(broken_site[0])
-        
+
         for site in sites:
             planning[site] = {}
-            dead_nodes = [ node for node, status in \
-                get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] == 'dead' ]
-            for cluster in get_site_clusters(site):
-                planning[site][cluster] = {}
-                for host in sorted(get_cluster_hosts(cluster), key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
-                    if host not in dead_nodes:
-                        planning[site][cluster][host] = {'busy': [], 'free': []}
-            
-            vlans = [x for x in sorted(map(is_a_kavlan, get_vlans(site).itervalues() )) if x is not None]
-            planning[site]['kavlan'] = {}
-            for vlan in vlans:
-                planning[site]['kavlan'][vlan] = {'busy': [], 'free': []}
-            
-            jobs_links = [ link['href'] for job in filter(rm_besteffort, \
-                   get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
-                   for link in job['links'] if link['rel'] == 'self' ]
-            logger.info( set_style(site.ljust(10), 'emph')+str( len( jobs_links ) ).rjust(5) )    
-            
-            for link in jobs_links:
-                attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
-                try:
-                    start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
-                    end_time = start_time + attr['walltime']+timedelta_to_seconds(timedelta(minutes = 1, seconds =5))
-                except:
-                    logger.warning('job')
-                    pprint( attr )
-                    pass 
-                nodes = attr['assigned_nodes']
-                
-                for node in sorted(nodes, key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
-                    cluster = node.split('.',1)[0].split('-')[0]
-                    if planning[site][cluster].has_key(node): 
-                        planning[site][cluster][node]['busy'].append( (start_time, end_time))
-                if attr['resources_by_type'].has_key('vlans'):
-                    vlan = attr['resources_by_type']['vlans'][0]
-                    planning[site]['kavlan']['kavlan-'+vlan]['busy'].append( (start_time, end_time))
-  
+            try:
+                dead_nodes = [ node for node, status in \
+                    get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] == 'dead' ]
+                for cluster in get_site_clusters(site):
+                    planning[site][cluster] = {}
+                    for host in sorted(get_cluster_hosts(cluster), key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
+                        if host not in dead_nodes:
+                            planning[site][cluster][host] = {'busy': [], 'free': []}
+
+                vlans = [x for x in sorted(map(is_a_kavlan, get_vlans(site).itervalues() )) if x is not None]
+                planning[site]['kavlan'] = {}
+                for vlan in vlans:
+                    planning[site]['kavlan'][vlan] = {'busy': [], 'free': []}
+
+                jobs_links = [ link['href'] for job in filter(rm_besteffort, \
+                       get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
+                       for link in job['links'] if link['rel'] == 'self' ]
+                logger.info( set_style(site.ljust(10), 'emph')+str( len( jobs_links ) ).rjust(5) )
+
+                for link in jobs_links:
+                    attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
+                    try:
+                        start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
+                        end_time = start_time + attr['walltime']+timedelta_to_seconds(timedelta(minutes = 1, seconds =5))
+                    except:
+                        logger.warning('job')
+                        pprint( attr )
+                        pass
+                    nodes = attr['assigned_nodes']
+
+                    for node in sorted(nodes, key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
+                        cluster = node.split('.',1)[0].split('-')[0]
+                        if planning[site][cluster].has_key(node):
+                            planning[site][cluster][node]['busy'].append( (start_time, end_time))
+                    if attr['resources_by_type'].has_key('vlans'):
+                        vlan = attr['resources_by_type']['vlans'][0]
+                        planning[site]['kavlan']['kavlan-'+vlan]['busy'].append( (start_time, end_time))
+
+            except APIGetException, e:
+                logger.warn("API request to %s failed. uri=%r response=%s, content=%r" % (site, e.uri, e.response, e.content))
+                logger.warn('Site '+site+' is broken ..')
+                del planning[site]
+                continue
+
         logger.info('Computation')
         for site, clusters_kavlan in planning.iteritems():
             for cluster_kavlan, elements in clusters_kavlan.iteritems():
