@@ -579,7 +579,7 @@ def distribute_hosts(slot, resources):
         resources['kavlan'] = slot[2]['kavlan']
     return resources
     
-def create_reservation(startdate, resources, walltime, oargridsub_opts = '-t deploy', 
+def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                        auto_reservation = False, prog = None):
     """ Perform the reservation for the given slot """ 
     
