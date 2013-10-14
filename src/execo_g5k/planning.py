@@ -90,10 +90,11 @@ class Planning:
                         if host not in dead_nodes:
                             planning[site][cluster][host] = {'busy': [], 'free': []}
 
-                vlans = [x for x in sorted(map(is_a_kavlan, get_vlans(site).itervalues() )) if x is not None]
-                planning[site]['kavlan'] = {}
-                for vlan in vlans:
-                    planning[site]['kavlan'][vlan] = {'busy': [], 'free': []}
+                if self.with_kavlan:
+                    vlans = [x for x in sorted(map(is_a_kavlan, get_vlans(site).itervalues() )) if x is not None]
+                    planning[site]['kavlan'] = {}
+                    for vlan in vlans:
+                        planning[site]['kavlan'][vlan] = {'busy': [], 'free': []}
 
                 jobs_links = [ link['href'] for job in filter(rm_besteffort, \
                        get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
@@ -115,9 +116,11 @@ class Planning:
                         cluster = node.split('.',1)[0].split('-')[0]
                         if planning[site][cluster].has_key(node):
                             planning[site][cluster][node]['busy'].append( (start_time, end_time))
-                    if attr['resources_by_type'].has_key('vlans'):
-                        vlan = attr['resources_by_type']['vlans'][0]
-                        planning[site]['kavlan']['kavlan-'+vlan]['busy'].append( (start_time, end_time))
+
+                    if self.with_kavlan:
+                        if attr['resources_by_type'].has_key('vlans'):
+                            vlan = attr['resources_by_type']['vlans'][0]
+                            planning[site]['kavlan']['kavlan-'+vlan]['busy'].append( (start_time, end_time))
 
             except APIGetException, e:
                 logger.warn("API request to %s failed. uri=%r response=%s, content=%r" % (site, e.uri, e.response, e.content))
@@ -582,9 +585,8 @@ def distribute_hosts(slot, resources):
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                        auto_reservation = False, prog = None):
     """ Perform the reservation for the given slot """ 
-    
-    if resources.has_key('kavlan'):
-        get_kavlan = True
+
+    get_kavlan = resources.has_key('kavlan')
     subs = []
     logger.debug(pformat(resources))
     sites = API.get_g5k_sites()
