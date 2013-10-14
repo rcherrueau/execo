@@ -603,9 +603,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                 if n_sites > 1:
                     sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
                 else:
-                    #sub_resources="{\\\" type=\\'kavlan\\' or type=\'kavlan-bod\'\\\"}/vlan=1+"
-                    ## TEMPORARY SOLUTION TO BE SURE TO HAVE A KAVLAN ;)
-                    sub_resources="{type=\\'kavlan-bod\\'}/vlan=1+"
+                    sub_resources="{type=\\'kavlan\\'}/vlan=1+"
                 get_kavlan = False
                                 
             for cluster in API.get_site_clusters(site): 
