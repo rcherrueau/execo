@@ -80,8 +80,8 @@ class Planning:
                     sites.remove(broken_site[0])
 
         for site in sites:
-            planning[site] = {}
             try:
+                planning[site] = {}
                 dead_nodes = [ node for node, status in \
                     get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] == 'dead' ]
                 for cluster in get_site_clusters(site):
@@ -122,7 +122,6 @@ class Planning:
             except APIGetException, e:
                 logger.warn("API request to %s failed. uri=%r response=%s, content=%r" % (site, e.uri, e.response, e.content))
                 logger.warn('Site '+site+' is broken ..')
-                del planning[site]
                 continue
 
         logger.info('Computation')
