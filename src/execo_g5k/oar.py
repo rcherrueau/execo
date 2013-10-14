@@ -400,6 +400,8 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
 
     - ``state``: job state
 
+    - ``name``: job name
+
     But no info may be available as long as the job is not scheduled.
     """
     if isinstance(timeout, bool) and timeout == False:
@@ -435,6 +437,9 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
     state_result = re.search("^\s*state = (\w*)\s*$", process.stdout, re.MULTILINE)
     if state_result:
         job_info['state'] = state_result.group(1)
+    name_result = re.search("\s*name = (\w*)\s*$", process.stdout, re.MULTILINE)
+    if name_result:
+        job_info['name'] = name_result.group(1)
     return job_info
 
 def wait_oar_job_start(oar_job_id = None, frontend = None,
