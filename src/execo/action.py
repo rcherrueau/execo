@@ -1332,6 +1332,36 @@ class SequentialActions(Action):
         stats['sub_stats'] = [action.stats() for action in self.actions]
         return Report.aggregate_stats(stats)
 
+class _ChainPutActionHostFilteringLH(ActionLifecycleHandler):
+
+    def __init__(self, chainput, filtered_actions):
+        super(_ChainPutActionHostFilteringLH, self).__init__()
+        self.chainput = chainput
+        self.filtered_actions = filtered_actions
+
+    def end(self, action):
+        bad_hosts = [ p.host for p in
+                      action.processes
+                      if not p.ok ]
+        logger.debug(
+            "_ChainPutActionHostFilteringLH: action %s finished. bad hosts = %s" % (
+                action, bad_hosts))
+        # partie qui pose souci
+        # for a in self.filtered_actions:
+        #     logger.debug(
+        #         "removing hosts %s from action %s" % (
+        #             set(a.hosts).intersection(bad_hosts), a))
+        #     a.hosts = list(set(a.hosts).difference(bad_hosts))
+        #     a.reset()
+        # fin partie qui pose souci
+        self.chainput.bad_hosts.update(bad_hosts)
+        self.chainput.good_hosts.difference(bad_hosts)
+        logger.debug(
+            "%s:\ngood_hosts = %s\nbad_hosts = %s" % (
+                self.chainput,
+                self.chainput.good_hosts,
+                self.chainput.bad_hosts))
+
 _execo_chainput = find_exe("execo-chainput")
 class ChainPut(SequentialActions):
 
@@ -1372,6 +1402,8 @@ class ChainPut(SequentialActions):
           override those in default_connection_params for connection.
         """
         self.hosts = get_unique_hosts_list(hosts)
+        # self.good_hosts = set(self.hosts)
+        # self.bad_hosts = set()
         self.local_files = local_files
         self.remote_location = remote_location
         self.connection_params = connection_params
@@ -1396,14 +1428,16 @@ class ChainPut(SequentialActions):
                                      actual_connection_params
                                      )
 
+            #previous_action = preparechain
             chains = []
             for f in self.local_files:
 
-                chaincmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i '%s' --autoremove" % (
+                fwdcmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i '%s' --autoremove" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
                         actual_connection_params['nc'],
+                        actual_connection_params['chainput_nc_connect_timeout'],
                         actual_connection_params['chainput_port'],
                         actual_connection_params['chainput_num_retry'],
                         actual_connection_params['chainput_try_delay'],
@@ -1411,15 +1445,16 @@ class ChainPut(SequentialActions):
                         chainhosts_filename,
                         ) for idx, host in enumerate(self.hosts) ]
 
-                chain = TaktukRemote("{{chaincmd}}",
-                                     self.hosts,
-                                     actual_connection_params)
+                fwd = TaktukRemote("{{fwdcmd}}",
+                                   self.hosts,
+                                   actual_connection_params)
 
                 send = Local("%s '%s' '%s' '%s' %i %i %i %i %i '%s' --autoremove" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
                         actual_connection_params['nc'],
+                        actual_connection_params['chainput_nc_connect_timeout'],
                         actual_connection_params['chainput_port'],
                         actual_connection_params['chainput_num_retry'],
                         actual_connection_params['chainput_try_delay'],
@@ -1427,7 +1462,10 @@ class ChainPut(SequentialActions):
                         chainhosts_filename
                         ))
 
-                chains.append(ParallelActions([send, chain]))
+                chain = ParallelActions([ send, fwd ])
+                #previous_action.lifecycle_handlers.insert(0, _ChainPutActionHostFilteringLH(self, [fwd]))
+                #previous_action = chain
+                chains.append(chain)
 
             self.actions = [ preparechain ] + chains
         else:

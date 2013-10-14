@@ -6,11 +6,12 @@ usage() {
 WARNING: this program is intended to be used from within execo, users
          should not run it directly
 usage:
-  $(basename $0) <filename> <dest dir> <nc> <port> <num tries> <delay> <index> <remote hosts file> [--autoremove]
+  $(basename $0) <filename> <dest dir> <nc> <connect_timeout> <port> <num tries> <delay> <index> <remote hosts file> [--autoremove]
 
   <filename>: name of the file to send
   <dest dir>: destination dir on remote hosts
   <nc>: path of netcat executable
+  <connect_timeout>: netcat client connection timeout
   <port>: port to use for netcat
   <num tries>: number of netcat client connection retries
   <delay>: delay between netcat client connection retries
@@ -26,17 +27,22 @@ usage:
 EOF
 }
 
-if [ $# -lt 8 ] ; then usage ; exit 1; fi
+log () {
+    echo "$(date "+%Y-%m-%d %H:%M:%S%z") - $@"
+}
+
+if [ $# -lt 9 ] ; then usage ; exit 1; fi
 FILENAME="$1"
 DESTDIR="$2"
 NC="$3"
-PORT=$4
-NUMTRIES=$5
-DELAY=$6
-INDEX=$7
-HOSTSFILE="$8"
+CONNECT_TIMEOUT=$4
+PORT=$5
+NUMTRIES=$6
+DELAY=$7
+INDEX=$8
+HOSTSFILE="$9"
 AUTOREMOVE=1
-if [ $# -eq 9 -a "$9" == "--autoremove" ] ; then
+if [ $# -eq 10 -a "$10" == "--autoremove" ] ; then
     AUTOREMOVE=0
 fi
 
@@ -49,23 +55,23 @@ forwarddata() {
     (
         S=1
         while [ $INDEX -lt ${#HOSTS[*]} -a $S -ne 0 ] ; do
-            echo "trying sending to ${HOSTS[INDEX]}"
+            log "trying sending to ${HOSTS[INDEX]}"
             NUMTRY=$NUMTRIES
             while [ $NUMTRY -gt 0 ] ; do
                 NUMTRY=$((NUMTRY-1))
-                echo "try $((NUMTRIES-NUMTRY))..."
-                "$NC" -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
+                log "try $((NUMTRIES-NUMTRY))..."
+                "$NC" -w $CONNECT_TIMEOUT -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
                 if [ $S -eq 0 ] ; then
-                    echo "...success"
+                    log "...success"
                     break
                 fi
-                echo "...failed"
+                log "...failed"
                 sleep $DELAY
             done
             INDEX=$((INDEX+1))
         done
         if [ $S -ne 0 ] ; then
-            echo "end of chain"
+            log "end of chain"
             cat > /dev/null
         fi
         exit 0
@@ -73,16 +79,16 @@ forwarddata() {
 }
 
 if [ $INDEX -eq 0 ] ; then
-    echo "localhost starting chain"
+    log "localhost starting chain"
     forwarddata < "$FILENAME"
 else
-    echo "host ${HOSTS[INDEX-1]} ($INDEX/${#HOSTS[*]}) receiving and forwarding"
-    timeout $LISTENTIMEOUT "$NC" -l -p $PORT | tee "$DESTDIR/$(basename $FILENAME)" | forwarddata
+    log "host ${HOSTS[INDEX-1]} ($INDEX/${#HOSTS[*]}) receiving and forwarding"
+    "$NC" -l -p $PORT | tee "$DESTDIR/$(basename $FILENAME)" | forwarddata
 fi
-echo "end"
+log "end"
 if [ $AUTOREMOVE -eq 0 ] ; then
     SCRIPTFILE=$(cd `dirname "$0"` && pwd)/`basename "$0"`
-    echo "auto deleting $HOSTSFILE and $SCRIPTFILE"
+    log "auto deleting $HOSTSFILE and $SCRIPTFILE"
     rm -f "$HOSTSFILE"
     rm -f "$SCRIPTFILE"
 fi
