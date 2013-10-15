@@ -55,12 +55,12 @@ forwarddata() {
     (
         S=1
         while [ $INDEX -lt ${#HOSTS[*]} -a $S -ne 0 ] ; do
-            log "trying sending to ${HOSTS[INDEX]}"
+            log "trying sending to ${HOSTS[INDEX]} ($((INDEX+1))/${#HOSTS[*]})"
             NUMTRY=$NUMTRIES
             while [ $NUMTRY -gt 0 ] ; do
                 NUMTRY=$((NUMTRY-1))
                 log "try $((NUMTRIES-NUMTRY))..."
-                "$NC" -w $CONNECT_TIMEOUT -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
+                $NC -w $CONNECT_TIMEOUT -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
                 if [ $S -eq 0 ] ; then
                     log "...success"
                     break
@@ -83,7 +83,7 @@ if [ $INDEX -eq 0 ] ; then
     forwarddata < "$FILENAME"
 else
     log "host ${HOSTS[INDEX-1]} ($INDEX/${#HOSTS[*]}) receiving and forwarding"
-    "$NC" -l -p $PORT | tee "$DESTDIR/$(basename $FILENAME)" | forwarddata
+    $NC -l -p $PORT | tee "$DESTDIR/$(basename $FILENAME)" | forwarddata
 fi
 log "end"
 if [ $AUTOREMOVE -eq 0 ] ; then
