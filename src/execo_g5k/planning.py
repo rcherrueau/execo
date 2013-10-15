@@ -111,8 +111,7 @@ class Planning:
                         start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
                         end_time = start_time + attr['walltime']+timedelta_to_seconds(timedelta(minutes = 1, seconds =5))
                     except:
-                        logger.warning('job')
-                        pprint( attr )
+                        logger.warning('job '+attr['uid']+' has not been scheduled')
                         pass
                     nodes = attr['assigned_nodes']
 
