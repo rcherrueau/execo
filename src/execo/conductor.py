@@ -201,10 +201,10 @@ class _Conductor(object):
         #
         # - mutual exclusion beetween sections of code in
         #   _Conductor.__io_loop() (conductor thread) and in
-        #   _Conductor.__reaper_run_func() (reaper thread)
+        #   _Conductor.__reaper_thread_func() (reaper thread)
 
-        self.__conductor_thread = threading.Thread(target = self.__main_run_func, name = "Conductor")
-        self.__conductor_thread.setDaemon(True)
+        self.__io_thread = threading.Thread(target = self.__io_thread_func, name = "I/O")
+        self.__io_thread.setDaemon(True)
         # thread will terminate automatically when the main thread
         # exits.  once in a while, this can trigger an exception, but
         # this seems to be safe and to be related to this issue:
@@ -250,12 +250,12 @@ class _Conductor(object):
         return "<" + set_style("Conductor", 'obj_repr') + "(num processes=%i, num fds=%i, num pids=%i, timeline length=%i)>" % (len(self.__processes), len(self.__fds), len(self.__pids), len(self.__timeline))
 
     def __wakeup(self):
-        # wakeup the conductor thread
+        # wakeup the I/O thread
         os.write(self.__wpipe, ".")
 
     def start(self):
         """Start the conductor thread."""
-        self.__conductor_thread.start()
+        self.__io_thread.start()
         return self
 
     def terminate(self):
@@ -324,7 +324,7 @@ class _Conductor(object):
                 self.__timeline.append((process.timeout_date, process))
             if self.__reaper_thread_running == False:
                 self.__reaper_thread_running = True
-                reaper_thread = threading.Thread(target = self.__reaper_run_func, name = "Reaper")
+                reaper_thread = threading.Thread(target = self.__reaper_thread_func, name = "Reaper")
                 reaper_thread.setDaemon(True)
                 reaper_thread.start()
 
@@ -429,13 +429,13 @@ class _Conductor(object):
         del self.__fds[fd]
         self.__poller.unregister(fd)
 
-    def __main_run_func(self):
-        # wrapper around the conductor thread actual func for
+    def __io_thread_func(self):
+        # wrapper around the actual io loop func for
         # exception handling
         try:
             self.__io_loop()
         except Exception: #IGNORE:W0703
-            print "exception in conductor thread"
+            print "exception in conductor I/O loop thread"
             traceback.print_exc()
             os.kill(os.getpid(), signal.SIGTERM)
             # killing myself works, whereas sys.exit(1) or
@@ -443,7 +443,7 @@ class _Conductor(object):
             # waiting for an os level blocking call.
 
     def __io_loop(self):
-        # conductor thread infinite loop
+        # conductor thread infinite I/O loop
         finished = False
         while not finished:
             descriptors_events = []
@@ -508,7 +508,7 @@ class _Conductor(object):
         os.close(self.__rpipe)
         os.close(self.__wpipe)
 
-    def __reaper_run_func(self):
+    def __reaper_thread_func(self):
         # run func for the reaper thread, whose role is to wait to be
         # notified by the operating system of terminated processes
         while True:
