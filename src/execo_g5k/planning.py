@@ -88,10 +88,11 @@ class Planning:
                 dead_nodes = [ node for node, status in \
                     get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] == 'dead' ]
                 for cluster in get_site_clusters(site):
-                    planning[site][cluster] = {}
-                    for host in sorted(get_cluster_hosts(cluster), key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
-                        if host not in dead_nodes:
-                            planning[site][cluster][host] = {'busy': [], 'free': []}
+                    if cluster in self.elements:
+                        planning[site][cluster] = {}
+                        for host in sorted(get_cluster_hosts(cluster), key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
+                            if host not in dead_nodes:
+                                planning[site][cluster][host] = {'busy': [], 'free': []}
 
                 if self.with_kavlan:
                     vlans = [x for x in sorted(map(is_a_kavlan, get_vlans(site).itervalues() )) if x is not None]
@@ -117,7 +118,8 @@ class Planning:
 
                     for node in sorted(nodes, key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
                         cluster = node.split('.',1)[0].split('-')[0]
-                        if planning[site][cluster].has_key(node):
+                        
+                        if planning[site].has_key(cluster) and planning[site][cluster].has_key(node):
                             planning[site][cluster][node]['busy'].append( (start_time, end_time))
 
                     if self.with_kavlan:
