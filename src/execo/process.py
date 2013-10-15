@@ -24,7 +24,7 @@ from log import set_style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, nice_cmdline
+from utils import compact_output, nice_cmdline, intr_cond_wait
 from report import Report
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes
@@ -679,7 +679,7 @@ class Process(ProcessBase):
             while self.started != True:
                 logger.debug("waiting for process to be actually started: " + str(self))
                 with the_conductor.lock:
-                    the_conductor.condition.wait()
+                    intr_cond_wait(the_conductor.condition)
         other_debug_logs=[]
         additionnal_processes_to_kill = []
         with self._lock:
@@ -803,7 +803,7 @@ class Process(ProcessBase):
             while self.started != True:
                 logger.debug("waiting for process to be actually started: " + str(self))
                 with the_conductor.lock:
-                    the_conductor.condition.wait()
+                    intr_cond_wait(the_conductor.condition)
         if not self.started:
             raise ValueError, "Trying to wait a process which has not been started"
         timeout = get_seconds(timeout)
@@ -811,7 +811,7 @@ class Process(ProcessBase):
             end = time.time() + timeout
         while self.ended != True and (timeout == None or timeout > 0):
             with the_conductor.lock:
-                the_conductor.condition.wait(timeout)
+                intr_cond_wait(the_conductor.condition, timeout)
             if timeout != None:
                 timeout = end - time.time()
         logger.debug(set_style("wait finished:", 'emph') + " %s" % (str(self),))

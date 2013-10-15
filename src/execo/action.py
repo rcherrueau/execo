@@ -26,7 +26,7 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import nice_cmdline, find_exe
+from utils import nice_cmdline, find_exe, intr_cond_wait, intr_event_wait
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
 import threading, time, pipes, tempfile, os, shutil
@@ -182,7 +182,7 @@ class Action(object):
 
         return self"""
         logger.debug(set_style("start waiting:", 'emph') + " %s", self)
-        self._end_event.wait(get_seconds(timeout))
+        intr_event_wait(self._end_event, get_seconds(timeout))
         logger.debug(set_style("end waiting:", 'emph') + " %s", self)
         return self
 
@@ -271,7 +271,7 @@ def wait_any_actions(actions, timeout = None):
     with Action._wait_multiple_actions_condition:
         finished = [action for action in actions if action.ended]
         while len(finished) == 0 and (timeout == None or timeout > 0):
-            Action._wait_multiple_actions_condition.wait(get_seconds(timeout))
+            intr_cond_wait(Action._wait_multiple_actions_condition, get_seconds(timeout))
             finished = [action for action in actions if action.ended]
             if timeout != None:
                 timeout = end - time.time()
@@ -293,7 +293,7 @@ def wait_all_actions(actions, timeout = None):
     with Action._wait_multiple_actions_condition:
         finished = [action for action in actions if action.ended]
         while len(finished) != len(actions) and (timeout == None or timeout > 0):
-            Action._wait_multiple_actions_condition.wait(get_seconds(timeout))
+            intr_cond_wait(Action._wait_multiple_actions_condition, get_seconds(timeout))
             finished = [action for action in actions if action.ended]
             if timeout != None:
                 timeout = end - time.time()

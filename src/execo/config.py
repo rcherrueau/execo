@@ -47,6 +47,7 @@ configuration = {
     'fileget_tool': SCP,
     'compact_output_threshold': 4096,
     'kill_timeout': 5,
+    'intr_period': 1,
     'color_mode': checktty(sys.stdout)
                   and checktty(sys.stderr),
     'color_styles': {
@@ -90,6 +91,9 @@ configuration = {
 - ``kill_timeout``: number of seconds to wait after a clean SIGTERM
   kill before assuming that the process is not responsive and killing
   it with SIGKILL
+
+- ``intr_period``: number of seconds between periodic check interrupt,
+  for correct handling of ctrl-c
 
 - ``color_mode``: whether to colorize output (with ansi escape
   sequences)

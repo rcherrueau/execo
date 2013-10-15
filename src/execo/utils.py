@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration
-import pipes, subprocess, os
+import pipes, subprocess, os, time
 
 def comma_join(*args):
     return ", ".join([ arg for arg in args if len(arg) > 0 ])
@@ -71,3 +71,30 @@ def checked_min(a, b):
     if a == None: return b
     if b == None: return a
     return min(a, b)
+
+def intr_event_wait(event, timeout = None):
+    """``threading.event.wait`` wrapper
+
+    For use in main thread. Periodically wakes up to allow main thread
+    to receive signals (such as ctrl-c)
+    """
+    start = current = time.time()
+    while True:
+        if timeout == None:
+            remaining = None
+        else:
+            remaining = min(timeout - (current - start), 0)
+        t = checked_min(configuration['intr_period'], remaining)
+        retval = event.wait(float(t) if t else None)
+        if retval or t == remaining:
+            return retval
+        current = time.time()
+
+def intr_cond_wait(cond, timeout = None):
+    """``threading.condition.wait`` wrapper
+
+    For use in main thread. Periodically wakes up to allow main thread
+    to receive signals (such as ctrl-c)
+    """
+    t = checked_min(configuration['intr_period'], timeout)
+    return cond.wait(float(t) if t else None)
