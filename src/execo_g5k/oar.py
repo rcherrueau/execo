@@ -25,6 +25,7 @@ from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
 from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connection_params
+from execo.utils import checked_min
 from execo_g5k.utils import get_frontend_host
 import os
 import re
@@ -483,11 +484,6 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                 prediction_callback(prediction)
         return prediction
 
-    def mymin(a, b):
-        if a == None: return b
-        if b == None: return a
-        return min(a, b)
-
     prediction = None
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
@@ -508,12 +504,12 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                 return True
         if infos.has_key('start_date') or infos.has_key('scheduled_start'):
             if now >= new_prediction:
-                sleep(mymin(g5k_configuration.get('tiny_polling_interval'), countdown.remaining()))
+                sleep(checked_min(g5k_configuration.get('tiny_polling_interval'), countdown.remaining()))
                 continue
             elif now + g5k_configuration.get('polling_interval') > new_prediction:
-                sleep(until = mymin(new_prediction, now + countdown.remaining() if countdown.remaining() != None else None))
+                sleep(until = checked_min(new_prediction, now + countdown.remaining() if countdown.remaining() != None else None))
                 continue
-        sleep(mymin(g5k_configuration.get('polling_interval'), countdown.remaining()))
+        sleep(checked_min(g5k_configuration.get('polling_interval'), countdown.remaining()))
     return False
 
 def get_oar_job_nodes(oar_job_id = None, frontend = None,

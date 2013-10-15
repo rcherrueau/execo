@@ -65,3 +65,9 @@ def find_exe(name):
     if not path:
         path = which(name)
     return path
+
+def checked_min(a, b):
+    """a min function which ignores an argument if its value is None"""
+    if a == None: return b
+    if b == None: return a
+    return min(a, b)
