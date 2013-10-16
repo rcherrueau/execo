@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from log import set_style, logger, logger_handler
+from log import style, logger, logger_handler
 from time_utils import format_unixts
 import Queue, errno, fcntl, logging, os, select, \
   signal, sys, thread, threading, time, traceback, \
@@ -247,7 +247,7 @@ class _Conductor(object):
         signal.set_wakeup_fd(self.__wpipe)
 
     def __str__(self):
-        return "<" + set_style("Conductor", 'obj_repr') + "(num processes=%i, num fds=%i, num pids=%i, timeline length=%i)>" % (len(self.__processes), len(self.__fds), len(self.__pids), len(self.__timeline))
+        return "<" + style.object_repr("Conductor") + "(num processes=%i, num fds=%i, num pids=%i, timeline length=%i)>" % (len(self.__processes), len(self.__fds), len(self.__pids), len(self.__timeline))
 
     def __wakeup(self):
         # wakeup the I/O thread
@@ -596,13 +596,6 @@ def _debug_except_hook(type, value, traceback):
 
 def debug_enable_hook():
     sys.excepthook = _debug_except_hook
-
-# def enable_full_debug():
-#     #logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
-#     logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
-#     #logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
-#     #import atexit
-#     #atexit.register(_debug_dump)
 
 the_conductor = _Conductor().start()
 """The **one and only** `execo.conductor._Conductor` instance."""

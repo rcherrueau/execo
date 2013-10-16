@@ -27,7 +27,7 @@ from xml.dom import minidom
 from execo import logger, Host, SshProcess, default_connection_params
 from execo.time_utils import sleep
 from execo.action import ActionFactory
-from execo.log import set_style
+from execo.log import style
 from execo.config import TAKTUK, SSH, SCP
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
 from execo_g5k.utils import get_kavlan_host_name
@@ -70,11 +70,11 @@ class Virsh_Deployment(object):
         """ Deploy the environment specified by env_name or env_file """
         
         if self.env_file is not None:
-            logger.info('Deploying environment %s ...', set_style( self.env_file, 'emph') )
+            logger.info('Deploying environment %s ...', style.emph( self.env_file ) )
             deployment = EX5.Deployment( hosts = self.hosts, env_file = self.env_file,
                                         vlan = self.kavlan)
         elif self.env_name is not None:
-            logger.info('Deploying environment %s ...',set_style( self.env_name, 'emph') )
+            logger.info('Deploying environment %s ...',style.emph( self.env_name ) )
             deployment = EX5.Deployment( hosts = self.hosts, env_name = self.env_name,
                                         vlan = self.kavlan)
             
@@ -135,7 +135,7 @@ class Virsh_Deployment(object):
         """ Installation of packages on the nodes """
     
         base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop init-system-helpers'
-        logger.info('Installing usefull packages %s', set_style(base_packages, 'emph'))
+        logger.info('Installing usefull packages %s', style.emph(base_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()        
         if install_base.ok:
@@ -145,7 +145,7 @@ class Virsh_Deployment(object):
             raise ActionsFailed, [install_base]
         
         libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 nmap'
-        logger.info('Installing libvirt updated packages %s', set_style(libvirt_packages, 'emph'))
+        logger.info('Installing libvirt updated packages %s', style.emph(libvirt_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
             '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t unstable '+\
             libvirt_packages
@@ -158,7 +158,7 @@ class Virsh_Deployment(object):
             raise ActionsFailed, [install_libvirt]
         
         if packages_list is not None:
-            logger.info('Installing extra packages %s', set_style(packages_list, 'emph'))
+            logger.info('Installing extra packages %s', style.emph(packages_list))
             cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
             packages_list
             install_extra = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()
@@ -331,8 +331,8 @@ class Virsh_Deployment(object):
         f.close()
         
         
-        logger.info('Configuring %s as a %s server', set_style(service_node.address.split('.')[0], 'host')
-                    , set_style('DNS/DCHP', 'emph'))
+        logger.info('Configuring %s as a %s server', style.host(service_node.address.split('.')[0])
+                    , style.emph('DNS/DCHP'))
         
         EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -t unstable -y dnsmasq', [service_node],
                   connection_params = {'user': 'root'}).run()
@@ -565,8 +565,8 @@ class Virsh_Deployment(object):
                                     'ip': self.ip_mac[i_vm][0], 
                                     'mac': self.ip_mac[i_vm][1] })
                         i_vm += 1
-        logger.info( '\n%s', '\n'.join( [set_style(host, 'host')+': '+\
-                                          ', '.join( [set_style(vm,'emph')  for vm in host_vms]) for host, host_vms in hosts_vm.iteritems() ] ))
+        logger.info( '\n%s', '\n'.join( [style.host(host)+': '+\
+                                          ', '.join( [style.emph(vm)  for vm in host_vms]) for host, host_vms in hosts_vm.iteritems() ] ))
         
         return vms
 

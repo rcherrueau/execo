@@ -24,7 +24,7 @@ from datetime import timedelta
 from math import ceil
 from execo.time_utils import timedelta_to_seconds, unixts_to_datetime
 
-from execo.log import set_style, logger
+from execo.log import style, logger
 from execo import Remote
 from execo_g5k import *
 from execo_g5k.oar import format_oar_date, oar_duration_to_seconds
@@ -104,7 +104,12 @@ class Planning:
                 jobs_links = [ link['href'] for job in filter(rm_besteffort, \
                        get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
                        for link in job['links'] if link['rel'] == 'self' ]
+<<<<<<< HEAD
                 logger.info( set_style(site.ljust(10), 'emph')+str( len( jobs_links ) ).rjust(5)+" jobs" )
+=======
+                logger.info( style.emph(site.ljust(10))+str( len( jobs_links ) ).rjust(5)+" jobs" )
+
+>>>>>>> f96588dc6887fadcdf79845c8702e1170b730152
                 for link in jobs_links:
                     attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
                     try:
@@ -285,7 +290,7 @@ class Planning:
     def compute_slots(self, walltime):
         """ Determine all the slots limits and find the number of available nodes for each elements"""
         
-        logger.info('%s', set_style('Computing slots', 'log_header'))
+        logger.info('%s', style.log_header('Computing slots'))
         slots = []
         if not hasattr(self, 'planning'):
             self.compute()
@@ -330,7 +335,7 @@ class Planning:
         if not hasattr(self, 'slots'):
             self.compute_slots(walltime)
         logger.debug(pformat(resources))
-        logger.info('Filtering slots with enough '+set_style('nodes', 'emph') )
+        logger.info('Filtering slots with enough '+style.emph('nodes') )
 
         slots_ok = []
         for slot in self.slots:

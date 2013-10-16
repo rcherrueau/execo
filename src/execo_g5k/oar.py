@@ -87,7 +87,7 @@ def oar_duration_to_seconds(duration):
 class OarSubmission(object):
     """An oar submission.
 
-    POD set_style class.
+    POD style class.
 
     members are:
 
