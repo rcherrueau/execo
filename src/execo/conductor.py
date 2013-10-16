@@ -437,10 +437,7 @@ class _Conductor(object):
         except Exception: #IGNORE:W0703
             print "exception in conductor I/O loop thread"
             traceback.print_exc()
-            os.kill(os.getpid(), signal.SIGTERM)
-            # killing myself works, whereas sys.exit(1) or
-            # thread.interrupt_main() don't work if main thread is
-            # waiting for an os level blocking call.
+            thread.interrupt_main()
 
     def __io_loop(self):
         # conductor thread infinite I/O loop
