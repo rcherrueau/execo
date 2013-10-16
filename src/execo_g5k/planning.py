@@ -54,7 +54,7 @@ class Planning:
 """
         logger.debug('Initializing planning computation')
         self.sites_blacklist = [ 'bordeaux' ]
-        self.elements = elements
+        self.elements = elements.copy()
         self.starttime = starttime
         self.endtime = endtime
         self.with_kavlan = kavlan
@@ -377,67 +377,71 @@ def is_a_kavlan(vlan):
 def node_number(name): return int(name.split('.')[0].split('-')[1])
 
 
-def distribute_hosts(slot, resources):
+def distribute_hosts(slot, resources_wanted):
     """ Distribute the resources on the different clusters """
-    
-    
+
+    resources = {}
     all_sites = API.get_g5k_sites()
     sites = []
     for site in all_sites:
         if site in slot[2].keys():
             sites.append(site)
-    
-    if resources.has_key('grid5000'):
+
+    if resources_wanted.has_key('grid5000'):
         logger.info('Determining which sites to use for your reservation')
         total_nodes = 0
         sites_nodes = {}
         cluster_nodes = {}
         for site in sites:
-            if resources.has_key(site):
-                sites_nodes[site] = resources[site]
+            if resources_wanted.has_key(site):
+                sites_nodes[site] = resources_wanted[site]
             else:
                 sites_nodes[site] = 0
-                
             for cluster in API.get_site_clusters(site):
-                if cluster in resources:
-                    cluster_nodes[cluster] += resources[cluster]
-                    sites_nodes[site] += cluster_nodes[cluster] 
-                
-        while total_nodes != resources['grid5000']:
+                if cluster in resources_wanted:
+                    cluster_nodes[cluster] = resources_wanted[cluster]
+                else:
+                    cluster_nodes[cluster] = 0
+                sites_nodes[site] += cluster_nodes[cluster]
+
+        while total_nodes != resources_wanted['grid5000']:
             max_site = ''
             max_nodes = 0
             for site in sites:
- 
                 if max_nodes < slot[2][site] - sites_nodes[site]:
                     max_site = site
                     max_nodes = slot[2][site] - sites_nodes[site]
             sites_nodes[max_site] += 1
             total_nodes += 1
-        resources.clear()
+
         for site, n_nodes in sites_nodes.iteritems():
             if n_nodes>0:
                 resources[site] = n_nodes
-                
-                
-        for cluster in API.get_site_clusters(site):
-            if cluster in resources:
-                cluster_nodes += resources[cluster]
+
+        for cluster in API.get_g5k_clusters():
+            if cluster in resources_wanted:
                 if site not in resources:
-                    resources[site] = resources[cluster]
+                    resources[site] = resources_wanted[cluster]
                 else:
-                    resources[site] += resources[cluster]
+                    resources[site] += resources_wanted[cluster]
+                resources[cluster] = resources_wanted[cluster]
+
     for site in sites:
-        cluster_nodes=0
-        
+        cluster_nodes = 0
         for cluster in API.get_site_clusters(site):
-            if cluster in resources:
-                cluster_nodes += resources[cluster]
-                if site not in resources:
-                    resources[site] = resources[cluster]
+            if cluster in resources_wanted:
+                cluster_nodes += resources_wanted[cluster]
+                if site not in resources_wanted:
+                    resources[site] = resources_wanted[cluster]
                 else:
-                    resources[site] += resources[cluster]
+                    resources[site] += resources_wanted[cluster]
+
+        if resources_wanted.has_key(site):
+            resources[site] = resources_wanted[site] - cluster_nodes
+            
     if slot[2].has_key('kavlan'):
         resources['kavlan'] = slot[2]['kavlan']
+
     return resources
     
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
