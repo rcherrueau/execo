@@ -35,7 +35,7 @@ import time
 class Deployment(object):
     """A kadeploy3 deployment.
 
-    POD set_style class.
+    POD style class.
 
     members are:
 
