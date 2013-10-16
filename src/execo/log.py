@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import configuration
+from config import configuration, FDEBUG
 import logging
 import sys
 
@@ -66,6 +66,11 @@ def set_style(string, style):
     else:
         return string
 
+logging.addLevelName(FDEBUG, 'FDEBUG')
+def fdebug(self, message, *args, **kwargs):
+    self.log(FDEBUG, message, *args, **kwargs)
+logging.Logger.fdebug = fdebug
+
 # logger is the execo logging object
 logger = logging.getLogger("execo")
 """The execo logger."""
@@ -73,10 +78,17 @@ logger_handler = logging.StreamHandler(sys.stdout)
 
 class MyFormatter(logging.Formatter):
     def format(self, record):
-        self._fmt = ( set_style("%(asctime)s %(name)s ", 'log_header')
-                      + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
-                      + "%(levelname)s" + _ansi_styles['default']
-                      + " %(message)s" )
+        if logger.getEffectiveLevel() < 10:
+            self._fmt = ( set_style("%(asctime)s %(name)s ", 'log_header')
+                          + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
+                          + "%(levelname)s" + _ansi_styles['default']
+                          + set_style(" %(threadName)s:", 'log_header')
+                          + " %(message)s" )
+        else:
+            self._fmt = ( set_style("%(asctime)s %(name)s ", 'log_header')
+                          + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
+                          + "%(levelname)s:" + _ansi_styles['default']
+                          + " %(message)s" )
         return logging.Formatter.format(self, record)
 
 logger_handler.setFormatter(MyFormatter())

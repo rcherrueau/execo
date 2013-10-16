@@ -39,6 +39,8 @@ def checktty(f):
         return os.isatty(f.fileno())
     return False
 
+FDEBUG=1
+
 # _STARTOF_ configuration
 configuration = {
     'log_level': logging.WARNING,
@@ -63,6 +65,7 @@ configuration = {
         'user3': ('cyan', 'bold'),
         },
     'log_level_styles' : {
+        FDEBUG: ('green', 'reverse'),
         logging.DEBUG: ('green',),
         logging.INFO: ('magenta',),
         logging.WARNING: ('cyan',),

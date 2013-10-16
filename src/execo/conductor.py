@@ -333,7 +333,7 @@ class _Conductor(object):
         # Currently: only update the timeout. This is related to the
         # way the system for forcing SIGKILL on processes not killing
         # cleanly is implemented.
-        if _fulldebug: logger.debug("update timeouts of %s in %s", str(process), self)
+        logger.fdebug("update timeouts of %s in %s", str(process), self)
         if process not in self.__processes:
             return  # this will frequently occur if the process kills
                     # quickly because the process will already be
@@ -345,7 +345,7 @@ class _Conductor(object):
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
         # unregister a Process from conductor
-        if _fulldebug: logger.debug("removing %s from %s", str(process), self)
+        logger.fdebug("removing %s from %s", str(process), self)
         if process not in self.__processes:
             raise ValueError, "trying to remove a process which was not yet added to conductor"
         self.__timeline = [ x for x in self.__timeline if x[1] != process ]
@@ -412,7 +412,7 @@ class _Conductor(object):
         exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
         while exit_pid != 0:
             process = self.__pids[exit_pid]
-            if _fulldebug: logger.debug("process pid %s terminated: %s", exit_pid, str(process))
+            logger.fdebug("process pid %s terminated: %s", exit_pid, str(process))
             self.__handle_remove_process(process, exit_code)
             exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
 
@@ -449,11 +449,11 @@ class _Conductor(object):
                                                 # first of our
                                                 # registered processes
                                                 # reaches its timeout
-            if _fulldebug: logger.debug("polling %i descriptors (+ rpipe) with timeout %s", len(self.__fds), "%.3fs" % delay if delay != None else "None")
+            logger.fdebug("polling %i descriptors (+ rpipe) with timeout %s", len(self.__fds), "%.3fs" % delay if delay != None else "None")
             if delay == None or delay > 0: # don't even poll if poll timeout is <= 0
                 if delay != None: delay *= 1000 # poll needs delay in millisecond
                 descriptors_events = self.__poller.poll(delay)
-            if _fulldebug: logger.debug("len(descriptors_events) = %i", len(descriptors_events))
+            logger.fdebug("len(descriptors_events) = %i", len(descriptors_events))
             event_on_rpipe = None   # we want to handle any event on
                                     # rpipe after all other file
                                     # descriptors, hence this flag
@@ -465,7 +465,7 @@ class _Conductor(object):
                 else:
                     if self.__fds.has_key(fd):
                         process, stream_handler_func = self.__fds[fd]
-                        if _fulldebug: logger.debug("event %s on fd %s, process %s", _event_desc(event), fd, str(process))
+                        logger.fdebug("event %s on fd %s, process %s", _event_desc(event), fd, str(process))
                         if event & POLLIN:
                             (string, eof) = _read_asmuch(fd)
                             stream_handler_func(string, eof = False)
@@ -479,7 +479,7 @@ class _Conductor(object):
                             self.__remove_handle(fd)
             self.__check_timeouts()
             if event_on_rpipe != None:
-                if _fulldebug: logger.debug("event %s on inter-thread pipe", _event_desc(event_on_rpipe))
+                logger.fdebug("event %s on inter-thread pipe", _event_desc(event_on_rpipe))
                 if event_on_rpipe & POLLIN:
                     (string, eof) = _read_asmuch(self.__rpipe)
                     if eof:
@@ -578,7 +578,7 @@ def _debug_dump(processes = None):
     _debug_dump_threads()
     print >> sys.stderr
 
-def _run_debug_thread(interval = 10, processes = None):
+def debug_start_thread(interval = 10, processes = None):
     def runforever():
         while True:
             time.sleep(interval)
@@ -594,18 +594,15 @@ def _debug_except_hook(type, value, traceback):
     _debug_dump()
     sys.__excepthook__(type, value, traceback)
 
-_fulldebug = False
-
-def enable_full_debug():
-    global _fulldebug #IGNORE:W0603
-    _fulldebug = True
+def debug_enable_hook():
     sys.excepthook = _debug_except_hook
-    #logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
-    logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
-    #logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
-    #import atexit
-    #atexit.register(_debug_dump)
-    _run_debug_thread()
+
+# def enable_full_debug():
+#     #logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
+#     logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
+#     #logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
+#     #import atexit
+#     #atexit.register(_debug_dump)
 
 the_conductor = _Conductor().start()
 """The **one and only** `execo.conductor._Conductor` instance."""
