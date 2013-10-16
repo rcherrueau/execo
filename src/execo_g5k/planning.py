@@ -104,12 +104,9 @@ class Planning:
                 jobs_links = [ link['href'] for job in filter(rm_besteffort, \
                        get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
                        for link in job['links'] if link['rel'] == 'self' ]
-<<<<<<< HEAD
-                logger.info( set_style(site.ljust(10), 'emph')+str( len( jobs_links ) ).rjust(5)+" jobs" )
-=======
+
                 logger.info( style.emph(site.ljust(10))+str( len( jobs_links ) ).rjust(5)+" jobs" )
 
->>>>>>> f96588dc6887fadcdf79845c8702e1170b730152
                 for link in jobs_links:
                     attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
                     try:
