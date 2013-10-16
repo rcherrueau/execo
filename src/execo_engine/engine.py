@@ -18,7 +18,7 @@
 
 from log import logger
 from subprocess import MAXFD
-import optparse, os, sys, time, inspect, pipes
+import optparse, os, sys, time, inspect, pipes, ctypes, signal
 
 class ArgsOptionParser(optparse.OptionParser):
 
@@ -72,6 +72,26 @@ def _redirect_fd(fileno, filename):
     os.dup2(f, fileno)
     os.close(f)
 
+def _disable_sigs(sigs):
+    # Disable a list of signals with sigprocmask. This makes a bunch
+    # of assumptions about various libc structures and as such, is
+    # fragile and not portable. Code taken and modified from
+    # http://stackoverflow.com/questions/3791398/how-to-stop-python-from-propagating-signals-to-subprocesses#3792294
+    libc = ctypes.CDLL('libc.so.6')
+    SIGSET_NWORDS = 1024 / (8 *  ctypes.sizeof(ctypes.c_ulong))
+    class SIGSET(ctypes.Structure):
+        _fields_ = [
+            ('val', ctypes.c_ulong * SIGSET_NWORDS)
+            ]
+    sigset = (ctypes.c_ulong * SIGSET_NWORDS)()
+    for sig in sigs:
+        ulongindex = sig / ctypes.sizeof(ctypes.c_ulong)
+        ulongoffset = sig % ctypes.sizeof(ctypes.c_ulong)
+        sigset[ulongindex] |= 1 << (ulongoffset - 1)
+    mask = SIGSET(sigset)
+    SIG_BLOCK = 0
+    libc.sigprocmask(SIG_BLOCK, ctypes.pointer(mask), 0)
+
 def _tee_fd(fileno, filename):
     # create and open file filename, and duplicate open file fileno to it
     pr, pw = os.pipe()
@@ -83,7 +103,11 @@ def _tee_fd(fileno, filename):
             maxfd = os.sysconf("SC_OPEN_MAX")
         else:
             maxfd = MAXFD
+        # close all unused fd
         os.closerange(3, maxfd)
+        # disable signals on tee to allow getting last outputs of engine.
+        # tee will close anyway on broken pipe
+        _disable_sigs([signal.SIGINT, signal.SIGTERM])
         os.execv('/usr/bin/tee', ['tee', '-a', filename])
     else:
         os.close(pr)
