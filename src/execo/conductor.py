@@ -597,12 +597,5 @@ def _debug_except_hook(type, value, traceback):
 def debug_enable_hook():
     sys.excepthook = _debug_except_hook
 
-# def enable_full_debug():
-#     #logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(conductor_lock)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
-#     logger_handler.setFormatter(logging.Formatter(set_style("%(asctime)s", 'log_header') + set_style(" %(threadName)s %(name)s/%(levelname)s", 'log_level') + " %(message)s"))
-#     #logger.makeRecord = types.MethodType(makeRecord, logger, logging.getLoggerClass())
-#     #import atexit
-#     #atexit.register(_debug_dump)
-
 the_conductor = _Conductor().start()
 """The **one and only** `execo.conductor._Conductor` instance."""
