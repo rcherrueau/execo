@@ -65,6 +65,7 @@ class Planning:
         planning = {}
         if 'grid5000' in self.elements:
             sites = get_g5k_sites()
+            self.elements.update( {site: 0 for site in sites} )
         else:
             sites = list(set([ site for site in self.elements if site in get_g5k_sites() ]+\
                     [ get_cluster_site(cluster) for cluster in self.elements 
@@ -88,7 +89,7 @@ class Planning:
                 dead_nodes = [ node for node, status in \
                     get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] == 'dead' ]
                 for cluster in get_site_clusters(site):
-                    if cluster in self.elements:
+                    if cluster in self.elements or get_cluster_site(cluster) in self.elements:
                         planning[site][cluster] = {}
                         for host in sorted(get_cluster_hosts(cluster), key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
                             if host not in dead_nodes:
@@ -104,7 +105,6 @@ class Planning:
                        get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
                        for link in job['links'] if link['rel'] == 'self' ]
                 logger.info( set_style(site.ljust(10), 'emph')+str( len( jobs_links ) ).rjust(5)+" jobs" )
-
                 for link in jobs_links:
                     attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
                     try:
