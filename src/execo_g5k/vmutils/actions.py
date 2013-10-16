@@ -19,7 +19,7 @@
 
 from pprint import pformat, pprint
 from execo import SshProcess, Remote, Put, logger, get_remote, get_remote, Process, ParallelActions
-from execo.log import set_style
+from execo.log import style
 from execo.time_utils import sleep
 from execo_g5k.api_utils import get_host_site
 import tempfile
@@ -39,8 +39,8 @@ def list_vm( host, all = False ):
             if 'vm' in line:
                 std = line.split()
                 vms_id.append(std[1])
-    logger.debug('List of VM on host %s\n%s', set_style(host.address, 'host'),
-                 ' '.join([set_style(vm_id, 'emph') for vm_id in vms_id]))
+    logger.debug('List of VM on host %s\n%s', style.host(host.address),
+                 ' '.join([style.emph(vm_id) for vm_id in vms_id]))
     return [ {'vm_id': vm_id} for vm_id in vms_id ]
 
 
@@ -61,7 +61,7 @@ def define_vms( n_vm, ip_mac = None, mem_size = 256, hdd_size = 2, n_cpu = 1, cp
                 'mem_size': mem_size, 'vcpus': n_cpu, 'cpuset': cpusets['vm-'+str(i_vm)],
                 'ip': ip_mac[i_vm+offset][0], 'mac': ip_mac[i_vm+offset][1], 'host': None})
     logger.debug('VM parameters have been defined:\n%s',
-                 ' '.join([set_style(param['vm_id'], 'emph') for param in vms]))
+                 ' '.join([style.emph(param['vm_id']) for param in vms]))
     return vms
 
 

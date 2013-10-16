@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from log import set_style
+from log import style
 from time_utils import format_date, format_duration
 import sys
 
@@ -233,9 +233,9 @@ class Report(object):
                     stats['num_processes'],)
             if stats['num_ok'] < stats['num_processes']:
                 if stats['num_ok'] == stats['num_ended']:
-                    tmpline = set_style(tmpline, 'report_warn')
+                    tmpline = style.report_warn(tmpline)
                 else:
-                    tmpline = set_style(tmpline, 'report_error')
+                    tmpline = style.report_error(tmpline)
             result += tmpline
             return result
 

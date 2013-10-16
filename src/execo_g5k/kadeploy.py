@@ -21,7 +21,7 @@ from execo.action import Remote, ActionNotificationProcessLH, \
     Action, get_remote
 from execo.config import make_connection_params
 from execo.host import get_hosts_set, Host
-from execo.log import set_style, logger
+from execo.log import style, logger
 from execo.process import ProcessOutputHandler, get_process
 from execo.time_utils import format_seconds
 from execo.utils import comma_join
@@ -312,11 +312,11 @@ def kadeploy(deployment, frontend_connection_params = None, timeout = None, out 
     kadeployer = Kadeployer(deployment,
                             frontend_connection_params = frontend_connection_params).run()
     if not kadeployer.ok:
-        logoutput = set_style("deployment error:", 'emph') + " %s\n" % (kadeployer,) + set_style("kadeploy processes:\n", 'emph')
+        logoutput = style.emph("deployment error:") + " %s\n" % (kadeployer,) + style.emph("kadeploy processes:\n")
         for p in kadeployer.processes:
             logoutput += "%s\n" % (p,)
-            logoutput += set_style("stdout:", 'emph') + "\n%s\n" % (p.stdout)
-            logoutput += set_style("stderr:", 'emph') + "\n%s\n" % (p.stderr)
+            logoutput += style.emph("stdout:") + "\n%s\n" % (p.stdout)
+            logoutput += style.emph("stderr:") + "\n%s\n" % (p.stderr)
         logger.error(logoutput)
     return (kadeployer.good_hosts, kadeployer.bad_hosts)
 
@@ -409,7 +409,7 @@ def deploy(deployment,
         check_deployed_command = g5k_configuration.get('check_deployed_command')
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, vlan): #IGNORE:W0613
-        logger.info(set_style("check which hosts are already deployed among:", 'emph') + " %s", undeployed_hosts)
+        logger.info(style.emph("check which hosts are already deployed among:") + " %s", undeployed_hosts)
         deployment_hostnames_mapping = dict()
         if vlan:
             for host in undeployed_hosts:
@@ -427,10 +427,10 @@ def deploy(deployment,
         deployed_check.run()
         newly_deployed = list()
         for process in deployed_check.processes:
-            logger.debug(set_style("check on %s:" % (process.host,), 'emph')
+            logger.debug(style.emph("check on %s:" % (process.host,))
                          + " %s\n" % (process,)
-                         + set_style("stdout:", 'emph') + "\n%s\n" % (process.stdout)
-                         + set_style("stderr:", 'emph') + "\n%s\n" % (process.stderr))
+                         + style.emph("stdout:") + "\n%s\n" % (process.stdout)
+                         + style.emph("stderr:") + "\n%s\n" % (process.stderr))
             if (process.ok):
                 newly_deployed.append(deployment_hostnames_mapping[process.host.address])
                 logger.info("OK %s", deployment_hostnames_mapping[process.host.address])
@@ -459,7 +459,7 @@ def deploy(deployment,
     while (not check_enough_func(deployed_hosts, undeployed_hosts)
            and num_tries_done < num_tries):
         num_tries_done += 1
-        logger.info(set_style("try %i, deploying on:" % (num_tries_done,), 'emph') + " %s", undeployed_hosts)
+        logger.info(style.emph("try %i, deploying on:" % (num_tries_done,)) + " %s", undeployed_hosts)
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         kadeploy_newly_deployed, _ = kadeploy(tmp_deployment,
@@ -473,10 +473,10 @@ def deploy(deployment,
         else:
             deployed_hosts.update(kadeploy_newly_deployed)
             undeployed_hosts.difference_update(kadeploy_newly_deployed)
-        logger.info(set_style("kadeploy reported newly deployed hosts:", 'emph') + "   %s", kadeploy_newly_deployed)
-        logger.info(set_style("check reported newly deployed hosts:", 'emph') + "   %s", my_newly_deployed)
-        logger.info(set_style("all deployed hosts:", 'emph') + "     %s", deployed_hosts)
-        logger.info(set_style("still undeployed hosts:", 'emph') + " %s", undeployed_hosts)
+        logger.info(style.emph("kadeploy reported newly deployed hosts:") + "   %s", kadeploy_newly_deployed)
+        logger.info(style.emph("check reported newly deployed hosts:") + "   %s", my_newly_deployed)
+        logger.info(style.emph("all deployed hosts:") + "     %s", deployed_hosts)
+        logger.info(style.emph("still undeployed hosts:") + " %s", undeployed_hosts)
         elapsed = time.time() - last_time
         last_time = time.time()
         deploy_stats.append((elapsed,
@@ -486,7 +486,7 @@ def deploy(deployment,
                              len(deployed_hosts),
                              len(undeployed_hosts)))
 
-    logger.info(set_style("deploy finished", 'emph') + " in %i tries, %s", num_tries_done, format_seconds(time.time() - start_time))
+    logger.info(style.emph("deploy finished") + " in %i tries, %s", num_tries_done, format_seconds(time.time() - start_time))
     logger.info("deploy  duration  attempted  deployed     deployed     total     total")
     logger.info("                  deploys    as reported  as reported  already   still")
     logger.info("                             by kadeploy  by check     deployed  undeployed")
@@ -500,7 +500,7 @@ def deploy(deployment,
             deploy_stat[3],
             deploy_stat[4],
             deploy_stat[5])
-    logger.info(set_style("deployed hosts:", 'emph') + " %s", deployed_hosts)
-    logger.info(set_style("undeployed hosts:", 'emph') + " %s", undeployed_hosts)
+    logger.info(style.emph("deployed hosts:") + " %s", deployed_hosts)
+    logger.info(style.emph("undeployed hosts:") + " %s", undeployed_hosts)
 
     return (deployed_hosts, undeployed_hosts)

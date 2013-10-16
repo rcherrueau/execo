@@ -20,7 +20,7 @@ from execo.config import make_connection_params, configuration, SSH, TAKTUK, SCP
 from execo.host import Host
 from execo.process import get_process
 from host import get_hosts_list, get_unique_hosts_list
-from log import set_style, logger
+from log import style, logger
 from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
     TaktukProcess, Process
 from report import Report
@@ -141,11 +141,11 @@ class Action(object):
 
     def __str__(self):
         # implemented once for all subclasses
-        return "<" + set_style(self.__class__.__name__, 'object_repr') + "(%s)>" % (", ".join(self._args() + self._infos()),)
+        return "<" + style.object_repr(self.__class__.__name__) + "(%s)>" % (", ".join(self._args() + self._infos()),)
 
     def _notify_terminated(self):
         with Action._wait_multiple_actions_condition:
-            logger.debug(set_style("got termination notification for:", 'emph') + " %s", self)
+            logger.debug(style.emph("got termination notification for:") + " %s", self)
             for handler in self.lifecycle_handlers:
                 handler.end(self)
             self.ended = True
@@ -162,7 +162,7 @@ class Action(object):
         if self.started:
             raise ValueError, "Actions may be started only once"
         self.started = True
-        logger.debug(set_style("start:", 'emph') + " %s", self)
+        logger.debug(style.emph("start:") + " %s", self)
         for handler in self.lifecycle_handlers:
             handler.start(self)
         return self
@@ -174,23 +174,23 @@ class Action(object):
         actually killed.
 
         return self"""
-        logger.debug(set_style("kill:", 'emph') + " %s", self)
+        logger.debug(style.emph("kill:") + " %s", self)
         return self
 
     def wait(self, timeout = None):
         """Wait for all processes to complete.
 
         return self"""
-        logger.debug(set_style("start waiting:", 'emph') + " %s", self)
+        logger.debug(style.emph("start waiting:") + " %s", self)
         intr_event_wait(self._end_event, get_seconds(timeout))
-        logger.debug(set_style("end waiting:", 'emph') + " %s", self)
+        logger.debug(style.emph("end waiting:") + " %s", self)
         return self
 
     def run(self, timeout = None):
         """Start all processes then wait for them to complete.
 
         return self"""
-        logger.debug(set_style("run:", 'emph') + " %s", self)
+        logger.debug(style.emph("run:") + " %s", self)
         self.start()
         self.wait(timeout)
         return self
@@ -201,7 +201,7 @@ class Action(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting.
         """
-        logger.debug(set_style("reset:", 'emph') + " %s", self)
+        logger.debug(style.emph("reset:") + " %s", self)
         if self.started and not self.ended:
             self.kill()
             self.wait()

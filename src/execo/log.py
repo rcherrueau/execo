@@ -17,8 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration, FDEBUG
-import logging
-import sys
+import logging, sys, functools
 
 _ansi_styles = {
     'default'    : '\033[m',
@@ -49,7 +48,7 @@ _ansi_styles = {
     }
 """Definition of ansi escape sequences for colorized output."""
 
-def set_style(string, style):
+def _set_style(style, string):
     """Enclose a string with ansi color escape codes if ``execo.config.configuration['color_mode']`` is True.
 
     :param string: the string to enclose
@@ -66,6 +65,11 @@ def set_style(string, style):
     else:
         return string
 
+class Styler:
+    def __getattr__(self, attr):
+        return functools.partial(_set_style, attr)
+style = Styler()
+
 logging.addLevelName(FDEBUG, 'FDEBUG')
 def fdebug(self, message, *args, **kwargs):
     self.log(FDEBUG, message, *args, **kwargs)
@@ -79,13 +83,13 @@ logger_handler = logging.StreamHandler(sys.stdout)
 class MyFormatter(logging.Formatter):
     def format(self, record):
         if logger.getEffectiveLevel() < 10:
-            self._fmt = ( set_style("%(asctime)s %(name)s ", 'log_header')
+            self._fmt = ( style.log_header("%(asctime)s %(name)s ")
                           + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
                           + "%(levelname)s" + _ansi_styles['default']
-                          + set_style(" %(threadName)s:", 'log_header')
+                          + style.log_header(" %(threadName)s:")
                           + " %(message)s" )
         else:
-            self._fmt = ( set_style("%(asctime)s %(name)s ", 'log_header')
+            self._fmt = ( style.log_header("%(asctime)s %(name)s ")
                           + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
                           + "%(levelname)s:" + _ansi_styles['default']
                           + " %(message)s" )

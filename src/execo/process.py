@@ -20,7 +20,7 @@ from conductor import the_conductor
 from config import configuration
 from execo.config import make_connection_params
 from execo.host import Host
-from log import set_style, logger
+from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
@@ -110,11 +110,11 @@ class _debugio_output_handler(ProcessOutputHandler):
         t = time.time()
         ft = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))
         ftms = "%s,%03d" % (ft, (t%1) * 1000)
-        print (set_style(ftms, 'log_header')
-               + set_style(" pid %i " % (process.pid,)
-                           + self.prefix + ": "
-                           + ("(EOF) " if eof else "")
-                           + ("(ERROR) " if error else ""), 'emph')
+        print (style.log_header(ftms)
+               + style.emph(" pid %i " % (process.pid,)
+                            + self.prefix + ": "
+                            + ("(EOF) " if eof else "")
+                            + ("(ERROR) " if error else ""))
                + string.rstrip())
 
 _debugio_stdout_handler = _debugio_output_handler("stdout")
@@ -255,7 +255,7 @@ class ProcessBase(object):
         # all arguments to the constructor, beginning by the
         # positionnal arguments, finishing by keyword arguments. This
         # list will be directly used in __repr__ methods.
-        return [ set_style(repr(self.cmd), 'command') ] + ProcessBase._kwargs(self)
+        return [ style.command(repr(self.cmd)) ] + ProcessBase._kwargs(self)
 
     def _kwargs(self):
         # to be implemented in all subclasses. Must return a list with
@@ -300,11 +300,11 @@ class ProcessBase(object):
     def __str__(self):
         # implemented once for all subclasses
         with self._lock:
-            return "<" + set_style(self.__class__.__name__, 'object_repr') + "(%s)>" % (", ".join(self._args() + self._infos()),)
+            return "<" + style.object_repr(self.__class__.__name__) + "(%s)>" % (", ".join(self._args() + self._infos()),)
 
     def dump(self):
         with self._lock:
-            return " %s\n" % (str(self),)+ set_style("stdout:", 'emph') + "\n%s\n" % (compact_output(self.stdout),) + set_style("stderr:", 'emph') + "\n%s" % (compact_output(self.stderr),)
+            return " %s\n" % (str(self),)+ style.emph("stdout:") + "\n%s\n" % (compact_output(self.stdout),) + style.emph("stderr:") + "\n%s" % (compact_output(self.stderr),)
 
     @property
     def running(self):
@@ -412,7 +412,7 @@ class ProcessBase(object):
         This method will log process termination as needed.
         """
         with self._lock:
-            s = set_style("terminated:", 'emph') + self.dump()
+            s = style.emph("terminated:") + self.dump()
             warn = ((self.error and self.log_error)
                     or (self.timeouted and self.log_timeout)
                     or (self.exit_code != 0 and self.log_exit_code))
@@ -434,7 +434,7 @@ class ProcessBase(object):
         If it is running, this method will first kill it then wait for
         its termination before reseting;
         """
-        logger.debug(set_style("reset:", 'emph') + " %s" % (str(self),))
+        logger.debug(style.emph("reset:") + " %s" % (str(self),))
         if self.started and not self.ended:
             self.kill()
             self.wait()
@@ -656,7 +656,7 @@ class Process(ProcessBase):
                 self.timeout_date = self.start_date + self.timeout
             if self.pty:
                 (self._ptymaster, self._ptyslave) = openpty()
-        logger.debug(set_style("start: ", 'emph') + str(self))
+        logger.debug(style.emph("start: ") + str(self))
         for handler in self.lifecycle_handlers:
             handler.start(self)
         try:
@@ -698,7 +698,7 @@ class Process(ProcessBase):
           when it has received a SIGTERM, and automatically send
           SIGKILL if the subprocess is not yet terminated
         """
-        logger.debug(set_style("kill with signal %s:" % sig, 'emph') + " %s" % (str(self),))
+        logger.debug(style.emph("kill with signal %s:" % sig) + " %s" % (str(self),))
         if self.__start_pending:
             while self.started != True:
                 logger.debug("waiting for process to be actually started: " + str(self))
@@ -738,7 +738,7 @@ class Process(ProcessBase):
                             except OSError, e:
                                 pass
                         else:
-                            other_debug_logs.append(set_style("EPERM: unable to send signal", 'emph') + " to %s" % (str(self),))
+                            other_debug_logs.append(style.emph("EPERM: unable to send signal") + " to %s" % (str(self),))
                     elif e.errno == errno.ESRCH:
                         # process terminated so recently that self._ended
                         # has not been updated yet
@@ -822,7 +822,7 @@ class Process(ProcessBase):
 
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
-        logger.debug(set_style("wait: ", 'emph') + " %s" % (str(self),))
+        logger.debug(style.emph("wait: ") + " %s" % (str(self),))
         if self.__start_pending:
             while self.started != True:
                 logger.debug("waiting for process to be actually started: " + str(self))
@@ -838,7 +838,7 @@ class Process(ProcessBase):
                 intr_cond_wait(the_conductor.condition, timeout)
             if timeout != None:
                 timeout = end - time.time()
-        logger.debug(set_style("wait finished:", 'emph') + " %s" % (str(self),))
+        logger.debug(style.emph("wait finished:") + " %s" % (str(self),))
         return self
 
     def run(self, timeout = None):
@@ -887,7 +887,7 @@ class SshProcess(Process):
         self.name = nice_cmdline(self.remote_cmd)
 
     def _args(self):
-        return [ set_style(repr(self.remote_cmd), 'command'),
+        return [ style.command(repr(self.remote_cmd)),
                  repr(self.host) ] + Process._kwargs(self) + SshProcess._kwargs(self)
 
     def _kwargs(self):
@@ -909,7 +909,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         self.name = nice_cmdline(self.remote_cmd)
 
     def _args(self):
-        return [ set_style(repr(self.remote_cmd), 'command'),
+        return [ style.command(repr(self.remote_cmd)),
                  repr(self.host) ] + ProcessBase._kwargs(self)
 
     def start(self):
@@ -927,7 +927,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self.start_date = time.time()
             if self.timeout != None:
                 self.timeout_date = self.start_date + self.timeout
-        logger.debug(set_style("start:", 'emph') + " %s" % (str(self),))
+        logger.debug(style.emph("start:") + " %s" % (str(self),))
         for handler in self.lifecycle_handlers:
             handler.start(self)
         return self
