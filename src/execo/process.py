@@ -100,6 +100,26 @@ class ProcessOutputHandler(object):
         """
         pass
 
+class _debugio_output_handler(ProcessOutputHandler):
+
+    def __init__(self, prefix):
+        super(_debugio_output_handler, self).__init__()
+        self.prefix = prefix
+
+    def read_line(self, process, string, eof = False, error = False):
+        t = time.time()
+        ft = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))
+        ftms = "%s,%03d" % (ft, (t%1) * 1000)
+        print (set_style(ftms, 'log_header')
+               + set_style(" pid %i " % (process.pid,)
+                           + self.prefix + ": "
+                           + ("(EOF) " if eof else "")
+                           + ("(ERROR) " if error else ""), 'emph')
+               + string.rstrip())
+
+_debugio_stdout_handler = _debugio_output_handler("stdout")
+_debugio_stderr_handler = _debugio_output_handler("stderr")
+
 class ProcessBase(object):
 
     """An almost abstract base class for all kinds of processes.
@@ -301,6 +321,8 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
+        if configuration['debug_io']:
+            _debugio_stdout_handler.read(self, string, eof, error)
         if self.default_stdout_handler:
             self.stdout += string
         if error == True:
@@ -329,6 +351,8 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
+        if configuration['debug_io']:
+            _debugio_stderr_handler.read(self, string, eof, error)
         if self.default_stderr_handler:
             self.stderr += string
         if error == True:

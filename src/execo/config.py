@@ -50,6 +50,7 @@ configuration = {
     'compact_output_threshold': 4096,
     'kill_timeout': 5,
     'intr_period': 1,
+    'debug_io': False,
     'color_mode': checktty(sys.stdout)
                   and checktty(sys.stderr),
     'color_styles': {
@@ -97,6 +98,9 @@ configuration = {
 
 - ``intr_period``: number of seconds between periodic check interrupt,
   for correct handling of ctrl-c
+
+- ``debug_io``: flag to activate full I/O debugging: all stdout /
+  stderr activity of all processes will be logged (warning: huge logs)
 
 - ``color_mode``: whether to colorize output (with ansi escape
   sequences)
