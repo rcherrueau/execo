@@ -336,12 +336,12 @@ class Virsh_Deployment(object):
         
         EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -t unstable -y dnsmasq', [service_node],
                   connection_params = {'user': 'root'}).run()
-        EX.Put([service_node], self.outdir+'/dnsmasq.conf', remote_location='/etc/', connection_params = { 'user': 'root' }).run()
+        EX.Put([service_node], [self.outdir+'/dnsmasq.conf'], remote_location='/etc/', connection_params = { 'user': 'root' }).run()
         
         logger.info('Adding the VM in /etc/hosts ...')
         EX.Remote('[ -f /etc/hosts.bak ] && cp /etc/hosts.bak /etc/hosts || cp /etc/hosts /etc/hosts.bak', [service_node],
                   connection_params = {'user': 'root'}).run()
-        EX.Put([service_node], self.outdir+'/vms.list', remote_location= '/root/', connection_params = { 'user': 'root' }).run()
+        EX.Put([service_node], [self.outdir+'/vms.list'], remote_location= '/root/', connection_params = { 'user': 'root' }).run()
         EX.Remote('cat /root/vms.list >> /etc/hosts', [service_node],
                      connection_params = {'user': 'root'}).run()
         
@@ -354,7 +354,7 @@ class Virsh_Deployment(object):
         clients.remove(service_node)
         
        # EX.Put([service_node], self.outdir+'/resolv.conf', remote_location= '/root/', connection_params = { 'user': 'root' }).run()
-        EX.Put(clients, self.outdir+'/resolv.conf', remote_location = '/etc/',
+        EX.Put(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
                      connection_params = {'user': 'root'}).run()
                      
         self.service_node = service_node
@@ -416,7 +416,7 @@ class Virsh_Deployment(object):
                                     connection_params = {'user': 'root'}).run()
         else:
             logger.info("Copying backing file from frontends")
-            copy_file = EX.ChainPut(self.hosts, disk_image, remote_location='/tmp/',
+            copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/',
                                     connection_params = {'user': 'root'}).run()
 #            frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
 #            dests = [ host.address for host in self.hosts]
