@@ -18,6 +18,7 @@
 
 from log import style, logger, logger_handler
 from time_utils import format_unixts
+from utils import compact_output
 import Queue, errno, fcntl, logging, os, select, \
   signal, sys, thread, threading, time, traceback, \
   subprocess
@@ -536,66 +537,73 @@ class _Conductor(object):
                     logger.debug("process with pid=%s terminated, exit_code=%s", exit_pid, exit_code)
                     self.notify_process_terminated(exit_pid, exit_code)
 
-class _ConductorDebugLogRecord(logging.LogRecord):
-    def __init__(self, name, level, fn, lno, msg, args, exc_info, func):
-        logging.LogRecord.__init__(self, name, level, fn, lno, msg, args, exc_info, func)
-        # self.conductor_lock = None
-        # if the_conductor != None:
-        #     self.conductor_lock = the_conductor.lock
-
-def makeRecord(logger_instance, name, level, fn, lno, msg, args, exc_info, func=None, extra=None): #IGNORE:W0613
-    rv = _ConductorDebugLogRecord(name, level, fn, lno, msg, args, exc_info, func)
-    if extra:
-        for key in extra:
-            if (key in ["message", "asctime"]) or (key in rv.__dict__):
-                raise KeyError("Attempt to overwrite %r in LogRecord" % key)
-            rv.__dict__[key] = extra[key]
-    return rv
-
-
-def _debug_dump_processes():
-    for process in processes:
-        print >> sys.stderr, "%s" % process
-        print >> sys.stderr, "stdout:\n%s" % process.stdout
-        print >> sys.stderr, "stderr:\n%s" % process.stderr
-        print >> sys.stderr
-
-_debug_thread_id = None
-
-def _debug_dump_threads():
-    idx=0
-    for thread_id, frame in sys._current_frames().iteritems():
-        if thread_id != _debug_thread_id:
-            print >> sys.stderr, "===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame))
-            traceback.print_stack(frame, file = sys.stderr)
-            idx += 1
-
-def _debug_dump(processes = None):
-    print >> sys.stderr
-    print >> sys.stderr, ">>>>> %s - number of threads = %s - conductor lock = %s" % (format_unixts(time.time()), len(sys._current_frames()) - 1, the_conductor.lock)
-    print >> sys.stderr
-    if processes != None: _debug_dump_processes()
-    _debug_dump_threads()
-    print >> sys.stderr
-
-def debug_start_thread(interval = 10, processes = None):
-    def runforever():
-        while True:
-            time.sleep(interval)
-            _debug_dump(processes)
-    t = threading.Thread(target = runforever, name = "Debug")
-    t.setDaemon(True)
-    t.start()
-    global _debug_thread_id
-    _debug_thread_id = t.ident
-
-def _debug_except_hook(type, value, traceback):
-    print >> sys.stderr, ">>>>> unhandled exception handler"
-    _debug_dump()
-    sys.__excepthook__(type, value, traceback)
-
-def debug_enable_hook():
-    sys.excepthook = _debug_except_hook
-
 the_conductor = _Conductor().start()
 """The **one and only** `execo.conductor._Conductor` instance."""
+
+#------------------------------------------------------------------------
+#
+# debug tools
+#
+#------------------------------------------------------------------------
+
+def debug_dump_processes():
+    with the_conductor.lock:
+        print >> sys.stderr, "\n===== %s dump current %i conductor handled processes:\n" % (format_unixts(time.time()), len(the_conductor._Conductor__processes),)
+        for process in the_conductor._Conductor__processes:
+            print >> sys.stderr, "====="
+            print >> sys.stderr, str(process)
+            print >> sys.stderr, "stdout:\n" + compact_output(process.stdout)
+            print >> sys.stderr, "stderr:\n" + compact_output(process.stderr)
+            print >> sys.stderr
+        print >> sys.stderr, "=====\n"
+
+_debug_thread = None
+_debug_thread_id = None
+_debug_thread_lock = threading.Lock()
+
+def debug_dump_threads():
+    print >> sys.stderr, "\n===== %s dump thread stack frames. %i threads. conductor lock = %s:\n" % (
+        format_unixts(time.time()),
+        len(sys._current_frames()),
+        the_conductor.lock)
+    idx=0
+    for thread_id, frame in sys._current_frames().iteritems():
+        print >> sys.stderr, "===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame))
+        if thread_id != _debug_thread_id:
+            traceback.print_stack(frame, file = sys.stderr)
+        else:
+            print >> sys.stderr, "  debug thread, skipping"
+        idx += 1
+    print >> sys.stderr, "=====\n"
+
+class _DebugThread(threading.Thread):
+
+    def __init__(self, interval = 30):
+        super(_DebugThread, self).__init__(name = "debug")
+        self.interval = interval
+        self.terminate = threading.Event()
+        self.setDaemon(True)
+
+    def run(self):
+        while True:
+            if self.terminate.is_set():
+                break
+            debug_dump_threads()
+            time.sleep(self.interval)
+
+    def stop(self):
+        self.terminate.set()
+
+def debug_toggle_thread(interval = 30):
+
+    global _debug_thread, _debug_thread_id
+
+    with _debug_thread_lock:
+        if _debug_thread:
+            _debug_thread.stop()
+            _debug_thread = None
+            _debug_thread_id = None
+        else:
+            _debug_thread = _DebugThread(interval)
+            _debug_thread.start()
+            _debug_thread_id = _debug_thread.ident
