@@ -107,15 +107,11 @@ class _debugio_output_handler(ProcessOutputHandler):
         self.prefix = prefix
 
     def read_line(self, process, string, eof = False, error = False):
-        t = time.time()
-        ft = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))
-        ftms = "%s,%03d" % (ft, (t%1) * 1000)
-        print (style.log_header(ftms)
-               + style.emph(" pid %i " % (process.pid,)
-                            + self.prefix + ": "
-                            + ("(EOF) " if eof else "")
-                            + ("(ERROR) " if error else ""))
-               + string.rstrip())
+        logger.iodebug(style.emph("pid %i " % (process.pid,) if hasattr(process, "pid") else ""
+                                  + self.prefix + ": "
+                                  + ("(EOF) " if eof else "")
+                                  + ("(ERROR) " if error else ""))
+                       + string.rstrip())
 
 _debugio_stdout_handler = _debugio_output_handler("stdout")
 _debugio_stderr_handler = _debugio_output_handler("stderr")
@@ -321,8 +317,7 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        if configuration['debug_io']:
-            _debugio_stdout_handler.read(self, string, eof, error)
+        _debugio_stdout_handler.read(self, string, eof, error)
         if self.default_stdout_handler:
             self.stdout += string
         if error == True:
@@ -351,8 +346,7 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        if configuration['debug_io']:
-            _debugio_stderr_handler.read(self, string, eof, error)
+        _debugio_stderr_handler.read(self, string, eof, error)
         if self.default_stderr_handler:
             self.stderr += string
         if error == True:

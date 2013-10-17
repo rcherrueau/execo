@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import configuration, FDEBUG
+from config import configuration, FDEBUG, IODEBUG
 import logging, sys, functools
 
 _ansi_styles = {
@@ -66,6 +66,8 @@ def _set_style(style, string):
         return string
 
 class Styler:
+    def set(self, style, string):
+        return _set_style(style, string)
     def __getattr__(self, attr):
         return functools.partial(_set_style, attr)
 style = Styler()
@@ -74,6 +76,10 @@ logging.addLevelName(FDEBUG, 'FDEBUG')
 def fdebug(self, message, *args, **kwargs):
     self.log(FDEBUG, message, *args, **kwargs)
 logging.Logger.fdebug = fdebug
+logging.addLevelName(IODEBUG, 'IODEBUG')
+def iodebug(self, message, *args, **kwargs):
+    self.log(IODEBUG, message, *args, **kwargs)
+logging.Logger.iodebug = iodebug
 
 # logger is the execo logging object
 logger = logging.getLogger("execo")
@@ -82,15 +88,15 @@ logger_handler = logging.StreamHandler(sys.stdout)
 
 class MyFormatter(logging.Formatter):
     def format(self, record):
-        if logger.getEffectiveLevel() < 10:
+        if logger.getEffectiveLevel() < logging.DEBUG:
             self._fmt = ( style.log_header("%(asctime)s %(name)s ")
-                          + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
+                          + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
                           + "%(levelname)s" + _ansi_styles['default']
                           + style.log_header(" %(threadName)s:")
                           + " %(message)s" )
         else:
             self._fmt = ( style.log_header("%(asctime)s %(name)s ")
-                          + "".join([_ansi_styles[attr] for attr in configuration['log_level_styles'][record.levelno]])
+                          + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
                           + "%(levelname)s:" + _ansi_styles['default']
                           + " %(message)s" )
         return logging.Formatter.format(self, record)

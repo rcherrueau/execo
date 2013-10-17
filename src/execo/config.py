@@ -39,7 +39,8 @@ def checktty(f):
         return os.isatty(f.fileno())
     return False
 
-FDEBUG=1
+IODEBUG = 3
+FDEBUG = 5
 
 # _STARTOF_ configuration
 configuration = {
@@ -50,7 +51,6 @@ configuration = {
     'compact_output_threshold': 4096,
     'kill_timeout': 5,
     'intr_period': 1,
-    'debug_io': False,
     'color_mode': checktty(sys.stdout)
                   and checktty(sys.stderr),
     'color_styles': {
@@ -64,15 +64,14 @@ configuration = {
         'user1': ('green', 'bold'),
         'user2': ('yellow', 'bold'),
         'user3': ('cyan', 'bold'),
-        },
-    'log_level_styles' : {
+        IODEBUG: ('green', 'reverse'),
         FDEBUG: ('green', 'reverse'),
         logging.DEBUG: ('green',),
         logging.INFO: ('magenta',),
         logging.WARNING: ('cyan',),
         logging.ERROR: ('red',),
         logging.CRITICAL: ('yellow', 'on_red')
-        }
+        },
     }
 # _ENDOF_ configuration
 """Global execo configuration parameters.
@@ -105,13 +104,8 @@ configuration = {
 - ``color_mode``: whether to colorize output (with ansi escape
   sequences)
 
-- ``color_styles``: a dict with keys ``log_header``, ``object_repr``,
-  ``emph``, ``report_warn``, ``report_error``: iterables of ansi
+- ``color_styles``: mapping of identifiers to iterables of ansi
   attributes identifiers (see `execo.log._ansi_styles`)
-
-- ``log_level_styles``: a mapping of log levels to iterables of ansi
-  attributes identifiers
-
 """
 
 def make_default_connection_params():
