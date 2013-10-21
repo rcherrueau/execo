@@ -60,7 +60,7 @@ class ProcessOutputHandler(object):
 
     def __init__(self):
         """ProcessOutputHandler constructor. Call it in inherited classes."""
-        self._buffer = ""
+        self._buffer = {}
 
     def read(self, process, string, eof, error):
         """Handle string read from a `execo.process.ProcessBase`'s stream.
@@ -74,17 +74,19 @@ class ProcessOutputHandler(object):
         :param error: (boolean) true if there was an error on the
           stream
         """
-        self._buffer += string
+        if not process in self._buffer:
+            self._buffer[process] = ""
+        self._buffer[process] += string
         while True:
-            (line, sep, remaining) = self._buffer.partition('\n')
+            (line, sep, remaining) = self._buffer[process].partition('\n')
             if sep != '':
                 self.read_line(process, line + sep, False, False)
-                self._buffer = remaining
+                self._buffer[process] = remaining
             else:
                 break
         if eof or error:
-            self.read_line(process, self._buffer, eof, error)
-            self._buffer = ""
+            self.read_line(process, self._buffer[process], eof, error)
+            self._buffer[process] = ""
 
     def read_line(self, process, string, eof, error):
         """Handle string read line by line from a `execo.process.ProcessBase`'s stream.
@@ -111,7 +113,7 @@ class _debugio_output_handler(ProcessOutputHandler):
                                   + self.prefix + ": "
                                   + ("(EOF) " if eof else "")
                                   + ("(ERROR) " if error else ""))
-                       + string.rstrip())
+                       + repr(string))
 
 _debugio_stdout_handler = _debugio_output_handler("stdout")
 _debugio_stderr_handler = _debugio_output_handler("stderr")
