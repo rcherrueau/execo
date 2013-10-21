@@ -107,7 +107,7 @@ class _debugio_output_handler(ProcessOutputHandler):
         self.prefix = prefix
 
     def read_line(self, process, string, eof = False, error = False):
-        logger.iodebug(style.emph("pid %i " % (process.pid,) if hasattr(process, "pid") else ""
+        logger.iodebug(style.emph(("pid %i " % (process.pid,) if hasattr(process, "pid") else "")
                                   + self.prefix + ": "
                                   + ("(EOF) " if eof else "")
                                   + ("(ERROR) " if error else ""))
