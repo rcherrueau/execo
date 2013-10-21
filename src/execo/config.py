@@ -139,7 +139,8 @@ def make_default_connection_params():
         'chainput_nc_connect_timeout': 1,
         'nc': '/bin/nc.traditional -v -v',
         'chainput_port': 64208,
-        'chainput_num_retry': 15,
+        'chainput_host_retry': 5,
+        'chainput_chain_retry': 10,
         'chainput_try_delay': 1,
         'pty': False,
         'host_rewrite_func': None
@@ -180,8 +181,13 @@ default_connection_params = make_default_connection_params()
 - ``chainput_port``: port on which TCP servers listen for chain
   transfers
 
-- ``chainput_num_retry``: number of times each TCP client in the
-  transfer chain retries to connect to TCP server next hop
+- ``chainput_host_retry``: number of times each hop in the transfer
+  chain retries to connect to next hop
+
+- ``chainput_chain_retry``: number of times each hop in the transfer
+  chain tries a new next hop if all tries to current next hop fail. If
+  given a float (between 0.0 and 1.0), this is expressed as a ratio of
+  the total number of hosts in the chain.
 
 - ``chainput_try_delay``: delay in seconds between TCP client to
   server connection attempts.

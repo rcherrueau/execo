@@ -1413,6 +1413,9 @@ class ChainPut(SequentialActions):
     def _init_actions(self):
         if len(self.hosts) > 0:
             actual_connection_params = make_connection_params(self.connection_params)
+            chain_retries = actual_connection_params['chainput_chain_retry']
+            if isinstance(chain_retries, float):
+                chain_retries = int(chain_retries * len(self.hosts))
 
             chainhosts_handle, chainhosts_filename = tempfile.mkstemp(prefix = 'tmp_execo_chainhosts_')
             chainhosts = "\n".join([h.address for h in self.hosts]) + "\n"
@@ -1432,14 +1435,15 @@ class ChainPut(SequentialActions):
             chains = []
             for f in self.local_files:
 
-                fwdcmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i '%s' --autoremove" % (
+                fwdcmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i %i '%s' --autoremove" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
                         actual_connection_params['nc'],
                         actual_connection_params['chainput_nc_connect_timeout'],
                         actual_connection_params['chainput_port'],
-                        actual_connection_params['chainput_num_retry'],
+                        actual_connection_params['chainput_host_retry'],
+                        chain_retries,
                         actual_connection_params['chainput_try_delay'],
                         idx+1,
                         chainhosts_filename,
@@ -1449,14 +1453,15 @@ class ChainPut(SequentialActions):
                                    self.hosts,
                                    actual_connection_params)
 
-                send = Local("%s '%s' '%s' '%s' %i %i %i %i %i '%s' --autoremove" % (
+                send = Local("%s '%s' '%s' '%s' %i %i %i %i %i %i '%s' --autoremove" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
                         actual_connection_params['nc'],
                         actual_connection_params['chainput_nc_connect_timeout'],
                         actual_connection_params['chainput_port'],
-                        actual_connection_params['chainput_num_retry'],
+                        actual_connection_params['chainput_host_retry'],
+                        chain_retries,
                         actual_connection_params['chainput_try_delay'],
                         0,
                         chainhosts_filename

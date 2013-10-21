@@ -6,14 +6,15 @@ usage() {
 WARNING: this program is intended to be used from within execo, users
          should not run it directly
 usage:
-  $(basename $0) <filename> <dest dir> <nc> <connect_timeout> <port> <num tries> <delay> <index> <remote hosts file> [--autoremove]
+  $(basename $0) <filename> <dest dir> <nc> <connect_timeout> <port> <host tries> <chain tries> <delay> <index> <remote hosts file> [--autoremove]
 
   <filename>: name of the file to send
   <dest dir>: destination dir on remote hosts
   <nc>: path of netcat executable
   <connect_timeout>: netcat client connection timeout
   <port>: port to use for netcat
-  <num tries>: number of netcat client connection retries
+  <host tries>: number of netcat client connection retries per next hop
+  <chain tries>: number of next hop retries
   <delay>: delay between netcat client connection retries
   <index>: index of the remote or local host on which this command is run
       index is 0 based:
@@ -31,18 +32,19 @@ log () {
     echo "$(date "+%Y-%m-%d %H:%M:%S%z") - $@"
 }
 
-if [ $# -lt 9 ] ; then usage ; exit 1; fi
+if [ $# -lt 10 ] ; then usage ; exit 1; fi
 FILENAME="$1"
 DESTDIR="$2"
 NC="$3"
 CONNECT_TIMEOUT=$4
 PORT=$5
-NUMTRIES=$6
-DELAY=$7
-INDEX=$8
-HOSTSFILE="$9"
+HOSTTRIES=$6
+CHAINTRIES=$7
+DELAY=$8
+INDEX=$9
+HOSTSFILE="${10}"
 AUTOREMOVE=1
-if [ $# -eq 10 -a "$10" == "--autoremove" ] ; then
+if [ $# -eq 11 -a "${11}" == "--autoremove" ] ; then
     AUTOREMOVE=0
 fi
 
@@ -54,12 +56,14 @@ set -e
 forwarddata() {
     (
         S=1
-        while [ $INDEX -lt ${#HOSTS[*]} -a $S -ne 0 ] ; do
-            log "trying sending to ${HOSTS[INDEX]} ($((INDEX+1))/${#HOSTS[*]})"
-            NUMTRY=$NUMTRIES
-            while [ $NUMTRY -gt 0 ] ; do
-                NUMTRY=$((NUMTRY-1))
-                log "try $((NUMTRIES-NUMTRY))..."
+        CHAINTRY=$CHAINTRIES
+        while [ $CHAINTRY -gt 0 -a $INDEX -lt ${#HOSTS[*]} -a $S -ne 0 ] ; do
+            CHAINTRY=$((CHAINTRY-1))
+            log "trying sending to ${HOSTS[INDEX]} ($((INDEX+1))/${#HOSTS[*]}) ($CHAINTRY hosts remaining)"
+            HOSTTRY=$HOSTTRIES
+            while [ $HOSTTRY -gt 0 ] ; do
+                HOSTTRY=$((HOSTTRY-1))
+                log "try $((HOSTTRIES-HOSTTRY))..."
                 $NC -w $CONNECT_TIMEOUT -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
                 if [ $S -eq 0 ] ; then
                     log "...success"
