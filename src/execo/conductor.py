@@ -353,6 +353,7 @@ class _Conductor(object):
         del self.__pids[process.pid]
         fileno_stdout = process.stdout_fd
         fileno_stderr = process.stderr_fd
+        last_bytes = ""
         if self.__fds.has_key(fileno_stdout):
             del self.__fds[fileno_stdout]
             self.__poller.unregister(fileno_stdout)
@@ -363,7 +364,8 @@ class _Conductor(object):
             except OSError, e:
                 if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
-            process._handle_stdout(last_bytes, eof = True)
+        process._handle_stdout(last_bytes, True, False)
+        last_bytes = ""
         if self.__fds.has_key(fileno_stderr):
             del self.__fds[fileno_stderr]
             self.__poller.unregister(fileno_stderr)
@@ -374,7 +376,7 @@ class _Conductor(object):
             except OSError, e:
                 if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
-            process._handle_stderr(last_bytes, eof = True)
+        process._handle_stderr(last_bytes, True, False)
         self.__processes.remove(process)
         if exit_code != None:
             process._set_terminated(exit_code = exit_code)
@@ -469,14 +471,14 @@ class _Conductor(object):
                         logger.fdebug("event %s on fd %s, process %s", _event_desc(event), fd, str(process))
                         if event & POLLIN:
                             (string, eof) = _read_asmuch(fd)
-                            stream_handler_func(string, eof = False)
+                            stream_handler_func(string, False, False)
                             if eof:
                                 self.__remove_handle(fd)
                         #if event & POLLHUP:
-                        #    stream_handler_func('', eof = True)
+                        #    stream_handler_func('', True, False)
                         #    self.__remove_handle(fd)
                         if event & POLLERR:
-                            stream_handler_func('', error = True)
+                            stream_handler_func('', False, True)
                             self.__remove_handle(fd)
             self.__check_timeouts()
             if event_on_rpipe != None:

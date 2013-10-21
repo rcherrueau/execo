@@ -60,9 +60,9 @@ class ProcessOutputHandler(object):
 
     def __init__(self):
         """ProcessOutputHandler constructor. Call it in inherited classes."""
-        self.__buffer = ""
+        self._buffer = ""
 
-    def read(self, process, string, eof = False, error = False):
+    def read(self, process, string, eof, error):
         """Handle string read from a `execo.process.ProcessBase`'s stream.
 
         :param process: the ProcessBase which outputs the string
@@ -74,19 +74,19 @@ class ProcessOutputHandler(object):
         :param error: (boolean) true if there was an error on the
           stream
         """
-        self.__buffer += string
+        self._buffer += string
         while True:
-            (line, sep, remaining) = self.__buffer.partition('\n')
-            if remaining != '':
-                self.read_line(process, line + sep)
-                self.__buffer = remaining
+            (line, sep, remaining) = self._buffer.partition('\n')
+            if sep != '':
+                self.read_line(process, line + sep, False, False)
+                self._buffer = remaining
             else:
                 break
         if eof or error:
-            self.read_line(process, self.__buffer, eof, error)
-            self.__buffer = ""
+            self.read_line(process, self._buffer, eof, error)
+            self._buffer = ""
 
-    def read_line(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof, error):
         """Handle string read line by line from a `execo.process.ProcessBase`'s stream.
 
         :param process: the ProcessBase which outputs the line
@@ -106,7 +106,7 @@ class _debugio_output_handler(ProcessOutputHandler):
         super(_debugio_output_handler, self).__init__()
         self.prefix = prefix
 
-    def read_line(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof, error):
         logger.iodebug(style.emph(("pid %i " % (process.pid,) if hasattr(process, "pid") else "")
                                   + self.prefix + ": "
                                   + ("(EOF) " if eof else "")
@@ -308,7 +308,7 @@ class ProcessBase(object):
         with self._lock:
             return self.started and not self.ended
 
-    def _handle_stdout(self, string, eof = False, error = False):
+    def _handle_stdout(self, string, eof, error):
         """Handle stdout activity.
 
         :param string: available stream output in string
@@ -337,7 +337,7 @@ class ProcessBase(object):
                     self._stdout_files[handler].close()
                     del self._stdout_files[handler]
 
-    def _handle_stderr(self, string, eof = False, error = False):
+    def _handle_stderr(self, string, eof, error):
         """Handle stderr activity.
 
         :param string: available stream output in string

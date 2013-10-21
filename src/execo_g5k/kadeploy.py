@@ -129,7 +129,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
     def action_reset(self):
         self._current_section = self._SECTION_NONE
 
-    def read_line(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof, error):
         if self.out:
             print string,
         if _ksoh_good_nodes_header_re.search(string) != None:
@@ -162,7 +162,7 @@ class _KadeployStderrHandler(ProcessOutputHandler):
         self.kadeployer = kadeployer
         self.out = False
 
-    def read_line(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof, error):
         if self.out:
             print string,
 

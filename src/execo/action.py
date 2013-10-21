@@ -448,7 +448,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
             logger.critical("line received = %s", string.rstrip('\n'))
             return s
 
-    def read_line(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof, error):
         # my taktuk output protocol:
         #  stream    format                                                    header normal?
         #  output    "A $position # $line"                                     65     YES
@@ -473,9 +473,9 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                     else:
                         process = self.taktukaction.processes[self.taktukaction._taktuk_hosts_order[position-1]]
                         if header == 65: # stdout
-                            process._handle_stdout(line, eof = eof, error = error)
+                            process._handle_stdout(line, eof, error)
                         elif header == 66: # stderr
-                            process._handle_stderr(line, eof = eof, error = error)
+                            process._handle_stderr(line, eof, error)
                         else: # 67: status
                             process._set_terminated(exit_code = int(line))
                 elif header in (68, 69): # connector, state
@@ -483,7 +483,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                     if header == 68: # connector
                         peer_position = int(peer_position)
                         process = self.taktukaction.processes[self.taktukaction._taktuk_hosts_order[peer_position-1]]
-                        process._handle_stderr(line)
+                        process._handle_stderr(line, False, False)
                     else: # state
                         (state_code, _, _) = line.partition(" # ")
                         state_code = int(state_code)
@@ -840,7 +840,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
             else:
                 process._set_terminated(exit_code = 0)
 
-    def read_line(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof, error):
         try:
             if len(string) > 0:
                 header = ord(string[0])
@@ -851,7 +851,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                     if header == 68: # connector
                         peer_position = int(peer_position)
                         process = self.taktukaction.processes[self.taktukaction._taktuk_hosts_order[peer_position-1]]
-                        process._handle_stderr(line)
+                        process._handle_stderr(line, False, False)
                     else: # state
                         (state_code, _, _) = line.partition(" # ")
                         state_code = int(state_code)
@@ -890,7 +890,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                     else:
                         processes = self.taktukaction.processes
                     for process in processes:
-                        process._handle_stderr(line)
+                        process._handle_stderr(line, False, False)
                 else:
                     self._log_unexpected_output(string)
         except Exception, e: #IGNORE:W0703
@@ -989,7 +989,7 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
             else:
                 process._set_terminated(exit_code = 0)
 
-    def read_line(self, process, string, eof = False, error = False):
+    def read_line(self, process, string, eof, error):
         try:
             if len(string) > 0:
                 header = ord(string[0])
@@ -1000,7 +1000,7 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                     if header == 68: # connector
                         peer_position = int(peer_position)
                         process = self.taktukaction.processes[self.taktukaction._taktuk_hosts_order[peer_position-1]]
-                        process._handle_stderr(line)
+                        process._handle_stderr(line, False, False)
                     else: # state
                         (state_code, _, _) = line.partition(" # ")
                         state_code = int(state_code)
@@ -1040,7 +1040,7 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                     else:
                         processes = self.taktukaction.processes
                     for process in processes:
-                        process._handle_stderr(line)
+                        process._handle_stderr(line, False, False)
                 else:
                     self._log_unexpected_output(string)
         except Exception, e: #IGNORE:W0703
