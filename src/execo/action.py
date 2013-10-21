@@ -1433,9 +1433,13 @@ class ChainPut(SequentialActions):
 
             #previous_action = preparechain
             chains = []
-            for f in self.local_files:
+            for findex, f in enumerate(self.local_files):
 
-                fwdcmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i %i '%s' --autoremove" % (
+                autoremoveopt = ""
+                if findex + 1 >= len(self.local_files):
+                    autoremoveopt = " --autoremove"
+
+                fwdcmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i %i '%s'%s" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
@@ -1447,13 +1451,14 @@ class ChainPut(SequentialActions):
                         actual_connection_params['chainput_try_delay'],
                         idx+1,
                         chainhosts_filename,
+                        autoremoveopt,
                         ) for idx, host in enumerate(self.hosts) ]
 
                 fwd = TaktukRemote("{{fwdcmd}}",
                                    self.hosts,
                                    actual_connection_params)
 
-                send = Local("%s '%s' '%s' '%s' %i %i %i %i %i %i '%s' --autoremove" % (
+                send = Local("%s '%s' '%s' '%s' %i %i %i %i %i %i '%s'%s" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
@@ -1464,7 +1469,8 @@ class ChainPut(SequentialActions):
                         chain_retries,
                         actual_connection_params['chainput_try_delay'],
                         0,
-                        chainhosts_filename
+                        chainhosts_filename,
+                        autoremoveopt,
                         ))
 
                 chain = ParallelActions([ send, fwd ])
