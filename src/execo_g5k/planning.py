@@ -167,49 +167,7 @@ class Planning:
                                     break
                                 
         self.planning = planning
-        
-        
-        
-
-
-
-    def kavlan(self, sites, startstamp, endstamp):
-        """ Compute the occupation of the global and local KaVLAN"""
-                            
-        get_jobs = Remote('oarstat -J -f', sites, 
-                    connection_params = default_frontend_connection_params ).run()
-        
-        vlan_planning = {}
-        if len(sites) == 1:
-            vlan_planning[sites[0]] = {'busy': [], 'free': []}
-            # TEMPORARY HACK CONSIDERING THAT NOT MUCH PEOPLE ARE USING KAVLAN SO ONE SHOULD BE FREE
-
-        else:
-            for p in get_jobs.processes:
-                site = p.host.address
-                vlan_planning[site] = {'busy': [], 'free': []}
-                site_jobs = loads(p.stdout)
-                for info in site_jobs.itervalues():
-                    if 'kavlan-global'in info['wanted_resources']:
-                        vlan_planning[site]['busy'].append(( int(info['scheduledStart']), 
-                            int(info['scheduledStart'])+oar_duration_to_seconds(info['wanted_resources'].split('walltime=')[1][:-2])
-                            +timedelta_to_seconds(timedelta(minutes = 1, seconds =5))) )
-                        
-        
-        for site, planning in vlan_planning.iteritems():
-            if len(planning['busy']) > 0:
-                if planning['busy'][0][0] > startstamp:
-                    planning['free'].append((startstamp, planning['busy'][0][0]))
-                for i in range(0, len(planning['busy'])-1):
-                    planning['free'].append((planning['busy'][i][1], planning['busy'][i+1][0]))
-                if planning['busy'][len(planning['busy'])-1][1]<endstamp:
-                    planning['free'].append((planning['busy'][len(planning['busy'])-1][1], endstamp))
-            else:
-                planning['free'].append((startstamp, endstamp))
                 
-        self.planning['kavlan'] = vlan_planning
-        
-        
     def merge_planning(self, planning):
         """Merge the different planning elements"""
         for kind in ['free', 'busy' ]:
@@ -404,6 +362,8 @@ def distribute_hosts(slot, resources_wanted):
                     cluster_nodes[cluster] = 0
                 sites_nodes[site] += cluster_nodes[cluster]
 
+
+        
         while total_nodes != resources_wanted['grid5000']:
             max_site = ''
             max_nodes = 0
@@ -425,19 +385,16 @@ def distribute_hosts(slot, resources_wanted):
                 else:
                     resources[site] += resources_wanted[cluster]
                 resources[cluster] = resources_wanted[cluster]
+        
+
 
     for site in sites:
-        cluster_nodes = 0
+        if resources_wanted.has_key(site):
+            resources[site] = resources_wanted[site]
         for cluster in API.get_site_clusters(site):
             if cluster in resources_wanted:
-                cluster_nodes += resources_wanted[cluster]
-                if site not in resources_wanted:
-                    resources[site] = resources_wanted[cluster]
-                else:
-                    resources[site] += resources_wanted[cluster]
-
-        if resources_wanted.has_key(site):
-            resources[site] = resources_wanted[site] - cluster_nodes
+                resources[cluster] =resources_wanted[cluster]
+        
             
     if slot[2].has_key('kavlan'):
         resources['kavlan'] = slot[2]['kavlan']
@@ -446,8 +403,7 @@ def distribute_hosts(slot, resources_wanted):
     
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                        auto_reservation = False, prog = None):
-    """ Perform the reservation for the given slot """ 
-
+    """ Perform the reservation for the given set of resources """ 
     get_kavlan = resources.has_key('kavlan')
     subs = []
     logger.debug(pformat(resources))
@@ -458,9 +414,9 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
         if resource in sites:
             n_sites += 1
     for site in sites:
-        cluster_nodes = 0
         sub_resources = ''
         if site in resources and resources[site] > 0:
+            clusters_nodes = 0
             if get_kavlan: 
                 if n_sites > 1:
                     sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
@@ -471,9 +427,10 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
             for cluster in API.get_site_clusters(site): 
                 if cluster in resources and resources[cluster] > 0:
                     sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
-                    cluster_nodes += resources[cluster]
-            if resources[site]-cluster_nodes > 0:
-                sub_resources+="nodes="+str(resources[site]-cluster_nodes)+'+'
+                    clusters_nodes += resources[cluster]
+                    
+            if resources[site]-clusters_nodes > 0:
+                sub_resources+="nodes="+str(resources[site])+'+'
             subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )    
     
     
