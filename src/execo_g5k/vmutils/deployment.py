@@ -403,10 +403,8 @@ class Virsh_Deployment(object):
         EX.Remote(cmd, self.hosts).run()
 
 
-    def create_disk_image(self, disk_image = None, clean = True):
+    def create_disk_image(self, disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2', clean = True):
         """Create a base image in RAW format for using qemu-img than can be used as the vms backing file """
-        if disk_image is None:
-            disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2'
         
         if clean:
             logger.info('Removing existing disks')
