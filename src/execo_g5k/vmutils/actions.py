@@ -126,7 +126,7 @@ def wait_vms_have_started(vms, host = None):
     for ip in vms:
         f.write(ip+'\n')
     f.close()
-    Put([host], tmpfile[1], connection_params = {'user': 'root'}).run()
+    Put([host], [tmpfile[1]], connection_params = {'user': 'root'}).run()
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
     started_vms = '0'
@@ -152,36 +152,6 @@ def wait_vms_have_started(vms, host = None):
         logger.error('All VM have not been started')
         return False
     
-    
-#    nmap_tries = 0   
-#    test_vm = get_remote('ls', vms)
-#    for p in test_vm.processes:
-#        p.log_exit_code = False
-#        p.log_error = False
-#    while (not ssh_open) and ls_tries < 50:
-#        print ls_tries
-#        test_vm.run()
-#        if test_vm.finished_ok:
-#            ssh_open = True
-#            return ssh_open
-#        else:
-#            test_vm.reset()
-#    
-#    while (not ssh_open) and ls_tries < 50:
-#        
-#            test_vm = get_remote('ls', vms)
-#        else:
-#            test_vm = Remote('ls', vms)
-#        for p in test_vm.processes:
-#            p.log_exit_code = False
-#            p.log_error = False
-#        test_vm.run()
-#        ls_tries += 1
-#        logger.debug(str(ls_tries))
-#        if test_vm.finished_ok:
-#            ssh_open = True
-#            return ssh_open
-
     return ssh_open
 
 
