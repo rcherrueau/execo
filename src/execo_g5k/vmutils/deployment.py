@@ -121,7 +121,7 @@ class Virsh_Deployment(object):
         logger.info('Upgrading hosts')
         cmd = " echo 'debconf debconf/frontend select noninteractive' | debconf-set-selections; \
                 echo 'debconf debconf/priority select critical' | debconf-set-selections ;      \
-                apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get upgrade -y --force-yes "+\
+                apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get dist-upgrade -y --force-yes "+\
                 '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" '
         upgrade = self.fact.get_remote( cmd, self.hosts, connection_params = {'user': 'root'}).run()
         if upgrade.ok:
@@ -135,6 +135,7 @@ class Virsh_Deployment(object):
         """ Installation of packages on the nodes """
     
         base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop init-system-helpers'
+        
         logger.info('Installing usefull packages %s', style.emph(base_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
         install_base = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()        
@@ -168,7 +169,14 @@ class Virsh_Deployment(object):
             else:
                 logger.error('Unable to install packages on the nodes ..')
                 raise ActionsFailed, [install_extra]
-
+            
+    def check_nodes(self):
+        """ Install g5kchecks on nodes and check that there are correct"""
+        self.fact.get_remote('echo deb http://apt.grid5000.fr/debian sid main >> /etc/apt/sources.list ; '+\
+                             'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes'+\
+                             'grid5000-keyring g5kchecks', self.hosts).run()
+        
+        
 
     def reboot_nodes(self):
         """ Reboot the nodes to load the new kernel """
