@@ -360,9 +360,8 @@ class Virsh_Deployment(object):
         logger.info('Configuring resolv.conf on all hosts')
         clients = list(self.hosts)
         clients.remove(service_node)
-        
-       # EX.Put([service_node], self.outdir+'/resolv.conf', remote_location= '/root/', connection_params = { 'user': 'root' }).run()
-        EX.Put(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
+       
+        self.fact.get_remote(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
                      connection_params = {'user': 'root'}).run()
                      
         self.service_node = service_node
@@ -386,13 +385,13 @@ class Virsh_Deployment(object):
         
         
         logger.info('Install munin-node on all hosts (VM + PM):\n'+','.join([host.address for host in self.hosts ]))
-        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes munin-node', 
+        self.fact.get_remote('export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes munin-node', 
                self.hosts ).run()
         logger.info('Configuring munin-nodes')
         get_service_node_ip = EX.Process('host '+self.service_node.address).run()
         service_node_ip = get_service_node_ip.stdout.strip().split(' ')[3]
         logger.info('Authorizing connection from '+service_node_ip)
-        EX.Remote('[ -f /etc/munin/munin-node.conf.bak ] && cp /etc/munin/munin-node.conf.bak /etc/munin/munin-node.conf'+\
+        self.fact.get_remote('[ -f /etc/munin/munin-node.conf.bak ] && cp /etc/munin/munin-node.conf.bak /etc/munin/munin-node.conf'+\
                    ' || cp /etc/munin/munin-node.conf /etc/munin/munin-node.conf.bak ;'+\
                    ' echo allow ^'+'\.'.join( [ i for i in service_node_ip.split('.') ])+'$ >> /etc/munin/munin-node.conf', self.hosts).run()
         logger.info('Configuring munin plugins')
@@ -400,7 +399,7 @@ class Virsh_Deployment(object):
         cmd = 'rm /etc/munin/plugins/* ; '+' ; '.join( ['ln -s /usr/share/munin/plugins/'+plugin+' /etc/munin/plugins/' 
                                                       for plugin in plugins])+\
                 '; ln -s /usr/share/munin/plugins/if_ /etc/munin/plugins/if_eth0; killall munin-node ; munin-node ;'
-        EX.Remote(cmd, self.hosts).run()
+        self.fact.get_remote(cmd, self.hosts).run()
 
 
     def create_disk_image(self, disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2', clean = True):
@@ -418,16 +417,13 @@ class Virsh_Deployment(object):
                                  
         if ls_image.stdout.strip() == disk_image:
             logger.info("Image found in deployed hosts")
-            copy_file = EX.TaktukRemote('cp '+disk_image+' /tmp/', self.hosts,
+            copy_file = self.fact.get_remote('cp '+disk_image+' /tmp/', self.hosts,
                                     connection_params = {'user': 'root'}).run()
         else:
             logger.info("Copying backing file from frontends")
             copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/',
                                     connection_params = {'user': 'root'}).run()
-#            frontends = [get_host_site(host)+'.grid5000.fr' for host in self.hosts]
-#            dests = [ host.address for host in self.hosts]
-#            copy_file = EX.TaktukRemote('scp '+disk_image+' root@{{dests}}:/tmp/', frontends,
-#                                    connection_params = default_frontend_connection_params).run()
+
             if not copy_file.ok:
                 logger.error('Unable to copy the backing file')
                 raise ActionsFailed, [copy_file]
