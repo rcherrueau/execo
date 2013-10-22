@@ -40,7 +40,7 @@ class Virsh_Deployment(object):
     """ A object that allow you to deploy some wheezy-based hosts with an up-to-date version of libvirt with
     a pool of ip-MAC addresses for your virtual machines """
     def __init__(self, hosts = None, env_name = None, env_file = None, kavlan = None, oarjob_id = None, outdir = None):
-        """ Initialization of the object"""
+        """ Initialization of deployment"""
         logger.info('Initializing Virsh_Deployment on %s hosts', len(hosts))
         self.max_vms = 10227
         self.fact = ActionFactory(remote_tool = SSH,
@@ -132,7 +132,7 @@ class Virsh_Deployment(object):
 
 
     def install_packages(self, packages_list = None):
-        """ Installation of packages on the nodes """
+        """ Installation of required packages on the nodes """
     
         base_packages = 'uuid-runtime bash-completion taktuk locate htop init-system-helpers'
         
@@ -296,28 +296,9 @@ class Virsh_Deployment(object):
         else:
             logger.info('Bridge is already present')
 
-#    def configure_dnsmasq(self):
-#        """ Use the KaVLAN IP range or the IP-MAC list from g5k_subnets and configure 
-#         dnsmasq to setup a DNS/DHCP server for the VM i"""
-#        logger.info('Retrieving the list of IP and MAC for the virtual machines')
-#        
-#        dhcp_hosts =''
-#        for ip, mac in self.ip_mac:
-#            print mac
-#            print map(lambda x: "%02x" % x, mac)
-#            dhcp_hosts += 'dhcp-host='+':'.join( map(lambda x: "%02x" % x, mac))+','+str(ip)+'\n'
-#        network = str(min(ip))+','+str(max(vm_ip[0:-1]))+','+str(all_ip.netmask)
-#        dhcp_range = 'dhcp-range='+network+',12h\n'
-#        dhcp_router = 'dhcp-option=option:router,'+str(max(vm_ip))+'\n'
-#        return dhcp_range, dhcp_router, dhcp_hosts
-
-
     def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None):
         """ Generate the hosts lists, the vms list, the dnsmasq configuration and setup a DNS/DHCP server """
-              
         service_node = self.get_fastest_host()
-#        if dhcp_range is None or dhcp_router is None or dhcp_hosts is None:
-#            dhcp_range, dhcp_router, dhcp_hosts = self.configure_dnsmasq()
         
         f = open(self.outdir+'/hosts.list', 'w')
         for host in self.hosts:
