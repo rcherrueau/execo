@@ -285,9 +285,9 @@ def sleep(delay = None, until = None):
         if (sleeptime > 0 and dt > sleeptime) or (sleeptime <= 0 and dt > 0):
             sleeptime = dt
     if sleeptime > 0:
-        logger.info("sleeping %s", format_seconds(sleeptime))
+        logger.debug("sleeping %s", format_seconds(sleeptime))
         _safe_sleep(sleeptime)
-        logger.info("end sleeping")
+        logger.debug("end sleeping")
         return sleeptime
 
 class Timer(object):
