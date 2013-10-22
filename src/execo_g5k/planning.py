@@ -38,7 +38,6 @@ except ImportError:
 
 import execo_g5k.api_utils as API
 
-error_sites = [ 'bordeaux' ]
 
 class Planning:
     def __init__(self, elements = None, starttime = None, endtime = None, 
@@ -53,7 +52,6 @@ class Planning:
 :param kavlan: a boolean to ask for the global kavlan computation
 """
         logger.debug('Initializing planning computation')
-        self.sites_blacklist = [ 'bordeaux' ]
         self.elements = elements.copy()
         self.starttime = starttime
         self.endtime = endtime
@@ -408,7 +406,6 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
     subs = []
     logger.debug(pformat(resources))
     sites = API.get_g5k_sites()
-    sites.remove('bordeaux')
     n_sites = 0
     for resource in resources.iterkeys():
         if resource in sites:
