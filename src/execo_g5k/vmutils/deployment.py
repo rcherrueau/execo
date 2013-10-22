@@ -145,7 +145,7 @@ class Virsh_Deployment(object):
             logger.error('Unable to install packages on the nodes ..')
             raise ActionsFailed, [install_base]
         
-        libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 nmap'
+        libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 '
         logger.info('Installing libvirt updated packages %s', style.emph(libvirt_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
             '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t unstable '+\
@@ -276,7 +276,7 @@ class Virsh_Deployment(object):
                 nobr_hosts.append(p.host)
             else:
                 if stdout != bridge_name:
-                    EX.Remote('ip link set '+stdout+' down ; brctl delbr '+stdout, [p.host()],
+                    self.fact.get_remote('ip link set '+stdout+' down ; brctl delbr '+stdout, [p.host()],
                               connection_params = {'user': 'root'}).run()
                     nobr_hosts.append(p.host)
         
@@ -342,7 +342,7 @@ class Virsh_Deployment(object):
         logger.info('Configuring %s as a %s server', style.host(service_node.address.split('.')[0])
                     , style.emph('DNS/DCHP'))
         
-        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -t unstable -y dnsmasq', [service_node],
+        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -y dnsmasq', [service_node],
                   connection_params = {'user': 'root'}).run()
         EX.Put([service_node], [self.outdir+'/dnsmasq.conf'], remote_location='/etc/', connection_params = { 'user': 'root' }).run()
         
