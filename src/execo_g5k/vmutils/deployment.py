@@ -134,7 +134,7 @@ class Virsh_Deployment(object):
     def install_packages(self, packages_list = None):
         """ Installation of packages on the nodes """
     
-        base_packages = 'uuid-runtime bash-completion qemu-kvm taktuk locate htop init-system-helpers'
+        base_packages = 'uuid-runtime bash-completion taktuk locate htop init-system-helpers'
         
         logger.info('Installing usefull packages %s', style.emph(base_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
@@ -145,7 +145,7 @@ class Virsh_Deployment(object):
             logger.error('Unable to install packages on the nodes ..')
             raise ActionsFailed, [install_base]
         
-        libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 '
+        libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 qemu-kvm'
         logger.info('Installing libvirt updated packages %s', style.emph(libvirt_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
             '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t unstable '+\
