@@ -280,6 +280,8 @@ def get_host_attributes(host):
     if isinstance(host, execo.Host):
         host = host.address
     host_shortname, _, _ = host.partition(".")
+    if 'kavlan' in host_shortname:
+        host_shortname = host.partition("-kavlan")[0]
     cluster = get_host_cluster(host)
     site = get_host_site(host)
     return get_resource_attributes('/sites/' + site
