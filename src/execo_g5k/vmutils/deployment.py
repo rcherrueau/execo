@@ -276,7 +276,7 @@ class Virsh_Deployment(object):
                 nobr_hosts.append(p.host)
             else:
                 if stdout != bridge_name:
-                    self.fact.get_remote('ip link set '+stdout+' down ; brctl delbr '+stdout, [p.host()],
+                    self.fact.get_remote('ip link set '+stdout+' down ; brctl delbr '+stdout, [p.host],
                               connection_params = {'user': 'root'}).run()
                     nobr_hosts.append(p.host)
         
