@@ -1471,12 +1471,13 @@ class ChainPut(SequentialActions):
                 if findex + 1 >= len(self.local_files):
                     autoremoveopt = " --autoremove"
 
-                fwdcmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i %i '%s'%s" % (
+                fwdcmd = [ "%s '%s' '%s' '%s' %i %i %i %i %i %i %i '%s'%s" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
                         actual_connection_params['nc'],
-                        actual_connection_params['chainput_nc_connect_timeout'],
+                        actual_connection_params['chainput_nc_client_timeout'],
+                        actual_connection_params['chainput_nc_server_timeout'],
                         actual_connection_params['chainput_port'],
                         actual_connection_params['chainput_host_retry'],
                         chain_retries,
@@ -1490,12 +1491,13 @@ class ChainPut(SequentialActions):
                                    self.hosts,
                                    actual_connection_params)
 
-                send = Local("%s '%s' '%s' '%s' %i %i %i %i %i %i '%s'%s" % (
+                send = Local("%s '%s' '%s' '%s' %i %i %i %i %i %i %i '%s'%s" % (
                         chainscript_filename,
                         f,
                         self.remote_location,
                         actual_connection_params['nc'],
-                        actual_connection_params['chainput_nc_connect_timeout'],
+                        actual_connection_params['chainput_nc_client_timeout'],
+                        actual_connection_params['chainput_nc_server_timeout'],
                         actual_connection_params['chainput_port'],
                         actual_connection_params['chainput_host_retry'],
                         chain_retries,

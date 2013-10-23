@@ -6,12 +6,13 @@ usage() {
 WARNING: this program is intended to be used from within execo, users
          should not run it directly
 usage:
-  $(basename $0) <filename> <dest dir> <nc> <connect_timeout> <port> <host tries> <chain tries> <delay> <index> <remote hosts file> [--autoremove]
+  $(basename $0) <filename> <dest dir> <nc> <client_timeout> <server_timeout> <port> <host tries> <chain tries> <delay> <index> <remote hosts file> [--autoremove]
 
   <filename>: name of the file to send
   <dest dir>: destination dir on remote hosts
   <nc>: path of netcat executable
-  <connect_timeout>: netcat client connection timeout
+  <client_timeout>: netcat client connection timeout
+  <server_timeout>: netcat server connection timeout
   <port>: port to use for netcat
   <host tries>: number of netcat client connection retries per next hop
   <chain tries>: number of next hop retries
@@ -32,19 +33,20 @@ log () {
     echo "$(date "+%Y-%m-%d %H:%M:%S%z") - $@"
 }
 
-if [ $# -lt 10 ] ; then usage ; exit 1; fi
+if [ $# -lt 11 ] ; then usage ; exit 1; fi
 FILENAME="$1"
 DESTDIR="$2"
 NC="$3"
-CONNECT_TIMEOUT=$4
-PORT=$5
-HOSTTRIES=$6
-CHAINTRIES=$7
-DELAY=$8
-INDEX=$9
-HOSTSFILE="${10}"
+CLIENT_TIMEOUT=$4
+SERVER_TIMEOUT=$5
+PORT=$6
+HOSTTRIES=$7
+CHAINTRIES=$8
+DELAY=$9
+INDEX=${10}
+HOSTSFILE="${11}"
 AUTOREMOVE=1
-if [ $# -eq 11 -a "${11}" == "--autoremove" ] ; then
+if [ $# -eq 12 -a "${12}" == "--autoremove" ] ; then
     AUTOREMOVE=0
 fi
 
@@ -64,7 +66,7 @@ forwarddata() {
             while [ $HOSTTRY -gt 0 ] ; do
                 HOSTTRY=$((HOSTTRY-1))
                 log "try $((HOSTTRIES-HOSTTRY))..."
-                $NC -w $CONNECT_TIMEOUT -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
+                $NC -w $CLIENT_TIMEOUT -q 0 "${HOSTS[INDEX]}" $PORT && S=0 || S=1
                 if [ $S -eq 0 ] ; then
                     log "...success"
                     break
@@ -87,7 +89,7 @@ if [ $INDEX -eq 0 ] ; then
     forwarddata < "$FILENAME"
 else
     log "host ${HOSTS[INDEX-1]} ($INDEX/${#HOSTS[*]}) receiving and forwarding"
-    $NC -l -p $PORT | tee "$DESTDIR/$(basename $FILENAME)" | forwarddata
+    $NC -l -w $SERVER_TIMEOUT -p $PORT | tee "$DESTDIR/$(basename $FILENAME)" | forwarddata
 fi
 log "end"
 if [ $AUTOREMOVE -eq 0 ] ; then

@@ -136,7 +136,8 @@ def make_default_connection_params():
                                       '-o', 'StrictHostKeyChecking=no',
                                       '-o', 'UserKnownHostsFile=/dev/null',
                                       '-o', 'ConnectTimeout=20'),
-        'chainput_nc_connect_timeout': 1,
+        'chainput_nc_client_timeout': 5,
+        'chainput_nc_server_timeout': 30,
         'nc': '/bin/nc.traditional -v -v',
         'chainput_port': 64208,
         'chainput_host_retry': 5,
@@ -176,7 +177,11 @@ default_connection_params = make_default_connection_params()
 
 - ``nc``: the netcat command to use
 
-- ``chainput_nc_connect_timeout``: timeout for connecting to next hop
+- ``chainput_nc_client_timeout``: timeout for client connection to
+  next hop
+
+- ``chainput_nc_server_timeout``: timeout for server to wait for
+  incoming connection from previous hop
 
 - ``chainput_port``: port on which TCP servers listen for chain
   transfers
