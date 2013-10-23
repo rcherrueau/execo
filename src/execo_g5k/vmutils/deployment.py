@@ -342,7 +342,7 @@ class Virsh_Deployment(object):
         clients = list(self.hosts)
         clients.remove(service_node)
        
-        self.fact.get_remote(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
+        self.fact.get_fileput(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
                      connection_params = {'user': 'root'}).run()
                      
         self.service_node = service_node
