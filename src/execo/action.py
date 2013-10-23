@@ -1362,6 +1362,38 @@ class _ChainPutActionHostFilteringLH(ActionLifecycleHandler):
                 self.chainput.good_hosts,
                 self.chainput.bad_hosts))
 
+class _ChainPutCopyTaktukProcessLH(ProcessLifecycleHandler):
+
+    def __init__(self, num_processes, action_to_start):
+        self.num_processes = num_processes
+        self.started_processes = 0
+        self.action_to_start = action_to_start
+
+    def start(self, process):
+        self.started_processes += 1
+        if self.started_processes == self.num_processes:
+            self.action_to_start.start()
+
+class _ChainPutCopy(ParallelActions):
+
+    def __init__(self, local, remote):
+        self._local = local
+        self._remote = remote
+        super(_ChainPutCopy, self).__init__([local, remote])
+
+    def start(self):
+        if isinstance(self._remote, TaktukRemote):
+            wait_all_taktuk_processes_start = _ChainPutCopyTaktukProcessLH(
+                len(self._remote.processes),
+                self._local)
+            for p in self._remote.processes:
+                p.lifecycle_handlers.append(wait_all_taktuk_processes_start)
+            retval = super(ParallelActions, self).start()
+            self._remote.start()
+            return retval
+        else:
+            return super(_ChainPutCopy, self).start()
+
 _execo_chainput = find_exe("execo-chainput")
 class ChainPut(SequentialActions):
 
@@ -1473,7 +1505,7 @@ class ChainPut(SequentialActions):
                         autoremoveopt,
                         ))
 
-                chain = ParallelActions([ send, fwd ])
+                chain = _ChainPutCopy(send, fwd)
                 #previous_action.lifecycle_handlers.insert(0, _ChainPutActionHostFilteringLH(self, [fwd]))
                 #previous_action = chain
                 chains.append(chain)
