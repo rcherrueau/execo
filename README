@@ -55,7 +55,6 @@ links
 - tutorial: http://execo.gforge.inria.fr/doc/tutorial.html
 
 - documentation: http://execo.gforge.inria.fr/doc/
-  http://execo.gforge.inria.fr/epydoc/
 
 - contribs:
   https://gforge.inria.fr/plugins/scmgit/cgi-bin/gitweb.cgi?p=execo/execo.git;a=tree;f=contrib
