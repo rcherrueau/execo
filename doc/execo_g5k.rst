@@ -190,6 +190,10 @@ get_site_attributes
 -------------------
 .. autofunction:: get_site_attributes
 
+canonical_host_name
+-------------------
+.. autofunction:: canonical_host_name
+
 APIConnection
 -------------
 .. autoclass:: APIConnection

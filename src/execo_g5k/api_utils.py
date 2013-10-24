@@ -231,6 +231,7 @@ def get_host_cluster(host):
     """
     if isinstance(host, execo.Host):
         host = host.address
+    host = canonical_host_name(host)
     m = __g5k_host_group_regex.match(host)
     if m: return m.group(1)
     else: return None
@@ -242,6 +243,7 @@ def get_host_site(host):
     """
     if isinstance(host, execo.Host):
         host = host.address
+    host = canonical_host_name(host)
     m = __g5k_host_group_regex.match(host)
     if m:
         if m.group(3):
@@ -279,9 +281,8 @@ def get_host_attributes(host):
     """Get the attributes of a host (as known to the g5k api) as a dict"""
     if isinstance(host, execo.Host):
         host = host.address
+    host = canonical_host_name(host)
     host_shortname, _, _ = host.partition(".")
-    if 'kavlan' in host_shortname:
-        host_shortname = host.partition("-kavlan")[0]
     cluster = get_host_cluster(host)
     site = get_host_site(host)
     return get_resource_attributes('/sites/' + site
@@ -303,6 +304,7 @@ def get_g5k_measures(host, metric, startstamp, endstamp, resolution = 5):
     """ Return a dict with the api values"""
     if isinstance(host, execo.Host):
         host = host.address
+    host = canonical_host_name(host)
     host_shortname, _, _ = host.partition(".")
     site = get_host_site(host)
     return get_resource_attributes('/sites/' + site 
@@ -311,6 +313,25 @@ def get_g5k_measures(host, metric, startstamp, endstamp, resolution = 5):
                                    + '?resolution=' + str(resolution)
                                    + '&from=' + str(startstamp) 
                                    + '&to=' + str(endstamp))
-    
-    
 
+__canonical_host_name_regex = re.compile("^([a-zA-Z]+-\d+)(-kavlan-\d+)?(\.([.\w]+))?")
+
+def __canonical_sub_func(matchobj):
+    n = matchobj.expand(r'\1')
+    if matchobj.lastindex >= 3:
+        n += matchobj.expand(r'\3')
+    return n
+
+def canonical_host_name(host):
+    """Convert, if needed, the host name to its canonical form without kavlan part.
+
+    Can be given a Host, will return a Host.
+    Can be given a string, will return a string.
+    Works with short or fqdn forms of hostnames.
+    """
+    h = execo.Host(host)
+    h.address = __canonical_host_name_regex.sub(__canonical_sub_func, h.address)
+    if isinstance(host, str):
+        return h.address
+    else:
+        return h

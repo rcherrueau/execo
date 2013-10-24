@@ -40,7 +40,7 @@ try:
       get_cluster_site, APIConnection, APIGetException, get_host_site, \
       get_host_cluster, group_hosts, get_resource_attributes, \
       get_host_attributes, get_cluster_attributes, \
-      get_site_attributes
+      get_site_attributes, canonical_host_name
 except ImportError:
     # probably if httplib2 is not installed.
     pass
