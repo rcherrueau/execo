@@ -252,8 +252,6 @@ class Virsh_Deployment(object):
         self.fact.get_remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; virsh net-start default; virsh net-autostart default; ', 
                         self.hosts, connection_params = {'user': 'root'}).run()
         
-#        self.setup_virsh_network(n_vms)
-        
         logger.info('Restarting libvirt ...')        
         self.fact.get_remote('service libvirt-bin restart', self.hosts, connection_params = {'user': 'root'}).run()
         
@@ -414,14 +412,10 @@ class Virsh_Deployment(object):
         self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()  
         
     def ssh_keys_on_vmbase(self, ssh_key = None):
-        """ Copy your public key into the .ssh/authorized_keys """
+        """ Copy your public key into the .ssh/authorized_keys and copy the keys in .ssh
+        in the backing file  for taktuk execution"""
         logger.info('Copying ssh key on vm-base ...')
-        
-        copy_on_host = self.fact.get_fileput(self.hosts, ['~/.ssh/id_rsa', '~/.ssh/id_rsa.pub'],
-                                        remote_location = '/root/.ssh', 
-                                      connection_params = {'user': 'root'}).run()
-        
-        
+
         ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
 
         cmd = 'modprobe nbd max_part=1; '+ \
