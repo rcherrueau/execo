@@ -310,7 +310,9 @@ def kadeploy(deployment, frontend_connection_params = None, timeout = None, out 
     not deployed).
     """
     kadeployer = Kadeployer(deployment,
-                            frontend_connection_params = frontend_connection_params).run()
+                            frontend_connection_params = frontend_connection_params)
+    kadeployer.out = out
+    kadeployer.run()
     if not kadeployer.ok:
         logoutput = style.emph("deployment error:") + " %s\n" % (kadeployer,) + style.emph("kadeploy processes:\n")
         for p in kadeployer.processes:
