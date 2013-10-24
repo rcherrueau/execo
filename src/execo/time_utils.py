@@ -33,7 +33,7 @@ def datetime_to_unixts(dt):
     if dt.tzinfo:
         return calendar.timegm(dt.utctimetuple()) + dt.microsecond / 1e6
     else:
-        return time.mktime(dt.utctimetuple()) + dt.microsecond / 1e6
+        return time.mktime(dt.timetuple()) + dt.microsecond / 1e6
 
 def unixts_to_datetime(ts, tz = None):
     """Convert a utc unixts (int or float) to ``datetime.datetime``.
