@@ -317,9 +317,9 @@ def get_g5k_measures(host, metric, startstamp, endstamp, resolution = 5):
 __canonical_host_name_regex = re.compile("^([a-zA-Z]+-\d+)(-kavlan-\d+)?(\.([.\w]+))?")
 
 def __canonical_sub_func(matchobj):
-    n = matchobj.expand(r'\1')
+    n = matchobj.group(1)
     if matchobj.lastindex >= 3:
-        n += matchobj.expand(r'\3')
+        n += matchobj.group(3)
     return n
 
 def canonical_host_name(host):
