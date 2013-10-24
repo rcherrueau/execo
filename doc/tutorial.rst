@@ -194,7 +194,7 @@ generate traffic in both directions::
  clients.run()
  servers.wait()
  print Report([ servers, clients ]).to_string()
- for s in servers.processes() + clients.processes():
+ for s in servers.processes + clients.processes:
    print "%s\nstdout:\n%s\nstderr:\n%s" % (s, s.stdout, s.stderr)
 
 The netcat command line on clients shows the usage of *substitutions*:
