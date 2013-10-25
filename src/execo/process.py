@@ -914,7 +914,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         This method is intended to be used by
         `execo.action.TaktukRemote`.
         """
-        # ceraful placement of locked sections to allow calling
+        # careful placement of locked sections to allow calling
         # lifecycle handlers outside the lock
         with self._lock:
             if self.started:
