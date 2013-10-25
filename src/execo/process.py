@@ -325,19 +325,22 @@ class ProcessBase(object):
         if error == True:
             self.stdout_ioerror = True
         for handler in self.stdout_handlers:
-            if isinstance(handler, int):
-                os.write(handler, string)
-            elif isinstance(handler, ProcessOutputHandler):
-                handler.read(self, string, eof, error)
-            elif hasattr(handler, "write"):
-                handler.write(string)
-            elif isinstance(handler, basestring):
-                if not self._stdout_files.get(handler):
-                    self._stdout_files[handler] = open(handler, "w")
-                self._stdout_files[handler].write(string)
-                if eof:
-                    self._stdout_files[handler].close()
-                    del self._stdout_files[handler]
+            try:
+                if isinstance(handler, int):
+                    os.write(handler, string)
+                elif isinstance(handler, ProcessOutputHandler):
+                    handler.read(self, string, eof, error)
+                elif hasattr(handler, "write"):
+                    handler.write(string)
+                elif isinstance(handler, basestring):
+                    if not self._stdout_files.get(handler):
+                        self._stdout_files[handler] = open(handler, "w")
+                    self._stdout_files[handler].write(string)
+                    if eof:
+                        self._stdout_files[handler].close()
+                        del self._stdout_files[handler]
+            except Exception, e:
+                logger.error("process stdout handler %s raised exception %s for process %s" % (handler, e, self))
 
     def _handle_stderr(self, string, eof, error):
         """Handle stderr activity.
@@ -354,19 +357,22 @@ class ProcessBase(object):
         if error == True:
             self.stderr_ioerror = True
         for handler in self.stderr_handlers:
-            if isinstance(handler, int):
-                os.write(handler, string)
-            elif isinstance(handler, ProcessOutputHandler):
-                handler.read(self, string, eof, error)
-            elif hasattr(handler, "write"):
-                handler.write(string)
-            elif isinstance(handler, basestring):
-                if not self._stderr_files.get(handler):
-                    self._stderr_files[handler] = open(handler, "w")
-                self._stderr_files[handler].write(string)
-                if eof:
-                    self._stderr_files[handler].close()
-                    del self._stderr_files[handler]
+            try:
+                if isinstance(handler, int):
+                    os.write(handler, string)
+                elif isinstance(handler, ProcessOutputHandler):
+                    handler.read(self, string, eof, error)
+                elif hasattr(handler, "write"):
+                    handler.write(string)
+                elif isinstance(handler, basestring):
+                    if not self._stderr_files.get(handler):
+                        self._stderr_files[handler] = open(handler, "w")
+                    self._stderr_files[handler].write(string)
+                    if eof:
+                        self._stderr_files[handler].close()
+                        del self._stderr_files[handler]
+            except Exception, e:
+                logger.error("process stdout handler %s raised exception %s for process %s" % (handler, e, self))
 
     @property
     def ok(self):
@@ -435,7 +441,10 @@ class ProcessBase(object):
             self.kill()
             self.wait()
         for handler in self.lifecycle_handlers:
-            handler.reset(self)
+            try:
+                handler.reset(self)
+            except Exception, e:
+                logger.error("process lifecycle handler %s reset raised exception %s for process %s" % (handler, e, self))
         with self._lock:
             self._common_reset()
         return self
@@ -654,7 +663,10 @@ class Process(ProcessBase):
                 (self._ptymaster, self._ptyslave) = openpty()
         logger.debug(style.emph("start: ") + str(self))
         for handler in self.lifecycle_handlers:
-            handler.start(self)
+            try:
+                handler.start(self)
+            except Exception, e:
+                logger.error("process lifecycle handler %s start raised exception %s for process %s" % (handler, e, self))
         try:
             if self.pty:
                 self.process = subprocess.Popen(self._actual_cmd(),
@@ -682,7 +694,10 @@ class Process(ProcessBase):
                 self.end_date = time.time()
                 self._log_terminated()
             for handler in self.lifecycle_handlers:
-                handler.end(self)
+                try:
+                    handler.end(self)
+                except Exception, e:
+                    logger.error("process lifecycle handler %s end raised exception %s for process %s" % (handler, e, self))
 
     def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
@@ -814,7 +829,10 @@ class Process(ProcessBase):
                 del self._stderr_files[h]
         self._log_terminated()
         for handler in self.lifecycle_handlers:
-            handler.end(self)
+            try:
+                handler.end(self)
+            except Exception, e:
+                logger.error("process lifecycle handler %s end raised exception %s for process %s" % (handler, e, self))
 
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
@@ -925,7 +943,10 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
                 self.timeout_date = self.start_date + self.timeout
         logger.debug(style.emph("start:") + " %s" % (str(self),))
         for handler in self.lifecycle_handlers:
-            handler.start(self)
+            try:
+                handler.start(self)
+            except Exception, e:
+                logger.error("process lifecycle handler %s start raised exception %s for process %s" % (handler, e, self))
         return self
 
     def _set_terminated(self, exit_code = None, error = False, error_reason = None, timeouted = None, forced_kill = None):
@@ -962,7 +983,10 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
                 del self._stderr_files[h]
         self._log_terminated()
         for handler in self.lifecycle_handlers:
-            handler.end(self)
+            try:
+                handler.end(self)
+            except Exception, e:
+                logger.error("process lifecycle handler %s end raised exception %s for process %s" % (handler, e, self))
 
 def get_process(*args, **kwargs):
     """Instanciates a `execo.process.Process` or `execo.process.SshProcess`, depending on the existence of host keyword argument"""
