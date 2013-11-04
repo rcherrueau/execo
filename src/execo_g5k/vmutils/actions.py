@@ -44,7 +44,7 @@ def list_vm( host, all = False ):
     return [ {'vm_id': vm_id} for vm_id in vms_id ]
 
 
-def define_vms( n_vm, ip_mac = None, mem_size = 256, hdd_size = 2, n_cpu = 1, cpusets = None, vms = None, offset = 0 ):
+def define_vms( n_vm, ip_mac = None, mem_size = 256, hdd_size = 6, n_cpu = 1, cpusets = None, vms = None, offset = 0 ):
     """ Create a dict of the VM parameters """
     if vms is None:
         vms = []
