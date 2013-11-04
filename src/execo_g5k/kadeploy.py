@@ -122,7 +122,6 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         """
         super(_KadeployStdoutHandler, self).__init__()
         self.kadeployer = kadeployer
-        self.out = False
         self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
         self._current_section = self._SECTION_NONE
 
@@ -130,7 +129,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         self._current_section = self._SECTION_NONE
 
     def read_line(self, process, string, eof, error):
-        if self.out:
+        if self.kadeployer.out:
             print string,
         if _ksoh_good_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_GOODNODES
@@ -160,10 +159,9 @@ class _KadeployStderrHandler(ProcessOutputHandler):
         """
         super(_KadeployStderrHandler, self).__init__()
         self.kadeployer = kadeployer
-        self.out = False
 
     def read_line(self, process, string, eof, error):
-        if self.out:
+        if self.kadeployer.out:
             print string,
 
 _host_site_re1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
@@ -255,10 +253,8 @@ class Kadeployer(Remote):
                                                                      default_frontend_connection_params))
             p.pty = True
             kdstdouthandler = _KadeployStdoutHandler(self)
-            kdstdouthandler.out = self.out
             p.stdout_handlers.append(kdstdouthandler)
             kdstderrhandler = _KadeployStderrHandler(self)
-            kdstderrhandler.out = self.out
             p.stderr_handlers.append(kdstderrhandler)
             p.lifecycle_handlers.append(lifecycle_handler)
             self.processes.append(p)
@@ -310,7 +306,9 @@ def kadeploy(deployment, frontend_connection_params = None, timeout = None, out 
     not deployed).
     """
     kadeployer = Kadeployer(deployment,
-                            frontend_connection_params = frontend_connection_params).run()
+                            frontend_connection_params = frontend_connection_params)
+    kadeployer.out = out
+    kadeployer.run()
     if not kadeployer.ok:
         logoutput = style.emph("deployment error:") + " %s\n" % (kadeployer,) + style.emph("kadeploy processes:\n")
         for p in kadeployer.processes:

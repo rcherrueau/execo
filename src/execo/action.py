@@ -147,7 +147,10 @@ class Action(object):
         with Action._wait_multiple_actions_condition:
             logger.debug(style.emph("got termination notification for:") + " %s", self)
             for handler in self.lifecycle_handlers:
-                handler.end(self)
+                try:
+                    handler.end(self)
+                except Exception, e:
+                    logger.error("action lifecycle handler %s end raised exception %s for action %s" % (handler, e, self))
             self.ended = True
             self._end_event.set()
             Action._wait_multiple_actions_condition.notifyAll()
@@ -164,7 +167,10 @@ class Action(object):
         self.started = True
         logger.debug(style.emph("start:") + " %s", self)
         for handler in self.lifecycle_handlers:
-            handler.start(self)
+            try:
+                handler.start(self)
+            except Exception, e:
+                logger.error("action lifecycle handler %s start raised exception %s for action %s" % (handler, e, self))
         return self
 
     def kill(self):
@@ -206,7 +212,10 @@ class Action(object):
             self.kill()
             self.wait()
         for handler in self.lifecycle_handlers:
-            handler.reset(self)
+            try:
+                handler.reset(self)
+            except Exception, e:
+                logger.error("action lifecycle handler %s reset raised exception %s for action %s" % (handler, e, self))
         self._common_reset()
         return self
 
