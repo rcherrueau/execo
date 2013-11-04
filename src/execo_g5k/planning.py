@@ -248,7 +248,7 @@ class Planning:
                             host_free = False
                             
                             for free_slot in host_planning['free']:
-                                if free_slot[0]<= limit and free_slot[1] > limit + oar_duration_to_seconds(walltime):
+                                if free_slot[0] <= limit and free_slot[1] > limit + oar_duration_to_seconds(walltime):
                                     host_free = True
                             if host_free:
                                 free_hosts['grid5000'] += 1
@@ -262,7 +262,7 @@ class Planning:
             
             slots.append( [ limit, limit +oar_duration_to_seconds(walltime), free_hosts] )
         
-        
+        logger.debug(pformat(slots))
         self.slots = slots        
         
     
@@ -283,7 +283,7 @@ class Planning:
                     slot_ok = False
             if slot_ok:
                 slots_ok.append(slot)
-        
+        logger.debug(pformat(slots_ok))
         return slots_ok
         
     def find_max_slot(self, walltime, resources = None):                    
@@ -327,6 +327,8 @@ def distribute_hosts(slot, resources_wanted):
     for site in all_sites:
         if site in slot[2].keys():
             sites.append(site)
+    logger.debug('Resources wanted '+pformat(resources_wanted))        
+    logger.debug('Distributing hosts on slot '+pformat(slot))
 
     if resources_wanted.has_key('grid5000'):
         logger.info('Determining which sites to use for your reservation')
@@ -344,7 +346,9 @@ def distribute_hosts(slot, resources_wanted):
                 else:
                     cluster_nodes[cluster] = 0
                 sites_nodes[site] += cluster_nodes[cluster]
-
+                
+        logger.debug('sites_nodes:\n'+pformat(sites_nodes))
+        logger.debug('cluster_nodes:\n'+pformat(cluster_nodes))
 
         
         while total_nodes != resources_wanted['grid5000']:
@@ -363,13 +367,9 @@ def distribute_hosts(slot, resources_wanted):
 
         for cluster in API.get_g5k_clusters():
             if cluster in resources_wanted:
-                if site not in resources:
-                    resources[site] = resources_wanted[cluster]
-                else:
-                    resources[site] += resources_wanted[cluster]
                 resources[cluster] = resources_wanted[cluster]
         
-
+    
 
     for site in sites:
         if resources_wanted.has_key(site):
@@ -377,11 +377,14 @@ def distribute_hosts(slot, resources_wanted):
         for cluster in API.get_site_clusters(site):
             if cluster in resources_wanted:
                 resources[cluster] =resources_wanted[cluster]
+                if get_cluster_site(cluster) not in resources:
+                    resources[site] = 0
         
             
     if slot[2].has_key('kavlan'):
         resources['kavlan'] = slot[2]['kavlan']
 
+    logger.debug('Resources are '+pformat(resources))
     return resources
     
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
@@ -397,7 +400,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
             n_sites += 1
     for site in sites:
         sub_resources = ''
-        if site in resources and resources[site] > 0:
+        if site in resources:
             clusters_nodes = 0
             if get_kavlan: 
                 if n_sites > 1:
