@@ -420,7 +420,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
             if sub_resources != '':
                 subs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
     
-    
+    logger.debug(pformat(subs))
     if prog is not None:
         oargridsub_opts += ' -p '+prog
     logger.info('Reservation command: \n\033[1m%s\033[0m',
