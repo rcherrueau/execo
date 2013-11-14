@@ -387,7 +387,7 @@ def distribute_hosts(slot, resources_wanted):
     return resources
     
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
-                       auto_reservation = False, prog = None, name = None):
+                       auto_reservation = False, prog = None, name = ''):
     """ Perform the reservation for the given set of resources """ 
     get_kavlan = resources.has_key('kavlan')
     subs = []
@@ -418,7 +418,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                 
             logger.debug( site+': '+sub_resources)
             if sub_resources != '':
-                subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )    
+                subs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
     
     
     if prog is not None:
