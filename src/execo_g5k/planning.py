@@ -387,7 +387,7 @@ def distribute_hosts(slot, resources_wanted):
     return resources
     
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
-                       auto_reservation = False, prog = None):
+                       auto_reservation = False, prog = None, name = None):
     """ Perform the reservation for the given set of resources """ 
     get_kavlan = resources.has_key('kavlan')
     subs = []
