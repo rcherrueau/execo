@@ -18,8 +18,7 @@
 
 """This module provides some tools to help you to plan your experiment on grid5000"""
 from pprint import pformat, pprint
-from json import loads
-from time import time, struct_time
+from time import time
 from datetime import timedelta
 from math import ceil
 from execo.time_utils import timedelta_to_seconds, \
@@ -416,7 +415,10 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                     
             if resources[site]-clusters_nodes > 0:
                 sub_resources+="nodes="+str(resources[site])+'+'
-            subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )    
+                
+            logger.debug( site+': '+sub_resources)
+            if sub_resources != '':
+                subs.append( (OarSubmission(resources=sub_resources[:-1]),site) )    
     
     
     if prog is not None:
