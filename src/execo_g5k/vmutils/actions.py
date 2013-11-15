@@ -52,7 +52,7 @@ def define_vms( n_vm, ip_mac = None, mem_size = 256, hdd_size = 6, n_cpu = 1, cp
         ip_mac = [ '0.0.0.0' for i in range(n_vm)]
     if cpusets is None:
         cpusets = {}
-        for i in range(n_vm): cpusets['vm-'+str(i)] = 'auto'
+        for i in range(n_vm): cpusets['vm-'+str(i+offset)] = 'auto'
     logger.debug('cpusets: %s', pformat(cpusets))
 
     
