@@ -359,16 +359,13 @@ def distribute_hosts(slot, resources_wanted):
                     max_nodes = slot[2][site] - sites_nodes[site]
             sites_nodes[max_site] += 1
             total_nodes += 1
+        logger.debug('sites_nodes:\n'+pformat(sites_nodes))
+        logger.debug('cluster_nodes:\n'+pformat(cluster_nodes))
+
 
         for site, n_nodes in sites_nodes.iteritems():
-            if n_nodes>0:
-                resources[site] = n_nodes
-
-        for cluster in API.get_g5k_clusters():
-            if cluster in resources_wanted:
-                resources[cluster] = resources_wanted[cluster]
-        
-    
+            if n_nodes > 0:
+                resources_wanted[site] = n_nodes
 
     for site in sites:
         if resources_wanted.has_key(site):
@@ -378,7 +375,6 @@ def distribute_hosts(slot, resources_wanted):
                 resources[cluster] =resources_wanted[cluster]
                 if get_cluster_site(cluster) not in resources:
                     resources[site] = 0
-        
             
     if slot[2].has_key('kavlan'):
         resources['kavlan'] = slot[2]['kavlan']
