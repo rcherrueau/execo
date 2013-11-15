@@ -27,7 +27,7 @@ from execo.time_utils import timedelta_to_seconds, \
 from execo.log import style, logger
 from execo import Remote
 from execo_g5k import *
-from execo_g5k.oar import format_oar_date, oar_duration_to_seconds
+from execo_g5k.oar import format_oar_date, oar_duration_to_seconds, oar_date_to_unixts
 from execo_g5k.oargrid import get_oargridsub_commandline
 try:
     import matplotlib.pyplot as PLT
