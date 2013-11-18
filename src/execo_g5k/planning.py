@@ -139,7 +139,6 @@ class Planning:
         for site, clusters_kavlan in planning.iteritems():
             for cluster_kavlan, elements in clusters_kavlan.iteritems():
                 for elements, el_planning in elements.iteritems():
-                    pprint( el_planning )
                     if out_of_chart:
                         el_planning['busy'] += charter_el_planning
                         for i in range(len(el_planning['busy'])):
