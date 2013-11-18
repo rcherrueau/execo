@@ -103,11 +103,12 @@ class Planning:
                 jobs_links = [ link['href'] for job in filter(rm_besteffort, \
                        get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']) \
                        for link in job['links'] if link['rel'] == 'self' ]
-
+                
                 logger.info( style.emph(site.ljust(10))+str( len( jobs_links ) ).rjust(5)+" jobs" )
 
                 for link in jobs_links:
                     attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
+                    logger.debug(pformat(attr))
                     try:
                         start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
                         end_time = start_time + attr['walltime']+timedelta_to_seconds(timedelta(minutes = 1, seconds =5))
@@ -115,7 +116,7 @@ class Planning:
                         logger.warning('job '+str(attr['uid'])+' has not been scheduled')
                         pass
                     nodes = attr['assigned_nodes']
-
+                    
                     for node in sorted(nodes, key = lambda name: int( name.split('.',1)[0].split('-')[1] )):
                         cluster = node.split('.',1)[0].split('-')[0]
                         
@@ -138,9 +139,26 @@ class Planning:
         for site, clusters_kavlan in planning.iteritems():
             for cluster_kavlan, elements in clusters_kavlan.iteritems():
                 for elements, el_planning in elements.iteritems():
+                    pprint( el_planning )
                     if out_of_chart:
                         el_planning['busy'] += charter_el_planning
+                        for i in range(len(el_planning['busy'])):
+                            j = i+1
+                            if j == len(el_planning['busy'])-1:
+                                break
+                            while True:
+                                condition = el_planning['busy'][i][1] >= el_planning['busy'][j][0]
+                                if condition:
+                                    el_planning['busy'].pop(j)
+                                    if j == len(el_planning['busy']) - 1:
+                                        break
+                                else:
+                                    break
+                            if j == len(el_planning['busy']) - 1:
+                                break
+                    
                     el_planning['busy'].sort()
+                    
                     if len(el_planning['busy']) > 0:
                         if el_planning['busy'][0][0] > self.starttime:
                             el_planning['free'].append((self.starttime, el_planning['busy'][0][0]))
@@ -150,6 +168,8 @@ class Planning:
                             el_planning['free'].append((el_planning['busy'][len(el_planning['busy'])-1][1], self.endtime))
                     else:
                         el_planning['free'].append((self.starttime, self.endtime))
+                    
+                    
                     for kind in ['free', 'busy' ]:
                         slots = el_planning[kind]
                         if len(slots) > 1:
@@ -168,7 +188,7 @@ class Planning:
                                         break
                                 if j == len(slots) - 1:
                                     break
-                                
+                       
         self.planning = planning
 
     def slots_limits(self):
@@ -209,10 +229,11 @@ class Planning:
                 j = i+1
                 if j == len(list_slots)-1:
                     break
+                logger.debug(pformat(list_slots[i])+'\n'+pformat(list_slots[j]))
                 while True:
                     if list_slots[i][2] == list_slots[j][2] \
-                            and list_slots[i][1][1] == list_slots[j][1][1]:
-                        list_slots[i] = (i, ((list_slots[i][1][0][0], list_slots[j][1][0][1]), list_slots[i][1][1]))
+                            and list_slots[i][1] == list_slots[j][0]:
+                        list_slots[i] = [list_slots[i][0], list_slots[j][1], list_slots[i][2] ]
                         list_slots.pop(j)
                         if j == len(list_slots)-1:
                             break
@@ -220,9 +241,8 @@ class Planning:
                         break
                 if j == len(list_slots)-1:
                     break
-            slots.clear()
-            for slot in list_slots:
-                slots[(slot[1][0][0], slot[1][0][1])] = slot[1][1]
+            
+            slots = list_slots
 
     def compute_slots(self, walltime):
         """ Determine all the slots limits and find the number of available nodes for each elements"""
@@ -261,6 +281,7 @@ class Planning:
             
             slots.append( [ limit, limit +oar_duration_to_seconds(walltime), free_hosts] )
         
+        slots.sort()
         logger.debug(pformat(slots))
         self.slots = slots        
         
