@@ -21,6 +21,7 @@ from pprint import pformat, pprint
 from execo import SshProcess, Remote, Put, logger, get_remote, get_remote, Process, ParallelActions
 from execo.log import style
 from execo.time_utils import sleep
+from execo_g5k import default_frontend_connection_params
 from execo_g5k.api_utils import get_host_site
 import tempfile
 from copy import deepcopy
@@ -118,6 +119,9 @@ def wait_vms_have_started(vms, host = None):
     """ Try to make a ls on all vms and return True when all process are ok", need a taktuk gateway"""
     if host is None:
         host = get_host_site(vms[0]['host'])
+        user = default_frontend_connection_params['user']
+    else:
+        user = 'root'
         
     vms = [vm['ip'] for vm in vms ] 
     tmpdir = tempfile.mkdtemp()
@@ -126,7 +130,7 @@ def wait_vms_have_started(vms, host = None):
     for ip in vms:
         f.write(ip+'\n')
     f.close()
-    Put([host], [tmpfile[1]], connection_params = {'user': 'root'}).run()
+    Put([host], [tmpfile[1]], connection_params = {'user': user}).run()
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
     started_vms = '0'
@@ -135,7 +139,7 @@ def wait_vms_have_started(vms, host = None):
         sleep(20)
         logger.debug('nmap_tries %s', nmap_tries)
         nmap_tries += 1            
-        nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host, connection_params = {'user': 'root'}).run()
+        nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host, connection_params = {'user': user}).run()
         logger.debug('%s', nmap.cmd)
         for line in nmap.stdout.split('\n'):
             if 'Nmap done' in line:
