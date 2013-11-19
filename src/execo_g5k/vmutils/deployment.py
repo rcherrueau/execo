@@ -311,12 +311,13 @@ class Virsh_Deployment(object):
                             connection_params = default_frontend_connection_params).run()
         ip = get_ip.stdout.strip()
         f = open(self.outdir+'/resolv.conf', 'w')
-        f.write('domain grid5000.fr\nsearch grid5000.fr '+' '.join( [site+'.grid5000.fr' for site in self.sites] )+' \nnameserver '+ip+ '\n')
+        f.write('domain grid5000.fr\nsearch grid5000.fr '+' '.join( [site+'.grid5000.fr' for site in self.sites] )+\
+                ' \nnameserver '+ip+ '\n')
         f.close()
         f = open(self.outdir+'/dnsmasq.conf', 'w')
-        f.write(dhcp_range+dhcp_router+dhcp_hosts)
+        f.write(dhcp_range+dhcp_router+dhcp_hosts+"\ndhcp-option=option:domain-search,grid5000.fr,"+\
+                ','.join( [site+'.grid5000.fr' for site in self.sites]) )
         f.close()
-        
         
         logger.info('Configuring %s as a %s server', style.host(service_node.address.split('.')[0])
                     , style.emph('DNS/DCHP'))
@@ -342,6 +343,8 @@ class Virsh_Deployment(object):
        
         self.fact.get_fileput(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
                      connection_params = {'user': 'root'}).run()
+                     
+        
                      
         self.service_node = service_node
 
