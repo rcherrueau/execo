@@ -279,10 +279,10 @@ class Virsh_Deployment(object):
                     nobr_hosts.append(p.host)
         
         if len(nobr_hosts) > 0:
-            cmd = 'export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
+            cmd = 'sed -i "s/dhcp/manual/g" /etc/network/interfaces ;  export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
                 'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; echo "bridge_ports $br_if" >> /etc/network/interfaces ;'+\
                 ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
-                ' echo "bridge_fd 0" >> /etc/network/interfaces ; ifup '+bridge_name
+                ' echo "bridge_fd 0" >> /etc/network/interfaces ; nohup service networking restart &'
             
             create_br = self.fact.get_remote(cmd, nobr_hosts, connection_params = {'user': 'root'}).run()
             
