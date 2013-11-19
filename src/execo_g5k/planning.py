@@ -266,7 +266,7 @@ class Planning:
                             host_free = False
                             
                             for free_slot in host_planning['free']:
-                                if free_slot[0] <= limit and free_slot[1] > limit + oar_duration_to_seconds(walltime):
+                                if free_slot[0] <= limit and free_slot[1] >= limit + oar_duration_to_seconds(walltime):
                                     host_free = True
                             if host_free:
                                 free_hosts['grid5000'] += 1
