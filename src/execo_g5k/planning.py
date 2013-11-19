@@ -136,11 +136,14 @@ class Planning:
         logger.info('Computation')
         if out_of_chart:
             charter_el_planning = get_charter_el_planning(self.starttime, self.endtime)
+            
         for site, clusters_kavlan in planning.iteritems():
             for cluster_kavlan, elements in clusters_kavlan.iteritems():
-                for elements, el_planning in elements.iteritems():
+                for element, el_planning in elements.iteritems():
                     if out_of_chart:
                         el_planning['busy'] += charter_el_planning
+                        el_planning['busy'].sort()
+                        self.merge_planning(el_planning['busy'])
                         for i in range(len(el_planning['busy'])):
                             j = i+1
                             if j == len(el_planning['busy'])-1:
@@ -156,7 +159,9 @@ class Planning:
                             if j == len(el_planning['busy']) - 1:
                                 break
                     
+                    
                     el_planning['busy'].sort()
+                    
                     
                     if len(el_planning['busy']) > 0:
                         if el_planning['busy'][0][0] > self.starttime:
@@ -169,26 +174,29 @@ class Planning:
                         el_planning['free'].append((self.starttime, self.endtime))
                     
                     
-                    for kind in ['free', 'busy' ]:
-                        slots = el_planning[kind]
-                        if len(slots) > 1:
-                            for i in range(len(slots)):
-                                j = i+1
-                                if j == len(slots)-1:
-                                    break
-                                while True:
-                                    condition = slots[i][1]>=slots[j][0]
-                                    if condition:
-                                        slots[i]=(slots[i][0],slots[j][1])
-                                        slots.pop(j)
-                                        if j == len(slots) - 1:
-                                            break
-                                    else:
-                                        break
-                                if j == len(slots) - 1:
-                                    break
-                       
+                    for kind in ['free', 'busy' ]:                    
+                        self.merge_planning(el_planning[kind])
+                                                   
         self.planning = planning
+
+    def merge_planning(self, planning):
+        """  """
+        if len(planning) > 1:
+            for i in range(len(planning)):
+                j = i+1
+                if j == len(planning)-1:
+                    break
+                while True:
+                    condition = planning[i][1] >= planning[j][0]
+                    if condition:
+                        planning[i]=(planning[i][0],planning[j][1])
+                        planning.pop(j)
+                        if j == len(planning) - 1:
+                            break
+                    else:
+                        break
+                if j == len(planning) - 1:
+                    break
 
     def slots_limits(self):
         """Compute the limits of slots (defined by a host state change)"""
