@@ -232,6 +232,8 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connection_params = Non
     - ``start_date``: unix timestamp of job's start date
 
     - ``walltime``: job's walltime in seconds
+
+    - ``user``: job's user
     """
     if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
@@ -251,6 +253,10 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connection_params = Non
     if walltime_result:
         walltime = oar_duration_to_seconds(walltime_result.group(1))
         job_info['walltime'] = walltime
+    user_result = re.search("user : (\S+)", process.stdout, re.MULTILINE)
+    if user_result:
+        user = user_result.group(1)
+        job_info['user'] = user
     return job_info
 
 def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
@@ -328,3 +334,24 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connection_params = None, tim
         return list(set([ Host(host_address) for host_address in host_addresses ]))
     else:
         raise ProcessesFailed, [process]
+
+def get_oargrid_job_key(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
+    """Return the filename of the oargrid job key
+
+    :param oargrid_job_id: the oargrid job id.
+
+    :param frontend_connection_params: connection params for connecting
+      to frontends if needed. Values override those in
+      `execo_g5k.config.default_frontend_connection_params`.
+
+    :param timeout: timeout for retrieving. Default is False, which
+      means use
+      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
+      means no timeout.
+    """
+    return "/tmp/oargrid/oargrid_ssh_key_%s_%i" % (
+        get_oargrid_job_info(
+            oargrid_job_id,
+            frontend_connection_params,
+            timeout)['user'],
+        oargrid_job_id)

@@ -28,7 +28,7 @@ from oar import OarSubmission, oarsub, oardel, get_current_oar_jobs, \
 from oargrid import oargridsub, oargriddel, \
   get_current_oargrid_jobs, get_oargrid_job_info, \
   get_oargrid_job_oar_jobs, wait_oargrid_job_start, \
-  get_oargrid_job_nodes
+  get_oargrid_job_nodes, get_oargrid_job_key
 
 from kadeploy import Deployment, Kadeployer, kadeploy, deploy
 
