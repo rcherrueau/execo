@@ -294,7 +294,7 @@ class Virsh_Deployment(object):
         else:
             logger.info('Bridge is already present')
 
-    def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None):
+    def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None, apt_cacher = False):
         """ Generate the hosts lists, the vms list, the dnsmasq configuration and setup a DNS/DHCP server """
         service_node = self.get_fastest_host()
         
@@ -344,9 +344,30 @@ class Virsh_Deployment(object):
         self.fact.get_fileput(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
                      connection_params = {'user': 'root'}).run()
                      
+        if apt_cacher:
+            self.configure_apt_cacher(service_node)
         
                      
         self.service_node = service_node
+
+
+    def setup_apt_cacher(self, host):
+        """ Install and configure apt-cacher on one host"""
+        logger.info('Installing apt-cacher on '+style.host(host))
+        base_dir  = '/tmp/apt-cacher-ng'
+        log_dir   = base_dir+'/log'
+        cache_dir = base_dir+'/cache'
+                
+        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get update ; '+\
+                  'apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -y apt-cacher-ng', 
+                  [host], connection_params = {'user': 'root'}).run()
+        EX.Remote('mkdir -p '+log_dir+'; mkdir -p '+cache_dir+'; chown -R apt-cacher-ng:apt-cacher-ng '+base_dir).run()
+        EX.Remote('sed -i "s/\/var\/cache\/apt-cacher-ng/'+cache_dir+'/g" /etc/apt-cacher-ng/acng.conf ;'+\
+                  'sed -i "s/\/var\/log\/apt-cacher-ng/'+log_dir+'/g" /etc/apt-cacher-ng/acng.conf ;'+\
+                  'sed -i "s/3142/9999/g" /etc/apt-cacher-ng/acng.conf ; service apt-cacher-ng restart').run()
+         
+        logger.info('apt-cacher-ng up and running on '+style.host(host))
+        
 
     def setup_munin(self):
         """ Installing the monitoring service munin """
