@@ -140,10 +140,13 @@ class Planning:
         for site, clusters_kavlan in planning.iteritems():
             for cluster_kavlan, elements in clusters_kavlan.iteritems():
                 for element, el_planning in elements.iteritems():
+                    logger.debug(el_planning['busy'])
                     if out_of_chart:
                         el_planning['busy'] += charter_el_planning
                         el_planning['busy'].sort()
-                        self.merge_planning(el_planning['busy'])
+#                        self.merge_planning(el_planning['busy'])
+                        
+                        
                         for i in range(len(el_planning['busy'])):
                             j = i+1
                             if j == len(el_planning['busy'])-1:
@@ -158,8 +161,8 @@ class Planning:
                                     break
                             if j == len(el_planning['busy']) - 1:
                                 break
-                    
-                    
+                        
+                        logger.debug(el_planning['busy'])
                     el_planning['busy'].sort()
                     
                     
