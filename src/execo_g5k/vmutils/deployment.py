@@ -345,7 +345,7 @@ class Virsh_Deployment(object):
                      connection_params = {'user': 'root'}).run()
                      
         if apt_cacher:
-            self.configure_apt_cacher(service_node)
+            self.setup_apt_cacher(service_node)
         
                      
         self.service_node = service_node
@@ -361,12 +361,14 @@ class Virsh_Deployment(object):
         EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get update ; '+\
                   'apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -y apt-cacher-ng', 
                   [host], connection_params = {'user': 'root'}).run()
-        EX.Remote('mkdir -p '+log_dir+'; mkdir -p '+cache_dir+'; chown -R apt-cacher-ng:apt-cacher-ng '+base_dir).run()
+        EX.Remote('mkdir -p '+log_dir+'; mkdir -p '+cache_dir+'; chown -R apt-cacher-ng:apt-cacher-ng '+base_dir,
+                  [host], connection_params = {'user': 'root'}).run()
         EX.Remote('sed -i "s/\/var\/cache\/apt-cacher-ng/'+cache_dir+'/g" /etc/apt-cacher-ng/acng.conf ;'+\
                   'sed -i "s/\/var\/log\/apt-cacher-ng/'+log_dir+'/g" /etc/apt-cacher-ng/acng.conf ;'+\
-                  'sed -i "s/3142/9999/g" /etc/apt-cacher-ng/acng.conf ; service apt-cacher-ng restart').run()
+                  'sed -i "s/3142/9999/g" /etc/apt-cacher-ng/acng.conf ; service apt-cacher-ng restart',
+                  [host], connection_params = {'user': 'root'}).run()
          
-        logger.info('apt-cacher-ng up and running on '+style.host(host))
+        logger.info('apt-cacher-ng up and running on '+style.host(host.address))
         
 
     def setup_munin(self):
