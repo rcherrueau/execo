@@ -349,10 +349,27 @@ Planning utilities
 
 .. automodule:: execo_g5k.planning
 
-Planning
---------
-.. autoclass:: execo_g5k.planning.Planning
-   :members:
+Retrieve resources planning
+---------------------------
+These functions allow to retrieve retrieve resources planning, compute the slots
+and find slots with specific properties. 
+
+.. autofunction:: get_planning
+.. autofunction:: compute_slots
+.. autofunction:: find_first_slot
+.. autofunction:: find_max_slot
+.. autofunction:: find_free_slots
+
+Charter related functions
+-------------------------
+
+.. autofunction:: g5k_charter_time
+.. autofunction:: get_next_charter_period
+.. autofunction:: get_charter_el_planning
+
+.. Plot functions
+   --------------
+   .. autofunction:: draw_gantt
 
 Virtual machines utilities
 ==========================
