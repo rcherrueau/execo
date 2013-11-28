@@ -653,7 +653,6 @@ def _slots_limits(planning):
                             
     limits = sorted(limits)
     limits.pop()
-    pprint( limits)
     return limits
 
    
