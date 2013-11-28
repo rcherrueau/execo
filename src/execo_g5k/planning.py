@@ -276,7 +276,8 @@ def find_free_slots( slots, resources):
                 slot_ok = False
         if slot_ok and vlan_free:
             free_slots.append(slot)
-            resources['kavlan'] = slot[2]['kavlan']
+            if 'kavlan' in resources:
+                resources['kavlan'] = slot[2]['kavlan']
     return free_slots 
 
 
