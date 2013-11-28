@@ -220,8 +220,13 @@ def find_first_slot( slots, resources = ['grid5000']):
         res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems() if element in resources
                           and element != 'kavlan'])
         if res_nodes > 0 and vlan_free:
-            return slot
-        
+            if not 'grid5000' in resources:
+                return [slot[0], slot[1], 
+                    {element: nodes for element, nodes in slot[2].iteritems() if element in resources}]
+            else:
+                return [slot[0], slot[1], 
+                    {element: nodes for element, nodes in slot[2].iteritems() \
+                     if element in get_g5k_sites()+[ 'grid5000', 'kavlan' ] }]
         
     
 
@@ -290,7 +295,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
         if resource in clusters:
             site = get_cluster_site(resource)
             if not real_resources.has_key(site):
-                real_resources[site] = resources[resource]
+                real_resources[site] = 0
             
     n_sites = 0
     for resource in real_resources.keys():
@@ -351,10 +356,11 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
 def distribute_hosts_grid5000(resources_available, resources_wanted):
     """ Distribute the resources on the different sites """
     
-    
+
     resources = {}
     all_sites = get_g5k_sites()
     sites = [ site for site in all_sites if site in resources_available.keys() and site != 'kavlan' ] 
+    
     
     total_nodes = 0
     sites_nodes = {}
@@ -369,8 +375,9 @@ def distribute_hosts_grid5000(resources_available, resources_wanted):
                 cluster_nodes[cluster] = resources_wanted[cluster]
             else:
                 cluster_nodes[cluster] = 0
-            sites_nodes[site] += cluster_nodes[cluster]
+#            sites_nodes[site] += cluster_nodes[cluster]
     
+
     while total_nodes != resources_wanted['grid5000']:
         max_site = ''
         max_nodes = 0
@@ -390,8 +397,6 @@ def distribute_hosts_grid5000(resources_available, resources_wanted):
         if n_nodes > 0:
             resources[cluter] = n_nodes
     
-    print 'wanted'
-    pprint(resources_wanted)
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
     return resources
@@ -453,7 +458,9 @@ def _get_planning_API():
                 cluster = node.split('.',1)[0].split('-')[0]
                 if planning[site].has_key(cluster) and planning[site][cluster].has_key(node):
                     planning[site][cluster][node]['busy'].append( (start_time, end_time))
-            if planning[site].has_key('vlans') and attr['resources_by_type'].has_key('vlans'):
+            if planning[site].has_key('vlans') and attr['resources_by_type'].has_key('vlans') \
+                and int(attr['resources_by_type']['vlans'][0]) > 3:
+                
                 kavname ='kavlan-'+str(attr['resources_by_type']['vlans'][0])
                 planning[site]['vlans'][kavname]['busy'].append( (start_time, end_time))
             if planning[site].has_key('subnets') and attr['resources_by_type'].has_key('subnets'):
@@ -491,7 +498,6 @@ def _get_planning_MySQL():
 #            AND COLUMN_NAME = 'chunks' 
 #            LIMIT 1""")
 #        r = db.store_result()
-#        print site
 #        if len( r.fetch_row( maxrows = 0, how=1) )> 0:
 #            has_chunks = True
 #        else:
@@ -553,11 +559,11 @@ def _get_planning_MySQL():
                 ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
                 try:
                     vlan =  int(job['vlan'])
+                    # We are only interested in routed vlan
                     if vlan > 3:
                         planning[site]['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
                                                                                     int(job['stop_time'])) )
                 except:
-                    #print job['vlan']+' is not correct on site '+site
                     pass                                                                   
                     
                     
