@@ -112,8 +112,7 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
         for res_pl in site_pl.itervalues():
             for el_planning in res_pl.itervalues():
                 _merge_el_planning(el_planning['busy'])
-                # VOIR AVEC MATT
-                el_planning['busy'] = _trunc_el_planning(el_planning['busy'], starttime, endtime)
+                _trunc_el_planning(el_planning['busy'], starttime, endtime)
                 _fill_el_planning_free(el_planning, starttime, endtime)
     return planning
 
@@ -351,7 +350,6 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
         else:
             logger.error('Error in performing the reservation ')
 
-    
     return oargrid_job_id
 
 def distribute_hosts_grid5000(resources_available, resources_wanted):
@@ -401,8 +399,6 @@ def distribute_hosts_grid5000(resources_available, resources_wanted):
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
     return resources
-
-
 
 
 def _get_vlans_API(site):
@@ -606,21 +602,27 @@ def _trunc_el_planning(el_planning, starttime, endtime):
     """Modify (start, stop) tuple that are not within the (starttime, endtime) interval """
     if len(el_planning) > 0:        
         el_planning.sort()
-        tmp_el_planning = []
-        for start, stop in el_planning:            
-            if start < starttime:
-                if stop < endtime:
-                    tmp_el_planning.append( (starttime, stop))
-                else:
-                    tmp_el_planning.append( (starttime, endtime))
-            elif start < endtime:
-                if stop < endtime:
-                    tmp_el_planning.append( (start, stop))
-                else:
-                    tmp_el_planning.append( (start, endtime))
-        return tmp_el_planning
-    else:
-        return el_planning
+        for i in range(len(el_planning)):
+            start, stop = el_planning[i]
+            if stop < starttime:
+                el_planning.remove( (start, stop ))
+                continue
+            else:
+                if start < starttime:
+                    if stop < endtime:
+                        el_planning.remove( (start, stop ))
+                        el_planning.append( (starttime, stop) )
+                    else:
+                        el_planning.remove( (start, stop ) )
+                        el_planning.append( (starttime, endtime) )
+                elif start < endtime:
+                    if stop > endtime:
+                        el_planning.remove( (start, stop ))
+                        el_planning.append( (start, endtime))
+            if i == len(el_planning[i]):
+                break
+        el_planning.sort() 
+        
                   
 def _fill_el_planning_free(el_planning, starttime, endtime):
     """An internal function to compute the planning free of all elements"""
