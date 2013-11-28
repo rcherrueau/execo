@@ -337,10 +337,10 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
     if auto_reservation:            
         reservation = 'y'
     else:            
-        reservation = raw_input('Do you want me to do the reservation (y/n): ')
-        
+        reservation = raw_input('Do you want me to do the reservation ([Y]/n): ')
+    
     oargrid_job_id = None
-    if reservation == 'y':
+    if reservation in  [ 'y', ''] :
         (oargrid_job_id, _) = oargridsub(subs, walltime = walltime,
                 additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate))
         
@@ -653,6 +653,7 @@ def _slots_limits(planning):
                             
     limits = sorted(limits)
     limits.pop()
+    pprint( limits)
     return limits
 
    
