@@ -381,7 +381,7 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
 
     return oargrid_job_id
 
-def distribute_hosts_clusters(resources_available, resources_wanted):
+def distribute_hosts(resources_available, resources_wanted):
     """ Distribute the resources on the different sites and cluster"""
     
     resources = {}
@@ -397,31 +397,11 @@ def distribute_hosts_clusters(resources_available, resources_wanted):
         resources_available['grid5000'] -= cluster_nodes
         resources[cluster] = cluster_nodes
     
-    # Adding clusters from wanted sites
     for site, n_nodes in sites_nodes.iteritems():
         site_nodes = n_nodes if n_nodes > 0 else resources_available[site]
-        total_nodes = 0
-             
-        clusters = [cluster for cluster in get_site_clusters(site) 
-                    if cluster in resources_available.keys() ]            
-        iter_clusters = cycle(clusters)
-                       
-        while total_nodes != site_nodes:
-            cluster = iter_clusters.next()          
-            if resources_available[cluster] > 0:
-                nodes = min(resources_available[cluster], site_nodes-total_nodes)
-                if resources.has_key(cluster):
-                    resources[cluster] += nodes
-                else:
-                    resources[cluster] = nodes
-                total_nodes += nodes 
-                resources_available[cluster] -= nodes
-                resources_available[site] -= nodes
-                resources_available['grid5000'] -= nodes
-            else:
-                clusters.remove(cluster)
-                iter_clusters = cycle(clusters)      
-                cluster = iter_clusters.next()
+        resources_available[site] -= site_nodes
+        resources_available['grid5000'] -= site_nodes
+        resources[site] = site_nodes
     
     # Distributing grid5000 nodes on clusters
     if 'grid5000' in resources_wanted:
