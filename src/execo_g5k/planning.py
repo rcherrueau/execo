@@ -32,6 +32,7 @@ from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_sit
     get_site_clusters, get_resource_attributes, get_host_cluster
 from execo_g5k.oar import oar_duration_to_seconds, format_oar_date
 from execo_g5k.oargrid import get_oargridsub_commandline
+from threading import Thread, currentThread
 
 try:
     import matplotlib as MPL
@@ -501,22 +502,15 @@ def _get_planning_API(planning):
     # Removing sites not reachable
     for site in broken_sites:
         del planning[site]   
-                
-def _get_planning_MySQL(planning):
-    """Retrieve the planning using the oar2 database"""
-    broken_sites =  []
-    for site in planning.iterkeys():
-        try:
-            db = MySQLdb.connect( host = 'mysql.'+site+'.grid5000.fr', port = 3306, user = 'oarreader', 
-                        passwd = 'read', db = 'oar2', connect_timeout = 3)
-        except:
-            logger.warn('Unable to reach '+site+', removing from computation')
-            broken_sites.append(site)
-            continue
-        
+
+def _get_site_planning_MySQL(site, site_planning):
+    try:
+        db = MySQLdb.connect( host = 'mysql.'+site+'.grid5000.fr', port = 3306, user = 'oarreader', 
+                              passwd = 'read', db = 'oar2', connect_timeout = 3)
+
         # Change the group_concat_max_len to retrive long hosts lists
         db.query('SET SESSION group_concat_max_len=102400')
-        
+
 # CHUNKS IS NOT FINISHED BUT WE KEEP THE REQUEST FOR LATER                 
 #        db.query("""SELECT * 
 #            FROM information_schema.COLUMNS 
@@ -539,19 +533,18 @@ def _get_planning_MySQL(planning):
             FROM resources R 
             WHERE state <> 'Dead'; """
 
-        
         db.query(sql)
         r = db.store_result()
         for data in r.fetch_row( maxrows = 0, how=1 ):
             if data['host'] is not None:
                 cluster = data['host'].split('-')[0]
-                planning[site][cluster][data['host']] = {'busy': [], 'free': []}
-            if planning[site].has_key('vlans') and data['vlans'] is not None:
-                planning[site]['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
-            if planning[site].has_key('subnets') and data['subnet'] is not None:
-                planning[site]['subnets'][data['subnet']] = {'busy': [], 'free': []}
+                site_planning[cluster][data['host']] = {'busy': [], 'free': []}
+            if site_planning.has_key('vlans') and data['vlans'] is not None:
+                site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
+            if site_planning.has_key('subnets') and data['subnet'] is not None:
+                site_planning['subnets'][data['subnet']] = {'busy': [], 'free': []}
             # STORAGE WILL BE ADDED LATER
-        
+
         sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time, J.job_user AS user, 
         GJP.start_time+MJD.moldable_walltime+TIME_TO_SEC('0:01:05') AS stop_time,  
         GROUP_CONCAT(DISTINCT R.network_address) AS hosts, 
@@ -579,29 +572,46 @@ def _get_planning_MySQL(planning):
                 for host in job['hosts'].split(','):
                     if host != '':
                         cluster = host.split('-')[0]
-                        if planning[site][cluster].has_key(host):
-                            planning[site][cluster][host]['busy'].append( (int(job['start_time']), \
+                        if site_planning[cluster].has_key(host):
+                            site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
                                                                            int(job['stop_time'])))
-            if planning[site].has_key('vlans') and job['vlan'] is not None:
+            if site_planning.has_key('vlans') and job['vlan'] is not None:
                 ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
                 try:
                     vlan =  int(job['vlan'])
                     # We are only interested in routed vlan
                     if vlan > 3:
-                        planning[site]['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
+                        site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
                                                                                     int(job['stop_time'])) )
                 except:
                     pass                                                                   
-                    
-                    
-            if planning[site].has_key('subnets') and job['subnets'] is not None:
-                                
+
+
+            if site_planning.has_key('subnets') and job['subnets'] is not None:
+
                 for subnet in job['subnets'].split(','):
-                    planning[site]['subnets'][subnet]['busy'].append( (int(job['start_time']), \
+                    site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
                                                                            int(job['stop_time'])))
             # MISSING STORAGE        
-        
+    except:
+        logger.warn('error with '+site+', removing from computation')
+        currentThread().broken = True
+    finally:
         db.close()
+                
+def _get_planning_MySQL(planning):
+    """Retrieve the planning using the oar2 database"""
+    broken_sites =  []
+    threads = {}
+    for site in planning.iterkeys():
+        t = Thread(target = _get_site_planning_MySQL, args = (site, planning[site]))
+        threads[site] = t
+        t.broken = False
+        t.start()
+    for site, t in threads.iteritems():
+        t.join()
+        if t.broken:
+            broken_sites.append(site)
     # Removing sites not reachable
     for site in broken_sites:
         del planning[site]
