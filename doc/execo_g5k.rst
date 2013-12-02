@@ -358,7 +358,7 @@ and find slots with specific properties.
 .. autofunction:: compute_slots
 .. autofunction:: find_first_slot
 .. autofunction:: find_max_slot
-.. autofunction:: find_free_slots
+.. autofunction:: find_free_slot
 
 Charter related functions
 -------------------------
