@@ -22,8 +22,9 @@ from pprint import pprint
 from time import time
 from datetime import timedelta
 from math import ceil
-
+from itertools import cycle
 from execo import logger
+from execo.log import style
 from execo_g5k import OarSubmission, oargridsub
 from execo.time_utils import timedelta_to_seconds, \
     unixts_to_datetime, get_unixts, datetime_to_unixts
@@ -37,12 +38,8 @@ try:
     MPL.use('Agg')  
     import matplotlib.pyplot as PLT
     import matplotlib.dates as MD  
-    
 except ImportError:    
     pass
-
-
-planning = None
 
 _retrieve_method = None
 
@@ -57,7 +54,7 @@ else:
     _retrieve_method = 'API'
 
 
-def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False, 
+def get_planning(elements = ['grid5000'], excluded_resources = None, vlan = False, subnet = False, storage = False, 
             out_of_chart = False, starttime = int(time()+timedelta_to_seconds(timedelta(minutes = 1))), 
             endtime = int(time()+timedelta_to_seconds(timedelta(weeks = 4, minutes = 1))) ):
     """Retrieve the planning of the elements (site, cluster) and others resources.
@@ -81,8 +78,6 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
     vlan number or chunk id planning respectively. 
     """
     
-    global planning
-    
     if 'grid5000' in elements:
         sites = get_g5k_sites()
     else:
@@ -101,12 +96,15 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
             planning[site].update( { 'storage': {} } )
     
     if _retrieve_method == 'API':
-        _get_planning_API()
+        _get_planning_API(planning)
     elif _retrieve_method == 'MySQL':
-        _get_planning_MySQL()
+        _get_planning_MySQL(planning)
+     
+    if excluded_resources is not None:
+        _remove_excluded(planning, excluded_resources)
         
     if out_of_chart:
-        _add_charter_to_planning(starttime, endtime)
+        _add_charter_to_planning(planning, starttime, endtime)
     
     for site_pl in planning.itervalues():
         for res_pl in site_pl.itervalues():
@@ -115,6 +113,8 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
                 _trunc_el_planning(el_planning['busy'], starttime, endtime)
                 _fill_el_planning_free(el_planning, starttime, endtime)
     return planning
+
+
 
 def compute_slots(planning, walltime):
     """Compute the slots limits and find the number of available nodes for 
@@ -183,7 +183,6 @@ def compute_slots(planning, walltime):
                     if int(vlan.split('-')[1]) > 10:
                         kavlan_global_free = False
                         for free_slot in vlan_planning['free']:
-                        
                             if free_slot[0] <= limit and free_slot[1] >= limit \
                                 + oar_duration_to_seconds(walltime):
                                 kavlan_global_free = True
@@ -199,46 +198,40 @@ def compute_slots(planning, walltime):
     slots.sort()
     return slots    
 
-def find_first_slot( slots, resources = ['grid5000']):
+def find_first_slot( slots, resources_wanted):
     """ Return the first slot where some resources are available 
     
     :param slots: list of slots returned by ``compute_slots``
     
-    :param resources: a list of elements that must have some free hosts"""
+    :param resources_wanted: a dict of elements that must have some free hosts"""
 
     for slot in slots:
         vlan_free = True
-        if 'kavlan' in resources:
+        if 'kavlan' in resources_wanted:
             if isinstance(slot[2]['kavlan'], int):
                 if slot[2]['kavlan'] == 0:
                     vlan_free = False
             elif isinstance(slot[2]['kavlan'], list):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False
-        
-        res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems() if element in resources
+        res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems() if element in resources_wanted
                           and element != 'kavlan'])
-        if res_nodes > 0 and vlan_free:
-            if not 'grid5000' in resources:
-                return [slot[0], slot[1], 
-                    {element: nodes for element, nodes in slot[2].iteritems() if element in resources}]
-            else:
-                return [slot[0], slot[1], 
-                    {element: nodes for element, nodes in slot[2].iteritems() \
-                     if element in get_g5k_sites()+[ 'grid5000', 'kavlan' ] }]
-        
+        if res_nodes > 0 and vlan_free: 
+            return slot
+            
+    return None, None, None
     
 
-def find_max_slot( slots, resources = ['grid5000']):                    
+def find_max_slot( slots, resources_wanted):                    
     """Return the slot with the maximum nodes available for the given elements
     
     :param slots: list of slots returned by ``compute_slots``
     
-    :param resources: a list of elements that must be maximized"""
+    :param resources_wanted: a dict of elements that must be maximized"""
     max_nodes = 0
     for slot in slots:
         vlan_free = True
-        if 'kavlan' in resources:
+        if 'kavlan' in resources_wanted:
             if isinstance(slot[2]['kavlan'], int):
                 if slot[2]['kavlan'] == 0:
                     vlan_free = False
@@ -246,23 +239,27 @@ def find_max_slot( slots, resources = ['grid5000']):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False        
         res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems() 
-                        if element in resources and element != 'kavlan'])
+                        if element in resources_wanted and element != 'kavlan'])
         if res_nodes > max_nodes and vlan_free:
             max_nodes = res_nodes
             max_slot = slot     
     return max_slot
 
-def find_free_slots( slots, resources):
-    """Return the slots with enough resources
+def find_free_slot( slots, resources_wanted):
+    """Return the first slot with enough resources
      
     :param slots: list of slots returned by ``compute_slots``
     
-    :param resources: a dict describing the wanted ressources ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``
+    :param resources_wanted: a dict describing the wanted ressources ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``
     """
-    free_slots = []
+    tmp_res = resources_wanted.copy()
+    for element, n_nodes in tmp_res.iteritems():
+        if element in get_g5k_clusters() and tmp_res.has_key(get_cluster_site(element)):
+            tmp_res[get_cluster_site(element)] += n_nodes
+    
     for slot in slots:
         vlan_free = True
-        if 'kavlan' in resources:
+        if 'kavlan' in tmp_res:
             if isinstance(slot[2]['kavlan'], int):
                 if slot[2]['kavlan'] == 0:
                     vlan_free = False
@@ -271,45 +268,77 @@ def find_free_slots( slots, resources):
                     vlan_free = False
         slot_ok = True
         for element, n_nodes in slot[2].iteritems():
-            if resources.has_key(element) and resources[element] > n_nodes and resources != 'kavlan':
+            if tmp_res.has_key(element) and tmp_res[element] > n_nodes \
+                and tmp_res != 'kavlan':
                 slot_ok = False
+                
         if slot_ok and vlan_free:
-            free_slots.append(slot)
-            if 'kavlan' in resources:
-                resources['kavlan'] = slot[2]['kavlan']
-    return free_slots 
+            if 'kavlan' in tmp_res:
+                resources_wanted['kavlan'] = slot[2]['kavlan']
+            return slot
+        
+    return None, None, None
+
+def show_resources(resources, msg = 'Resources'):
+    total_hosts = 0
+    log = style.log_header(msg)+'\n'
+    
+    for site in get_g5k_sites():
+        site_added = False
+        if site in resources.keys():
+            log += style.log_header(site).ljust(20)+' '+str(resources[site])+'\n'
+            site_added = True
+        for cluster in get_site_clusters(site):
+            if len(list(set(get_site_clusters(site)) & set(resources.keys()))) > 0 \
+                    and not site_added:
+                log += style.log_header(site).ljust(20)+'\n'
+                site_added = True
+            if cluster in resources.keys():
+                log += style.emph(cluster)+': '+str(resources[cluster])+' '
+                total_hosts += resources[cluster]
+        if site_added:
+            log += '\n'
+    if 'grid5000' in resources.keys():
+        log += style.log_header('Grid5000').ljust(20)+str(resources['grid5000'])+'\n'
+    elif total_hosts >0:
+        log += style.log_header('Total ').ljust(20)+str(total_hosts)+'\n'
+    logger.info(log)
+    
 
 
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                        auto_reservation = False, prog = None, name = ''):
     """ Perform the reservation for the given set of resources """ 
-    get_kavlan = resources.has_key('kavlan')
+    
     subs = []
     
-    sites = get_g5k_sites()
-    clusters = get_g5k_clusters()
-    
     #Adding sites corresponding to clusters wanted
+    sites = []
     real_resources = resources.copy()
     for resource in resources.iterkeys():
-        if resource in clusters:
+        if resource in get_g5k_sites() and not resource in sites:
+            sites.append(resource)
+        if resource in get_g5k_clusters():
             site = get_cluster_site(resource)
+            if not site in sites:
+                sites.append(site)
             if not real_resources.has_key(site):
                 real_resources[site] = 0
-            
+
     n_sites = 0
     for resource in real_resources.keys():
         if resource in sites:
-            n_sites +=1 
-        
-    
+            n_sites +=1
+
+    get_kavlan = resources.has_key('kavlan')            
+  
     for site in sites:
         sub_resources = ''
         if site in real_resources:
             clusters_nodes = 0
             if get_kavlan: 
                 if n_sites > 1:
-                    if site == resources['kavlan'][0]:
+                    if site in resources['kavlan']:
                         sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
                         get_kavlan = False
                 else:
@@ -352,52 +381,76 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
 
     return oargrid_job_id
 
-def distribute_hosts_grid5000(resources_available, resources_wanted):
-    """ Distribute the resources on the different sites """
+def distribute_hosts_clusters(resources_available, resources_wanted):
+    """ Distribute the resources on the different sites and cluster"""
     
-
     resources = {}
-    all_sites = get_g5k_sites()
-    sites = [ site for site in all_sites if site in resources_available.keys() and site != 'kavlan' ] 
+    clusters_nodes = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
+                      if element in get_g5k_clusters() }
+    sites_nodes = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
+                      if element in get_g5k_sites() }
     
+    for cluster, n_nodes in clusters_nodes.iteritems():
+        cluster_nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
+        resources_available[cluster] -= cluster_nodes
+        resources_available[get_cluster_site(cluster)] -= cluster_nodes
+        resources_available['grid5000'] -= cluster_nodes
+        resources[cluster] = cluster_nodes
     
-    total_nodes = 0
-    sites_nodes = {}
-    cluster_nodes = {}
-    for site in sites:
-        if resources_wanted.has_key(site):
-            sites_nodes[site] = resources_wanted[site]
-        else:
-            sites_nodes[site] = 0
-        for cluster in get_site_clusters(site):
-            if cluster in resources_wanted:
-                cluster_nodes[cluster] = resources_wanted[cluster]
-            else:
-                cluster_nodes[cluster] = 0
-#            sites_nodes[site] += cluster_nodes[cluster]
-    
-
-    while total_nodes != resources_wanted['grid5000']:
-        max_site = ''
-        max_nodes = 0
-        for site in sites:
-            if max_nodes < resources_available[site] - sites_nodes[site]:
-                max_site = site
-                max_nodes = resources_available[site] - sites_nodes[site]
-        sites_nodes[max_site] += 1
-        total_nodes += 1
-    
-    
+    # Adding clusters from wanted sites
     for site, n_nodes in sites_nodes.iteritems():
-        if n_nodes > 0:
-            resources[site] = n_nodes
+        site_nodes = n_nodes if n_nodes > 0 else resources_available[site]
+        total_nodes = 0
+             
+        clusters = [cluster for cluster in get_site_clusters(site) 
+                    if cluster in resources_available.keys() ]            
+        iter_clusters = cycle(clusters)
+                       
+        while total_nodes != site_nodes:
+            cluster = iter_clusters.next()          
+            if resources_available[cluster] > 0:
+                nodes = min(resources_available[cluster], site_nodes-total_nodes)
+                if resources.has_key(cluster):
+                    resources[cluster] += nodes
+                else:
+                    resources[cluster] = nodes
+                total_nodes += nodes 
+                resources_available[cluster] -= nodes
+                resources_available[site] -= nodes
+                resources_available['grid5000'] -= nodes
+            else:
+                clusters.remove(cluster)
+                iter_clusters = cycle(clusters)      
+                cluster = iter_clusters.next()
     
-    for cluter, n_nodes in cluster_nodes.iteritems():
-        if n_nodes > 0:
-            resources[cluter] = n_nodes
-    
+    # Distributing grid5000 nodes on clusters
+    if 'grid5000' in resources_wanted:
+        g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
+        total_nodes = 0
+
+        clusters = [element for element in resources_available.keys() if element in get_g5k_clusters() ]
+        iter_clusters = cycle(clusters)
+        
+        while total_nodes != g5k_nodes:
+            cluster = iter_clusters.next()
+            if resources_available[cluster] > 0:
+                nodes =  min(resources_available[cluster], g5k_nodes-total_nodes)
+                if nodes == 0:
+                    clusters.remove(cluster)
+                    iter_clusters = cycle(clusters)
+                else:
+                    total_nodes += nodes
+                    if resources.has_key(cluster):
+                        resources[cluster] += min(total_nodes, nodes)
+                    else:
+                        resources[cluster] = min(total_nodes, nodes)
+        
+            
+
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
+        
+        
     return resources
 
 
@@ -415,9 +468,8 @@ def _get_vlans_API(site):
     return vlans
 
 
-def _get_planning_API():
+def _get_planning_API(planning):
     """Retrieve the planning using the 3.0 Grid'5000 API """
-    global planning
     broken_sites = []
     for site in planning.iterkeys():
         # Retrieving alive resources
@@ -470,10 +522,8 @@ def _get_planning_API():
     for site in broken_sites:
         del planning[site]   
                 
-def _get_planning_MySQL():
-    """Retrieve the planning using the oar2 database"""    
-    global planning
-    
+def _get_planning_MySQL(planning):
+    """Retrieve the planning using the oar2 database"""
     broken_sites =  []
     for site in planning.iterkeys():
         try:
@@ -576,6 +626,25 @@ def _get_planning_MySQL():
     for site in broken_sites:
         del planning[site]
 
+def _remove_excluded(planning, excluded_resources):
+    """This function remove elements from planning"""
+    # first removing the site
+    for element in excluded_resources:
+        if element in get_g5k_sites():
+            del planning[element]
+        
+    for site_pl in planning.itervalues():
+        for res, res_pl in site_pl.iteritems():
+            if res in excluded_resources:
+                del site_pl[res]
+                break
+            for element in res_pl.iterkeys():
+                if element in excluded_resources:
+                    del res_pl[element]
+                    break
+                
+    
+
 def _merge_el_planning(el_planning):
     """An internal function to merge the busy or free planning of an element"""
     if len(el_planning) > 1:
@@ -600,13 +669,15 @@ def _merge_el_planning(el_planning):
                         
 def _trunc_el_planning(el_planning, starttime, endtime):
     """Modify (start, stop) tuple that are not within the (starttime, endtime) interval """
-    if len(el_planning) > 0:        
+    if len(el_planning) > 0:
+        
         el_planning.sort()
         for i in range(len(el_planning)):
+            if i == len(el_planning):
+                break
             start, stop = el_planning[i]
             if stop < starttime:
                 el_planning.remove( (start, stop ))
-                continue
             else:
                 if start < starttime:
                     if stop < endtime:
@@ -619,7 +690,7 @@ def _trunc_el_planning(el_planning, starttime, endtime):
                     if stop > endtime:
                         el_planning.remove( (start, stop ))
                         el_planning.append( (start, endtime))
-            if i == len(el_planning[i]):
+            if i == len(el_planning):
                 break
         el_planning.sort() 
         
@@ -660,9 +731,8 @@ def _slots_limits(planning):
 
    
                
-def _add_charter_to_planning(starttime, endtime):
+def _add_charter_to_planning(planning, starttime, endtime):
     """"""
-    global planning
     charter_el_planning = get_charter_el_planning(starttime, endtime)
     
     for site in planning.itervalues():
@@ -687,7 +757,7 @@ def g5k_charter_time(dt):
     return True
 
 def get_next_charter_period(start, end):
-    """Return the first g5k charter time period.
+    """Return the next g5k charter time period.
 
     :param start: datetime.datetime from which to start searching for
       the next g5k charter time period. If start is in a g5k charter
