@@ -468,32 +468,41 @@ def _get_vlans_API(site):
                     vlans.append(params['name'])
     return vlans
 
+def _get_job_link_attr_API(p):
+    try:
+        currentThread().attr = get_resource_attributes(p)
+    except Exception, e:
+        currentThread().broken = True
+        currentThread().ex = e
 
-def _get_planning_API(planning):
-    """Retrieve the planning using the 3.0 Grid'5000 API """
-    broken_sites = []
-    for site in planning.iterkeys():
-        # Retrieving alive resources
-        try:
-            alive_nodes = [ node for node, status in \
-                get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] != 'dead' ]
-        except:
-            logger.warn('Unable to reach '+site+', removing from computation')
-            broken_sites.append(site)
-            continue
-        
+def _get_site_planning_API(site, site_planning):
+    try:
+        alive_nodes = [ node for node, status in \
+          get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] != 'dead' ]
+
         for host in alive_nodes:
-            planning[site][get_host_cluster(str(host))].update({host: {'busy': [], 'free': []}})
-        if planning[site].has_key('vlans'): 
-            planning[site]['vlans'] = { vlan: {'busy': [], 'free': []} for vlan in _get_vlans_API(site) }
+            site_planning[get_host_cluster(str(host))].update({host: {'busy': [], 'free': []}})
+        if site_planning.has_key('vlans'):
+            site_planning['vlans'] = { vlan: {'busy': [], 'free': []} for vlan in _get_vlans_API(site) }
         # STORAGE AND SUBNETS MISSING
         # Retrieving jobs
-        
+
         site_jobs = get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']
         jobs_links = [ link['href'] for job in site_jobs for link in job['links'] \
                       if link['rel'] == 'self' and job['queue'] != 'besteffort' ]
+        threads = []
         for link in jobs_links:
-            attr = get_resource_attributes('/'+str(link).split('/', 2)[2])
+            t = Thread(target = _get_job_link_attr_API, args = ('/'+str(link).split('/', 2)[2], ))
+            t.broken = False
+            t.attr = None
+            t.ex = None
+            threads.append(t)
+            t.start()
+        for t in threads:
+            t.join()
+            if t.broken:
+                raise t.ex
+            attr = t.attr
             try:
                 start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
                 # Add a delay as a node is never free at the end of the job
@@ -502,26 +511,44 @@ def _get_planning_API(planning):
                 start_time = max(start_time, int(time()))
             except:
                 pass
-            
+
             nodes = attr['assigned_nodes']
             for node in nodes:
                 cluster = node.split('.',1)[0].split('-')[0]
-                if planning[site].has_key(cluster) and planning[site][cluster].has_key(node):
-                    planning[site][cluster][node]['busy'].append( (start_time, end_time))
-            if planning[site].has_key('vlans') and attr['resources_by_type'].has_key('vlans') \
+                if site_planning.has_key(cluster) and site_planning[cluster].has_key(node):
+                    site_planning[cluster][node]['busy'].append( (start_time, end_time))
+            if site_planning.has_key('vlans') and attr['resources_by_type'].has_key('vlans') \
                 and int(attr['resources_by_type']['vlans'][0]) > 3:
-                
+
                 kavname ='kavlan-'+str(attr['resources_by_type']['vlans'][0])
-                planning[site]['vlans'][kavname]['busy'].append( (start_time, end_time))
-            if planning[site].has_key('subnets') and attr['resources_by_type'].has_key('subnets'):
+                site_planning['vlans'][kavname]['busy'].append( (start_time, end_time))
+            if site_planning.has_key('subnets') and attr['resources_by_type'].has_key('subnets'):
                 for subnet in attr['resources_by_type']['subnets']:
-                    if not planning[site]['subnets'].has_key(subnet):
-                        planning[site]['subnets'][subnet] = {'busy': [], 'free': []}
-                    planning[site]['subnets'][subnet]['busy'].append( (start_time, end_time))                
+                    if not site_planning['subnets'].has_key(subnet):
+                        site_planning['subnets'][subnet] = {'busy': [], 'free': []}
+                    site_planning['subnets'][subnet]['busy'].append( (start_time, end_time))
             # STORAGE IS MISSING
+    except Exception, e:
+        print "except: %s" % (e,)
+        logger.warn('Error with '+site+', removing from computation')
+        currentThread().broken = True
+
+def _get_planning_API(planning):
+    """Retrieve the planning using the 3.0 Grid'5000 API """
+    broken_sites = []
+    threads = {}
+    for site in planning.iterkeys():
+        t = Thread(target = _get_site_planning_API, args = (site, planning[site]))
+        threads[site] = t
+        t.broken = False
+        t.start()
+    for site, t in threads.iteritems():
+        t.join()
+        if t.broken:
+            broken_sites.append(site)
     # Removing sites not reachable
     for site in broken_sites:
-        del planning[site]   
+        del planning[site]
 
 def _get_site_planning_MySQL(site, site_planning):
     try:
