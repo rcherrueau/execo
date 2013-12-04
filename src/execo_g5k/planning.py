@@ -63,6 +63,8 @@ def get_planning(elements = ['grid5000'], excluded_resources = None, vlan = Fals
     
     :param elements: a list of Grid'5000 elemenst (grid5000, site, cluster)
 
+    :param excluded_resources: list of elements that must be excluded
+    
     :param vlan: a boolean to ask for KaVLAN computation
     
     :param subnet: a boolean to ask for subnets computation
@@ -109,10 +111,12 @@ def get_planning(elements = ['grid5000'], excluded_resources = None, vlan = Fals
     
     for site_pl in planning.itervalues():
         for res_pl in site_pl.itervalues():
-            for el_planning in res_pl.itervalues():
+            for el, el_planning in res_pl.iteritems():
+                el_planning['busy'].sort()
                 _merge_el_planning(el_planning['busy'])
                 _trunc_el_planning(el_planning['busy'], starttime, endtime)
                 _fill_el_planning_free(el_planning, starttime, endtime)
+                    
     return planning
 
 
@@ -387,7 +391,7 @@ def distribute_hosts(resources_available, resources_wanted, blacklisted = None, 
                       if element in get_g5k_clusters() }
     sites_nodes = { element: n_nodes for element, n_nodes in resources_available.iteritems() \
                       if element in get_g5k_sites() }
-    # Blacklisting clusters
+    
     
     
     
@@ -398,15 +402,15 @@ def distribute_hosts(resources_available, resources_wanted, blacklisted = None, 
         resources_available['grid5000'] -= cluster_nodes
         resources[cluster] = cluster_nodes
         print cluster, n_nodes
-    pprint(resources)
+    
     for site, n_nodes in sites_nodes.iteritems():
         site_nodes = n_nodes if n_nodes > 0 else resources_available[site] if site not in blacklisted else -1
         resources_available[site] -= site_nodes
         resources_available['grid5000'] -= site_nodes
         resources[site] = site_nodes
-        
-    pprint(resources)
-    exit()
+    
+    print resources
+    exit()    
     # Distributing grid5000 nodes on clusters
     if 'grid5000' in resources_wanted:
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
@@ -429,7 +433,7 @@ def distribute_hosts(resources_available, resources_wanted, blacklisted = None, 
                     else:
                         resources[cluster] = min(total_nodes, nodes)
     
-            
+                        
 
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
@@ -690,29 +694,34 @@ def _merge_el_planning(el_planning):
 def _trunc_el_planning(el_planning, starttime, endtime):
     """Modify (start, stop) tuple that are not within the (starttime, endtime) interval """
     if len(el_planning) > 0:
-        
         el_planning.sort()
+        # Truncating jobs that end before starttime
         for i in range(len(el_planning)):
-            if i == len(el_planning):
-                break
             start, stop = el_planning[i]
             if stop < starttime:
                 el_planning.remove( (start, stop ))
-            else:
-                if start < starttime:
-                    if stop < endtime:
-                        el_planning.remove( (start, stop ))
-                        el_planning.append( (starttime, stop) )
-                    else:
-                        el_planning.remove( (start, stop ) )
-                        el_planning.append( (starttime, endtime) )
-                elif start < endtime:
-                    if stop > endtime:
-                        el_planning.remove( (start, stop ))
-                        el_planning.append( (start, endtime))
+            if i == len(el_planning) - 1:
+                break
+        # changing start and stop from bjos that overpass starttime or endtime
+        for i in range(len(el_planning)):
+            start, stop = el_planning[i]
+            if i == len(el_planning):
+                break        
+            if start < starttime:
+                if stop < endtime:
+                    el_planning.remove( (start, stop ))
+                    el_planning.append( (starttime, stop) )
+                else:
+                    el_planning.remove( (start, stop ) )
+                    el_planning.append( (starttime, endtime) )
+            elif start < endtime:
+                if stop > endtime:
+                    el_planning.remove( (start, stop ))
+                    el_planning.append( (start, endtime))
+            el_planning.sort()
             if i == len(el_planning):
                 break
-        el_planning.sort() 
+            
         
                   
 def _fill_el_planning_free(el_planning, starttime, endtime):
@@ -730,21 +739,20 @@ def _fill_el_planning_free(el_planning, starttime, endtime):
 def _slots_limits(planning):
     """Return the limits of slots, defined by a resource state change."""
     limits = []
-    
     for site in planning.itervalues():
         for res_pl in site.itervalues():
-            for el_planning in res_pl.itervalues():                           
+            for el, el_planning in res_pl.iteritems():                           
                     for start, stop in el_planning['busy']:
                         if start not in limits:
                             limits.append(start)
                         if stop not in limits:
                             limits.append(stop)
+                        
                     for start, stop in el_planning['free']:
                         if start not in limits:
                             limits.append(start)
                         if stop not in limits:
-                            limits.append(stop)
-                            
+                            limits.append(stop)                    
     limits = sorted(limits)
     limits.pop()
     return limits
