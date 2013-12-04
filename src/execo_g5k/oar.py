@@ -438,7 +438,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
     state_result = re.search("^\s*state = (\w*)\s*$", process.stdout, re.MULTILINE)
     if state_result:
         job_info['state'] = state_result.group(1)
-    name_result = re.search("\s*name = (\w*)\s*$", process.stdout, re.MULTILINE)
+    name_result = re.search("^\s*name = ([ \t\S]*)\s*$", process.stdout, re.MULTILINE)
     if name_result:
         job_info['name'] = name_result.group(1)
     return job_info
