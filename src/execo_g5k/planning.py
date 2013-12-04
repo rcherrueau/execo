@@ -253,14 +253,10 @@ def find_free_slot( slots, resources_wanted):
     
     :param resources_wanted: a dict describing the wanted ressources ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``
     """
-    tmp_res = resources_wanted.copy()
-    for element, n_nodes in tmp_res.iteritems():
-        if element in get_g5k_clusters() and tmp_res.has_key(get_cluster_site(element)):
-            tmp_res[get_cluster_site(element)] += n_nodes
     
     for slot in slots:
         vlan_free = True
-        if 'kavlan' in tmp_res:
+        if 'kavlan' in resources_wanted:
             if isinstance(slot[2]['kavlan'], int):
                 if slot[2]['kavlan'] == 0:
                     vlan_free = False
@@ -269,18 +265,19 @@ def find_free_slot( slots, resources_wanted):
                     vlan_free = False
         slot_ok = True
         for element, n_nodes in slot[2].iteritems():
-            if tmp_res.has_key(element) and tmp_res[element] > n_nodes \
-                and tmp_res != 'kavlan':
+            if resources_wanted.has_key(element) and resources_wanted[element] > n_nodes \
+                and resources_wanted != 'kavlan':
                 slot_ok = False
                 
         if slot_ok and vlan_free:
-            if 'kavlan' in tmp_res:
+            if 'kavlan' in resources_wanted:
                 resources_wanted['kavlan'] = slot[2]['kavlan']
             return slot
         
     return None, None, None
 
 def show_resources(resources, msg = 'Resources'):
+
     total_hosts = 0
     log = style.log_header(msg)+'\n'
     
@@ -382,28 +379,34 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
 
     return oargrid_job_id
 
-def distribute_hosts(resources_available, resources_wanted):
+def distribute_hosts(resources_available, resources_wanted, blacklisted = None, ratio = 1):
     """ Distribute the resources on the different sites and cluster"""
     
     resources = {}
-    clusters_nodes = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
+    clusters_nodes = { element: n_nodes for element, n_nodes in resources_available.iteritems() \
                       if element in get_g5k_clusters() }
-    sites_nodes = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
+    sites_nodes = { element: n_nodes for element, n_nodes in resources_available.iteritems() \
                       if element in get_g5k_sites() }
+    # Blacklisting clusters
     
-    for cluster, n_nodes in clusters_nodes.iteritems():
-        cluster_nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
+    
+    
+    for cluster, n_nodes in clusters_nodes.iteritems():        
+        cluster_nodes = n_nodes if n_nodes > 0 else resources_available[cluster] if cluster not in blacklisted else -1
         resources_available[cluster] -= cluster_nodes
-        resources_available[get_cluster_site(cluster)] -= cluster_nodes
+        resources_available[get_cluster_site(cluster)] -= cluster_nodes 
         resources_available['grid5000'] -= cluster_nodes
         resources[cluster] = cluster_nodes
-    
+        print cluster, n_nodes
+    pprint(resources)
     for site, n_nodes in sites_nodes.iteritems():
-        site_nodes = n_nodes if n_nodes > 0 else resources_available[site]
+        site_nodes = n_nodes if n_nodes > 0 else resources_available[site] if site not in blacklisted else -1
         resources_available[site] -= site_nodes
         resources_available['grid5000'] -= site_nodes
         resources[site] = site_nodes
-    
+        
+    pprint(resources)
+    exit()
     # Distributing grid5000 nodes on clusters
     if 'grid5000' in resources_wanted:
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
@@ -425,7 +428,7 @@ def distribute_hosts(resources_available, resources_wanted):
                         resources[cluster] += min(total_nodes, nodes)
                     else:
                         resources[cluster] = min(total_nodes, nodes)
-        
+    
             
 
     if resources_wanted.has_key('kavlan'):
@@ -924,34 +927,95 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         PLT.savefig (outfile, dpi=300)
 
 
-#
-#
+#def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
+#    """Draw the number of nodes available for the clusters (requires Matplotlib)"""
 #    
+#    startstamp = slots[0][0]
+#    endstamp = slots[-1][1]
+#    
+#        
+#    if colors is None:
+#        colors = _set_colors()
+#    
+#    xfmt = MD.DateFormatter('%d %b, %H:%M ')
+#    
+#    if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
+#        x_major_locator = MD.HourLocator(byhour = [9, 19])
+#    elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=17)):
+#        x_major_locator = MD.HourLocator(byhour = [9])
+#    else:
+#        x_major_locator = MD.AutoDateLocator()
+#
+#    max_nodes = {}
+#    total_nodes = 0
+#    slot_limits = []
+#    total_list = []
+#    i_slot = 0
+#    for slot in slots:
+#        slot_limits.append(slot[0])
+#        if i_slot+1 < len(slots):
+#            slot_limits.append(slots[i_slot+1][0])
+#            i_slot += 1
+#        
+#        for element, n_nodes in slot[2].iteritems():
+#            if element in get_g5k_clusters():
+#                if not max_nodes.has_key(element):
+#                    max_nodes[element] = []
+#                max_nodes[element].append(n_nodes)
+#                max_nodes[element].append(n_nodes)
+#            if element == 'grid5000':
+#                total_list.append(n_nodes)
+#                total_list.append(n_nodes)
+#                if n_nodes > total_nodes:
+#                    total_nodes = n_nodes
+#    
+#    
+#    slot_limits.append(endstamp)
+#    
+#    slot_limits.sort()                
+#    
+#    dates = [unixts_to_datetime(ts) for ts in slot_limits]
+#
+#    datenums = MD.date2num(dates)
+#
+#    fig = PLT.figure(figsize=(15,10), dpi=80)
+#
+#    ax = PLT.subplot(111)
+#    ax.xaxis_date()
+#    box = ax.get_position()
+#    ax.set_position([box.x0-0.07, box.y0, box.width, box.height])
+#    ax.set_xlim(unixts_to_datetime(startstamp), unixts_to_datetime(endstamp))
+#    ax.set_xlabel('Time')
+#    ax.set_ylabel('Nodes available')
+#    ax.set_ylim(0, total_nodes*1.1)
+#    ax.axhline(y = total_nodes, color = '#000000', linestyle ='-', linewidth = 2, label = 'ABSOLUTE MAXIMUM')
+#    ax.yaxis.grid(color='gray', linestyle='dashed')
+#    ax.xaxis.set_major_formatter(xfmt)
+#    ax.xaxis.set_major_locator(x_major_locator )
+#    PLT.xticks(rotation = 15)
+#
+#
+#    max_nodes_list = []
+#
+#    p_legend = []
+#    p_rects = []
+#    p_colors = []
+#    for key, value in sorted(iter(max_nodes.iteritems())):
+#        if key != 'grid5000':
+#            max_nodes_list.append(value)
+#            p_legend.append(key)
+#            p_rects.append(PLT.Rectangle((0, 0), 1, 1, fc = colors[key]))
+#            p_colors.append(colors[key])
+#            
+#    plots = PLT.stackplot(datenums, max_nodes_list, colors = p_colors)
+#    PLT.legend(p_rects, p_legend, loc='center right', ncol = 1, shadow = True, bbox_to_anchor=(1.2, 0.5))
+#
+#    if show:
+#        PLT.show()
+#    if save:
+#        fname = 'slots.png'
+#        logger.info('Saving file %s ...', fname)
+#        PLT.savefig (fname, dpi=300)
 
-#
-#
 
-#
-#def get_first_cluster_available( clusters, walltime, n_nodes = 1):
-#    """Compute the planning of the clusters list and find the first one available for a given walltime
-#    and a given number of nodes"""
-#
-#    starttime = time() + timedelta_to_seconds(timedelta(seconds = 30))
-#    endtime = starttime + timedelta_to_seconds(timedelta(days = 3))
-#    planning = Planning(clusters, starttime, endtime)
-#    print walltime
-#    planning.compute_slots(walltime)
-#    
-#    first_slots = {}
-#    for cluster in clusters:
-#        slots_ok = planning.find_free_slots( walltime, {cluster: n_nodes})
-#        first_slots[cluster] = slots_ok[0]
-#    
-#    first_slot = [10**20, 10**21]
-#    
-#    for cluster, slot in first_slots.iteritems():
-#        if slot[0] <= first_slot[0]:
-#            first_slot = [slot[0], slot[1]]
-#            first_cluster = cluster
-#
-#    return first_cluster, first_slot
+
