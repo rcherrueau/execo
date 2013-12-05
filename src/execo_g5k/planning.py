@@ -315,11 +315,10 @@ def show_resources(resources, msg = 'Resources'):
     
 
 
-def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
-                       auto_reservation = False, prog = None, name = None):
+def get_job_specs(resources, name = None):
     """ Perform the reservation for the given set of resources """ 
     
-    subs = []
+    jobs_specs = []
     
     #Adding sites corresponding to clusters wanted
     sites = []
@@ -373,38 +372,11 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                     sub_resources+="nodes="+str(real_resources[site])+'+'
                 
             if sub_resources != '':
-                subs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
+                jobs_specs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
     
-    if prog is not None:
-        oargridsub_opts += ' -p '+prog
-    logger.info('Reservation command: \n\033[1m%s\033[0m',
-        get_oargridsub_commandline(subs, walltime = walltime, 
-            additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate)) )
+    return jobs_specs
     
-    if auto_reservation:            
-        reservation = 'y'
-    else:            
-        reservation = raw_input('Do you want me to do the reservation (y/[N]): ')
-    
-    oargrid_job_id = None
-    if reservation in [ 'y', 'Y', 'yes'] :
-        (oargrid_job_id, _) = oargridsub(subs, walltime = walltime,
-                additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate))
-        
-        if oargrid_job_id is not None:
-            logger.info('Grid reservation done, oargridjob_id = %s',oargrid_job_id)
-            log = style.log_header('Jobs')
-            jobs = get_oargrid_job_oar_jobs(oargrid_job_id)
-            for job_id, site in jobs:
-                log += '\n'+style.emph(site).ljust(25)+str(job_id).rjust(9)
-            log += '\n'+style.emph('Key file: ')+get_oargrid_job_key(oargrid_job_id)
-            logger.info(log)
-            return oargrid_job_id
-        else:
-            logger.error('Error in performing the reservation ')
-    else:
-        logger.info('Aborting reservation ...')
-    return None
+ 
 
 def distribute_hosts(resources_available, resources_wanted, blacklisted = None):
     """ Distribute the resources on the different sites and cluster"""
