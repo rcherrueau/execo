@@ -31,7 +31,7 @@ from execo.time_utils import timedelta_to_seconds, \
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
     get_site_clusters, get_resource_attributes, get_host_cluster
 from execo_g5k.oar import oar_duration_to_seconds, format_oar_date
-from execo_g5k.oargrid import get_oargridsub_commandline
+from execo_g5k.oargrid import get_oargridsub_commandline, get_oargrid_job_oar_jobs, get_oargrid_job_key
 from threading import Thread, currentThread
 
 try:
@@ -111,7 +111,7 @@ def get_planning(elements = ['grid5000'], excluded_resources = None, vlan = Fals
     
     for site_pl in planning.itervalues():
         for res_pl in site_pl.itervalues():
-            for el, el_planning in res_pl.iteritems():
+            for el_planning in res_pl.itervalues():
                 el_planning['busy'].sort()
                 _merge_el_planning(el_planning['busy'])
                 _trunc_el_planning(el_planning['busy'], starttime, endtime)
@@ -257,6 +257,13 @@ def find_free_slot( slots, resources_wanted):
     
     :param resources_wanted: a dict describing the wanted ressources ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``
     """
+    # We need to add the clusters nodes to the total nodes of a site
+    real_wanted = resources_wanted.copy()
+    for cluster, n_nodes in resources_wanted.iteritems():
+        if cluster in get_g5k_clusters():
+            site = get_cluster_site(cluster)
+            if resources_wanted.has_key(site):
+                real_wanted[site] += n_nodes
     
     for slot in slots:
         vlan_free = True
@@ -269,8 +276,8 @@ def find_free_slot( slots, resources_wanted):
                     vlan_free = False
         slot_ok = True
         for element, n_nodes in slot[2].iteritems():
-            if resources_wanted.has_key(element) and resources_wanted[element] > n_nodes \
-                and resources_wanted != 'kavlan':
+            if real_wanted.has_key(element) and real_wanted[element] > n_nodes \
+                and real_wanted != 'kavlan':
                 slot_ok = False
                 
         if slot_ok and vlan_free:
@@ -309,7 +316,7 @@ def show_resources(resources, msg = 'Resources'):
 
 
 def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
-                       auto_reservation = False, prog = None, name = ''):
+                       auto_reservation = False, prog = None, name = None):
     """ Perform the reservation for the given set of resources """ 
     
     subs = []
@@ -336,6 +343,8 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
   
     for site in sites:
         sub_resources = ''
+        base_blacklist ='{\\\\\\\\\\\\\\"cluster not in ('
+        blacklist_str = ''
         if site in real_resources:
             clusters_nodes = 0
             if get_kavlan: 
@@ -347,14 +356,21 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
                     sub_resources="{type=\\'kavlan\\'}/vlan=1+"
                     get_kavlan = False
                 
-                                
+                            
             for cluster in get_site_clusters(site): 
-                if cluster in resources and resources[cluster] > 0:
-                    sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
-                    clusters_nodes += resources[cluster]
+                if cluster in resources :
+                    if resources[cluster] > 0:
+                        sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
+                        clusters_nodes += resources[cluster]
+                    else:
+                        blacklist_str += "'"+cluster+"',"
+                     
 #            real_resources[site] -= clusters_nodes     
             if real_resources[site] > 0:
-                sub_resources+="nodes="+str(real_resources[site])+'+'
+                if blacklist_str != '':
+                    sub_resources+=base_blacklist+blacklist_str[:-1]+")\\\\\\\\\\\\\\\"}/nodes="+str(real_resources[site])+'+'
+                else:
+                    sub_resources+="nodes="+str(real_resources[site])+'+'
                 
             if sub_resources != '':
                 subs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
@@ -368,77 +384,79 @@ def create_reservation(startdate, resources, walltime, oargridsub_opts = '',
     if auto_reservation:            
         reservation = 'y'
     else:            
-        reservation = raw_input('Do you want me to do the reservation ([Y]/n): ')
+        reservation = raw_input('Do you want me to do the reservation (y/[N]): ')
     
     oargrid_job_id = None
-    if reservation in  [ 'y', ''] :
+    if reservation in [ 'y', 'Y', 'yes'] :
         (oargrid_job_id, _) = oargridsub(subs, walltime = walltime,
                 additional_options = oargridsub_opts, reservation_date = format_oar_date(startdate))
         
         if oargrid_job_id is not None:
             logger.info('Grid reservation done, oargridjob_id = %s',oargrid_job_id)
+            log = style.log_header('Jobs')
+            jobs = get_oargrid_job_oar_jobs(oargrid_job_id)
+            for job_id, site in jobs:
+                log += '\n'+style.emph(site).ljust(25)+str(job_id).rjust(9)
+            log += '\n'+style.emph('Key file: ')+get_oargrid_job_key(oargrid_job_id)
+            logger.info(log)
             return oargrid_job_id
         else:
             logger.error('Error in performing the reservation ')
+    else:
+        logger.info('Aborting reservation ...')
+    return None
 
-    return oargrid_job_id
-
-def distribute_hosts(resources_available, resources_wanted, blacklisted = None, ratio = 1):
+def distribute_hosts(resources_available, resources_wanted, blacklisted = None):
     """ Distribute the resources on the different sites and cluster"""
     
+    
+    
     resources = {}
-    clusters_nodes = { element: n_nodes for element, n_nodes in resources_available.iteritems() \
+    clusters_wanted = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
                       if element in get_g5k_clusters() }
-    sites_nodes = { element: n_nodes for element, n_nodes in resources_available.iteritems() \
-                      if element in get_g5k_sites() }
+    for cluster, n_nodes in clusters_wanted.iteritems():
+        nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
+        resources_available[get_cluster_site(cluster)] -= nodes
+        resources[cluster] = nodes 
+    
+    sites_wanted = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
+                      if element in get_g5k_sites() }    
+    for site, n_nodes in sites_wanted.iteritems():
+        resources[site] = n_nodes if n_nodes > 0 else resources_available[site]
+    
+    # blacklisting cluster i.e. resources[cluster] = 0
+    for cluster in get_g5k_clusters():
+        if cluster in blacklisted:
+            resources[cluster] = 0    
     
     
-    
-    
-    for cluster, n_nodes in clusters_nodes.iteritems():        
-        cluster_nodes = n_nodes if n_nodes > 0 else resources_available[cluster] if cluster not in blacklisted else -1
-        resources_available[cluster] -= cluster_nodes
-        resources_available[get_cluster_site(cluster)] -= cluster_nodes 
-        resources_available['grid5000'] -= cluster_nodes
-        resources[cluster] = cluster_nodes
-        print cluster, n_nodes
-    
-    for site, n_nodes in sites_nodes.iteritems():
-        site_nodes = n_nodes if n_nodes > 0 else resources_available[site] if site not in blacklisted else -1
-        resources_available[site] -= site_nodes
-        resources_available['grid5000'] -= site_nodes
-        resources[site] = site_nodes
-    
-    print resources
-    exit()    
-    # Distributing grid5000 nodes on clusters
-    if 'grid5000' in resources_wanted:
+    if resources_wanted.has_key('grid5000'):
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
         total_nodes = 0
-
-        clusters = [element for element in resources_available.keys() if element in get_g5k_clusters() ]
-        iter_clusters = cycle(clusters)
+    
+        sites = [element for element in resources_available.keys() if element in get_g5k_sites() ]
+        iter_sites = cycle(sites)
         
         while total_nodes != g5k_nodes:
-            cluster = iter_clusters.next()
-            if resources_available[cluster] > 0:
-                nodes =  min(resources_available[cluster], g5k_nodes-total_nodes)
+            site = iter_sites.next()
+            if resources_available[site] > 0:
+                nodes =  min(resources_available[site], g5k_nodes-total_nodes)
                 if nodes == 0:
-                    clusters.remove(cluster)
-                    iter_clusters = cycle(clusters)
+                    sites.remove(site)
+                    iter_sites = cycle(sites)
                 else:
                     total_nodes += nodes
-                    if resources.has_key(cluster):
-                        resources[cluster] += min(total_nodes, nodes)
+                    if resources.has_key(site):
+                        resources[site] += min(total_nodes, nodes)
                     else:
-                        resources[cluster] = min(total_nodes, nodes)
-    
+                        resources[site] = min(total_nodes, nodes)
+        
                         
 
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
-        
-        
+    
+    
     return resources
 
 
@@ -672,7 +690,6 @@ def _remove_excluded(planning, excluded_resources):
 def _merge_el_planning(el_planning):
     """An internal function to merge the busy or free planning of an element"""
     if len(el_planning) > 1:
-        el_planning.sort()
         for i in range(len(el_planning)):
             j = i+1
             if j == len(el_planning)-1:
@@ -696,31 +713,29 @@ def _trunc_el_planning(el_planning, starttime, endtime):
     if len(el_planning) > 0:
         el_planning.sort()
         # Truncating jobs that end before starttime
-        for i in range(len(el_planning)):
+        i = 0
+        while True:
+            if i == len(el_planning):
+                break
             start, stop = el_planning[i]
-            if stop < starttime:
+            if stop < starttime or start > endtime:
                 el_planning.remove( (start, stop ))
-            if i == len(el_planning) - 1:
-                break
-        # changing start and stop from bjos that overpass starttime or endtime
-        for i in range(len(el_planning)):
-            start, stop = el_planning[i]
-            if i == len(el_planning):
-                break        
-            if start < starttime:
-                if stop < endtime:
-                    el_planning.remove( (start, stop ))
-                    el_planning.append( (starttime, stop) )
-                else:
+            else:
+                if start < starttime:
+                    if stop < endtime:
+                        el_planning.remove( (start, stop ) )
+                        el_planning.append( (starttime, stop) )
+                    else:
+                        el_planning.remove( (start, stop ) )
+                        el_planning.append( (starttime, endtime) )
+                elif stop > endtime:
                     el_planning.remove( (start, stop ) )
-                    el_planning.append( (starttime, endtime) )
-            elif start < endtime:
-                if stop > endtime:
-                    el_planning.remove( (start, stop ))
-                    el_planning.append( (start, endtime))
-            el_planning.sort()
+                    el_planning.append( (start, endtime) )
+                else:
+                    i += 1    
             if i == len(el_planning):
                 break
+        el_planning.sort()
             
         
                   
@@ -765,7 +780,8 @@ def _add_charter_to_planning(planning, starttime, endtime):
     
     for site in planning.itervalues():
         for res_pl in site.itervalues():
-            for el_planning in res_pl.itervalues():
+            for el_planning in res_pl.values():
+                el_planning['busy'].sort()
                 el_planning['busy'] += charter_el_planning
                 el_planning['busy'].sort()
                 
