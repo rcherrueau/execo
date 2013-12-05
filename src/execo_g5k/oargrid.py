@@ -257,6 +257,7 @@ def get_oargrid_job_info(oargrid_job_id = None, frontend_connection_params = Non
     if user_result:
         user = user_result.group(1)
         job_info['user'] = user
+    return job_info
 
 def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
     """Return a list of tuples (oar job id, site), the list of individual oar jobs which make an oargrid job.
