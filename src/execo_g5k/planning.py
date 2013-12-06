@@ -350,7 +350,6 @@ def get_job_specs(resources, excluded_elements = [], name = None):
                 blacklisted_hosts[site].append( element )
 
     for site in sites:
-        
         sub_resources = ''
         base_blacklist = '{\\\\\\\\\\\\\\"'
         end_blacklist = '\\\\\\\\\\\\\\\"}/'
@@ -362,7 +361,7 @@ def get_job_specs(resources, excluded_elements = [], name = None):
             str_hosts = " and ".join( [ "host not in ('"+host+"')" 
                                   for host in blacklisted_hosts[site] ] )
             host_blacklist = True
-        print "hosts", str_hosts
+
         if site in real_resources:
             clusters_nodes = 0
             if get_kavlan: 
@@ -376,7 +375,7 @@ def get_job_specs(resources, excluded_elements = [], name = None):
                 
             cl_blacklist = False
             if host_blacklist:
-                str_clusters = base_blacklist+str_hosts+" and "
+                str_clusters = str_hosts+" and "
             else:
                 str_clusters = ''
             for cluster in get_site_clusters(site):
@@ -386,14 +385,12 @@ def get_job_specs(resources, excluded_elements = [], name = None):
                         clusters_nodes += resources[cluster]
                     else:                        
                         str_clusters += "cluster not in ('"+cluster+"') and "
-                        cl_blacklist = True
-            print "clusters", str_clusters   
-#            real_resources[site] -= clusters_nodes
-            
-     
+                        cl_blacklist = True  
+
             if real_resources[site] > 0:
                 str_site = ''
                 if host_blacklist or cl_blacklist:
+                    str_site += base_blacklist 
                     if not cl_blacklist:
                         str_site += str_hosts
                     else:
@@ -401,8 +398,7 @@ def get_job_specs(resources, excluded_elements = [], name = None):
                     str_site = str_site[:-4]+end_blacklist
                     sub_resources += str_site
                 sub_resources+="nodes="+str(real_resources[site])+'+'
-                print site, str_site
-            print sub_resources[:-1]
+
             
             
             if sub_resources != '':
