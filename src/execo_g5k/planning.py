@@ -28,8 +28,8 @@ from execo.log import style
 from execo_g5k import OarSubmission, oargridsub
 from execo.time_utils import timedelta_to_seconds, \
     unixts_to_datetime, get_unixts, datetime_to_unixts
-from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
-    get_site_clusters, get_resource_attributes, get_host_cluster
+from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_g5k_hosts, get_cluster_site, \
+    get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
 from execo_g5k.oar import oar_duration_to_seconds, format_oar_date
 from execo_g5k.oargrid import get_oargridsub_commandline, get_oargrid_job_oar_jobs, get_oargrid_job_key
 from threading import Thread, currentThread
@@ -55,7 +55,7 @@ else:
     _retrieve_method = 'API'
 
 
-def get_planning(elements = ['grid5000'], excluded_resources = None, vlan = False, subnet = False, storage = False, 
+def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False, 
             out_of_chart = False, starttime = int(time()+timedelta_to_seconds(timedelta(minutes = 1))), 
             endtime = int(time()+timedelta_to_seconds(timedelta(weeks = 4, minutes = 1))) ):
     """Retrieve the planning of the elements (site, cluster) and others resources.
@@ -102,9 +102,6 @@ def get_planning(elements = ['grid5000'], excluded_resources = None, vlan = Fals
         _get_planning_API(planning)
     elif _retrieve_method == 'MySQL':
         _get_planning_MySQL(planning)
-     
-    if excluded_resources is not None:
-        _remove_excluded(planning, excluded_resources)
         
     if out_of_chart:
         _add_charter_to_planning(planning, starttime, endtime)
@@ -121,7 +118,7 @@ def get_planning(elements = ['grid5000'], excluded_resources = None, vlan = Fals
 
 
 
-def compute_slots(planning, walltime):
+def compute_slots(planning, walltime, excluded_resources = None):
     """Compute the slots limits and find the number of available nodes for 
     each elements and for the given walltime. 
     
@@ -134,6 +131,9 @@ def compute_slots(planning, walltime):
     ``{'grid5000': 30, 'lyon': 20, 'reims': 10, 'stremi': 10 }``.
     """
     slots = []
+
+    if excluded_resources is not None:
+        _remove_excluded(planning, excluded_resources)
     limits = _slots_limits(planning)
     
     # Checking if we need to compile vlans planning
@@ -315,7 +315,7 @@ def show_resources(resources, msg = 'Resources'):
     
 
 
-def get_job_specs(resources, name = None):
+def get_job_specs(resources, excluded_elements = [], name = None):
     """ Perform the reservation for the given set of resources """ 
     
     jobs_specs = []
@@ -339,11 +339,30 @@ def get_job_specs(resources, name = None):
             n_sites +=1
 
     get_kavlan = resources.has_key('kavlan')            
-  
+
+    blacklisted_hosts = {}
+    for element in excluded_elements:
+        if element in get_g5k_hosts():
+            site = get_host_site(element)
+            if not blacklisted_hosts.has_key(site):
+                blacklisted_hosts[site] = [element]
+            else:
+                blacklisted_hosts[site].append( element )
+
     for site in sites:
+        
         sub_resources = ''
-        base_blacklist ='{\\\\\\\\\\\\\\"cluster not in ('
-        blacklist_str = ''
+        base_blacklist = '{\\\\\\\\\\\\\\"'
+        end_blacklist = '\\\\\\\\\\\\\\\"}/'
+        
+        # Defining string for hosts
+        host_blacklist = False
+        str_hosts = ''
+        if blacklisted_hosts.has_key(site) and len(blacklisted_hosts[site]) > 0:
+            str_hosts = " and ".join( [ "host not in ('"+host+"')" 
+                                  for host in blacklisted_hosts[site] ] )
+            host_blacklist = True
+        print "hosts", str_hosts
         if site in real_resources:
             clusters_nodes = 0
             if get_kavlan: 
@@ -355,22 +374,37 @@ def get_job_specs(resources, name = None):
                     sub_resources="{type=\\'kavlan\\'}/vlan=1+"
                     get_kavlan = False
                 
-                            
-            for cluster in get_site_clusters(site): 
+            cl_blacklist = False
+            if host_blacklist:
+                str_clusters = base_blacklist+str_hosts+" and "
+            else:
+                str_clusters = ''
+            for cluster in get_site_clusters(site):
                 if cluster in resources :
                     if resources[cluster] > 0:
                         sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
                         clusters_nodes += resources[cluster]
-                    else:
-                        blacklist_str += "'"+cluster+"',"
-                     
-#            real_resources[site] -= clusters_nodes     
+                    else:                        
+                        str_clusters += "cluster not in ('"+cluster+"') and "
+                        cl_blacklist = True
+            print "clusters", str_clusters   
+#            real_resources[site] -= clusters_nodes
+            
+     
             if real_resources[site] > 0:
-                if blacklist_str != '':
-                    sub_resources+=base_blacklist+blacklist_str[:-1]+")\\\\\\\\\\\\\\\"}/nodes="+str(real_resources[site])+'+'
-                else:
-                    sub_resources+="nodes="+str(real_resources[site])+'+'
-                
+                str_site = ''
+                if host_blacklist or cl_blacklist:
+                    if not cl_blacklist:
+                        str_site += str_hosts
+                    else:
+                        str_site += str_clusters
+                    str_site = str_site[:-4]+end_blacklist
+                    sub_resources += str_site
+                sub_resources+="nodes="+str(real_resources[site])+'+'
+                print site, str_site
+            print sub_resources[:-1]
+            
+            
             if sub_resources != '':
                 jobs_specs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
     
@@ -380,9 +414,6 @@ def get_job_specs(resources, name = None):
 
 def distribute_hosts(resources_available, resources_wanted, blacklisted = None):
     """ Distribute the resources on the different sites and cluster"""
-    
-    
-    
     resources = {}
     clusters_wanted = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
                       if element in get_g5k_clusters() }
@@ -400,7 +431,6 @@ def distribute_hosts(resources_available, resources_wanted, blacklisted = None):
     for cluster in get_g5k_clusters():
         if cluster in blacklisted:
             resources[cluster] = 0    
-    
     
     if resources_wanted.has_key('grid5000'):
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
@@ -423,8 +453,6 @@ def distribute_hosts(resources_available, resources_wanted, blacklisted = None):
                     else:
                         resources[site] = min(total_nodes, nodes)
         
-                        
-
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
     
@@ -646,16 +674,16 @@ def _remove_excluded(planning, excluded_resources):
     for element in excluded_resources:
         if element in get_g5k_sites():
             del planning[element]
-        
-    for site_pl in planning.itervalues():
-        for res, res_pl in site_pl.iteritems():
+    
+    for site, site_pl in planning.iteritems():
+        for res in site_pl.keys():
             if res in excluded_resources:
                 del site_pl[res]
-                break
-            for element in res_pl.iterkeys():
+                continue
+            for element in site_pl[res].keys():
                 if element in excluded_resources:
-                    del res_pl[element]
-                    break
+                    del site_pl[res][element]
+
                 
     
 
