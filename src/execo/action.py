@@ -1464,6 +1464,8 @@ class ChainPut(SequentialActions):
             os.close(chainhosts_handle)
 
             chainscript_filename = tempfile.mktemp(prefix = 'tmp_execo_chainscript_')
+            if not _execo_chainput:
+                raise EnvironmentError, "unable to find execo-chainput"
             shutil.copy2(_execo_chainput, chainscript_filename)
 
             preparechain = TaktukPut(self.hosts,

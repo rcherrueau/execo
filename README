@@ -103,6 +103,15 @@ makefile targets:
 
 - dist: to create the execo package in dist/
 
+For execo to work correctly, if installed in $PREFIX (and if $PREFIX
+is not a standard location such as /usr), $PREFIX/bin needs to be on
+the PATH, and python install path under $PREFIX needs to be on python
+search path:
+
+ $ export PATH="$PREFIX/bin${PATH:+:${PATH}}"
+ $ PYTHONHOMEPATH="$PREFIX/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
+ $ export PYTHONPATH="$PYTHONHOMEPATH${PYTHONPATH:+:${PYTHONPATH}}"
+
 usage
 =====
 
