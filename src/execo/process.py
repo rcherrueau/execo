@@ -188,14 +188,14 @@ class ProcessBase(object):
         self.ignore_error = False
         """Boolean. If True, a process raising an OS level error will still be
         considered ok"""
-        self.log_exit_code = True
-        """Boolean. If True, termination of a process with a return code != 0 will
+        self.nolog_exit_code = False
+        """Boolean. If False, termination of a process with a return code != 0 will
         cause a warning in logs"""
-        self.log_timeout = True
-        """Boolean. If True, a process which reaches its timeout and is sent a
+        self.nolog_timeout = False
+        """Boolean. If False, a process which reaches its timeout and is sent a
         SIGTERM will cause a warning in logs"""
-        self.log_error = True
-        """Boolean. If True, a process raising an OS level error will cause a
+        self.nolog_error = False
+        """Boolean. If False, a process raising an OS level error will cause a
         warning in logs"""
         self.default_stdout_handler = True
         """if True, a default handler sends stdout stream output to the member string self.stdout"""
@@ -271,9 +271,9 @@ class ProcessBase(object):
         if self.ignore_exit_code != False: infos.append("ignore_exit_code=%r" % (self.ignore_exit_code,))
         if self.ignore_timeout != False: infos.append("ignore_timeout=%r" % (self.ignore_timeout,))
         if self.ignore_error != False: infos.append("ignore_error=%r" % (self.ignore_error,))
-        if self.log_exit_code != True: infos.append("log_exit_code=%r" % (self.log_exit_code,))
-        if self.log_timeout != True: infos.append("log_timeout=%r" % (self.log_timeout,))
-        if self.log_error != True: infos.append("log_error=%r" % (self.log_error,))
+        if self.nolog_exit_code != False: infos.append("nolog_exit_code=%r" % (self.nolog_exit_code,))
+        if self.nolog_timeout != False: infos.append("nolog_timeout=%r" % (self.nolog_timeout,))
+        if self.nolog_error != False: infos.append("nolog_error=%r" % (self.nolog_error,))
         if self.default_stdout_handler != True: infos.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
         if self.default_stderr_handler != True: infos.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
         if self.forced_kill: infos.append("forced_kill=%s" % (self.forced_kill,))
@@ -415,9 +415,9 @@ class ProcessBase(object):
         """
         with self._lock:
             s = style.emph("terminated:") + self.dump()
-            warn = ((self.error and self.log_error)
-                    or (self.timeouted and self.log_timeout)
-                    or (self.exit_code != 0 and self.log_exit_code))
+            warn = ((self.error and not self.nolog_error)
+                    or (self.timeouted and not self.nolog_timeout)
+                    or (self.exit_code != 0 and not self.nolog_exit_code))
         # actual logging outside the lock to avoid deadlock between process lock and logging lock
         if warn:
             logger.warning(s)

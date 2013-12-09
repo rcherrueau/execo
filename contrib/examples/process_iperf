@@ -9,7 +9,7 @@ iperf_length = 20
 timer = Timer()
 server = Process('iperf -s')
 server.ignore_exit_code = True
-server.log_exit_code = False
+server.nolog_exit_code = True
 server.start()
 experiments = dict()
 for simultaneous in num_processes_to_test:

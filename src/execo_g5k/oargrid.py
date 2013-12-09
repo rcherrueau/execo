@@ -159,7 +159,7 @@ def oargriddel(job_ids, frontend_connection_params = None, timeout = False):
                         connection_params = make_connection_params(frontend_connection_params,
                                                                    default_frontend_connection_params))
         p.timeout = timeout
-        p.log_exit_code = False
+        p.nolog_exit_code = True
         p.pty = True
         processes.append(p)
     for process in processes: process.start()

@@ -286,7 +286,7 @@ def oardel(job_specs, frontend_connection_params = None, timeout = False):
                         connection_params = make_connection_params(frontend_connection_params,
                                                                    default_frontend_connection_params))
         p.timeout = timeout
-        p.log_exit_code = False
+        p.nolog_exit_code = True
         p.pty = True
         processes.append(p)
     for process in processes: process.start()
@@ -362,8 +362,8 @@ def get_current_oar_jobs(frontends = None,
             for jobfrontend in oar_job_ids:
                 info = get_oar_job_info(jobfrontend[0], jobfrontend[1],
                                         frontend_connection_params, timeout,
-                                        log_exit_code = False, log_timeout = False,
-                                        log_error = False)
+                                        nolog_exit_code = True, nolog_timeout = True,
+                                        nolog_error = True)
                 if (_date_in_range(info['start_date'], start_between)
                     and _date_in_range(info['start_date'] + info['walltime'], end_between)):
                     filtered_job_ids.append(jobfrontend)
@@ -372,7 +372,7 @@ def get_current_oar_jobs(frontends = None,
 
 def get_oar_job_info(oar_job_id = None, frontend = None,
                      frontend_connection_params = None, timeout = False,
-                     log_exit_code = True, log_timeout = True, log_error = True):
+                     nolog_exit_code = False, nolog_timeout = False, nolog_error = False):
     """Return a dict with informations about an oar job.
 
     :param oar_job_id: the oar job id. If None given, will try to get
@@ -418,9 +418,9 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
                                                                      default_frontend_connection_params))
     process.timeout = timeout
     process.pty = True
-    process.log_exit_code = log_exit_code
-    process.log_timeout = log_timeout
-    process.log_error = log_error
+    process.nolog_exit_code = nolog_exit_code
+    process.nolog_timeout = nolog_timeout
+    process.nolog_error = nolog_error
     process.run()
     job_info = dict()
     start_date_result = re.search("^\s*startTime = (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\s*$", process.stdout, re.MULTILINE)
@@ -488,8 +488,8 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
     countdown = Timer(timeout)
     while countdown.remaining() == None or countdown.remaining() > 0:
         infos = get_oar_job_info(oar_job_id, frontend, frontend_connection_params,
-                                 countdown.remaining(), log_exit_code = False,
-                                 log_timeout = False, log_error = False)
+                                 countdown.remaining(), nolog_exit_code = True,
+                                 nolog_timeout = True, nolog_error = True)
         now = time.time()
         if infos.has_key('start_date') or infos.has_key('scheduled_start'):
             if infos.has_key('start_date'):
@@ -661,7 +661,7 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_p
     process.timeout = countdown.remaining()
     process.pty = True
     process.ignore_exit_code = True # kavlan exit code != 0 if request
-    process.log_exit_code = False   # is for a job without a vlan
+    process.nolog_exit_code = True  # is for a job without a vlan
                                     # reservation
     process.run()
     if process.ok:

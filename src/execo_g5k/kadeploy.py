@@ -419,9 +419,9 @@ def deploy(deployment,
                                     deployment_hostnames_mapping.keys(),
                                     connection_params = node_connection_params)
         for p in deployed_check.processes:
-                p.log_exit_code = False
-                p.log_timeout = False
-                p.log_error = False
+                p.nolog_exit_code = True
+                p.nolog_timeout = True
+                p.nolog_error = True
         deployed_check.run()
         newly_deployed = list()
         for process in deployed_check.processes:

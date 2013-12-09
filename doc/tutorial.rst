@@ -108,11 +108,11 @@ root, there are probably some directories in ``/tmp`` that ``find``
 could not visit (lack of permissions), ``find`` does not return 0 in
 this case. The default behavior of execo is to issue warning logs when
 processes are in error, do not return 0, or timeout. If needed we can
-instruct execo to ignore the exit code by setting process property
-``log_exit_code`` to False. Still in this case, no log will be issued
+instruct execo to stop logging the exit code by setting process property
+``nolog_exit_code`` to True. In this case, no log will be issued
 but the process will still be considered in error from execo's point
 of view. You can also instruct execo to ignore the exit code by
-setting process property ``ignore_exit_code``.
+setting process property ``ignore_exit_code`` to True.
 
 Remote process over ssh
 '''''''''''''''''''''''
