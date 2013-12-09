@@ -18,20 +18,18 @@
 """Module provides functions to help you to plan your experiment on Grid'5000.
 """
 from socket import getfqdn
-from pprint import pprint
 from time import time
 from datetime import timedelta
 from math import ceil
 from itertools import cycle
 from execo import logger
 from execo.log import style
-from execo_g5k import OarSubmission, oargridsub
+from execo_g5k import OarSubmission
 from execo.time_utils import timedelta_to_seconds, \
     unixts_to_datetime, get_unixts, datetime_to_unixts
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_g5k_hosts, get_cluster_site, \
     get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
 from execo_g5k.oar import oar_duration_to_seconds, format_oar_date
-from execo_g5k.oargrid import get_oargridsub_commandline, get_oargrid_job_oar_jobs, get_oargrid_job_key
 from threading import Thread, currentThread
 
 try:
@@ -316,8 +314,7 @@ def show_resources(resources, msg = 'Resources'):
 
 
 def get_jobs_specs(resources, excluded_elements = [], name = None):
-    """ Perform the reservation for the given set of resources """ 
-    
+    """ Generate the several job specifications from the dict of resources and the blacklisted elements """
     jobs_specs = []
     
     #Adding sites corresponding to clusters wanted
@@ -463,7 +460,7 @@ def _get_vlans_API(site):
     vlans = []
     for equip in equips['items']:
         if equip.has_key('vlans') and len(equip['vlans']) >2:
-            for vlan, params in equip['vlans'].iteritems():
+            for params in equip['vlans'].itervalues():
                 if type( params ) == type({}) and params.has_key('name') \
                         and int(params['name'].split('-')[1])>3:
                     # > 3 because vlans 1, 2, 3 are not routed
@@ -672,7 +669,7 @@ def _remove_excluded(planning, excluded_resources):
         if element in get_g5k_sites():
             del planning[element]
     
-    for site, site_pl in planning.iteritems():
+    for site_pl in planning.itervalues():
         for res in site_pl.keys():
             if res in excluded_resources:
                 del site_pl[res]
@@ -753,7 +750,7 @@ def _slots_limits(planning):
     limits = []
     for site in planning.itervalues():
         for res_pl in site.itervalues():
-            for el, el_planning in res_pl.iteritems():                           
+            for el_planning in res_pl.itervalues():                           
                     for start, stop in el_planning['busy']:
                         if start not in limits:
                             limits.append(start)
