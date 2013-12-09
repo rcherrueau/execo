@@ -121,7 +121,7 @@ class Virsh_Deployment(object):
         logger.info('Upgrading hosts')
         cmd = " echo 'debconf debconf/frontend select noninteractive' | debconf-set-selections; \
                 echo 'debconf debconf/priority select critical' | debconf-set-selections ;      \
-                apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get dist-upgrade -y --force-yes "+\
+                dpkg --configure -a ; apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get dist-upgrade -y --force-yes "+\
                 '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" '
         upgrade = self.fact.get_remote( cmd, self.hosts, connection_params = {'user': 'root'}).run()
         if upgrade.ok:
@@ -353,7 +353,7 @@ class Virsh_Deployment(object):
 
     def setup_apt_cacher(self, host):
         """ Install and configure apt-cacher on one host"""
-        logger.info('Installing apt-cacher on '+style.host(host))
+        logger.info('Installing apt-cacher on '+style.host(host.address))
         base_dir  = '/tmp/apt-cacher-ng'
         log_dir   = base_dir+'/log'
         cache_dir = base_dir+'/cache'
@@ -415,23 +415,23 @@ class Virsh_Deployment(object):
             self.fact.get_remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
                             connection_params = {'user': 'root'}).run()
         
-        ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], connection_params = {'user': 'root'})
-        ls_image.ignore_exit_code = True
-        ls_image.log_exit_code = False
-        ls_image.run()
-                                 
-        if ls_image.stdout.strip() == disk_image:
-            logger.info("Image found in deployed hosts")
-            copy_file = self.fact.get_remote('cp '+disk_image+' /tmp/', self.hosts,
-                                    connection_params = {'user': 'root'}).run()
-        else:
-            logger.info("Copying backing file from frontends")
-            copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/',
-                                    connection_params = {'user': 'root'}).run()
+#        ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], connection_params = {'user': 'root'})
+#        ls_image.ignore_exit_code = True
+#        ls_image.log_exit_code = False
+#        ls_image.run()
+#                                 
+#        if ls_image.stdout.strip() == disk_image:
+#            logger.info("Image found in deployed hosts")
+#            copy_file = self.fact.get_remote('cp '+disk_image+' /tmp/', self.hosts,
+#                                    connection_params = {'user': 'root'}).run()
+#        else:
+        logger.info("Copying backing file from frontends")
+        copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/',
+                                connection_params = {'user': 'root'}).run()
 
-            if not copy_file.ok:
-                logger.error('Unable to copy the backing file')
-                raise ActionsFailed, [copy_file]
+        if not copy_file.ok:
+            logger.error('Unable to copy the backing file')
+            raise ActionsFailed, [copy_file]
         
         logger.info("Creating disk image on /tmp/vm-base.img")
         cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
