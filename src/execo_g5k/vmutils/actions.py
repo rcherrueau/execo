@@ -18,7 +18,7 @@
 """A set of functions to manipulate virtual machines on Grid'5000"""
 
 from pprint import pformat, pprint
-from execo import SshProcess, Remote, Put, logger, get_remote, get_remote, Process, ParallelActions
+from execo import SshProcess, Remote, Put, logger, get_remote, Process, ParallelActions
 from execo.log import style
 from execo.time_utils import sleep
 from execo_g5k import default_frontend_connection_params
@@ -30,9 +30,9 @@ from execo.exception import ActionsFailed
 def list_vm( host, all = False ):
     """ Return the list of VMs on host """
     if all :
-        list_vm = Remote('virsh list --all', [host], connection_params = {'user': 'root'} ).run()
+        list_vm = get_remote('virsh list --all', [host], connection_params = {'user': 'root'} ).run()
     else:
-        list_vm = Remote('virsh list', [host], connection_params = {'user': 'root'} ).run()
+        list_vm = get_remote('virsh list', [host], connection_params = {'user': 'root'} ).run()
     vms_id = []
     for p in list_vm.processes:
         lines = p.stdout.split('\n')

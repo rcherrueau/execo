@@ -243,7 +243,7 @@ class Virsh_Deployment(object):
         
         r = self.fact.get_remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
                     connection_params = {'user': 'root'})
-        r.log_exit_code = False
+        r.nolog_exit_code = True
         r.run()
         
         self.fact.get_fileput(self.hosts, ['default.xml'], remote_location = '/etc/libvirt/qemu/networks/',
@@ -265,7 +265,7 @@ class Virsh_Deployment(object):
         
         bridge_exists = self.fact.get_remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1", self.hosts,
                          connection_params = {'user': 'root'})
-        bridge_exists.log_exit_code = False
+        bridge_exists.nolog_exit_code = True
         bridge_exists.run()
         nobr_hosts = []
         for p in bridge_exists.processes:
@@ -415,6 +415,7 @@ class Virsh_Deployment(object):
             self.fact.get_remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
                             connection_params = {'user': 'root'}).run()
         
+<<<<<<< HEAD
 #        ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], connection_params = {'user': 'root'})
 #        ls_image.ignore_exit_code = True
 #        ls_image.log_exit_code = False
@@ -428,6 +429,21 @@ class Virsh_Deployment(object):
         logger.info("Copying backing file from frontends")
         copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/',
                                 connection_params = {'user': 'root'}).run()
+=======
+        ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], connection_params = {'user': 'root'})
+        ls_image.ignore_exit_code = True
+        ls_image.nolog_exit_code = True
+        ls_image.run()
+                                 
+        if ls_image.stdout.strip() == disk_image:
+            logger.info("Image found in deployed hosts")
+            copy_file = self.fact.get_remote('cp '+disk_image+' /tmp/', self.hosts,
+                                    connection_params = {'user': 'root'}).run()
+        else:
+            logger.info("Copying backing file from frontends")
+            copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/',
+                                    connection_params = {'user': 'root'}).run()
+>>>>>>> 190967acc5004956352f22c916b5350d0995eb49
 
         if not copy_file.ok:
             logger.error('Unable to copy the backing file')

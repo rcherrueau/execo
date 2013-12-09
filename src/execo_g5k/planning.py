@@ -315,7 +315,7 @@ def show_resources(resources, msg = 'Resources'):
     
 
 
-def get_job_specs(resources, excluded_elements = [], name = None):
+def get_jobs_specs(resources, excluded_elements = [], name = None):
     """ Perform the reservation for the given set of resources """ 
     
     jobs_specs = []
@@ -327,12 +327,13 @@ def get_job_specs(resources, excluded_elements = [], name = None):
         if resource in get_g5k_sites() and not resource in sites:
             sites.append(resource)
         if resource in get_g5k_clusters():
-            site = get_cluster_site(resource)
-            if not site in sites:
-                sites.append(site)
-            if not real_resources.has_key(site):
-                real_resources[site] = 0
-
+            if resource not in excluded_elements:
+                site = get_cluster_site(resource)
+                if not site in sites:
+                    sites.append(site)
+                if not real_resources.has_key(site):
+                    real_resources[site] = 0
+    
     n_sites = 0
     for resource in real_resources.keys():
         if resource in sites:
