@@ -358,7 +358,7 @@ def get_job_specs(resources, excluded_elements = [], name = None):
         host_blacklist = False
         str_hosts = ''
         if blacklisted_hosts.has_key(site) and len(blacklisted_hosts[site]) > 0:
-            str_hosts = " and ".join( [ "host not in ('"+host+"')" 
+            str_hosts = ''.join( [ "host not in ('"+host+"') and " 
                                   for host in blacklisted_hosts[site] ] )
             host_blacklist = True
 
@@ -375,7 +375,7 @@ def get_job_specs(resources, excluded_elements = [], name = None):
                 
             cl_blacklist = False
             if host_blacklist:
-                str_clusters = str_hosts+" and "
+                str_clusters = str_hosts
             else:
                 str_clusters = ''
             for cluster in get_site_clusters(site):
@@ -386,16 +386,16 @@ def get_job_specs(resources, excluded_elements = [], name = None):
                     else:                        
                         str_clusters += "cluster not in ('"+cluster+"') and "
                         cl_blacklist = True  
-
+            
             if real_resources[site] > 0:
                 str_site = ''
                 if host_blacklist or cl_blacklist:
                     str_site += base_blacklist 
                     if not cl_blacklist:
-                        str_site += str_hosts
+                        str_site += str_hosts[:-4]
                     else:
-                        str_site += str_clusters
-                    str_site = str_site[:-4]+end_blacklist
+                        str_site += str_clusters[:-4]
+                    str_site = str_site+end_blacklist
                     sub_resources += str_site
                 sub_resources+="nodes="+str(real_resources[site])+'+'
 
@@ -403,7 +403,7 @@ def get_job_specs(resources, excluded_elements = [], name = None):
             
             if sub_resources != '':
                 jobs_specs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
-    
+            
     return jobs_specs
     
  
