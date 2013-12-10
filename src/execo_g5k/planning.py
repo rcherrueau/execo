@@ -772,7 +772,6 @@ def _slots_limits(planning):
    
                
 def _add_charter_to_planning(planning, starttime, endtime):
-    """"""
     charter_el_planning = get_charter_el_planning(starttime, endtime)
     
     for site in planning.itervalues():
@@ -784,15 +783,16 @@ def _add_charter_to_planning(planning, starttime, endtime):
                 
          
 
-def g5k_charter_time(dt):
-    """Is the given datetime in a g5k charter time period ?
+def g5k_charter_time(t):
+    """Is the given date in a g5k charter time period ?
 
-    Returns a boolean, True if the given datetime is in a period where
+    Returns a boolean, True if the given date is in a period where
     the g5k charter needs to be respected, False if it is in a period
     where charter is not applicable (night, weekends)
 
-    :param dt: a datetime.datetime
+    :param t: a date in a type supported by `execo.time_utils.get_unixts`
     """
+    dt = unixts_to_datetime(get_unixts(t))
     if dt.weekday() in [5, 6]: return False
     if dt.hour < 9 or dt.hour >= 19: return False
     return True
@@ -800,25 +800,29 @@ def g5k_charter_time(dt):
 def get_next_charter_period(start, end):
     """Return the next g5k charter time period.
 
-    :param start: datetime.datetime from which to start searching for
+    :param start: date in a type supported by
+      `execo.time_utils.get_unixts` from which to start searching for
       the next g5k charter time period. If start is in a g5k charter
       time period, the returned g5k charter time period starts at
       start.
 
-    :param end: datetime.datetime until which to search for the next
+    :param end: date in a type supported by
+      `execo.time_utils.get_unixts` until which to search for the next
       g5k charter time period. If end is in the g5k charter time
       period, the returned g5k charter time period ends at end.
 
     :returns: a tuple (charter_start, charter_end) of
-      datetime.datetime. (None, None) if no g5k charter time period
+      unix timestamps. (None, None) if no g5k charter time period
       found
     """
+    start = unixts_to_datetime(get_unixts(start))
+    end = unixts_to_datetime(get_unixts(end))
     if end <= start:
         return None, None
     elif g5k_charter_time(start):
         charter_end = start.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
         if charter_end > end: charter_end = end
-        return start, charter_end
+        return datetime_to_unixts(start), datetime_to_unixts(charter_end)
     else:
         wd = start.weekday()
         if (wd == 4 and start.hour >= 19) or (wd > 4):
@@ -832,16 +836,16 @@ def get_next_charter_period(start, end):
         charter_end = charter_start.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
         if charter_end > end:
             charter_end = end
-        return charter_start, charter_end
+        return datetime_to_unixts(charter_start), datetime_to_unixts(charter_end)
 
 def get_charter_el_planning(start_time, end_time):
     """Returns the list of tuples (start, end) of g5k charter time periods between start_time and end_time.
 
     :param start_time: a date in one of the types supported by
-      time_utils
+      `execo.time_utils.get_unixts`
 
     :param end_time: a date in one of the types supported by
-      time_utils
+      `execo.time_utils.get_unixts`
     """
     start_time = unixts_to_datetime(get_unixts(start_time))
     end_time = unixts_to_datetime(get_unixts(end_time))
@@ -849,7 +853,7 @@ def get_charter_el_planning(start_time, end_time):
     while True:
         charter_start, charter_end = get_next_charter_period(start_time, end_time)
         if charter_start == None: break
-        el_planning.append((int(datetime_to_unixts(charter_start)), int(datetime_to_unixts(charter_end))))
+        el_planning.append((int(charter_start), int(charter_end)))
         start_time = charter_end
     return el_planning
 
