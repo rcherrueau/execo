@@ -502,23 +502,26 @@ class Process(ProcessBase):
     Example usage of the process class: run an iperf server, and
     connect to it with an iperf client:
 
-    >>> server = Process('iperf -s', ignore_exit_code = True).start()
+    >>> server = Process('iperf -s')
+    >>> server.ignore_exit_code = server.nolog_exit_code = True
+    >>> server.start()
+    Process('iperf -s')
     >>> client = Process('iperf -c localhost -t 2').start()
-    >>> client.started()
+    >>> client.started
     True
-    >>> client.ended()
+    >>> client.ended
     False
     >>> client.wait()
-    Process('iperf -c localhost -t 2', close_stdin=True)
-    >>> client.ended()
+    Process('iperf -c localhost -t 2')
+    >>> client.ended
     True
-    >>> server.ended()
+    >>> server.ended
     False
     >>> server.kill()
-    Process('iperf -s', ignore_exit_code=True, close_stdin=True)
+    Process('iperf -s')
     >>> server.wait()
-    Process('iperf -s', ignore_exit_code=True, close_stdin=True)
-    >>> server.ended()
+    Process('iperf -s')
+    >>> server.ended
     True
     """
 
