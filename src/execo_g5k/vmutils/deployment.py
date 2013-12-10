@@ -281,7 +281,8 @@ class Virsh_Deployment(object):
             cmd = 'sed -i "s/dhcp/manual/g" /etc/network/interfaces ;  export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
                 'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; echo "bridge_ports $br_if" >> /etc/network/interfaces ;'+\
                 ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
-                ' echo "bridge_fd 0" >> /etc/network/interfaces ; nohup sh -c "sleep 30; service networking restart" &'
+                ' echo "bridge_fd 0" >> /etc/network/interfaces ; nohup sh -c "sleep 30; service networking restart"'
+            logger.debug(cmd)
             create_br = self.fact.get_remote(cmd, nobr_hosts, connection_params = {'user': 'root'}).run()
             
             if create_br.ok:
