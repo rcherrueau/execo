@@ -232,6 +232,7 @@ def find_max_slot( slots, resources_wanted):
     
     :param resources_wanted: a dict of elements that must be maximized"""
     max_nodes = 0
+    max_slot = None, None, None
     for slot in slots:
         vlan_free = True
         if 'kavlan' in resources_wanted:
@@ -245,7 +246,7 @@ def find_max_slot( slots, resources_wanted):
                         if element in resources_wanted and element != 'kavlan'])
         if res_nodes > max_nodes and vlan_free:
             max_nodes = res_nodes
-            max_slot = slot     
+            max_slot = slot
     return max_slot
 
 def find_free_slot( slots, resources_wanted):
