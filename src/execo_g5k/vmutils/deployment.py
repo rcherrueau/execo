@@ -21,7 +21,6 @@ from logging import DEBUG
 from pprint import pprint, pformat
 import time, xml.etree.ElementTree as ETree, re, os, tempfile
 from itertools import cycle
-import random
 import execo as EX, execo_g5k as EX5
 from xml.dom import minidom
 from execo import logger, Host, SshProcess, default_connection_params
@@ -104,10 +103,13 @@ class Virsh_Deployment(object):
                 'Package: * \nPin: release a=testing \nPin-Priority: 850\n\n'+\
                 'Package: * \nPin: release a=unstable \nPin-Priority: 800\n\n')
         f.close()
+        f = open(self.outdir + '/apt.conf', 'w')
+        f.write('APT::Acquire::Retries=20;\n')
+        f.close()
         
-        
-        apt_conf = self.fact.get_fileput(self.hosts, [self.outdir + '/sources.list', self.outdir + '/preferences'], 
-                                         remote_location = '/etc/apt/', connection_params = {'user': 'root'}).run()
+        apt_conf = self.fact.get_fileput(self.hosts, 
+                [self.outdir + '/sources.list', self.outdir + '/preferences', self.outdir +'/apt.conf'], 
+                remote_location = '/etc/apt/', connection_params = {'user': 'root'}).run()
         
         if apt_conf.ok:
             logger.debug('apt configured successfully')
@@ -121,7 +123,7 @@ class Virsh_Deployment(object):
         logger.info('Upgrading hosts')
         cmd = " echo 'debconf debconf/frontend select noninteractive' | debconf-set-selections; \
                 echo 'debconf debconf/priority select critical' | debconf-set-selections ;      \
-                dpkg --configure -a ; apt-get update ; export DEBIAN_MASTER=noninteractive ; apt-get dist-upgrade -y --force-yes "+\
+                apt-get update ; dpkg --configure -a ; export DEBIAN_MASTER=noninteractive ; apt-get dist-upgrade -y --force-yes "+\
                 '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" '
         upgrade = self.fact.get_remote( cmd, self.hosts, connection_params = {'user': 'root'}).run()
         if upgrade.ok:
@@ -181,8 +183,7 @@ class Virsh_Deployment(object):
     def reboot_nodes(self):
         """ Reboot the nodes to load the new kernel """
         logger.info('Rebooting nodes')
-        self.fact.get_remote('shutdown -r now ', self.hosts, connection_params = {'user': 'root'}).run()
-        n_host = len(self.hosts)
+        self.fact.get_remote('shutdown -t 10 -r now', self.hosts, connection_params = {'user': 'root'}).run()
         hosts_list = ' '.join( [host.address for host in self.hosts ])
         
         hosts_down = False
@@ -190,12 +191,11 @@ class Virsh_Deployment(object):
         while (not hosts_down) and nmap_tries < 20:
             sleep(10)
             nmap_tries += 1 
-            nmap = SshProcess('nmap '+hosts_list+' -p 22', Host('rennes'),
+            nmap = SshProcess('nmap '+hosts_list+' -p 22', Host('lyon'),
                               connection_params = default_frontend_connection_params ).run()
             for line in nmap.stdout.split('\n'):
                 if 'Nmap done' in line:
                     hosts_down = line.split()[5].replace('(','') == str(0)
-        
         
         logger.info('Hosts have been shutdown, wait hosts reboot')
         hosts_up = False
@@ -224,7 +224,7 @@ class Virsh_Deployment(object):
                 +'&& sed -i "s/#host_uuid/host_uuid/g" /etc/libvirt/libvirtd.conf && service libvirt-bin restart'
         self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()
         
-        self.create_bridge()
+#        self.create_bridge()
         
         logger.info('Configuring libvirt network ...')
         if network_xml is None:
@@ -262,7 +262,6 @@ class Virsh_Deployment(object):
         """ Creation of a bridge to be used for the virtual network """
         logger.info('Configuring the bridge')
         
-        
         bridge_exists = self.fact.get_remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1", self.hosts,
                          connection_params = {'user': 'root'})
         bridge_exists.nolog_exit_code = True
@@ -282,8 +281,7 @@ class Virsh_Deployment(object):
             cmd = 'sed -i "s/dhcp/manual/g" /etc/network/interfaces ;  export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
                 'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; echo "bridge_ports $br_if" >> /etc/network/interfaces ;'+\
                 ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
-                ' echo "bridge_fd 0" >> /etc/network/interfaces ; nohup service networking restart &'
-            
+                ' echo "bridge_fd 0" >> /etc/network/interfaces ; nohup "sleep 30; service networking restart" &'
             create_br = self.fact.get_remote(cmd, nobr_hosts, connection_params = {'user': 'root'}).run()
             
             if create_br.ok:
@@ -291,6 +289,8 @@ class Virsh_Deployment(object):
             else:
                 logger.error('Unable to setup the bridge')
                 raise ActionsFailed, [create_br]
+            
+            
         else:
             logger.info('Bridge is already present')
 
@@ -377,7 +377,6 @@ class Virsh_Deployment(object):
         EX.SshProcess('export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y -t unstable  --force-yes munin', 
                self.service_node ).run()
         f = open('munin-nodes', 'w')
-        i_vm =0
         for host in self.hosts:
             get_ip = EX.Process('host '+host.address).run()
             ip =  get_ip.stdout.strip().split(' ')[3]
@@ -407,7 +406,7 @@ class Virsh_Deployment(object):
         self.fact.get_remote(cmd, self.hosts).run()
 
 
-    def create_disk_image(self, disk_image = '/grid5000/images/KVM/squeeze-x64-base.qcow2', clean = True):
+    def create_disk_image(self, disk_image = '/grid5000/images/KVM/wheezy-x64-base.qcow2', clean = True):
         """Create a base image in RAW format for using qemu-img than can be used as the vms backing file """
         
         if clean:
@@ -415,19 +414,8 @@ class Virsh_Deployment(object):
             self.fact.get_remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
                             connection_params = {'user': 'root'}).run()
         
-
-#        ls_image = EX.SshProcess('ls '+disk_image, self.hosts[0], connection_params = {'user': 'root'})
-#        ls_image.ignore_exit_code = True
-#        ls_image.log_exit_code = False
-#        ls_image.run()
-#                                 
-#        if ls_image.stdout.strip() == disk_image:
-#            logger.info("Image found in deployed hosts")
-#            copy_file = self.fact.get_remote('cp '+disk_image+' /tmp/', self.hosts,
-#                                    connection_params = {'user': 'root'}).run()
-#        else:
         logger.info("Copying backing file from frontends")
-        copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/',
+        copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/', 
                                 connection_params = {'user': 'root'}).run()
 
         if not copy_file.ok:
@@ -448,7 +436,9 @@ class Virsh_Deployment(object):
         cmd = 'modprobe nbd max_part=1; '+ \
                 'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img ; sleep 3 ; '+ \
                 'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
-                'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+ \
+                'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+\
+                'echo "auto eth0" >> /etc/network/interfaces ; '+\
+                'echo "iface eth0 inet dhcp" >> /etc/network/interfaces ;'+\
                 'cp -r '+ssh_key+'* /mnt/root/.ssh/ ;'+ \
                 'umount /mnt; qemu-nbd -d /dev/nbd0 '
         logger.debug(cmd)
@@ -480,7 +470,7 @@ class Virsh_Deployment(object):
                 host = ETree.SubElement(cluster, 'host', attrib = {'id': host_uid})
             else:
                 host = cluster.find("./host/[@id='"+host_uid+"']")
-            el_vm = ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
+            ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
                         'mem': str(vm['mem_size']), 'cpu': str(vm['vcpus']), 'hdd': str(vm['hdd_size'])})
         
         f = open(self.outdir+'/placement.xml', 'w')
@@ -538,8 +528,7 @@ class Virsh_Deployment(object):
                 i_vm = 0
                 for host in self.hosts:
                     for i in range(len(vms)/len(self.hosts)):
-                        vms[i_vm]['host'] = host
-                        i_vm += 1
+                        vms[i_vm+i]['host'] = host
                 
         else: 
             clusters = []
