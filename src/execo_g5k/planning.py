@@ -126,7 +126,7 @@ def compute_slots(planning, walltime, excluded_resources = None):
     
     Return the list of slots where a slot is ``[ start, stop, freehosts ]`` and
     freehosts is a dict of Grid'5000 element with number of nodes available 
-    ``{'grid5000': 30, 'lyon': 20, 'reims': 10, 'stremi': 10 }``.
+    ``{'grid5000': 40, 'lyon': 20, 'reims': 10, 'stremi': 10 }``.
     """
     slots = []
 
@@ -340,7 +340,7 @@ def get_jobs_specs(resources, excluded_elements = [], name = None):
 
     blacklisted_hosts = {}
     for element in excluded_elements:
-        if element in get_g5k_hosts():
+        if element not in get_g5k_clusters()+get_g5k_sites():
             site = get_host_site(element)
             if not blacklisted_hosts.has_key(site):
                 blacklisted_hosts[site] = [element]
