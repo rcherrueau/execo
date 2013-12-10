@@ -130,7 +130,8 @@ how to contribute
 - use the core systems provided (eg. the configuration system, the tty
   coloring system, the logger, etc.) instead of developing your own.
 
-- ask a core developer before adding a dependency
+- ask a core developer before adding a dependency or dealing with
+  threads, signals (particularly: creating threads)
 
 - provide documented code (internal documentation as well as user
   documentation where needed)
