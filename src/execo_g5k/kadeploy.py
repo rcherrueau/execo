@@ -33,28 +33,7 @@ import re
 import time
 
 class Deployment(object):
-    """A kadeploy3 deployment.
-
-    POD style class.
-
-    members are:
-
-    - hosts: iterable of `execo.host.Host` on which to deploy.
-
-    - env_file:
-
-    - env_name:
-
-    - user:
-
-    - vlan:
-
-    - other_options:
-
-    there must be either one of env_name or env_file parameter
-    given. If none given, will try to use the default environement
-    from `g5k_configuration`.
-    """
+    """A kadeploy3 deployment, POD style class."""
 
     def __init__(self,
                  hosts = None,
@@ -64,11 +43,21 @@ class Deployment(object):
                  vlan = None,
                  other_options = None):
         self.hosts = hosts
+        """hosts: iterable of `execo.host.Host` on which to deploy."""
         self.env_file = env_file
+        """filename of an environment to deploy"""
         self.env_name = env_name
+        """name of a kadeploy3 registered environment to deploy.
+
+        there must be either one of env_name or env_file parameter
+        given. If none given, will try to use the default environement
+        from `g5k_configuration`."""
         self.user = user
+        """kadeploy3 user"""
         self.vlan = vlan
+        """if given, kadeploy3 will automatically switch the nodes to this vlan after deployment"""
         self.other_options = other_options
+        """string of other options to pass to kadeploy3"""
 
     def _get_common_kadeploy_command_line(self):
         cmd_line = g5k_configuration.get('kadeploy3')
