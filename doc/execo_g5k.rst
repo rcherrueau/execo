@@ -199,6 +199,56 @@ APIConnection
 .. autoclass:: APIConnection
    :members:
 
+Planning utilities
+==================
+
+.. automodule:: execo_g5k.planning
+
+Retrieve resources planning
+---------------------------
+These functions allow to retrieve retrieve resources planning, compute the slots
+and find slots with specific properties.
+
+.. autofunction:: get_planning
+.. autofunction:: compute_slots
+.. autofunction:: find_first_slot
+.. autofunction:: find_max_slot
+.. autofunction:: find_free_slot
+
+Charter related functions
+-------------------------
+
+.. autofunction:: g5k_charter_time
+.. autofunction:: get_next_charter_period
+.. autofunction:: get_charter_el_planning
+
+.. Plot functions
+   --------------
+   .. autofunction:: draw_gantt
+
+Virtual machines utilities
+==========================
+
+.. automodule:: execo_g5k.vmutils
+   :members:
+
+deployment
+----------
+
+.. autoclass:: execo_g5k.vmutils.deployment.Virsh_Deployment
+   :members:
+
+actions
+-------
+
+.. autofunction:: list_vm
+.. autofunction:: define_vms
+.. autofunction:: create_disks
+.. autofunction:: install_vms
+.. autofunction:: start_vms
+.. autofunction:: wait_vms_have_started
+.. autofunction:: destroy_vms
+
 Configuration
 =============
 
@@ -343,56 +393,3 @@ TODO: Currently, due to an ongoing bug or misconfiguration (see
 https://www.grid5000.fr/cgi-bin/bugzilla3/show_bug.cgi?id=3302), oar
 fails to access the ssh keys if they are not world-readable, so you
 need to make them so.
-
-Planning utilities
-==================
-
-.. automodule:: execo_g5k.planning
-
-Retrieve resources planning
----------------------------
-These functions allow to retrieve retrieve resources planning, compute the slots
-and find slots with specific properties. 
-
-.. autofunction:: get_planning
-.. autofunction:: compute_slots
-.. autofunction:: find_first_slot
-.. autofunction:: find_max_slot
-.. autofunction:: find_free_slot
-
-Charter related functions
--------------------------
-
-.. autofunction:: g5k_charter_time
-.. autofunction:: get_next_charter_period
-.. autofunction:: get_charter_el_planning
-
-.. Plot functions
-   --------------
-   .. autofunction:: draw_gantt
-
-Virtual machines utilities
-==========================
-
-.. automodule:: execo_g5k.vmutils
-   :members:
-
-deployment
-----------
-
-.. autoclass:: execo_g5k.vmutils.deployment.Virsh_Deployment
-   :members:
-
-actions
--------
-
-.. autofunction:: list_vm
-.. autofunction:: define_vms
-.. autofunction:: create_disks
-.. autofunction:: install_vms
-.. autofunction:: start_vms
-.. autofunction:: wait_vms_have_started
-.. autofunction:: destroy_vms
-
-
-
