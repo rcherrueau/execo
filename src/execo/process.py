@@ -566,12 +566,15 @@ class Process(ProcessBase):
 
     def _actual_cmd(self):
         # return actual cmd
-        if self.shell == False and isinstance(self.cmd, str):
+        if self.shell == False and (isinstance(self.cmd, str) or isinstance(self.cmd, unicode)):
             return shlex.split(self.cmd)
         elif self.shell == True and hasattr(self.cmd, '__iter__'):
-            return " ".join([ pipes.quote(arg) for arg in self.cmd ])
+            return str(" ".join([ pipes.quote(arg) for arg in self.cmd ]))
         else:
-            return self.cmd
+            if isinstance(self.cmd, unicode):
+                return str(self.cmd)
+            else:
+                return self.cmd
 
     def _common_reset(self):
         super(Process, self)._common_reset()
