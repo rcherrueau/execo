@@ -19,7 +19,7 @@ from execo import logger, SshProcess, Process, Put
 from execo.log import style
 
 
-def apt_cacher_server(self, server, clients, ):
+def apt_cacher_server(server, clients, ):
     """Install and configure apt-cacher on one server and configure APT proxy on clients"""
     logger.info('Apt-cacher installation on %s to be used on \n %s',
                 [host.address for host in clients])
