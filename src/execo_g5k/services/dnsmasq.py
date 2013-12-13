@@ -24,7 +24,7 @@ def dns_dhcp_server(server, clients, ip_mac, netmask):
     
     :param server: host where the server will be installed
     
-    :param clients: list of host that will be declared in dnsmasq
+    :param clients: list of hosts that will be declared in dnsmasq
     
     :param ip_mac: list of tuples containing the (ip, mac) for the clients
     
