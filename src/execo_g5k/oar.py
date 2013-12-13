@@ -168,10 +168,13 @@ def get_oarsub_commandline(job_spec):
         resources = job_spec.resources
     else:
         resources = (job_spec.resources,)
-    for r in resources:
-        oarsub_cmdline += ' -l %s' % (r,)
-    if job_spec.walltime != None:
-        oarsub_cmdline += ',walltime=%s' % (format_oar_duration(job_spec.walltime),)
+    if len(resources) > 0:
+        oarsub_cmdline += ' -l "' + "+".join(resources)
+        if job_spec.walltime != None:
+            oarsub_cmdline += ',walltime=%s' % (format_oar_duration(job_spec.walltime),)
+        oarsub_cmdline += '"'
+    elif job_spec.walltime != None:
+        oarsub_cmdline += '-l "walltime=%s"' % (format_oar_duration(job_spec.walltime),)
     key = g5k_configuration.get('oar_job_key_file')
     if key == None:
         key = os.environ.get('OAR_JOB_KEY_FILE')
