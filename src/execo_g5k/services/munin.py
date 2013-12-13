@@ -42,9 +42,6 @@ def munin_server(server, clients, plugins = [ 'cpu', 'memory', 'iostat']):
         ip =  get_ip.stdout.strip().split(' ')[3]
         f.write('['+host.address+']\n    address '+ip+'\n   use_node_name yes\n\n')
     f.close()
-    
-    
-    
             
     logger.debug('Configuring munin server %s', style.host('server'))
     cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y munin'
@@ -54,3 +51,7 @@ def munin_server(server, clients, plugins = [ 'cpu', 'memory', 'iostat']):
 def get_munin_stats(server, destination_directory = '.'):
     """Retrieve the munin statistics """
     logger.error('Not implemented')
+    
+    
+def add_munin_plugin(plugin, host):
+    """ """
