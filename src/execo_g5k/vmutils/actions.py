@@ -71,7 +71,7 @@ def create_disks(vms, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw
     hosts_cmds = {}
     for vm in vms:
         cmd = 'qemu-img create -f qcow2 -o backing_file='+backing_file+',backing_fmt='+backing_file_fmt+' /tmp/'+\
-            vm['vm_id']+'.qcow2 '+str(vm['hdd_size'])+'G ; '
+            vm['vm_id']+'.qcow2 '+str(vm['hdd'])+'G ; '
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd
     
     logger.debug(pformat(hosts_cmds.values()))
@@ -94,9 +94,9 @@ def install_vms(vms):
     hosts_cmds = {}
     for vm in vms:
         cmd = 'virt-install -d --import --connect qemu:///system --nographics --noautoconsole --noreboot'+ \
-        ' --name=' + vm['vm_id'] + ' --network network=default,mac='+vm['mac']+' --ram='+str(vm['mem_size'])+ \
-        ' --disk path=/tmp/'+vm['vm_id']+'.qcow2,device=disk,format=qcow2,size='+str(vm['hdd_size'])+',cache=none '+\
-        ' --vcpus='+ str(vm['vcpus'])+' --cpuset='+vm['cpuset']+' ; '
+        ' --name=' + vm['vm_id'] + ' --network network=default,mac='+vm['mac']+' --ram='+str(vm['mem'])+ \
+        ' --disk path=/tmp/'+vm['vm_id']+'.qcow2,device=disk,format=qcow2,size='+str(vm['hdd'])+',cache=none '+\
+        ' --vcpus='+ str(vm['n_cpu'])+' --cpuset='+vm['cpuset']+' ; '
         hosts_cmds[vm['host']] = cmd if not hosts_cmds.has_key(vm['host']) else hosts_cmds[vm['host']]+cmd 
 
     logger.debug(pformat(hosts_cmds))
