@@ -33,6 +33,10 @@ from execo_g5k.utils import get_kavlan_host_name
 from execo_g5k.api_utils import get_host_cluster, get_cluster_site, get_g5k_sites, get_site_clusters, get_cluster_attributes, get_host_attributes, get_resource_attributes, get_host_site
 from execo.exception import ActionsFailed
 
+
+# Notes for refactoring ..
+# Input resources )
+
    
 
 class Virsh_Deployment(object):
@@ -77,7 +81,9 @@ class Virsh_Deployment(object):
             deployment = EX5.Deployment( hosts = self.hosts, env_name = self.env_name,
                                         vlan = self.kavlan)
             
-        deployed_hosts, undeployed_hosts = EX5.deploy(deployment, out = out, num_tries = max_tries, check_deployed_command = check_deployed_command)
+        deployed_hosts, undeployed_hosts = EX5.deploy(deployment, out = out, 
+                                num_tries = max_tries, 
+                                check_deployed_command = check_deployed_command)
         
         if len(list(undeployed_hosts)) > 0 :
             logger.warning('Hosts %s haven\'t been deployed', ', '.join( [node.address for node in undeployed_hosts] ))
@@ -278,10 +284,14 @@ class Virsh_Deployment(object):
                     nobr_hosts.append(p.host)
         
         if len(nobr_hosts) > 0:
-            cmd = 'sed -i "s/dhcp/manual/g" /etc/network/interfaces ;  export br_if=`ip route |grep default |cut -f 5 -d " "`;  echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
-                'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; echo "bridge_ports $br_if" >> /etc/network/interfaces ;'+\
-                ' echo "bridge_stp off" >> /etc/network/interfaces ; echo "bridge_maxwait 0" >> /etc/network/interfaces ;'+\
-                ' echo "bridge_fd 0" >> /etc/network/interfaces ; nohup sh -c "sleep 30; service networking restart"'
+            cmd = 'sed -i "s/dhcp/manual/g" /etc/network/interfaces ;  export br_if=`ip route |grep default |cut -f 5 -d " "`; '+\
+                'echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
+                'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; +'\
+                'echo "bridge_ports $br_if" >> /etc/network/interfaces ; '+\
+                'echo "bridge_stp off" >> /etc/network/interfaces ; '+\
+                'echo "bridge_maxwait 0" >> /etc/network/interfaces ; '+\
+                'echo "bridge_fd 0" >> /etc/network/interfaces ; '
+                
             logger.debug(cmd)
             create_br = self.fact.get_remote(cmd, nobr_hosts, connection_params = {'user': 'root'}).run()
             
@@ -295,7 +305,8 @@ class Virsh_Deployment(object):
         else:
             logger.info('Bridge is already present')
 
-    def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None, apt_cacher = False):
+    def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None,
+                               apt_cacher = False):
         """ Generate the hosts lists, the vms list, the dnsmasq configuration and setup a DNS/DHCP server """
         service_node = self.get_fastest_host()
         
@@ -448,8 +459,6 @@ class Virsh_Deployment(object):
     
     def write_placement_file(self, vms = None):
         """ Generate an XML file with the VM deployment topology """
-       
-       
         if vms is None:
             vms = self.vms
         deployment = ETree.Element('vm5k')
