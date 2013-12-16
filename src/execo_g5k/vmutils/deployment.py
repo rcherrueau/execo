@@ -34,16 +34,14 @@ from execo_g5k.api_utils import get_host_cluster, get_g5k_sites, get_g5k_cluster
 from execo_g5k.utils import get_kavlan_host_name
 from execo_g5k.vmutils.actions import create_disks, install_vms, start_vms, wait_vms_have_started, destroy_vms
 from execo_g5k.services import dns_dhcp_server
+from execo_g5k.vmutils.actions import define_vms
 
-default_vm =  {'id': None, 'host': None, 'ip': None, 'mac': None,
-    'mem': 512, 'n_cpu': 1, 'cpuset': 'auto', 
-    'hdd': 10, 'backing_file': '/tmp/vm-base.img',
-    'state': 'KO'}
 
 configuration['color_styles']['OK'] = 'green',  'bold'
 configuration['color_styles']['KO'] = 'red', 'bold'
 configuration['color_styles']['Unknown'] = 'white', 'bold'
 configuration['color_styles']['step'] = 'on_yellow', 'bold'
+configuration['color_styles']['VM'] = 'white', 'bold'
 
 def get_oar_job_vm5k_resources(oar_job_id, site):
     """Retrieve the hosts list and (ip, mac) list from an oar_job_id and
@@ -121,31 +119,6 @@ def get_ipv4_range(network, mask_size):
               ip & 0xff)
              for ip in xrange(ip_start, ip_end + 1) ] 
 
-
-def define_vms( vms_id, ip_mac = None, state = None,
-        n_cpu = 1, cpusets = None, mem = None, hdd = None, backing_file = None):
-    """Create a list of virtual machines, where """
-    n_vm = len(vms_id)
-    
-    n_cpu = [default_vm['n_cpu']] * n_vm if n_cpu is None else [n_cpu] * n_vm if isinstance(n_cpu, int) else n_cpu
-    cpusets = [default_vm['cpuset']] * n_vm if cpusets is None else [cpusets] * n_vm \
-        if isinstance(cpusets, int) else cpusets
-    mem = [default_vm['mem']] * n_vm if mem is None else [mem] * n_vm if isinstance(mem, int) else mem
-    hdd = [default_vm['hdd']] * n_vm if hdd is None else [hdd] * n_vm if isinstance(hdd, int) else hdd
-    backing_file = [default_vm['backing_file']]*n_vm if backing_file is None else [backing_file] * n_vm \
-        if isinstance(backing_file, str) else backing_file
-    ip_mac = [ (None, None) ]*n_vm if ip_mac is None else ip_mac
-    state = [default_vm['state']]*n_vm if state is None else state
-    
-    vms = [ {'id': vms_id[i], 'mem': mem[i], 'n_cpu': n_cpu[i], 'cpuset': cpusets[i], 
-             'hdd': hdd[i], 'backing_file': backing_file[i], 'host': None, 'state': state[i],
-             'ip': ip_mac[i][0], 'mac': ip_mac[i][1]} for i in range(n_vm)]
-
-    logger.debug('VM parameters have been defined:\n%s',
-                 ' '.join([style.emph(param['id']) for param in vms]))
-    return vms    
-
-
 class vm5k_deployment(object):
     """ Base class to control a deployment of hosts on Grid'5000
     The base behavior is to deploy a wheezy-x64-base environment and
@@ -199,9 +172,10 @@ class vm5k_deployment(object):
                     
         logger.info('vm5k_deployment has been initialized \n sites %s \n clusters %s '+\
                     '\n hosts %s \n vms %s',
-                    ' '.join(self.sites), ' '.join(self.clusters), 
-                    ' '.join( [host.address for host in self.hosts ]), 
-                    ' '.join( [ vm['id'] for vm in self.vms ] ) )
+                    ' '.join( [style.emph(site) for site in self.sites] ) , 
+                    ' '.join( [style.user1(cluster) for cluster in self.clusters ]), 
+                    ' '.join( [style.host(host.address) for host in self.hosts ]), 
+                    ' '.join( [style.VM(vm['id']) for vm in self.vms ] ) )
             
     def run(self):
         """Launch the deployment and configuration of hosts and virtual machines"""
