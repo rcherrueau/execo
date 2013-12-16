@@ -15,650 +15,746 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
-"""A class to manage a deployment of hosts configured with libvirt-KVM"""
 
-from logging import DEBUG
-from pprint import pprint, pformat
-import time, xml.etree.ElementTree as ETree, re, os, tempfile
+from pprint import pformat
+from random import randint
+from xml.etree.ElementTree import Element, SubElement,tostring, parse
 from itertools import cycle
-import execo as EX, execo_g5k as EX5
 from xml.dom import minidom
-from execo import logger, Host, SshProcess, default_connection_params
-from execo.time_utils import sleep
+from tempfile import mkstemp
+from execo import configuration, logger, SshProcess, Put, TaktukRemote, SequentialActions, Host, Local, sleep, default_connection_params
 from execo.action import ActionFactory
 from execo.log import style
-from execo.config import TAKTUK, SSH, SCP
+from execo.config import SSH, SCP
+from execo_g5k import get_oar_job_nodes, get_oargrid_job_oar_jobs, get_oar_job_subnets, \
+    get_oar_job_kavlan, deploy, Deployment
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
+from execo_g5k.api_utils import get_host_cluster, get_g5k_sites, get_g5k_clusters, get_cluster_site, \
+    get_host_attributes, get_resource_attributes, get_host_site
 from execo_g5k.utils import get_kavlan_host_name
-from execo_g5k.api_utils import get_host_cluster, get_cluster_site, get_g5k_sites, get_site_clusters, get_cluster_attributes, get_host_attributes, get_resource_attributes, get_host_site
-from execo.exception import ActionsFailed
+from execo_g5k.vmutils.actions import create_disks, install_vms, start_vms, wait_vms_have_started, destroy_vms
+from execo_g5k.services import dns_dhcp_server
+
+default_vm =  {'id': None, 'host': None, 'ip': None, 'mac': None,
+    'mem': 512, 'n_cpu': 1, 'cpuset': 'auto', 
+    'hdd': 10, 'backing_file': '/tmp/vm-base.img',
+    'state': 'KO'}
+
+configuration['color_styles']['OK'] = 'green',  'bold'
+configuration['color_styles']['KO'] = 'red', 'bold'
+configuration['color_styles']['Unknown'] = 'white', 'bold'
+configuration['color_styles']['step'] = 'on_yellow', 'bold'
+
+def get_oar_job_vm5k_resources(oar_job_id, site):
+    """Retrieve the hosts list and (ip, mac) list from an oar_job_id and
+    return the resources dict needed by vm5k_deployment """
+    logger.debug('Retrieving hosts')
+    hosts = get_oar_job_nodes(oar_job_id, site)
+    logger.debug('Retrieving subnet')
+    ip_mac, _ = get_oar_job_subnets( oar_job_id, site )
+    kavlan = None
+    if len(ip_mac) == 0:
+        logger.debug('Retrieving kavlan')
+        kavlan = get_oar_job_kavlan(oar_job_id, site)
+        if kavlan is not None:
+            ip_mac = get_kavlan_ip_mac(kavlan, site)
+
+    return {site: {'hosts': hosts,'ip_mac': ip_mac, 'kavlan': kavlan}}
+    
+def get_oargrid_job_vm5k_resources(oargrid_job_id):
+    """Retrieve the hosts list and (ip, mac) list by sites from an oargrid_job_id and
+    return the resources dict needed by vm5k_deployment, with kavlan-global if used in 
+    the oargrid job """
+    logger.debug('Retrieving hosts')
+    resources = {}
+    for oar_job_id, site in get_oargrid_job_oar_jobs(oargrid_job_id):
+        logger.debug('%s: %s', site, oar_job_id)
+        resources.update(get_oar_job_vm5k_resources(oar_job_id, site))
+    for site, res in resources.iteritems():
+        if res['kavlan'] >= 10:
+            resources['global'] = {'kavlan': res['kavlan'], 'ip_mac': resources['site']['ip_mac'] }
+            del resources['site']['ip_mac'][:]
+    
+    return resources
+
+def get_kavlan_ip_mac(kavlan, site):
+    """Retrieve the network parameters for a given kavlan from the API"""
+    network, mask_size = None, None
+    equips = get_resource_attributes('/sites/'+site+'/network_equipments/')
+    for equip in equips['items']:
+        if equip.has_key('vlans') and len(equip['vlans']) >2:
+            all_vlans = equip['vlans']
+    for vlan, info in all_vlans.iteritems():    
+        if type(info) == type({}) and info.has_key('name') and info['name'] == 'kavlan-'+str(kavlan):
+            network, _, mask_size = info['addresses'][0].partition('/',)
+    logger.debug('network=%s, mask_size=%s', network, mask_size)
+    
+    min_2 = (kavlan-4)*64 + 2 if kavlan < 8 else (kavlan-8)*64 + 2 if kavlan < 10 else 216 
+    ips = [ ".".join( [ str(part) for part in ip ]) for ip in [ ip for ip in get_ipv4_range(tuple([ int(part) for part in network.split('.') ]), int(mask_size))
+           if ip[3] not in [ 0, 254, 255 ] and ip[2] >= min_2] ]       
+    macs = []
+    for i in range(len(ips)):
+        mac = ':'.join( map(lambda x: "%02x" % x, [ 0x00, 0x020, 0x4e,
+            randint(0x00, 0xff),
+            randint(0x00, 0xff),
+            randint(0x00, 0xff) ] ))
+        while mac in macs:
+            mac = ':'.join( map(lambda x: "%02x" % x, [ 0x00, 0x020, 0x4e,
+                randint(0x00, 0xff),
+                randint(0x00, 0xff),
+                randint(0x00, 0xff) ] ))
+        macs.append(mac)
+    return zip(ips, macs)
+
+    
+def get_ipv4_range(network, mask_size):
+    net = ( network[0] << 24
+            | network[1] << 16
+            | network[2] << 8
+            | network[3] )
+    mask = ~(2**(32-mask_size)-1)
+    ip_start = net & mask
+    ip_end = net | ~mask
+    return [ ((ip & 0xff000000) >> 24,
+              (ip & 0xff0000) >> 16,
+              (ip & 0xff00) >> 8,
+              ip & 0xff)
+             for ip in xrange(ip_start, ip_end + 1) ] 
 
 
-# Notes for refactoring ..
-# Input resources )
+def define_vms( vms_id, ip_mac = None, state = None,
+        n_cpu = 1, cpusets = None, mem = None, hdd = None, backing_file = None):
+    """Create a list of virtual machines, where """
+    n_vm = len(vms_id)
+    
+    n_cpu = [default_vm['n_cpu']] * n_vm if n_cpu is None else [n_cpu] * n_vm if isinstance(n_cpu, int) else n_cpu
+    cpusets = [default_vm['cpuset']] * n_vm if cpusets is None else [cpusets] * n_vm \
+        if isinstance(cpusets, int) else cpusets
+    mem = [default_vm['mem']] * n_vm if mem is None else [mem] * n_vm if isinstance(mem, int) else mem
+    hdd = [default_vm['hdd']] * n_vm if hdd is None else [hdd] * n_vm if isinstance(hdd, int) else hdd
+    backing_file = [default_vm['backing_file']]*n_vm if backing_file is None else [backing_file] * n_vm \
+        if isinstance(backing_file, str) else backing_file
+    ip_mac = [ (None, None) ]*n_vm if ip_mac is None else ip_mac
+    state = [default_vm['state']]*n_vm if state is None else state
+    
+    vms = [ {'id': vms_id[i], 'mem': mem[i], 'n_cpu': n_cpu[i], 'cpuset': cpusets[i], 
+             'hdd': hdd[i], 'backing_file': backing_file[i], 'host': None, 'state': state[i],
+             'ip': ip_mac[i][0], 'mac': ip_mac[i][1]} for i in range(n_vm)]
 
-   
+    logger.debug('VM parameters have been defined:\n%s',
+                 ' '.join([style.emph(param['id']) for param in vms]))
+    return vms    
 
-class Virsh_Deployment(object):
-    """ A object that allow you to deploy some wheezy-based hosts with an up-to-date version of libvirt with
-    a pool of ip-MAC addresses for your virtual machines """
-    def __init__(self, hosts = None, env_name = None, env_file = None, kavlan = None, oarjob_id = None, outdir = None):
-        """ Initialization of deployment"""
+
+class vm5k_deployment(object):
+    """ Base class to control a deployment of hosts on Grid'5000
+    The base behavior is to deploy a wheezy-x64-base environment and
+    to install and configure libvirt from unstable repository.
+    
+    The base run() method allows to setup automatically the hosts and
+    virtual machines, using the value of the object state.
+    
+    """
+    
+    def __init__(self, infile = None, resources = None, 
+                 env_name = 'wheezy-x64-base', env_file = None, 
+                 vms = None, distribution = 'round-robin'):
+        """:params infile: an XML file that describe the topology of the deployment
         
-        logger.info('Initializing Virsh_Deployment on %s hosts', len(hosts))
-        self.max_vms = 10227
+        :param resources: a dict whose keys are Grid'5000 sites and values are
+        dict, whose keys are hosts and ip_mac, where hosts is a list of 
+        execo.Host and ip_mac is a list of tuple (ip, mac). 
+        
+        :param env_name: name of the Kadeploy environment
+        
+        :param env_file: path to the Kadeploy environment file
+        
+        :params vms: dict defining the virtual machines
+        
+        :params distribution: how to distribute the vms on the hosts 
+        (``round-robin`` , ``concentrated``, ``random``)
+        """        
+        logger.info(style.step('STARTING vm5k_deployment'.center(50)))
+        self.state = Element('vm5k')
         self.fact = ActionFactory(remote_tool = SSH,
                                 fileput_tool = SCP,
                                 fileget_tool = SCP)
-        self.hosts      = sorted(hosts, key = lambda x: x.address)
-        self.clusters   = list(set([ get_host_cluster(host) for host in self.hosts ]))
-        self.sites      = list(set([ get_cluster_site(cluster) for cluster in self.clusters ]))
-        self.kavlan     = kavlan
-        self.oarjob_id  = oarjob_id
-        self.env_name   = env_name if env_name is not None else 'wheezy-x64-base'
-        self.env_file   = env_file
-        self.outdir     = tempfile.mkdtemp(prefix = 'deploy_' + time.strftime("%Y%m%d_%H%M%S_%z") + '_') if outdir is None else outdir
-        try:
-            os.mkdir(self.outdir)
-        except:
-            pass 
-        self.get_hosts_attr()
-        self.service_node = self.get_fastest_host()
-        
-        logger.debug('hosts %s',    pformat (self.hosts))
-        logger.debug('clusters %s', pformat (self.clusters))
-        logger.debug('sites %s',    pformat (self.sites))
-        logger.debug('sites %s',    pformat (self.hosts_attr))
-        
-    def deploy_hosts(self, out = False, max_tries = 2, check_deployed_command = True):
-        """ Deploy the environment specified by env_name or env_file """
-        
-        if self.env_file is not None:
-            logger.info('Deploying environment %s ...', style.emph( self.env_file ) )
-            deployment = EX5.Deployment( hosts = self.hosts, env_file = self.env_file,
-                                        vlan = self.kavlan)
-        elif self.env_name is not None:
-            logger.info('Deploying environment %s ...',style.emph( self.env_name ) )
-            deployment = EX5.Deployment( hosts = self.hosts, env_name = self.env_name,
-                                        vlan = self.kavlan)
+        self.distribution = distribution
+        self.kavlan = None
+        if infile is None:     
+            self._init_state(resources, vms, infile)
+        else:
+            self.state = parse(infile)
+            self._get_xml_elements()
+            self._get_xml_vms()
+            self._set_vms_ip_mac()
+            self._add_xml_vms()
             
-        deployed_hosts, undeployed_hosts = EX5.deploy(deployment, out = out, 
-                                num_tries = max_tries, 
-                                check_deployed_command = check_deployed_command)
-        
-        if len(list(undeployed_hosts)) > 0 :
-            logger.warning('Hosts %s haven\'t been deployed', ', '.join( [node.address for node in undeployed_hosts] ))
-        
-        if self.kavlan is not None:
-            self.hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in deployed_hosts ]
-        else: 
-            self.hosts = list(deployed_hosts)    
-        self.hosts.sort(key = lambda x: x.address)
+        if env_file is not None:
+            self.env_file = env_file
+            self.env_name = None
+        else:
+            self.env_file = None
+            self.env_name = env_name
+                    
+        logger.info('vm5k_deployment has been initialized \n sites %s \n clusters %s '+\
+                    '\n hosts %s \n vms %s',
+                    ' '.join(self.sites), ' '.join(self.clusters), 
+                    ' '.join( [host.address for host in self.hosts ]), 
+                    ' '.join( [ vm['id'] for vm in self.vms ] ) )
+            
+    def run(self):
+        """Launch the deployment and configuration of hosts and virtual machines"""
+        try:
+            logger.info(style.step('HOSTS DEPLOYMENT'.center(50)) )
+            self.hosts_deployment()
+            logger.info(style.step('MANAGING PACKAGES'.center(50)) )
+            self.packages_management()
+            if self.kavlan is not None:
+                service_node = get_fastest_host(self.hosts)
+                dns_dhcp_server(service_node, self.vms, self.ip_mac)
                 
-        logger.info('%s deployed', ' '.join([host.address for host in self.hosts]))
-   
-    def configure_apt(self):
-        """ Add testing and unstable to /etc/apt/sources.list and set the priority wheezy > testing > unstable """
+            logger.info(style.step('CONFIGURING LIBVIRT'.center(50)) )
+            self.configure_libvirt()
+            logger.info(style.step('VIRTUAL MACHINES'.center(50)))        
+            self.deploy_vms()
+        finally:
+            self.get_state()
+        
+    # VMS deployment
+    def deploy_vms(self):
+        """Destroy the existing VMS, create the virtual disks, install the vms, start them and
+        wait for boot"""
+        logger.info('Destroying existing virtual machines')
+        destroy_vms(self.hosts)
+        logger.info('Creating the virtual disks ')
+        self._remove_existing_disks()
+        self._create_backing_file('/grid5000/images/KVM/squeeze-x64-base.qcow2')
+        create_disks(self.vms).run()
+        logger.info('Installing the virtual machines')
+        install_vms(self.vms).run()
+        logger.info('Starting the virtual machines')
+        start_vms(self.vms).run()
+        wait_vms_have_started(self.vms)
+        
+
+    def _create_backing_file(self, disk_image, user = None):
+        """ """
+        if user is None:
+            user = default_connection_params['user']
+        logger.debug("Copying backing file from frontends")
+        copy_file = self.fact.get_fileput(self.hosts, [disk_image], remote_location='/tmp/').run()
+        self._actions_hosts(copy_file)
+        
+        logger.debug("Creating disk image on /tmp/vm-base.img")
+        cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
+        convert = self.fact.get_remote(cmd, self.hosts).run()  
+        self._actions_hosts(convert)
+        
+#        logger.debug('Copying ssh key on /tmp/vm-base.img ...')
+#        cmd = 'modprobe nbd max_part=1; '+ \
+#                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img ; sleep 3 ; '+ \
+#                'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
+#                'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+\
+#                'cp -r ~/.ssh/id_rsa* /mnt/root/.ssh/ ;'+ \
+#                'umount /mnt; qemu-nbd -d /dev/nbd0 '
+#        copy_on_vm_base = self.fact.get_remote(cmd, self.hosts).run()
+#        self._actions_hosts(copy_on_vm_base)
+        
+    def _remove_existing_disks(self, hosts = None):
+        """Remove all img and qcow2 file from /tmp directory """
+        logger.debug('Removing existing disks')
+        if hosts is None:
+            hosts = self.hosts
+        remove = self.fact.get_remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts).run()
+        self._actions_hosts(remove)
+        
+    # libvirt configuration
+    def configure_libvirt(self, bridge = 'br0'):
+        """ """
+        self.enable_bridge()
+        self._libvirt_uniquify()
+        self._libvirt_bridged_network(bridge)
+        logger.info('Restarting %s', style.emph('libvirt') )         
+        self.fact.get_remote('service libvirt-bin restart', self.hosts).run()
+         
+            
+    def _libvirt_uniquify(self): 
+        logger.info('Making libvirt host unique')
+        cmd = 'uuid=`uuidgen` && sed -i "s/00000000-0000-0000-0000-000000000000/${uuid}/g" /etc/libvirt/libvirtd.conf '+\
+            '&& sed -i "s/#host_uuid/host_uuid/g" /etc/libvirt/libvirtd.conf && service libvirt-bin restart'
+        self.fact.get_remote(cmd, self.hosts).run()
+    
+    def _libvirt_bridged_network(self, bridge):
+        logger.debug('Configuring libvirt network ...')
+        # Creating an XML file describing the network
+        root = Element('network')
+        name = SubElement(root,'name')
+        name.text = 'default'
+        SubElement(root, 'forward', attrib={'mode':'bridge'})
+        SubElement(root, 'bridge', attrib={'name': bridge})
+        _, network_xml = mkstemp(dir = '/tmp/', prefix='create_br_')
+        f = open(network_xml, 'w')
+        f.write(prettify(root))
+        f.close()
+        logger.debug('Destroying existing network')
+        destroy = self.fact.get_remote('virsh net-destroy default; virsh net-undefine default', self.hosts)
+        destroy.nolog_exit_code = True
+        put = self.fact.get_fileput(self.hosts, ['default.xml'], remote_location = '/etc/libvirt/qemu/networks/')
+        start = self.fact.get_remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; '+\
+                                     'virsh net-start default; virsh net-autostart default;', self.hosts)
+        conf = SequentialActions( [destroy, put, start] ).run()
+    
+    
+    # Hosts configuration
+    def hosts_deployment(self, max_tries = 1, check_deploy = True):
+        """Create the execo_g5k.Deployment"""
+        self.Deployment = Deployment( hosts = [ kavname_to_basename(host) for host in self.hosts], 
+            env_file = self.env_file, env_name = self.env_name,
+            vlan = self.kavlan)  
+        
+        
+        out = True if logger.getEffectiveLevel() == 'DEBUG' else False
+        
+        
+        
+        deployed_hosts, undeployed_hosts = deploy(self.Deployment, out = out, 
+                                num_tries = max_tries, 
+                                check_deployed_command = check_deploy)
+        if self.kavlan:
+            deployed_hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in deployed_hosts ]
+            undeployed_hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in undeployed_hosts ]
+        self._update_hosts_state(deployed_hosts, undeployed_hosts)
+        
+        # Configuring SSH with precopy of id_rsa and id_rsa.pub keys on all hosts to allow TakTuk connection
+        TaktukRemote(' echo "Host *" >> /root/.ssh/config ;'+
+                    'echo " StrictHostKeyChecking no" >> /root/.ssh/config; ',
+                    self.hosts, connection_params = {'taktuk_options': ( '-s',
+            '-S', '$HOME/.ssh/id_rsa:$HOME/.ssh/id_rsa,$HOME/.ssh/id_rsa.pub:$HOME/.ssh')}).run()
+        
+        
+    def enable_bridge(self, name = 'br0'):
+        """We need a bridge to have automatic DHCP configuration for the VM."""
+        logger.info('Configuring the bridge')
+        hosts_br = self._get_bridge(self.hosts)
+        nobr_hosts = []
+        for host, br in hosts_br.iteritems():
+            if br is None:
+                logger.debug('No bridge on host %s', style.host(host))
+                nobr_hosts.append( host)
+            elif br != name:
+                logger.debug('Wrong bridge on host %s, destroying it', style.host(host))
+                SshProcess('ip link set '+br+' down ; brctl delbr '+br, host).run()
+                nobr_hosts.append( host)
+            else:
+                logger.debug('Bridge %s is present on host %s', style.emph('name'), style.host(host) )
+        
+        if len(nobr_hosts) > 0:
+            script = 'export br_if=`ip route |grep default |cut -f 5 -d " "`; \n'+\
+                'ifdown $br_if ; \n'+\
+                'sed -i "s/$br_if inet dhcp/$br_if inet manual/g" /etc/network/interfaces ; \n'+\
+                'sed -i "s/auto $br_if//g" /etc/network/interfaces ; \n'+\
+                'echo " " >> /etc/network/interfaces ; \n'+\
+                'echo "auto '+name+'" >> /etc/network/interfaces ; \n'+\
+                'echo "iface '+name+' inet dhcp" >> /etc/network/interfaces ; \n'+\
+                'echo "  bridge_ports $br_if" >> /etc/network/interfaces ; \n'+\
+                'echo "  bridge_stp off" >> /etc/network/interfaces ; \n'+\
+                'echo "  bridge_maxwait 0" >> /etc/network/interfaces ; \n'+\
+                'echo "  bridge_fd 0" >> /etc/network/interfaces ; \n'+\
+                'ifup '+name
+            f, br_script = mkstemp(dir = '/tmp/', prefix='create_br_')
+            f = open(br_script, 'w')
+            f.write(script)
+            f.close()
+            
+            self.fact.get_fileput(nobr_hosts, [br_script]).run()
+            self.fact.get_remote( 'nohup sh '+br_script.split('/')[-1], nobr_hosts).run()
+            
+            
+                
+            logger.debug('Waiting for network restart')
+            if_up = False
+            nmap_tries = 0
+            while (not if_up) and nmap_tries < 20:
+                sleep(20)
+                nmap_tries += 1 
+                nmap = SshProcess('nmap '+' '.join( [host.address for host in nobr_hosts ])+' -p 22', 
+                                  Host(g5k_configuration['default_frontend']),
+                                  connection_params = default_frontend_connection_params ).run()
+                for line in nmap.stdout.split('\n'):
+                    if 'Nmap done' in line:
+                        if_up = line.split()[2] == line.split()[5].replace('(','')
+            logger.debug('Network has restarted')    
+        logger.info('All hosts have the bridge %s', style.emph(name) )
+
+    def _get_bridge(self, hosts):
+        """ """
+        logger.debug('Retrieving bridge on hosts %s', ", ".join( [host.address for host in hosts ]))
+        cmd = "brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1"
+        bridge_exists = self.fact.get_remote(cmd, hosts)
+        bridge_exists.nolog_exit_code = True
+        bridge_exists.run()
+        hosts_br = {}
+        for p in bridge_exists.processes:
+            stdout = p.stdout.strip()            
+            if len(stdout) == 0:
+                hosts_br[p.host] = None
+            else:
+                hosts_br[p.host] = stdout
+        return hosts_br
+            
+    def packages_management(self, upgrade = True, other_packages = None):    
+        """This method allow to configure APT to use testing and unstable repository, perform """
+        self._configure_apt()
+        if upgrade:
+            self._upgrade_hosts()
+        self._install_packages()
+        # Post configuration to avoid reboot
+        self.fact.get_remote('modprobe kvm; modprobe kvm-intel; modprobe kvm-amd ; chown root:kvm /dev/kvm ;', 
+                             self.hosts).run()
+        
+    def _configure_apt(self):
+        """ """
         logger.info('Configuring APT')
-        f = open(self.outdir + '/sources.list', 'w')
+        _, tmpsource = mkstemp(dir = '/tmp/', prefix='sources.list_')
+        # Create sources.list file
+        f = open(tmpsource, 'w')
         f.write('deb http://ftp.debian.org/debian stable main contrib non-free\n'+\
                 'deb http://ftp.debian.org/debian testing main \n'+\
                 'deb http://ftp.debian.org/debian unstable main \n')
         f.close()
-        f = open(self.outdir + '/preferences', 'w')
+        # Create preferences file
+        _, tmppref = mkstemp(dir = '/tmp/', prefix='preferences_')
+        f = open(tmppref, 'w')
         f.write('Package: * \nPin: release a=stable \nPin-Priority: 900\n\n'+\
                 'Package: * \nPin: release a=testing \nPin-Priority: 850\n\n'+\
                 'Package: * \nPin: release a=unstable \nPin-Priority: 800\n\n')
         f.close()
-        f = open(self.outdir + '/apt.conf', 'w')
+        # Create apt.conf file
+        _, tmpaptconf = mkstemp(dir = '/tmp/', prefix='apt.conf_')
+        f = open(tmpaptconf, 'w')
         f.write('APT::Acquire::Retries=20;\n')
         f.close()
         
-        apt_conf = self.fact.get_fileput(self.hosts, 
-                [self.outdir + '/sources.list', self.outdir + '/preferences', self.outdir +'/apt.conf'], 
-                remote_location = '/etc/apt/', connection_params = {'user': 'root'}).run()
+        self.fact.get_fileput(self.hosts, [tmpsource, tmppref, tmpaptconf], 
+                remote_location = '/etc/apt/').run()
+        apt_conf = self.fact.get_remote('cd /etc/apt && '+\
+                        'mv '+tmpsource.split('/')[-1]+' sources.list &&'+\
+                        'mv '+tmppref.split('/')[-1]+' preferences &&'+\
+                        'mv '+tmpaptconf.split('/')[-1]+' apt.conf',
+                        self.hosts).run()
+        self._actions_hosts(apt_conf)
+        Local('rm '+tmpsource+' '+tmppref+' '+tmpaptconf).run()
         
-        if apt_conf.ok:
-            logger.debug('apt configured successfully')
-        else:
-            logger.error('Error in configuring apt')
-            raise ActionsFailed, [apt_conf]
+    def _upgrade_hosts(self):
+        """Dist upgrade performed on all hosts"""
+        logger.info('Upgrading packages')
+        cmd = "echo 'debconf debconf/frontend select noninteractive' | debconf-set-selections ; "+\
+              "echo 'debconf debconf/priority select critical' | debconf-set-selections ;      "+\
+              "export DEBIAN_MASTER=noninteractive ; apt-get update ; "+\
+              "apt-get dist-upgrade -y --force-yes -o Dpkg::Options::='--force-confdef' "+\
+              "-o Dpkg::Options::='--force-confold' "
+        upgrade = self.fact.get_remote( cmd, self.hosts).run()
+        self._actions_hosts(upgrade)
         
-
-    def upgrade_hosts(self):
-        """ Perform apt-get update && apt-get dist-upgrade in noninteractive mode """
-        logger.info('Upgrading hosts')
-        cmd = " echo 'debconf debconf/frontend select noninteractive' | debconf-set-selections; \
-                echo 'debconf debconf/priority select critical' | debconf-set-selections ;      \
-                apt-get update ; dpkg --configure -a ; export DEBIAN_MASTER=noninteractive ; apt-get dist-upgrade -y --force-yes "+\
-                '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" '
-        upgrade = self.fact.get_remote( cmd, self.hosts, connection_params = {'user': 'root'}).run()
-        if upgrade.ok:
-            logger.debug('Upgrade finished')
-        else:
-            logger.error('Unable to perform dist-upgrade on the nodes ..')
-            raise ActionsFailed, [upgrade]
-
-
-    def install_packages(self, packages_list = None):
-        """ Installation of required packages on the nodes """
-    
+    def _install_packages(self, other_packages = None):
+        """Installation of required packages on the hosts"""
         base_packages = 'uuid-runtime bash-completion taktuk locate htop init-system-helpers'
-        
-        logger.info('Installing usefull packages %s', style.emph(base_packages))
+        logger.info('Installing base packages \n%s', style.emph(base_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+ base_packages
-        install_base = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()        
-        if install_base.ok:
-            logger.debug('Packages installed')
-        else:
-            logger.error('Unable to install packages on the nodes ..')
-            raise ActionsFailed, [install_base]
+        install_base = self.fact.get_remote(cmd, self.hosts).run()        
+        self._actions_hosts(install_base)
         
         libvirt_packages = 'libvirt-bin virtinst python2.7 python-pycurl python-libxml2 qemu-kvm nmap'
-        logger.info('Installing libvirt updated packages %s', style.emph(libvirt_packages))
+        logger.info('Installing libvirt packages \n%s', style.emph(libvirt_packages))
         cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
             '-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" -t unstable '+\
             libvirt_packages
-        install_libvirt = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()
-            
-        if install_libvirt.ok:
-            logger.debug('Packages installed')
-        else:
-            logger.error('Unable to install packages on the nodes ..')
-            raise ActionsFailed, [install_libvirt]
+        install_libvirt = self.fact.get_remote(cmd, self.hosts).run()
+        self._actions_hosts(install_libvirt)
         
-        if packages_list is not None:
-            logger.info('Installing extra packages %s', style.emph(packages_list))
+        if other_packages is not None:
+            logger.info('Installing extra packages %s', style.emph(other_packages))
             cmd = 'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes '+\
-            packages_list
-            install_extra = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()
-            
-            if install_extra.ok:
-                logger.debug('Packages installed')
-            else:
-                logger.error('Unable to install packages on the nodes ..')
-                raise ActionsFailed, [install_extra]
-            
-    def check_nodes(self):
-        """ Install g5kchecks on nodes and check that there are correct"""
-        self.fact.get_remote('echo deb http://apt.grid5000.fr/debian sid main >> /etc/apt/sources.list ; '+\
-                             'export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes'+\
-                             'grid5000-keyring g5kchecks', self.hosts).run()
+            other_packages
+            install_extra = self.fact.get_remote(cmd, self.hosts).run()
+            self._actions_hosts(install_extra)
         
-        
-
-    def reboot_nodes(self):
-        """ Reboot the nodes to load the new kernel """
-        logger.info('Rebooting nodes')
-        self.fact.get_remote('shutdown -t 10 -r now', self.hosts, connection_params = {'user': 'root'}).run()
-        hosts_list = ' '.join( [host.address for host in self.hosts ])
-        
-        hosts_down = False
-        nmap_tries = 0
-        while (not hosts_down) and nmap_tries < 20:
-            sleep(10)
-            nmap_tries += 1 
-            nmap = SshProcess('nmap '+hosts_list+' -p 22', Host('lyon'),
-                              connection_params = default_frontend_connection_params ).run()
-            for line in nmap.stdout.split('\n'):
-                if 'Nmap done' in line:
-                    hosts_down = line.split()[5].replace('(','') == str(0)
-        
-        logger.info('Hosts have been shutdown, wait hosts reboot')
-        hosts_up = False
-        nmap_tries = 0
-        while (not hosts_up) and nmap_tries < 20:
-            sleep(20)
-            nmap_tries += 1 
-            nmap = SshProcess('nmap '+hosts_list+' -p 22', Host('rennes'),
-                              connection_params = default_frontend_connection_params ).run()
-            for line in nmap.stdout.split('\n'):
-                if 'Nmap done' in line:
-                    hosts_up = line.split()[2] == line.split()[5].replace('(','')
-            
-        sleep(5)
-        if hosts_up:
-            logger.info('Hosts have been successfully rebooted')
-        else:
-            logger.error('Fail to reboot all hosts ...')
-        
-
-    def configure_libvirt(self, n_vms = 10000, network_xml = None, bridge = 'br0'):
-        """Configure libvirt: make host unique, configure and restart the network """
-        
-        logger.info('Making libvirt host unique ...')
-        cmd = 'uuid=`uuidgen` && sed -i "s/00000000-0000-0000-0000-000000000000/${uuid}/g" /etc/libvirt/libvirtd.conf '\
-                +'&& sed -i "s/#host_uuid/host_uuid/g" /etc/libvirt/libvirtd.conf && service libvirt-bin restart'
-        self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()
-        
-#        self.create_bridge()
-        
-        logger.info('Configuring libvirt network ...')
-        if network_xml is None:
-            root = ETree.Element('network')
-            name = ETree.SubElement(root,'name')
-            name.text = 'default'
-            ETree.SubElement(root, 'forward', attrib={'mode':'bridge'})
-            ETree.SubElement(root, 'bridge', attrib={'name': bridge})
-        else:
-            logger.info('Using custom file for network... \n%s', network_xml)
-            root = ETree.fromstring( network_xml )
-            
-        self.tree = ETree.ElementTree(element=root)
-
-        self.tree.write('default.xml')
-        
-        r = self.fact.get_remote('virsh net-destroy default; virsh net-undefine default', self.hosts,
-                    connection_params = {'user': 'root'})
-        r.nolog_exit_code = True
-        r.run()
-        
-        self.fact.get_fileput(self.hosts, ['default.xml'], remote_location = '/etc/libvirt/qemu/networks/',
-                      connection_params = {'user': 'root'}).run()
-              
-        self.fact.get_remote('virsh net-define /etc/libvirt/qemu/networks/default.xml ; virsh net-start default; virsh net-autostart default; ', 
-                        self.hosts, connection_params = {'user': 'root'}).run()
-        
-        logger.info('Restarting libvirt ...')        
-        self.fact.get_remote('service libvirt-bin restart', self.hosts, connection_params = {'user': 'root'}).run()
-        
-        
-
-
-    def create_bridge(self, bridge_name = 'br0'):
-        """ Creation of a bridge to be used for the virtual network """
-        logger.info('Configuring the bridge')
-        
-        bridge_exists = self.fact.get_remote("brctl show |grep -v 'bridge name' | awk '{ print $1 }' |head -1", self.hosts,
-                         connection_params = {'user': 'root'})
-        bridge_exists.nolog_exit_code = True
-        bridge_exists.run()
-        nobr_hosts = []
-        for p in bridge_exists.processes:
-            stdout = p.stdout.strip()            
-            if len(stdout) == 0:
-                nobr_hosts.append(p.host)
-            else:
-                if stdout != bridge_name:
-                    self.fact.get_remote('ip link set '+stdout+' down ; brctl delbr '+stdout, [p.host],
-                              connection_params = {'user': 'root'}).run()
-                    nobr_hosts.append(p.host)
-        
-        if len(nobr_hosts) > 0:
-            cmd = 'sed -i "s/dhcp/manual/g" /etc/network/interfaces ;  export br_if=`ip route |grep default |cut -f 5 -d " "`; '+\
-                'echo " " >> /etc/network/interfaces ; echo "auto '+bridge_name+'" >> /etc/network/interfaces ; '+\
-                'echo "iface '+bridge_name+' inet dhcp" >> /etc/network/interfaces ; +'\
-                'echo "bridge_ports $br_if" >> /etc/network/interfaces ; '+\
-                'echo "bridge_stp off" >> /etc/network/interfaces ; '+\
-                'echo "bridge_maxwait 0" >> /etc/network/interfaces ; '+\
-                'echo "bridge_fd 0" >> /etc/network/interfaces ; '
-                
-            logger.debug(cmd)
-            create_br = self.fact.get_remote(cmd, nobr_hosts, connection_params = {'user': 'root'}).run()
-            
-            if create_br.ok:
-                logger.info('Bridge has been created')
-            else:
-                logger.error('Unable to setup the bridge')
-                raise ActionsFailed, [create_br]
-            
-            
-        else:
-            logger.info('Bridge is already present')
-
-    def configure_service_node(self, dhcp_range = None, dhcp_router = None, dhcp_hosts = None,
-                               apt_cacher = False):
-        """ Generate the hosts lists, the vms list, the dnsmasq configuration and setup a DNS/DHCP server """
-        service_node = self.get_fastest_host()
-        
-        f = open(self.outdir+'/hosts.list', 'w')
-        for host in self.hosts:
-            f.write(host.address+'\n')
-        f.close()
-        f = open(self.outdir+'/vms.list', 'w')
-        f.write('\n')
-        for idx, val in enumerate(self.ip_mac):
-            f.write(val[0]+'         '+'vm-'+str(idx)+'\n')
-        f.close()
-        get_ip = SshProcess('host '+service_node.address+' |cut -d \' \' -f 4', 'rennes', 
-                            connection_params = default_frontend_connection_params).run()
-        ip = get_ip.stdout.strip()
-        f = open(self.outdir+'/resolv.conf', 'w')
-        f.write('domain grid5000.fr\nsearch grid5000.fr '+' '.join( [site+'.grid5000.fr' for site in self.sites] )+\
-                ' \nnameserver '+ip+ '\n')
-        f.close()
-        f = open(self.outdir+'/dnsmasq.conf', 'w')
-        f.write(dhcp_range+dhcp_router+dhcp_hosts+"\ndhcp-option=option:domain-search,grid5000.fr,"+\
-                ','.join( [site+'.grid5000.fr' for site in self.sites]) )
-        f.close()
-        
-        logger.info('Configuring %s as a %s server', style.host(service_node.address.split('.')[0])
-                    , style.emph('DNS/DCHP'))
-        
-        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get update ; apt-get -y purge dnsmasq-base  ; apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -y dnsmasq nmap', [service_node],
-                  connection_params = {'user': 'root'}).run()
-        EX.Put([service_node], [self.outdir+'/dnsmasq.conf'], remote_location='/etc/', connection_params = { 'user': 'root' }).run()
-        
-        logger.info('Adding the VM in /etc/hosts ...')
-        EX.Remote('[ -f /etc/hosts.bak ] && cp /etc/hosts.bak /etc/hosts || cp /etc/hosts /etc/hosts.bak', [service_node],
-                  connection_params = {'user': 'root'}).run()
-        EX.Put([service_node], [self.outdir+'/vms.list'], remote_location= '/root/', connection_params = { 'user': 'root' }).run()
-        EX.Remote('cat /root/vms.list >> /etc/hosts', [service_node],
-                     connection_params = {'user': 'root'}).run()
-        
-        logger.info('Restarting service ...')
-        EX.Remote('service dnsmasq stop ; rm /var/lib/misc/dnsmasq.leases ; service dnsmasq start', [service_node],
-                     connection_params = {'user': 'root'}).run()
-        
-        logger.info('Configuring resolv.conf on all hosts')
-        clients = list(self.hosts)
-        clients.remove(service_node)
-       
-        self.fact.get_fileput(clients, [self.outdir+'/resolv.conf'], remote_location = '/etc/',
-                     connection_params = {'user': 'root'}).run()
-                     
-        if apt_cacher:
-            self.setup_apt_cacher(service_node)
-        
-                     
-        self.service_node = service_node
-
-
-    def setup_apt_cacher(self, host):
-        """ Install and configure apt-cacher on one host"""
-        logger.info('Installing apt-cacher on '+style.host(host.address))
-        base_dir  = '/tmp/apt-cacher-ng'
-        log_dir   = base_dir+'/log'
-        cache_dir = base_dir+'/cache'
-                
-        EX.Remote('export DEBIAN_MASTER=noninteractive ; apt-get update ; '+\
-                  'apt-get install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confnew" -y apt-cacher-ng', 
-                  [host], connection_params = {'user': 'root'}).run()
-        EX.Remote('mkdir -p '+log_dir+'; mkdir -p '+cache_dir+'; chown -R apt-cacher-ng:apt-cacher-ng '+base_dir,
-                  [host], connection_params = {'user': 'root'}).run()
-        EX.Remote('sed -i "s/\/var\/cache\/apt-cacher-ng/'+cache_dir+'/g" /etc/apt-cacher-ng/acng.conf ;'+\
-                  'sed -i "s/\/var\/log\/apt-cacher-ng/'+log_dir+'/g" /etc/apt-cacher-ng/acng.conf ;'+\
-                  'sed -i "s/3142/9999/g" /etc/apt-cacher-ng/acng.conf ; service apt-cacher-ng restart',
-                  [host], connection_params = {'user': 'root'}).run()
-         
-        logger.info('apt-cacher-ng up and running on '+style.host(host.address))
-        
-
-    def setup_munin(self):
-        """ Installing the monitoring service munin """
-        logger.info('Configuring munin server')
-        EX.SshProcess('export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y -t unstable  --force-yes munin', 
-               self.service_node ).run()
-        f = open('munin-nodes', 'w')
-        for host in self.hosts:
-            get_ip = EX.Process('host '+host.address).run()
-            ip =  get_ip.stdout.strip().split(' ')[3]
-            f.write('['+host.address+']\n    address '+ip+'\n   use_node_name yes\n\n')
-        f.close()
-        EX.Put([self.service_node], ['munin-nodes'] , remote_location='/etc/munin').run()
-        SshProcess('[ -f /etc/munin/munin.conf.bak ] && cp /etc/munin/munin.conf.bak /etc/munin/munin.conf'+\
-           ' || cp /etc/munin/munin.conf /etc/munin/munin.conf.bak ;'+\
-           ' cat /etc/munin/munin-nodes >> /etc/munin/munin.conf ; service munin restart', self.service_node).run()
-        
-        
-        logger.info('Install munin-node on all hosts (VM + PM):\n'+','.join([host.address for host in self.hosts ]))
-        self.fact.get_remote('export DEBIAN_MASTER=noninteractive ; apt-get update && apt-get install -y --force-yes munin-node', 
-               self.hosts ).run()
-        logger.info('Configuring munin-nodes')
-        get_service_node_ip = EX.Process('host '+self.service_node.address).run()
-        service_node_ip = get_service_node_ip.stdout.strip().split(' ')[3]
-        logger.info('Authorizing connection from '+service_node_ip)
-        self.fact.get_remote('[ -f /etc/munin/munin-node.conf.bak ] && cp /etc/munin/munin-node.conf.bak /etc/munin/munin-node.conf'+\
-                   ' || cp /etc/munin/munin-node.conf /etc/munin/munin-node.conf.bak ;'+\
-                   ' echo allow ^'+'\.'.join( [ i for i in service_node_ip.split('.') ])+'$ >> /etc/munin/munin-node.conf', self.hosts).run()
-        logger.info('Configuring munin plugins')
-        plugins = [ 'cpu', 'memory', 'iostat']
-        cmd = 'rm /etc/munin/plugins/* ; '+' ; '.join( ['ln -s /usr/share/munin/plugins/'+plugin+' /etc/munin/plugins/' 
-                                                      for plugin in plugins])+\
-                '; ln -s /usr/share/munin/plugins/if_ /etc/munin/plugins/if_eth0; killall munin-node ; munin-node ;'
-        self.fact.get_remote(cmd, self.hosts).run()
-
-
-    def create_disk_image(self, disk_image = '/grid5000/images/KVM/wheezy-x64-base.qcow2', clean = True):
-        """Create a base image in RAW format for using qemu-img than can be used as the vms backing file """
-        
-        if clean:
-            logger.info('Removing existing disks')
-            self.fact.get_remote('rm -f /tmp/*.img; rm -f /tmp/*.qcow2', self.hosts, 
-                            connection_params = {'user': 'root'}).run()
-        
-        logger.info("Copying backing file from frontends")
-        copy_file = EX.ChainPut(self.hosts, [disk_image], remote_location='/tmp/', 
-                                connection_params = {'user': 'root'}).run()
-
-        if not copy_file.ok:
-            logger.error('Unable to copy the backing file')
-            raise ActionsFailed, [copy_file]
-        
-        logger.info("Creating disk image on /tmp/vm-base.img")
-        cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
-        self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()  
-        
-    def ssh_keys_on_vmbase(self, ssh_key = None):
-        """ Copy your public key into the .ssh/authorized_keys and copy the keys in .ssh
-        in the backing file  for taktuk execution"""
-        logger.info('Copying ssh key on vm-base ...')
-
-        ssh_key = '~/.ssh/id_rsa' if ssh_key is None else ssh_key
-
-        cmd = 'modprobe nbd max_part=1; '+ \
-                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img ; sleep 3 ; '+ \
-                'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
-                'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+\
-                'echo "auto eth0" >> /etc/network/interfaces ; '+\
-                'echo "iface eth0 inet dhcp" >> /etc/network/interfaces ;'+\
-                'cp -r '+ssh_key+'* /mnt/root/.ssh/ ;'+ \
-                'umount /mnt; qemu-nbd -d /dev/nbd0 '
-        logger.debug(cmd)
-        copy_on_vm_base = self.fact.get_remote(cmd, self.hosts, connection_params = {'user': 'root'}).run()
-        logger.debug('%s', copy_on_vm_base.ok)
     
-    def write_placement_file(self, vms = None):
-        """ Generate an XML file with the VM deployment topology """
-        if vms is None:
-            vms = self.vms
-        deployment = ETree.Element('vm5k')
+    # State related methods
+    def _init_state(self, resources = None, vms = None, distribution = None, infile = None):
+        """Create the topology XML structure describing the vm5k initial state"""
+        logger.debug('ELEMENTS')
+        self.sites = [ site for site in resources.keys() if site != 'global']
         
-        for vm in vms:
-            host_info = vm['host'].address
-            host_uid =   host_info.split('-')[0]+'-'+host_info.split('-')[1]
-            cluster_uid = host_info.split('-')[0]
-            site_uid = host_info.split('.')[1]
-            if deployment.find("./site[@id='"+site_uid+"']") is None:
-                site = ETree.SubElement(deployment, 'site', attrib = {'id': site_uid})
+        logger.debug('IP MAC')
+        if not resources.has_key('global'):
+            if len(self.sites) == 1:
+                self.ip_mac = resources[self.sites[0]]['ip_mac']
+                if resources[site]['kavlan'] is not None:
+                    self.kavlan = resources[site]['kavlan'] 
             else:
-                site = deployment.find("./site[@id='"+site_uid+"']")
-            if site.find("./cluster/[@id='"+cluster_uid+"']") is None:
-                cluster = ETree.SubElement(site, 'cluster', attrib = {'id': cluster_uid})
-            else:
-                cluster = site.find("./cluster/[@id='"+cluster_uid+"']")
-            if cluster.find("./host/[@id='"+host_uid+"']") is None:
-                host = ETree.SubElement(cluster, 'host', attrib = {'id': host_uid})
-            else:
-                host = cluster.find("./host/[@id='"+host_uid+"']")
-            ETree.SubElement(host, 'vm', attrib = {'id': vm['vm_id'], 'ip': vm['ip'], 'mac': vm['mac'], 
-                        'mem': str(vm['mem_size']), 'cpu': str(vm['vcpus']), 'hdd': str(vm['hdd_size'])})
-        
-        f = open(self.outdir+'/placement.xml', 'w')
-        f.write(prettify(deployment))
-        f.close()
+                self.ip_mac = {site: resources[site]['ip_mac'] for site in self.sites }
+        else:
+            self.ip_mac = resources['global']['ip_mac']
+            self.kavlan = resources['global']['kavlan']
 
+        logger.debug('KaVLAN: %s', self.kavlan)
         
-    def distribute_vms(self, vms, mode = 'distributed', placement = None):    
-        """ Add a host information for every VM """
         
-        if placement is None:
-            dist_hosts = self.hosts[:]
-            iter_hosts = cycle(dist_hosts)
-            host = iter_hosts.next()
-            hosts_vm = {}
-            max_mem = {}
-            max_cpu = {}
-            total_mem = {}
-            total_cpu = {}
-            if mode == 'distributed':
-                for h in self.hosts:        
-                    max_mem[h.address] = self.hosts_attr[h.address.split('-')[0]]['ram_size']/1048576 
-                    max_cpu[h.address] = self.hosts_attr[h.address.split('-')[0]]['n_cpu']*2
-                    total_mem[h.address] =  0 
-                    total_cpu[h.address] =  0
-                        
-                for vm in vms:
-                    if total_mem[host.address] + vm['mem_size'] > max_mem[host.address] \
-                        or total_cpu[host.address] + vm['vcpus'] > max_cpu[host.address]:
-                        dist_hosts.remove(host)
-                        iter_hosts = cycle(dist_hosts)
-                    vm['host'] = host
-                    total_mem[host.address] += vm['mem_size']
-                    total_cpu[host.address] += vm['vcpus']
-                    if not hosts_vm.has_key(host.address):
-                        hosts_vm[host.address] = []
-                    hosts_vm[host.address].append(vm['vm_id'])
-                    host = iter_hosts.next()
-                    
-            elif mode == 'concentrated':
-                api_host = kavname_to_shortname(host)
-                max_mem = self.hosts_attr[host.address.split('-')[0]]['ram_size']/1048576
-                total_mem = 0
-                for vm in vms:
-                    total_mem += vm['mem_size']
-                    if total_mem > max_mem:
-                        host = iter_hosts.next()
-                        max_mem = get_host_attributes(api_host)['main_memory']['ram_size']/10**6
-                        total_mem = vm['mem_size']
-                    if not hosts_vm.has_key(host.address):
-                        hosts_vm[host.address] = []
-                    vm['host'] = host
-                    hosts_vm[host.address].append(vm['vm_id'])
-            elif mode == 'n_by_hosts':
-                i_vm = 0
-                for host in self.hosts:
-                    for i in range(len(vms)/len(self.hosts)):
-                        vms[i_vm+i]['host'] = host
-                
-        else: 
-            clusters = []
-            sites = []
-            log = ''
-            logger.info('Distributing the virtual machines according to the topology file')
-            for site in placement.findall('./site'):
-                sites.append(site.get('id'))
-                log += '\n'+site.get('id')+': '
-                for cluster in site.findall('./cluster'):
-                    clusters.append(cluster.get('id'))
-                    log += cluster.get('id')+' ('+str(len(cluster.findall('.//host')))+' hosts - '+str(len(cluster.findall('.//vm')))+' vms) '
-            logger.info(log)
-            
-            
-            vms = []
+        logger.debug('ELEMENTS')
+        self.sites = []
+        self.clusters = []
+        self.hosts = []
+        for site, elements in resources.iteritems():
+            if site not in self.sites and site in get_g5k_sites():
+                self.sites.append(site)    
+            if elements['kavlan'] is None:
+                self.hosts += [ host for host in elements['hosts'] ]
+            else:
+                self.hosts += [ Host(get_kavlan_host_name(host, elements['kavlan']))
+                                for host in elements['hosts'] ]
+        self.sites.sort()
+        self.hosts.sort( key = lambda host: (host.address.split('.',1)[0].split('-')[0], 
+                                        int( host.address.split('.',1)[0].split('-')[1] )))
+        self.clusters = list(set([ get_host_cluster(host) for host in self.hosts ]))
+        self.clusters.sort()
+        self._add_xml_elements()
+        
+        
+        
+
+        logger.debug('Virtual Machines')
+        max_vms = get_max_vms(self.hosts)
+        if vms is not None:
+            self.vms = vms if len(vms) <= max_vms else vms[0:max_vms]
+        else:
+            self.vms = define_vms(['vm-'+str(i+1) for i in range(2*len(self.hosts))])
+        distribute_vms(vms, self.hosts, self.distribution)
+        self._set_vms_ip_mac()
+        self._add_xml_vms()
+        
+        
+    def _set_vms_ip_mac(self):
+        """Not finished """
+        if isinstance(self.ip_mac, dict):
+            i_vm = {site: 0 for site in self.sites }
+            for vm in self.vms:
+                vm_site = get_host_site(vm['host'])
+                vm['ip'], vm['mac'] = self.ip_mac[vm_site][i_vm[vm_site]]
+                i_vm[vm_site] += 1
+        else:
             i_vm = 0
-            for site in placement.findall('./site'):
-                for host in site.findall('.//host'):
-                    for vm in host.findall('./vm'):
-                        vms.append({'vm_id': vm.get('vm_id') if vm.get('vm_id') is not None else 'vm-'+str(i_vm),
-                                    'host': Host(host.get('id')+'-kavlan-'+str(self.config['kavlan_id'])+'.'+site.get('id')+'.grid5000.fr'), 
-                                    'hdd_size': vm.get('hdd') if vm.get('hdd') is not None else 2,
-                                    'mem_size': vm.get('mem') if vm.get('mem') is not None else 256, 
-                                    'vcpus': vm.get('cpu') if vm.get('cpu') is not None else 1,
-                                    'cpuset': vm.get('cpusets') if vm.get('cpusets') is not None else 'auto',
-                                    'ip': self.ip_mac[i_vm][0], 
-                                    'mac': self.ip_mac[i_vm][1] })
-                        i_vm += 1
-        logger.info( '\n%s', '\n'.join( [style.host(host)+': '+\
-                                          ', '.join( [style.emph(vm)  for vm in host_vms]) for host, host_vms in hosts_vm.iteritems() ] ))
-        
-        return vms
-
-    def get_max_vms(self, vm_template):
-        """ A basic function that determine the maximum number of VM you can have depending on the vm template"""
-        vm_ram_size = int(ETree.fromstring(vm_template).get('mem'))
-        vm_vcpu = int(ETree.fromstring(vm_template).get('cpu'))
-        self.get_hosts_attr()
-        max_vms_ram = int(self.hosts_attr['total']['ram_size']/vm_ram_size)
-        max_vms_cpu = int(2*self.hosts_attr['total']['n_cpu']/vm_vcpu) 
-        max_vms = min(max_vms_ram, max_vms_cpu)
-        
-        logger.info('Maximum number of VM is %s', str(max_vms))
-        return max_vms 
+            for vm in self.vms:
+                vm['ip'], vm['mac'] = self.ip_mac[i_vm]
+                i_vm += 1
         
 
-    def get_fastest_host(self):
+    def _get_xml_elements(self):
+        """Get sites, clusters and host from self.state """
+        self.sites = [ site.id for site in self.state.findall('./site') ]
+        self.clusters = [ cluster.id for cluster in self.state.findall('.//clusters') ]
+        self.hosts = [ host.id for host in self.state.findall('.//hosts') ]
+        
+    def _get_xml_vms(self):
+        """Define the list of VMs from the infile """
+        self.vms = [ {'id': vm.get('id')} for vm in self.state.findall('./vm') ]
+        
+    def _add_xml_elements(self):
+        """Add sites, clusters, hosts to self.state """
+        _state = self.state
+        logger.debug('Initial state \n %s', prettify(_state))
+        for site in self.sites:
+            SubElement(_state, 'site', attrib = {'id': site})
+        logger.debug('Sites added \n %s', prettify(_state))
+        for cluster in self.clusters:
+            el_site = _state.find("./site[@id='"+get_cluster_site(cluster)+"']")
+            SubElement(el_site, 'cluster', attrib = {'id': cluster})
+        logger.debug('Clusters added \n %s', prettify(_state))
+        for host in self.hosts:
+            el_cluster = _state.find(".//cluster/[@id='"+get_host_cluster(host)+"']")
+            SubElement(el_cluster, 'host', attrib = {'id': host.address,
+                                                        'state': 'Undeployed'})
+        logger.debug('Hosts added \n %s', prettify(_state))
+     
+    def _add_xml_vms(self):
+        """Add vms distributed on hosts to self.state """   
+        for vm in self.vms:
+            host = self.state.find(".//host/[@id='"+vm['host'].address+"']")
+            SubElement(host, 'vm', attrib = {'id': vm['id'], 
+                                             'ip': vm['ip'], 
+                                             'mac': vm['mac'], 
+                                             'mem': str(vm['mem']), 
+                                             'n_cpu': str(vm['n_cpu']),
+                                             'cpuset': vm['cpuset'], 
+                                             'hdd': str(vm['hdd']),
+                                             'backing_file': vm['backing_file'],
+                                             'state': vm['state'] })
+
+    def get_state(self, output = None, mode = 'compact', plot = False):
+        """ """
+        if mode == 'compact':
+            log = self._print_state_compact()
+   
+        logger.info('State %s', log)
+
+    def _print_state_compact(self):
+        dist = {}
+        max_len_host = 0
+        for vm in self.vms:
+            host = vm['host'].address.split('.')[0]
+            if len(host) > max_len_host:
+                max_len_host = len(host) 
+            if host not in dist.keys():
+                dist[host] = { vm['id']: vm['state'] }
+            else:
+                dist[host][vm['id']] = vm['state']
+
+        log = ''
+        for host, vms in dist.iteritems():
+            log += '\n'+style.host(host).ljust(max_len_host+1)+': '
+            for vm in sorted(vms.keys()):
+                if vms[vm] == 'OK':
+                    log += style.OK(vm)
+                elif vms[vm] == 'KO':
+                    log += style.KO(vm)
+                else:
+                    log += style.Unknown(vm)
+                log += ' '
+        return log
+ 
+    def _update_hosts_state(self, hosts_ok, hosts_ko):
+        """ """
+        for host in hosts_ok:
+            if host is not None: 
+                self.state.find(".//host/[@id='"+host.address+"']").set('state', 'OK')
+        for host in hosts_ko:
+            self.state.find(".//host/[@id='"+host.address+"']").set('state', 'KO')
+            self.hosts.remove(host)
+            distribute_vms(self.vms, self.hosts, self.distribution)
+        if len(self.hosts) == 0:
+            logger.error('occurenc')
+            exit()
+        
+            
+    def _actions_hosts(self, action):
+        hosts_ok, hosts_ko = [], []
+        for p in action.processes:
+            if p.ok:
+                hosts_ok.append(p.host)
+            else:
+                logger.warn('%s is KO', p.host)
+                hosts_ko.append(p.host)
+        hosts_ok, hosts_ko = list(set(hosts_ok)), list(set(hosts_ko))
+        self._update_hosts_state(hosts_ok, hosts_ko)
+
+
+def distribute_vms(vms, hosts, distribution = 'round-robin'):
+    """ """
+    logger.debug('Initial virtual machines distribution \n%s', 
+        "\n".join( [ vm['id']+": "+str(vm['host']) for vm in vms] ))
+    if distribution in ['round-robin', 'concentrated']:
+        attr = get_CPU_RAM(hosts)
+        dist_hosts = hosts[:]
+        iter_hosts = cycle(dist_hosts)
+        host = iter_hosts.next()
+        for vm in vms:
+            remaining = attr[host.address].copy()
+            while remaining['RAM'] - vm['mem'] <= 0 \
+                or remaining['CPU'] - vm['n_cpu']/3 <= 0:
+                dist_hosts.remove(host)
+                if len(dist_hosts) == 0:
+                    req_mem = sum( [ vm['mem'] for vm in vms])
+                    req_cpu = 3*sum( [ vm['n_cpu'] for vm in vms])
+                    logger.error('Not enough ressources ! \n'+'RAM'.rjust(20)+'CPU'.rjust(10)+'\n'+\
+                                 'Available'.ljust(15)+'%s Mb'.ljust(15)+'%s \n'+\
+                                 'Needed'.ljust(15)+'%s Mb'.ljust(15)+\
+                                 '%s \n', attr['TOTAL']['RAM'], attr['TOTAL']['CPU'],req_mem, req_cpu)
+                    exit()
+                iter_hosts = cycle(dist_hosts)
+                host = iter_hosts.next()
+                remaining = attr[host.address].copy()
+            
+            vm['host'] = host
+            remaining['RAM'] -= vm['mem']
+            remaining['CPU'] -= vm['n_cpu']/3
+            attr[host.address] = remaining.copy()    
+            if distribution == 'round-robin':
+                host = iter_hosts.next()
+                remaining = attr[host.address].copy()
+            if distribution ==  'random':
+                for i in range(randint(0, len(dist_hosts))):
+                    host = iter_hosts.next()
+                
+    elif distribution == 'n_by_hosts':
+        vms_by_host = len(vms)/len(hosts)
+        
+    logger.debug('Final virtual machines distribution \n%s', 
+        "\n".join( [ vm['id']+": "+str(vm['host']) for vm in vms ] ) )
+
+
+def get_CPU_RAM(hosts):
+    """Return the number of CPU and amount RAM for a host list """
+    hosts_attr = {'TOTAL': {'CPU': 0 ,'RAM': 0}}
+    cluster_attr = {}
+    for host in hosts:
+        cluster = get_host_cluster(host)
+        if not cluster_attr.has_key(cluster):
+            attr = get_host_attributes(host)
+            cluster_attr[cluster] = {'CPU': attr['architecture']['smt_size'], 
+                                     'RAM': int(attr['main_memory']['ram_size']/10**6)}
+        hosts_attr[host.address] = cluster_attr[cluster]
+        hosts_attr['TOTAL']['CPU'] += attr['architecture']['smt_size']
+        hosts_attr['TOTAL']['RAM'] += int(attr['main_memory']['ram_size']/10**6)
+        
+    logger.debug(pformat(hosts_attr))
+    return hosts_attr
+
+def get_fastest_host(hosts):
         """ Use the G5K api to have the fastest node"""
         max_flops = 0
-        for host in self.hosts:
-            attr = self.hosts_attr[host.address.split('-')[0]]
+        hosts_attr = {}
+        for host in hosts:
+            attr = hosts_attr[host.address.split('-')[0]]
             if attr['node_flops'] > max_flops:
                 max_flops = attr['node_flops']
                 fastest_host = host
         return fastest_host
 
-    def get_hosts_attr(self):
-        """ Get the node_flops, ram_size and smt_size from g5k API"""
-        self.hosts_attr = {}
-        self.hosts_attr['total'] = {'ram_size': 0, 'n_cpu': 0}
-        for host in self.hosts:
-            api_host = kavname_to_shortname(host).address if 'kavlan' in host.address else host.address
-            if not self.hosts_attr.has_key(api_host.split('-')[0]):
-                attr = get_host_attributes(api_host)
-                self.hosts_attr[host.address.split('-')[0]] = {'node_flops': attr['performance']['node_flops'] if attr.has_key('performance') else 0, 
-                                           'ram_size': attr['main_memory']['ram_size'],
-                                           'n_cpu': attr['architecture']['smt_size'] }
-            self.hosts_attr['total']['ram_size'] += self.hosts_attr[host.address.split('-')[0]]['ram_size']
-            self.hosts_attr['total']['n_cpu'] += self.hosts_attr[host.address.split('-')[0]]['n_cpu']
-                    
+def get_max_vms(hosts, n_cpu = 1, mem = 512):
+    """Return the maximum number of virtual machines that can be created on the host"""
+    total = get_CPU_RAM(hosts)['TOTAL']
+    return min(int(3*total['CPU']/n_cpu), int(total['RAM']/mem))
+ 
+   
+def get_vms_slot(vms, slots = None):
+    """Return a slot with enough RAM and CPU """
+    ram = sum( [ vm['mem'] for vm in vms] )
+    cpu = sum( [ vm['n_cpu'] for vm in vms] )
     
+    for slot in slots:
+        hosts = []
+        for element, n_hosts in slot[2].iteritems():
+            if element in get_g5k_clusters():
+                for i in range(n_hosts):
+                    hosts.append(Host(str(element+'-1.'+get_cluster_site(element)+'.grid5000.fr')))
+        attr = get_CPU_RAM(hosts)['TOTAL']
+        if 3*attr['CPU'] > cpu and attr['RAM'] > ram:
+            
+            return slot
+        del hosts[:]
 
-def kavname_to_shortname( host):
-    """ """
-    if 'kavlan' in host.address:
-        return Host(host.address.split('kavlan')[0][0:-1])
-    else:
-        return host       
-        
+
+    
 def prettify(elem):
     """Return a pretty-printed XML string for the Element.  """
-    rough_string = ETree.tostring(elem, 'utf-8')
+    rough_string = tostring(elem, 'utf-8')
     reparsed = minidom.parseString(rough_string)
-    return reparsed.toprettyxml(indent="  ")
+    return reparsed.toprettyxml(indent="  ").replace('<?xml version="1.0" ?>\n', '')
 
-    
-def get_clusters(sites = None, n_nodes = 1, node_flops = 10**1, virt = False, kavlan = False):
-    """Function that returns the list of cluster with some filters"""
-    if sites is None:
-        sites = get_g5k_sites()
-    
-    big_clusters = []
-    virt_clusters = []
-    kavlan_clusters = []
-    for site in sites:
-        for cluster in get_site_clusters(site):
-            if n_nodes > 1 and get_resource_attributes('sites/'+site+'/clusters/'+cluster+'/nodes')['total'] >= n_nodes:
-                big_clusters.append(cluster)
-            if virt and get_host_attributes(cluster+'-1.'+site+'.grid5000.fr')['supported_job_types']['virtual'] in [ 'ivt', 'amd-v']:
-                virt_clusters.append(cluster)
-            if kavlan and get_cluster_attributes(cluster)['kavlan']:
-                kavlan_clusters.append(cluster)
-                
-    logger.debug('Clusters with more than '+str(n_nodes)+' nodes \n%s',
-                 ', '.join([cluster for cluster in big_clusters]))
-    logger.debug('Clusters with virtualization capacities \n%s', 
-                 ', '.join([cluster for cluster in virt_clusters]))
-    logger.debug('Clusters with a kavlan activated \n%s',
-                 ', '.join([cluster for cluster in kavlan_clusters] ))
-    
-    
-
-    if virt and kavlan:
-        return list(set(virt_clusters) & set(big_clusters)  & set(kavlan_clusters))
-    elif virt:
-        return list(set(virt_clusters) & set(big_clusters)  )
-    elif kavlan:
-        return list(set(kavlan_clusters) & set(big_clusters)  )
+def kavname_to_basename( host):
+    """ """
+    if 'kavlan' in host.address:
+        return Host(host.address.split('kavlan')[0][0:-1]+'.'+'.'.join(host.address.split('.')[1:]))
     else:
-        return list(set(big_clusters) )
-    
+        return host
