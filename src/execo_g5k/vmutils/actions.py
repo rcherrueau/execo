@@ -27,6 +27,36 @@ import tempfile
 from copy import deepcopy
 from execo.exception import ActionsFailed
 
+default_vm =  {'id': None, 'host': None, 'ip': None, 'mac': None,
+    'mem': 512, 'n_cpu': 1, 'cpuset': 'auto', 
+    'hdd': 10, 'backing_file': '/tmp/vm-base.img',
+    'state': 'KO'}
+
+def define_vms( vms_id, ip_mac = None, state = None,
+        n_cpu = 1, cpusets = None, mem = None, hdd = None, backing_file = None):
+    """Create a list of virtual machines, where """
+    n_vm = len(vms_id)
+    
+    n_cpu = [default_vm['n_cpu']] * n_vm if n_cpu is None else [n_cpu] * n_vm if isinstance(n_cpu, int) else n_cpu
+    cpusets = [default_vm['cpuset']] * n_vm if cpusets is None else [cpusets] * n_vm \
+        if isinstance(cpusets, int) else cpusets
+    mem = [default_vm['mem']] * n_vm if mem is None else [mem] * n_vm if isinstance(mem, int) else mem
+    hdd = [default_vm['hdd']] * n_vm if hdd is None else [hdd] * n_vm if isinstance(hdd, int) else hdd
+    backing_file = [default_vm['backing_file']]*n_vm if backing_file is None else [backing_file] * n_vm \
+        if isinstance(backing_file, str) else backing_file
+    ip_mac = [ (None, None) ]*n_vm if ip_mac is None else ip_mac
+    state = [default_vm['state']]*n_vm if state is None else state
+    
+    vms = [ {'id': vms_id[i], 'mem': mem[i], 'n_cpu': n_cpu[i], 'cpuset': cpusets[i], 
+             'hdd': hdd[i], 'backing_file': backing_file[i], 'host': None, 'state': state[i],
+             'ip': ip_mac[i][0], 'mac': ip_mac[i][1]} for i in range(n_vm)]
+
+    logger.debug('VM parameters have been defined:\n%s',
+                 ' '.join([style.emph(param['id']) for param in vms]))
+    return vms    
+
+
+
 def list_vm( host, all = False ):
     """ Return the list of VMs on host """
     cmd = 'virsh --connect qemu:///system list'
@@ -43,27 +73,6 @@ def list_vm( host, all = False ):
     logger.debug('List of VM on host %s\n%s', style.host(host.address),
                  ' '.join([style.emph(id) for id in vms_id]))
     return [ {'id': id} for id in vms_id ]
-
-
-def define_vms( n_vm, ip_mac = None, mem_size = 256, hdd_size = 6, n_cpu = 1, cpusets = None, vms = None, offset = 0 ):
-    """ Create a dict of the VM parameters """
-    if vms is None:
-        vms = []
-    if ip_mac is None:
-        ip_mac = [ '0.0.0.0' for i in range(n_vm)]
-    if cpusets is None:
-        cpusets = {}
-        for i in range(n_vm): cpusets['vm-'+str(i+offset)] = 'auto'
-    logger.debug('cpusets: %s', pformat(cpusets))
-
-    
-    for i_vm in range( len(vms), n_vm + len(vms)):
-        vms.append( {'id': 'vm-'+str(i_vm), 'hdd_size': hdd_size,
-                'mem_size': mem_size, 'vcpus': n_cpu, 'cpuset': cpusets['vm-'+str(i_vm)],
-                'ip': ip_mac[i_vm+offset][0], 'mac': ip_mac[i_vm+offset][1], 'host': None})
-    logger.debug('VM parameters have been defined:\n%s',
-                 ' '.join([style.emph(param['id']) for param in vms]))
-    return vms
 
 
 def create_disks(vms, backing_file = '/tmp/vm-base.img', backing_file_fmt = 'raw'):
