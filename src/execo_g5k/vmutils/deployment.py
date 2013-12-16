@@ -44,6 +44,7 @@ class Virsh_Deployment(object):
     a pool of ip-MAC addresses for your virtual machines """
     def __init__(self, hosts = None, env_name = None, env_file = None, kavlan = None, oarjob_id = None, outdir = None):
         """ Initialization of deployment"""
+        
         logger.info('Initializing Virsh_Deployment on %s hosts', len(hosts))
         self.max_vms = 10227
         self.fact = ActionFactory(remote_tool = SSH,
