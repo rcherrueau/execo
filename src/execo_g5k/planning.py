@@ -60,8 +60,6 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
     Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.`` 
     
     :param elements: a list of Grid'5000 elemenst (grid5000, site, cluster)
-
-    :param excluded_resources: list of elements that must be excluded
     
     :param vlan: a boolean to ask for KaVLAN computation
     
@@ -307,9 +305,9 @@ def show_resources(resources, msg = 'Resources'):
         if site_added:
             log += '\n'
     if 'grid5000' in resources.keys():
-        log += style.log_header('Grid5000').ljust(20)+str(resources['grid5000'])+'\n'
-    elif total_hosts >0:
-        log += style.log_header('Total ').ljust(20)+str(total_hosts)+'\n'
+        log += style.log_header('Grid5000').ljust(20)+str(resources['grid5000'])
+    elif total_hosts > 0:
+        log += style.log_header('Total ').ljust(20)+str(total_hosts)
     logger.info(log)
     
 
