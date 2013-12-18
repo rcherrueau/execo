@@ -226,28 +226,6 @@ Charter related functions
    --------------
    .. autofunction:: draw_gantt
 
-Virtual machines utilities
-==========================
-
-.. automodule:: execo_g5k.vmutils
-   :members:
-
-deployment
-----------
-
-.. autoclass:: execo_g5k.vmutils.deployment.vm5k_deployment
-   :members:
-
-actions
--------
-
-.. autofunction:: list_vm
-.. autofunction:: define_vms
-.. autofunction:: create_disks
-.. autofunction:: install_vms
-.. autofunction:: start_vms
-.. autofunction:: wait_vms_have_started
-.. autofunction:: destroy_vms
 
 Configuration
 =============
