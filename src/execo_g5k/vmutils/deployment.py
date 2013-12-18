@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from pprint import pformat
+from pprint import pformat, pprint
 from random import randint
 from xml.etree.ElementTree import Element, SubElement,tostring, parse
 from itertools import cycle
@@ -27,7 +27,7 @@ from execo.action import ActionFactory
 from execo.log import style
 from execo.config import SSH, SCP
 from execo_g5k import get_oar_job_nodes, get_oargrid_job_oar_jobs, get_oar_job_subnets, \
-    get_oar_job_kavlan, deploy, Deployment
+    get_oar_job_kavlan, deploy, Deployment, wait_oar_job_start, wait_oargrid_job_start
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
 from execo_g5k.api_utils import get_host_cluster, get_g5k_sites, get_g5k_clusters, get_cluster_site, \
     get_host_attributes, get_resource_attributes, get_host_site
@@ -46,6 +46,8 @@ configuration['color_styles']['VM'] = 'white', 'bold'
 def get_oar_job_vm5k_resources(oar_job_id, site):
     """Retrieve the hosts list and (ip, mac) list from an oar_job_id and
     return the resources dict needed by vm5k_deployment """
+    logger.debug('Waiting job start')
+    wait_oar_job_start(oar_job_id, site)
     logger.debug('Retrieving hosts')
     hosts = get_oar_job_nodes(oar_job_id, site)
     logger.debug('Retrieving subnet')
@@ -63,30 +65,41 @@ def get_oargrid_job_vm5k_resources(oargrid_job_id):
     """Retrieve the hosts list and (ip, mac) list by sites from an oargrid_job_id and
     return the resources dict needed by vm5k_deployment, with kavlan-global if used in 
     the oargrid job """
+    logger.debug('Waiting job start')
+    wait_oargrid_job_start(oargrid_job_id)
     logger.debug('Retrieving hosts')
     resources = {}
     for oar_job_id, site in get_oargrid_job_oar_jobs(oargrid_job_id):
         logger.debug('%s: %s', site, oar_job_id)
         resources.update(get_oar_job_vm5k_resources(oar_job_id, site))
+    kavlan_global = None
     for site, res in resources.iteritems():
         if res['kavlan'] >= 10:
-            resources['global'] = {'kavlan': res['kavlan'], 'ip_mac': resources['site']['ip_mac'] }
-            del resources['site']['ip_mac'][:]
+            kavlan_global = {'kavlan': res['kavlan'], 'ip_mac': resources[site]['ip_mac'] }
+            break
+    if kavlan_global is not None:
+        resources['global'] = kavlan_global
     
+    print resources.keys()
     return resources
 
-def get_kavlan_ip_mac(kavlan, site):
+
+def get_kavlan_network(kavlan, site):
     """Retrieve the network parameters for a given kavlan from the API"""
     network, mask_size = None, None
     equips = get_resource_attributes('/sites/'+site+'/network_equipments/')
     for equip in equips['items']:
         if equip.has_key('vlans') and len(equip['vlans']) >2:
             all_vlans = equip['vlans']
-    for vlan, info in all_vlans.iteritems():    
+    for info in all_vlans.itervalues():    
         if type(info) == type({}) and info.has_key('name') and info['name'] == 'kavlan-'+str(kavlan):
             network, _, mask_size = info['addresses'][0].partition('/',)
     logger.debug('network=%s, mask_size=%s', network, mask_size)
+    return network, mask_size 
     
+def get_kavlan_ip_mac(kavlan, site):
+    """Retrieve the network parameters for a given kavlan from the API"""
+    network, mask_size = get_kavlan_network(kavlan, site)
     min_2 = (kavlan-4)*64 + 2 if kavlan < 8 else (kavlan-8)*64 + 2 if kavlan < 10 else 216 
     ips = [ ".".join( [ str(part) for part in ip ]) for ip in [ ip for ip in get_ipv4_range(tuple([ int(part) for part in network.split('.') ]), int(mask_size))
            if ip[3] not in [ 0, 254, 255 ] and ip[2] >= min_2] ]       
@@ -147,13 +160,14 @@ class vm5k_deployment(object):
         :params distribution: how to distribute the vms on the hosts 
         (``round-robin`` , ``concentrated``, ``random``)
         """        
-        logger.info(style.step('STARTING vm5k_deployment'.center(50)))
+        print_step('STARTING vm5k_deployment')
         self.state = Element('vm5k')
         self.fact = ActionFactory(remote_tool = SSH,
                                 fileput_tool = SCP,
                                 fileget_tool = SCP)
         self.distribution = distribution
         self.kavlan = None
+        
         if infile is None:     
             self._init_state(resources, vms, infile)
         else:
@@ -170,27 +184,30 @@ class vm5k_deployment(object):
             self.env_file = None
             self.env_name = env_name
                     
-        logger.info('vm5k_deployment has been initialized \n sites %s \n clusters %s '+\
-                    '\n hosts %s \n vms %s',
-                    ' '.join( [style.emph(site) for site in self.sites] ) , 
-                    ' '.join( [style.user1(cluster) for cluster in self.clusters ]), 
-                    ' '.join( [style.host(host.address) for host in self.hosts ]), 
-                    ' '.join( [style.VM(vm['id']) for vm in self.vms ] ) )
-            
+        logger.info('vm5k_deployment has been initialized \n%s sites %s \n%s clusters %s '+\
+                    '\n%s hosts %s \n%s vms %s',
+                    len(self.sites), ' '.join( [style.emph(site) for site in self.sites] ) , 
+                    len(self.clusters), ' '.join( [style.user1(cluster) for cluster in self.clusters ]), 
+                    len(self.hosts), ' '.join( [style.host(host.address) for host in self.hosts ]), 
+                    len(self.vms), ' '.join( [style.VM(vm['id']) for vm in self.vms ]) )
+        
+        
     def run(self):
         """Launch the deployment and configuration of hosts and virtual machines"""
         try:
-            logger.info(style.step('HOSTS DEPLOYMENT'.center(50)) )
+            print_step('HOSTS DEPLOYMENT')
             self.hosts_deployment()
-            logger.info(style.step('MANAGING PACKAGES'.center(50)) )
+            print_step('MANAGING PACKAGES')
             self.packages_management()
             if self.kavlan is not None:
-                service_node = get_fastest_host(self.hosts)
-                dns_dhcp_server(service_node, self.vms, self.ip_mac)
                 
-            logger.info(style.step('CONFIGURING LIBVIRT'.center(50)) )
+                service_node = get_fastest_host(self.hosts)
+                print_step('CONFIGURE SERVICE NODE '+service_node)
+                dns_dhcp_server(service_node, self.vms, self.ip_mac, 
+                                get_kavlan_network(self.kavlan, self.sites[0]))
+            print_step('CONFIGURING LIBVIRT')
             self.configure_libvirt()
-            logger.info(style.step('VIRTUAL MACHINES'.center(50)))        
+            print_step('VIRTUAL MACHINES')        
             self.deploy_vms()
         finally:
             self.get_state()
@@ -212,28 +229,27 @@ class vm5k_deployment(object):
         wait_vms_have_started(self.vms)
         
 
-    def _create_backing_file(self, disk_image, user = None):
+    def _create_backing_file(self, from_disk = '/grid5000/images/KVM/squeeze-x64-base.qcow2', to_disk = '/tmp/vm-base.img'):
         """ """
-        if user is None:
-            user = default_connection_params['user']
         logger.debug("Copying backing file from frontends")
-        copy_file = self.fact.get_fileput(self.hosts, [disk_image], remote_location='/tmp/').run()
+        copy_file = self.fact.get_fileput(self.hosts, [from_disk], remote_location='/tmp/').run()
         self._actions_hosts(copy_file)
-        
-        logger.debug("Creating disk image on /tmp/vm-base.img")
-        cmd = 'qemu-img convert -O raw /tmp/'+disk_image.split('/')[-1]+' /tmp/vm-base.img'
+                
+        logger.debug('Creating disk image on '+to_disk)
+        cmd = 'qemu-img convert -O raw /tmp/'+from_disk.split('/')[-1]+' '+to_disk
         convert = self.fact.get_remote(cmd, self.hosts).run()  
         self._actions_hosts(convert)
         
-#        logger.debug('Copying ssh key on /tmp/vm-base.img ...')
-#        cmd = 'modprobe nbd max_part=1; '+ \
-#                'qemu-nbd --connect=/dev/nbd0 /tmp/vm-base.img ; sleep 3 ; '+ \
-#                'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
-#                'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+\
-#                'cp -r ~/.ssh/id_rsa* /mnt/root/.ssh/ ;'+ \
-#                'umount /mnt; qemu-nbd -d /dev/nbd0 '
-#        copy_on_vm_base = self.fact.get_remote(cmd, self.hosts).run()
-#        self._actions_hosts(copy_on_vm_base)
+        if default_connection_params['user'] == 'root':
+            logger.debug('Copying ssh key on '+to_disk+' ...')
+            cmd = 'modprobe nbd max_part=1; '+ \
+                    'qemu-nbd --connect=/dev/nbd0 '+to_disk+' ; sleep 3 ; '+ \
+                    'mount /dev/nbd0p1 /mnt; mkdir /mnt/root/.ssh ; '+ \
+                    'cp /root/.ssh/authorized_keys  /mnt/root/.ssh/authorized_keys ; '+\
+                    'cp -r /root/.ssh/id_rsa* /mnt/root/.ssh/ ;'+ \
+                    'umount /mnt; qemu-nbd -d /dev/nbd0'
+            copy_on_vm_base = self.fact.get_remote(cmd, self.hosts).run()
+            self._actions_hosts(copy_on_vm_base)
         
     def _remove_existing_disks(self, hosts = None):
         """Remove all img and qcow2 file from /tmp directory """
@@ -283,29 +299,31 @@ class vm5k_deployment(object):
     # Hosts configuration
     def hosts_deployment(self, max_tries = 1, check_deploy = True):
         """Create the execo_g5k.Deployment"""
-        self.Deployment = Deployment( hosts = [ kavname_to_basename(host) for host in self.hosts], 
+        deployment = Deployment( hosts = [ kavname_to_basename(host) for host in self.hosts], 
             env_file = self.env_file, env_name = self.env_name,
             vlan = self.kavlan)  
         
+        out = True if logger.getEffectiveLevel() <= 10 else False
         
-        out = True if logger.getEffectiveLevel() == 'DEBUG' else False
-        
-        
-        
-        deployed_hosts, undeployed_hosts = deploy(self.Deployment, out = out, 
+        deployed_hosts, undeployed_hosts = deploy(deployment, out = out, 
                                 num_tries = max_tries, 
                                 check_deployed_command = check_deploy)
-        if self.kavlan:
-            deployed_hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in deployed_hosts ]
-            undeployed_hosts = [ Host(get_kavlan_host_name(host, self.kavlan)) for host in undeployed_hosts ]
         self._update_hosts_state(deployed_hosts, undeployed_hosts)
         
-        # Configuring SSH with precopy of id_rsa and id_rsa.pub keys on all hosts to allow TakTuk connection
-        TaktukRemote(' echo "Host *" >> /root/.ssh/config ;'+
-                    'echo " StrictHostKeyChecking no" >> /root/.ssh/config; ',
-                    self.hosts, connection_params = {'taktuk_options': ( '-s',
-            '-S', '$HOME/.ssh/id_rsa:$HOME/.ssh/id_rsa,$HOME/.ssh/id_rsa.pub:$HOME/.ssh')}).run()
+        # Renaming hosts if a kavlan is used
+        if self.kavlan is not None:
+            self.hosts = [ get_kavlan_host_name(host, self.kavlan) for host in self.hosts]
         
+        # Configuring SSH with precopy of id_rsa and id_rsa.pub keys on all hosts to allow TakTuk connection
+        if self.fact.remote_tool == 2:
+            taktuk_conf = ('-s', '-S', '$HOME/.ssh/id_rsa:$HOME/.ssh/id_rsa,$HOME/.ssh/id_rsa.pub:$HOME/.ssh')
+        else:
+            taktuk_conf = ('-s', )
+        conf_ssh = self.fact.get_remote(' echo "Host *" >> /root/.ssh/config ;'+
+                'echo " StrictHostKeyChecking no" >> /root/.ssh/config; ',
+                self.hosts, connection_params = {'taktuk_options': taktuk_conf}).run()
+        self._actions_hosts(conf_ssh)         
+                
         
     def enable_bridge(self, name = 'br0'):
         """We need a bridge to have automatic DHCP configuration for the VM."""
@@ -343,8 +361,6 @@ class vm5k_deployment(object):
             
             self.fact.get_fileput(nobr_hosts, [br_script]).run()
             self.fact.get_remote( 'nohup sh '+br_script.split('/')[-1], nobr_hosts).run()
-            
-            
                 
             logger.debug('Waiting for network restart')
             if_up = False
@@ -468,7 +484,7 @@ class vm5k_deployment(object):
                 if resources[site]['kavlan'] is not None:
                     self.kavlan = resources[site]['kavlan'] 
             else:
-                self.ip_mac = {site: resources[site]['ip_mac'] for site in self.sites }
+                self.ip_mac = { site: resources[site]['ip_mac'] for site in self.sites}
         else:
             self.ip_mac = resources['global']['ip_mac']
             self.kavlan = resources['global']['kavlan']
@@ -483,11 +499,9 @@ class vm5k_deployment(object):
         for site, elements in resources.iteritems():
             if site not in self.sites and site in get_g5k_sites():
                 self.sites.append(site)    
-            if elements['kavlan'] is None:
-                self.hosts += [ host for host in elements['hosts'] ]
-            else:
-                self.hosts += [ Host(get_kavlan_host_name(host, elements['kavlan']))
-                                for host in elements['hosts'] ]
+            if site != 'global':
+                self.hosts += elements['hosts']
+            
         self.sites.sort()
         self.hosts.sort( key = lambda host: (host.address.split('.',1)[0].split('-')[0], 
                                         int( host.address.split('.',1)[0].split('-')[1] )))
@@ -502,11 +516,14 @@ class vm5k_deployment(object):
         max_vms = get_max_vms(self.hosts)
         if vms is not None:
             self.vms = vms if len(vms) <= max_vms else vms[0:max_vms]
+            distribute_vms(vms, self.hosts, self.distribution)
+            self._set_vms_ip_mac()
+            self._add_xml_vms()
         else:
-            self.vms = define_vms(['vm-'+str(i+1) for i in range(2*len(self.hosts))])
-        distribute_vms(vms, self.hosts, self.distribution)
-        self._set_vms_ip_mac()
-        self._add_xml_vms()
+            self.vms = []
+        
+        
+        
         
         
     def _set_vms_ip_mac(self):
@@ -518,6 +535,7 @@ class vm5k_deployment(object):
                 vm['ip'], vm['mac'] = self.ip_mac[vm_site][i_vm[vm_site]]
                 i_vm[vm_site] += 1
         else:
+            print len(self.ip_mac)
             i_vm = 0
             for vm in self.vms:
                 vm['ip'], vm['mac'] = self.ip_mac[i_vm]
@@ -527,8 +545,8 @@ class vm5k_deployment(object):
     def _get_xml_elements(self):
         """Get sites, clusters and host from self.state """
         self.sites = [ site.id for site in self.state.findall('./site') ]
-        self.clusters = [ cluster.id for cluster in self.state.findall('.//clusters') ]
-        self.hosts = [ host.id for host in self.state.findall('.//hosts') ]
+        self.clusters = [ cluster.id for cluster in self.state.findall('.//cluster') ]
+        self.hosts = [ host.id for host in self.state.findall('.//host') ]
         
     def _get_xml_vms(self):
         """Define the list of VMs from the infile """
@@ -583,10 +601,9 @@ class vm5k_deployment(object):
                 dist[host] = { vm['id']: vm['state'] }
             else:
                 dist[host][vm['id']] = vm['state']
-
         log = ''
         for host, vms in dist.iteritems():
-            log += '\n'+style.host(host).ljust(max_len_host+1)+': '
+            log += '\n'+style.host(host)+': '.ljust(max_len_host-len(host))
             for vm in sorted(vms.keys()):
                 if vms[vm] == 'OK':
                     log += style.OK(vm)
@@ -606,8 +623,10 @@ class vm5k_deployment(object):
             self.state.find(".//host/[@id='"+host.address+"']").set('state', 'KO')
             self.hosts.remove(host)
             distribute_vms(self.vms, self.hosts, self.distribution)
+        
         if len(self.hosts) == 0:
-            logger.error('occurenc')
+            logger.error('Not enough hosts available, because %s are KO', 
+                         [ style.host(host.address) for host in hosts_ok])
             exit()
         
             
@@ -628,7 +647,7 @@ def distribute_vms(vms, hosts, distribution = 'round-robin'):
     logger.debug('Initial virtual machines distribution \n%s', 
         "\n".join( [ vm['id']+": "+str(vm['host']) for vm in vms] ))
     if distribution in ['round-robin', 'concentrated']:
-        attr = get_CPU_RAM(hosts)
+        attr = get_CPU_RAM_FLOPS(hosts)
         dist_hosts = hosts[:]
         iter_hosts = cycle(dist_hosts)
         host = iter_hosts.next()
@@ -667,7 +686,7 @@ def distribute_vms(vms, hosts, distribution = 'round-robin'):
         "\n".join( [ vm['id']+": "+str(vm['host']) for vm in vms ] ) )
 
 
-def get_CPU_RAM(hosts):
+def get_CPU_RAM_FLOPS(hosts):
     """Return the number of CPU and amount RAM for a host list """
     hosts_attr = {'TOTAL': {'CPU': 0 ,'RAM': 0}}
     cluster_attr = {}
@@ -676,7 +695,8 @@ def get_CPU_RAM(hosts):
         if not cluster_attr.has_key(cluster):
             attr = get_host_attributes(host)
             cluster_attr[cluster] = {'CPU': attr['architecture']['smt_size'], 
-                                     'RAM': int(attr['main_memory']['ram_size']/10**6)}
+                                     'RAM': int(attr['main_memory']['ram_size']/10**6),
+                                     'flops': attr['performance']['node_flops'] }
         hosts_attr[host.address] = cluster_attr[cluster]
         hosts_attr['TOTAL']['CPU'] += attr['architecture']['smt_size']
         hosts_attr['TOTAL']['RAM'] += int(attr['main_memory']['ram_size']/10**6)
@@ -686,22 +706,22 @@ def get_CPU_RAM(hosts):
 
 def get_fastest_host(hosts):
         """ Use the G5K api to have the fastest node"""
+        attr = get_CPU_RAM_FLOPS(hosts)
         max_flops = 0
-        hosts_attr = {}
         for host in hosts:
-            attr = hosts_attr[host.address.split('-')[0]]
-            if attr['node_flops'] > max_flops:
-                max_flops = attr['node_flops']
+            flops = attr[host.address]['flops']
+            if  flops > max_flops:
+                max_flops = flops
                 fastest_host = host
         return fastest_host
 
 def get_max_vms(hosts, n_cpu = 1, mem = 512):
     """Return the maximum number of virtual machines that can be created on the host"""
-    total = get_CPU_RAM(hosts)['TOTAL']
+    total = get_CPU_RAM_FLOPS(hosts)['TOTAL']
     return min(int(3*total['CPU']/n_cpu), int(total['RAM']/mem))
  
    
-def get_vms_slot(vms, slots = None):
+def get_vms_slot(vms, slots):
     """Return a slot with enough RAM and CPU """
     ram = sum( [ vm['mem'] for vm in vms] )
     cpu = sum( [ vm['n_cpu'] for vm in vms] )
@@ -712,13 +732,17 @@ def get_vms_slot(vms, slots = None):
             if element in get_g5k_clusters():
                 for i in range(n_hosts):
                     hosts.append(Host(str(element+'-1.'+get_cluster_site(element)+'.grid5000.fr')))
-        attr = get_CPU_RAM(hosts)['TOTAL']
+        attr = get_CPU_RAM_FLOPS(hosts)['TOTAL']
         if 3*attr['CPU'] > cpu and attr['RAM'] > ram:
             
             return slot
         del hosts[:]
 
 
+def print_step(step_desc = None):
+    """ """
+    logger.info(style.step(' '+step_desc+' ').center(50) )
+    
     
 def prettify(elem):
     """Return a pretty-printed XML string for the Element.  """
