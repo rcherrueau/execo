@@ -36,15 +36,16 @@ def dns_dhcp_server(server, clients, ip_mac, netmask):
          '-y dnsmasq'
     SshProcess(cmd, server).run()
     logger.debug('Creating dnsmasq.conf')
-    dhcp_range = 'dhcp-range='+ip_mac[0][0]+','+ip_mac[len(clients)][0]+','+netmask+',12h\n'
-    dhcp_router = 'dhcp-option=option:router,'+ip_mac[len(clients)][0]+'\n'
+
+    dhcp_range = 'dhcp-range='+ip_mac[0][0]+','+ip_mac[len(clients)-1][0]+','+netmask+',12h\n'
+    dhcp_router = 'dhcp-option=option:router,'+ip_mac[len(clients)-1][0]+'\n'
     dhcp_hosts = ''+'\n'.join( [ 'dhcp-host='+':'+ip_mac[i][1]+','+clients[i]+','+ip_mac[i][0] 
                                 for i in range(len(clients)) ])
     dhcp_option = 'dhcp-option=option:domain-search,grid5000.fr,'+\
             ','.join( [site+'.grid5000.fr' for site in get_g5k_sites()])+'\n'
     _, tmpfile = mkstemp(dir = '/tmp/', prefix='dnsmasq.conf_')
     f = open(tmpfile, 'w')
-    f.write(dhcp_range+dhcp_router+dhcp_hosts+dhcp_option)
+    f.write(dhcp_range+dhcp_router+dhcp_hosts+'\n'+dhcp_option)
     f.close()
     Put([server], [tmpfile], remote_location='/etc/').run()
     SshProcess('cd /etc && cp '+tmpfile.split('/')[-1]+' dnsmasq.conf', server).run()
