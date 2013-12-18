@@ -24,6 +24,7 @@ from execo.time_utils import sleep
 from execo_g5k import default_frontend_connection_params
 from execo_g5k.api_utils import get_host_site
 import tempfile
+from execo_g5k.vmutils.deployment import configuration
 from copy import deepcopy
 from execo.exception import ActionsFailed
 
@@ -32,20 +33,52 @@ default_vm =  {'id': None, 'host': None, 'ip': None, 'mac': None,
     'hdd': 10, 'backing_file': '/tmp/vm-base.img',
     'state': 'KO'}
 
-def define_vms( vms_id, ip_mac = None, state = None,
-        n_cpu = 1, cpusets = None, mem = None, hdd = None, backing_file = None):
-    """Create a list of virtual machines, where """
-    n_vm = len(vms_id)
+def show_vms(vms):
+    """ """
+    logger.info(style.log_header('Virtual machines \n')+'%s',
+        ', '.join( [style.VM(vm['id'])+' ('+str(vm['mem'])+'Mb, '+str(vm['n_cpu'])+' cpu '+\
+                   vm['cpuset']+', '+str(vm['hdd'])+'Gb)' 
+                    for vm in vms ] ) )
     
-    n_cpu = [default_vm['n_cpu']] * n_vm if n_cpu is None else [n_cpu] * n_vm if isinstance(n_cpu, int) else n_cpu
-    cpusets = [default_vm['cpuset']] * n_vm if cpusets is None else [cpusets] * n_vm \
-        if isinstance(cpusets, int) else cpusets
-    mem = [default_vm['mem']] * n_vm if mem is None else [mem] * n_vm if isinstance(mem, int) else mem
-    hdd = [default_vm['hdd']] * n_vm if hdd is None else [hdd] * n_vm if isinstance(hdd, int) else hdd
-    backing_file = [default_vm['backing_file']]*n_vm if backing_file is None else [backing_file] * n_vm \
-        if isinstance(backing_file, str) else backing_file
-    ip_mac = [ (None, None) ]*n_vm if ip_mac is None else ip_mac
-    state = [default_vm['state']]*n_vm if state is None else state
+
+def define_vms( vms_id, template = None, ip_mac = None, state = None, 
+        n_cpu = 1, cpusets = None, mem = None, hdd = None, backing_file = None):
+    """Create a list of virtual machines, where VM parameter is a dict similar to
+    {'id': None, 'host': None, 'ip': None, 'mac': None,
+    'mem': 512, 'n_cpu': 1, 'cpuset': 'auto', 
+    'hdd': 10, 'backing_file': '/tmp/vm-base.img',
+    'state': 'KO'}
+    :param template: a XML element
+    """
+    n_vm = len(vms_id)
+    if template is None:
+        n_cpu = [default_vm['n_cpu']] * n_vm if n_cpu is None \
+            else [n_cpu] * n_vm if isinstance(n_cpu, int) else n_cpu
+        cpusets = [default_vm['cpuset']] * n_vm if cpusets is None \
+            else [cpusets] * n_vm if isinstance(cpusets, int) else cpusets
+        mem = [default_vm['mem']] * n_vm if mem is None \
+            else [mem] * n_vm if isinstance(mem, int) else mem
+        hdd = [default_vm['hdd']] * n_vm if hdd is None \
+            else [hdd] * n_vm if isinstance(hdd, int) else hdd
+        backing_file = [default_vm['backing_file']]*n_vm if backing_file is None \
+            else [backing_file] * n_vm if isinstance(backing_file, str) else backing_file
+        state = [default_vm['state']]*n_vm if state is None \
+            else [state] * n_vm if isinstance(state, str) else state
+    else:
+        n_cpu = [default_vm['n_cpu']] * n_vm if 'n_cpu' not in template.attrib \
+            else [int(template.get('n_cpu'))] * n_vm
+        cpusets = [default_vm['cpuset']] * n_vm if 'cpuset' not in template.attrib \
+            else [template.get('cpuset')] * n_vm
+        mem = [default_vm['mem']] * n_vm if 'mem' not in template.attrib \
+            else [int(template.get('mem'))] * n_vm
+        hdd = [default_vm['hdd']] * n_vm if 'hdd' not in template.attrib \
+            else [int(template.get('hdd'))] * n_vm
+        backing_file = [default_vm['backing_file']] * n_vm if 'backing_file' not in template.attrib \
+            else [template.get('backing_file')] * n_vm 
+        state = [default_vm['state']]*n_vm if 'state' not in template.attrib \
+            else [template.get['state']] * n_vm
+    
+    ip_mac = [ (None, None) ] * n_vm if ip_mac is None else ip_mac
     
     vms = [ {'id': vms_id[i], 'mem': mem[i], 'n_cpu': n_cpu[i], 'cpuset': cpusets[i], 
              'hdd': hdd[i], 'backing_file': backing_file[i], 'host': None, 'state': state[i],
@@ -145,11 +178,12 @@ def wait_vms_have_started(vms, host = None):
     Process("rm -rf " + tmpdir).run()
     nmap_tries = 0
     started_vms = '0'
+    old_started = '0'
     ssh_open = False
-    while (not ssh_open) and nmap_tries < 20:
+    while (not ssh_open) and nmap_tries < 10:
         sleep(20)
         logger.debug('nmap_tries %s', nmap_tries)
-        nmap_tries += 1            
+        
         nmap = SshProcess('nmap -i '+tmpfile[1].split('/')[-1]+' -p 22', host, connection_params = {'user': user}).run()
         logger.debug('%s', nmap.cmd)
         for line in nmap.stdout.split('\n'):
@@ -162,8 +196,13 @@ def wait_vms_have_started(vms, host = None):
                 logger.debug(line)
                 ssh_open = line.split()[2] == line.split()[5].replace('(','')
                 started_vms = line.split()[5].replace('(','')
+        if started_vms != old_started:
+            old_started = started_vms
+            nmap_tries = 0
+        else:
+            nmap_tries += 1
         if not ssh_open:
-            logger.info(  started_vms+'/'+str(len(vms)) )
+            logger.info(str(nmap_tries)+': '+  started_vms+'/'+str(len(vms)) )
     SshProcess('rm '+tmpfile[1].split('/')[-1], host, connection_params = {'user': user}).run()    
     if ssh_open:
         logger.info('All VM have been started')
@@ -213,6 +252,11 @@ def destroy_vms( hosts):
     if len(cmds) > 0:
         get_remote('{{cmds}}', hosts_with_vms).run()
         
+
+def rm_qcow2_disks( hosts):
+    logger.debug('Removing existing disks')
+    get_remote('rm -f /tmp/*.qcow2', hosts).run()
+    
     
 
 
