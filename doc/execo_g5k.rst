@@ -214,6 +214,8 @@ and find slots with specific properties.
 .. autofunction:: find_first_slot
 .. autofunction:: find_max_slot
 .. autofunction:: find_free_slot
+.. autofunction:: distribute_hosts
+.. autofunction:: get_jobs_specs
 
 Charter related functions
 -------------------------

@@ -25,11 +25,10 @@ from itertools import cycle
 from execo import logger
 from execo.log import style
 from execo_g5k import OarSubmission
-from execo.time_utils import timedelta_to_seconds, \
-    unixts_to_datetime, get_unixts, datetime_to_unixts
+from execo.time_utils import timedelta_to_seconds, get_seconds, \
+    unixts_to_datetime, get_unixts, datetime_to_unixts, format_date
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_g5k_hosts, get_cluster_site, \
     get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
-from execo_g5k.oar import oar_duration_to_seconds, format_oar_date
 from threading import Thread, currentThread
 
 try:
@@ -54,7 +53,8 @@ else:
 
 
 def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False, 
-            out_of_chart = False, starttime = int(time()+timedelta_to_seconds(timedelta(minutes = 1))), 
+            out_of_chart = False, 
+            starttime = int(time()+timedelta_to_seconds(timedelta(minutes = 1))), 
             endtime = int(time()+timedelta_to_seconds(timedelta(weeks = 4, minutes = 1))) ):
     """Retrieve the planning of the elements (site, cluster) and others resources.
     Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.`` 
@@ -76,7 +76,8 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
     whose values are planning dicts, whose keys are hosts, subnet address range, 
     vlan number or chunk id planning respectively. 
     """
-    
+    starttime = get_unixts(starttime)
+    endtime = get_unixts(endtime)
     if 'grid5000' in elements:
         sites = get_g5k_sites()
     else:
@@ -114,22 +115,28 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
 
 
 
-def compute_slots(planning, walltime, excluded_resources = None):
+def compute_slots(planning, walltime, excluded_elements = None):
     """Compute the slots limits and find the number of available nodes for 
     each elements and for the given walltime. 
-    
-    :param planning: a dict of the resources planning, returned by ``get_planning``
-    
-    :param walltime: a duration at OAR duration format ``5:00:00`` where the resources are available
     
     Return the list of slots where a slot is ``[ start, stop, freehosts ]`` and
     freehosts is a dict of Grid'5000 element with number of nodes available 
     ``{'grid5000': 40, 'lyon': 20, 'reims': 10, 'stremi': 10 }``.
+    
+    WARNING: slots does not includes subnets
+    
+    :param planning: a dict of the resources planning, returned by ``get_planning``
+    
+    :param walltime: a duration in a format supported by get_seconds where the resources 
+      are available
+              
+    :param excluded_elements: list of elements that will not be included in the slots 
+      computation
     """
     slots = []
-
-    if excluded_resources is not None:
-        _remove_excluded(planning, excluded_resources)
+    walltime = get_seconds(walltime)
+    if excluded_elements is not None:
+        _remove_excluded(planning, excluded_elements)
     limits = _slots_limits(planning)
     
     # Checking if we need to compile vlans planning
@@ -159,7 +166,7 @@ def compute_slots(planning, walltime, excluded_resources = None):
                         host_free = False
                         for free_slot in host_planning['free']:
                             if free_slot[0] <= limit and free_slot[1] >= limit \
-                                + oar_duration_to_seconds(walltime):
+                                + get_seconds(walltime):
                                 host_free = True
                         if host_free:
                             free_elements['grid5000'] += 1
@@ -174,7 +181,7 @@ def compute_slots(planning, walltime, excluded_resources = None):
                         kavlan_free = False
                         for free_slot in vlan_planning['free']:
                             if free_slot[0] <= limit and free_slot[1] >= limit \
-                                + oar_duration_to_seconds(walltime):
+                                + get_seconds(walltime):
                                 kavlan_free = True
                         if kavlan_free:
                             free_vlans += 1
@@ -185,7 +192,7 @@ def compute_slots(planning, walltime, excluded_resources = None):
                         kavlan_global_free = False
                         for free_slot in vlan_planning['free']:
                             if free_slot[0] <= limit and free_slot[1] >= limit \
-                                + oar_duration_to_seconds(walltime):
+                                + get_seconds(walltime):
                                 kavlan_global_free = True
                         if kavlan_global_free:
                             free_vlans_global.append(site)
@@ -194,7 +201,7 @@ def compute_slots(planning, walltime, excluded_resources = None):
              
                 ## MISSING OTHER RESOURCES COMPUTATION
                 
-        slots.append( [ limit, limit +oar_duration_to_seconds(walltime), free_elements] )
+        slots.append( [ limit, limit +get_seconds(walltime), free_elements] )
     
     slots.sort()
     return slots    
@@ -204,7 +211,8 @@ def find_first_slot( slots, resources_wanted):
     
     :param slots: list of slots returned by ``compute_slots``
     
-    :param resources_wanted: a dict of elements that must have some free hosts"""
+    :param resources_wanted: a dict of elements that must have some free hosts
+    """
 
     for slot in slots:
         vlan_free = True
@@ -252,8 +260,8 @@ def find_free_slot( slots, resources_wanted):
      
     :param slots: list of slots returned by ``compute_slots``
     
-    :param resources_wanted: a dict describing the wanted ressources ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``
-    """
+    :param resources_wanted: a dict describing the wanted ressources 
+      ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``"""
     # We need to add the clusters nodes to the total nodes of a site
     real_wanted = resources_wanted.copy()
     for cluster, n_nodes in resources_wanted.iteritems():
@@ -285,7 +293,7 @@ def find_free_slot( slots, resources_wanted):
     return None, None, None
 
 def show_resources(resources, msg = 'Resources'):
-
+    """Print the resources in a fancy way"""
     total_hosts = 0
     log = style.log_header(msg)+'\n'
     
@@ -313,7 +321,16 @@ def show_resources(resources, msg = 'Resources'):
 
 
 def get_jobs_specs(resources, excluded_elements = [], name = None):
-    """ Generate the several job specifications from the dict of resources and the blacklisted elements """
+    """ Generate the several job specifications from the dict of resources and the 
+    blacklisted elements 
+    
+    :param resources: a dict, whose keys are Grid'5000 element and values the 
+      corresponding number of n_nodes
+    
+    :param excluded_elements: a list of elements that won't be used
+    
+    :param name: the name of the jobs that will be given
+    """
     jobs_specs = []
     
     #Adding sites corresponding to clusters wanted
@@ -405,8 +422,14 @@ def get_jobs_specs(resources, excluded_elements = [], name = None):
     
  
 
-def distribute_hosts(resources_available, resources_wanted, blacklisted = None):
-    """ Distribute the resources on the different sites and cluster"""
+def distribute_hosts(resources_available, resources_wanted, excluded_elements = None):
+    """ Distribute the resources on the different sites and cluster
+    
+    :param resources_available: a dict defining the resources available
+    
+    :param resources_wanted: a dict defining the resources available you really want 
+    
+    :param excluded_elements: a list of elements that won't be used"""
     resources = {}
     clusters_wanted = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
                       if element in get_g5k_clusters() }
@@ -422,7 +445,7 @@ def distribute_hosts(resources_available, resources_wanted, blacklisted = None):
     
     # blacklisting cluster i.e. resources[cluster] = 0
     for cluster in get_g5k_clusters():
-        if cluster in blacklisted:
+        if cluster in excluded_elements:
             resources[cluster] = 0    
     
     if resources_wanted.has_key('grid5000'):
@@ -970,7 +993,7 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         PLT.show()
     if save:
         if outfile is None:
-            outfile = 'gantt_'+"_".join( [site for site in planning.keys()])+'_'+format_oar_date(startstamp)
+            outfile = 'gantt_'+"_".join( [site for site in planning.keys()])+'_'+format_date(startstamp)
         
         PLT.savefig (outfile, dpi=300)
 
@@ -1064,6 +1087,5 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 #        fname = 'slots.png'
 #        logger.info('Saving file %s ...', fname)
 #        PLT.savefig (fname, dpi=300)
-
 
 
