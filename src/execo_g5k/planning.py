@@ -27,7 +27,7 @@ from execo.log import style
 from execo_g5k import OarSubmission
 from execo.time_utils import timedelta_to_seconds, get_seconds, \
     unixts_to_datetime, get_unixts, datetime_to_unixts, format_date
-from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_g5k_hosts, get_cluster_site, \
+from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
     get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
 from threading import Thread, currentThread
 
