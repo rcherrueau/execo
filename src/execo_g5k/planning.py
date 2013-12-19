@@ -85,8 +85,12 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
                     [ get_cluster_site(cluster) for cluster in elements 
                      if cluster in get_g5k_clusters() ]))
 
-    planning = {site: { cluster: {} for cluster in get_site_clusters(site)} for site in sites}    
-    
+    planning = {}
+    for site in sites:
+        planning[site] = {}
+        for cluster in get_site_clusters(site):
+            planning[site][cluster] = {}
+
     for site in sites:
         if vlan:
             planning[site].update( { 'vlans': {} } )
@@ -431,15 +435,19 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
     
     :param excluded_elements: a list of elements that won't be used"""
     resources = {}
-    clusters_wanted = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
-                      if element in get_g5k_clusters() }
+    clusters_wanted = {}
+    for element, n_nodes in resources_wanted.iteritems():
+        if element in get_g5k_clusters():
+            clusters_wanted[element] =  n_nodes
     for cluster, n_nodes in clusters_wanted.iteritems():
         nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
         resources_available[get_cluster_site(cluster)] -= nodes
         resources[cluster] = nodes 
-    
-    sites_wanted = { element: n_nodes for element, n_nodes in resources_wanted.iteritems() \
-                      if element in get_g5k_sites() }    
+
+    sites_wanted = {}
+    for element, n_nodes in resources_wanted.iteritems():
+        if element in get_g5k_sites():
+            sites_wanted[element] = n_nodes
     for site, n_nodes in sites_wanted.iteritems():
         resources[site] = n_nodes if n_nodes > 0 else resources_available[site]
     
@@ -504,7 +512,9 @@ def _get_site_planning_API(site, site_planning):
         for host in alive_nodes:
             site_planning[get_host_cluster(str(host))].update({host: {'busy': [], 'free': []}})
         if site_planning.has_key('vlans'):
-            site_planning['vlans'] = { vlan: {'busy': [], 'free': []} for vlan in _get_vlans_API(site) }
+            site_planning['vlans'] = {}
+            for vlan in _get_vlans_API(site):
+                site_planning['vlans'][vlan] = {'busy': [], 'free': []}
         # STORAGE AND SUBNETS MISSING
         # Retrieving jobs
 
