@@ -33,16 +33,13 @@ version::
  $ cd execo
  $ make install PREFIX=$HOME/.local
 
-To add directory ``~/.local/`` to python search path, and to add
-``~/.local/bin`` to ``PATH`` (i assume bash shell here, adapt for
-other shells)::
+To add ``~/.local/bin`` to ``PATH`` (i assume bash shell here, adapt
+for other shells)::
 
  $ export PATH="$HOME/.local/bin${PATH:+:${PATH}}"
- $ PYTHONHOMEPATH="$HOME/.local/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
- $ export PYTHONPATH="$PYTHONHOMEPATH${PYTHONPATH:+:${PYTHONPATH}}"
 
-You can put these lines in your ``~/.profile`` to have your
-environment setup automatically in all shells.
+You can put this line in your ``~/.profile`` to have your environment
+setup automatically in all shells.
 
 execo
 =====

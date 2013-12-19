@@ -106,7 +106,9 @@ makefile targets:
 For execo to work correctly, if installed in $PREFIX (and if $PREFIX
 is not a standard location such as /usr), $PREFIX/bin needs to be on
 the PATH, and python install path under $PREFIX needs to be on python
-search path:
+search path. Note that since python 2.6 (see PEP 370), $HOME/.local is
+automatically used as a "Per user site-packages directory". Otherwise,
+PYTHONPATH can be configured in the following way:
 
  $ export PATH="$PREFIX/bin${PATH:+:${PATH}}"
  $ PYTHONHOMEPATH="$PREFIX/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
