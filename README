@@ -120,6 +120,14 @@ Usage
 See html documentation for module execo and execo_g5k at
 http://execo.gforge.inria.fr/doc/
 
+Bugs
+====
+
+Execo is regularly used to perform advanced experiments and
+administration / monitoring tasks, in and outside Grid5000. We
+actively fix bugs. Bugs should be reported to http://bugzilla.inria.fr
+(product: execo)
+
 Publications
 ============
 
