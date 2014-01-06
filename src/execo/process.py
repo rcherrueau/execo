@@ -135,8 +135,7 @@ class ProcessBase(object):
 
     def __init__(self, cmd):
         """
-        :param cmd: string or tuple containing the command and args to
-          run.
+        :param cmd: string or tuple containing the command and args to run.
         """
         self.cmd = cmd
         """Process command line: string or tuple containing the command and args to
@@ -527,8 +526,7 @@ class Process(ProcessBase):
 
     def __init__(self, cmd):
         """
-        :param cmd: string or tuple containing the command and args to
-          run.
+        :param cmd: string or tuple containing the command and args to run.
         """
         super(Process, self).__init__(cmd)
         self.close_stdin = None
