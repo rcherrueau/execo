@@ -19,28 +19,32 @@
 """Execo extension and tools for Grid5000."""
 
 from config import g5k_configuration, \
-  default_frontend_connection_params, default_oarsh_oarcp_params
+    default_frontend_connection_params, default_oarsh_oarcp_params
 
 from oar import OarSubmission, oarsub, oardel, get_current_oar_jobs, \
-  get_oar_job_info, wait_oar_job_start, get_oar_job_nodes, \
-  get_oar_job_subnets, get_oar_job_kavlan
+    get_oar_job_info, wait_oar_job_start, get_oar_job_nodes, \
+    get_oar_job_subnets, get_oar_job_kavlan
 
 from oargrid import oargridsub, oargriddel, \
-  get_current_oargrid_jobs, get_oargrid_job_info, \
-  get_oargrid_job_oar_jobs, wait_oargrid_job_start, \
-  get_oargrid_job_nodes, get_oargrid_job_key
+    get_current_oargrid_jobs, get_oargrid_job_info, \
+    get_oargrid_job_oar_jobs, wait_oargrid_job_start, \
+    get_oargrid_job_nodes, get_oargrid_job_key
 
 from kadeploy import Deployment, Kadeployer, kadeploy, deploy
 
 from utils import get_kavlan_host_name
 
+from planning import get_planning, compute_slots, find_first_slot, \
+    find_max_slot, find_free_slot, get_jobs_specs, distribute_hosts, \
+    g5k_charter_time
+
 try:
     from api_utils import get_g5k_sites, get_site_clusters, \
-      get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
-      get_cluster_site, APIConnection, APIGetException, get_host_site, \
-      get_host_cluster, group_hosts, get_resource_attributes, \
-      get_host_attributes, get_cluster_attributes, \
-      get_site_attributes, canonical_host_name
+        get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
+        get_cluster_site, APIConnection, APIGetException, get_host_site, \
+        get_host_cluster, group_hosts, get_resource_attributes, \
+        get_host_attributes, get_cluster_attributes, \
+        get_site_attributes, canonical_host_name
 except ImportError:
     # probably if httplib2 is not installed.
     pass
