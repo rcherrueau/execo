@@ -125,7 +125,7 @@ def oargridsub(job_specs, reservation_date = None,
         mo = re.search("^\[OAR_GRIDSUB\] Grid reservation id = (\d+)\s*$", process.stdout, re.MULTILINE)
         if mo != None:
             job_id = int(mo.group(1))
-        mo = re.search("^\[OAR_GRIDSUB\] SSH KEY : (.*)\s*$", process.stdout, re.MULTILINE)
+        mo = re.search("^\[OAR_GRIDSUB\] SSH KEY : (\S*)\s*$", process.stdout, re.MULTILINE)
         if mo != None:
             ssh_key = mo.group(1)
     if job_id != None:
