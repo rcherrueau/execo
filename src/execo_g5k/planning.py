@@ -53,9 +53,7 @@ else:
 
 
 def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False, 
-            out_of_chart = False, 
-            starttime = int(time()+timedelta_to_seconds(timedelta(minutes = 1))), 
-            endtime = int(time()+timedelta_to_seconds(timedelta(weeks = 4, minutes = 1))) ):
+            out_of_chart = False, starttime = None, endtime = None):
     """Retrieve the planning of the elements (site, cluster) and others resources.
     Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.`` 
     
@@ -76,7 +74,9 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
     whose values are planning dicts, whose keys are hosts, subnet address range, 
     vlan number or chunk id planning respectively. 
     """
+    if not starttime: starttime = int(time() + timedelta_to_seconds(timedelta(minutes = 1)))
     starttime = get_unixts(starttime)
+    if not endtime: endtime = int(starttime + timedelta_to_seconds(timedelta(weeks = 4, minutes = 1)))
     endtime = get_unixts(endtime)
     if 'grid5000' in elements:
         sites = get_g5k_sites()
