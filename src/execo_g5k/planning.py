@@ -324,7 +324,7 @@ def show_resources(resources, msg = 'Resources'):
     
 
 
-def get_jobs_specs(resources, excluded_elements = [], name = None):
+def get_jobs_specs(resources, excluded_elements = None, name = None):
     """ Generate the several job specifications from the dict of resources and the 
     blacklisted elements 
     
@@ -344,7 +344,7 @@ def get_jobs_specs(resources, excluded_elements = [], name = None):
         if resource in get_g5k_sites() and not resource in sites:
             sites.append(resource)
         if resource in get_g5k_clusters():
-            if resource not in excluded_elements:
+            if excluded_elements == None or resource not in excluded_elements:
                 site = get_cluster_site(resource)
                 if not site in sites:
                     sites.append(site)
@@ -359,13 +359,14 @@ def get_jobs_specs(resources, excluded_elements = [], name = None):
     get_kavlan = resources.has_key('kavlan')            
 
     blacklisted_hosts = {}
-    for element in excluded_elements:
-        if element not in get_g5k_clusters()+get_g5k_sites():
-            site = get_host_site(element)
-            if not blacklisted_hosts.has_key(site):
-                blacklisted_hosts[site] = [element]
-            else:
-                blacklisted_hosts[site].append( element )
+    if excluded_elements:
+        for element in excluded_elements:
+            if element not in get_g5k_clusters()+get_g5k_sites():
+                site = get_host_site(element)
+                if not blacklisted_hosts.has_key(site):
+                    blacklisted_hosts[site] = [element]
+                else:
+                    blacklisted_hosts[site].append( element )
 
     for site in sites:
         sub_resources = ''
@@ -450,12 +451,13 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
             sites_wanted[element] = n_nodes
     for site, n_nodes in sites_wanted.iteritems():
         resources[site] = n_nodes if n_nodes > 0 else resources_available[site]
-    
+
     # blacklisting cluster i.e. resources[cluster] = 0
-    for cluster in get_g5k_clusters():
-        if cluster in excluded_elements:
-            resources[cluster] = 0    
-    
+    if excluded_elements:
+        for cluster in get_g5k_clusters():
+            if cluster in excluded_elements:
+                resources[cluster] = 0
+
     if resources_wanted.has_key('grid5000'):
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
         total_nodes = 0
