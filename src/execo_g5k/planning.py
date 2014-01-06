@@ -334,6 +334,14 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
     :param excluded_elements: a list of elements that won't be used
     
     :param name: the name of the jobs that will be given
+
+    Note that the returned list of job specs is intended to be used by
+    oargrid, and, as such, integrates some specific escaping of
+    excluded_elements SQL clauses, to overcome oargrid resources
+    parsing flaws. In case the returned list of job specs is used to
+    submit indivdual oar jobs instead of one oargrid jobs, this
+    escaping must be tweaked (see for example the hack in the source
+    code of funk https://github.com/lpouillo/Funk)
     """
     jobs_specs = []
     
