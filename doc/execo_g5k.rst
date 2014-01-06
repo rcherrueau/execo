@@ -90,6 +90,41 @@ get_oargrid_job_nodes
 kadeploy3
 =========
 
+The most user friendly way to deploy with execo is to use function
+`execo_g5k.kadeploy.deploy` with adds a layer of "cleverness" over
+kadeploy. It allows:
+
+- deploying over several sites simultaneously
+
+- using a test (parameter check_deployed_command: a shell command or
+  construct) to run on the deployed hosts, to detect if the host has
+  been deployed. The benefit is that if you call deploy at the
+  beginning of your experiment script, then when relaunching your
+  script while the hosts are already deployed, the deploy function
+  will detect that they are already deployed and won't redeploy
+  them. The default is to use a check_deployed_command which will work
+  with 99% of the deployed images. If needed this test can be tweaked
+  or deactivated.
+
+- retrying the deployment several times, each time redeploying only
+  the hosts which fail the aforementioned test.
+
+- for complex experiment scenarios, you can provide a callback
+  function (parameter check_enough_func) which will be called at the
+  end of each deployment try, given the list of correctly deployed and
+  failed hosts, and which can decide if the deployed resources are
+  sufficient for the experiment or not. If sufficient, no further
+  deployment retry is done. This can be usefull for experiment needing
+  complex and large grid topologies, where you can almost never have
+  100% deployment success, but still want the experiment to proceed as
+  soon as you have sufficient resources for setting up your experiment
+  topology.
+
+The `execo_g5k.kadeploy.Kadeployer` class derives from the
+`execo.action.Action` class hierarchy, and offers no special
+cleverness, it wraps kadeploy3. But as it is an action, it allows
+asynchronous control of multiple deployments in parallel, if needed.
+
 Deployment
 ----------
 .. autoclass:: execo_g5k.kadeploy.Deployment
