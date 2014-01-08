@@ -243,9 +243,23 @@ API to use Grid5000 services:
     allow dynamically deciding when we have enough nodes (even for
     complex topologies)
 
+- Grid5000 API:
+
+  - list hosts, clusters, sites
+
+  - get the cluster of a host, the site of a cluster
+
+  - get API attributes from hosts, clusters, sites
+
+  - all of this in a secure way: even when used from outside Grid5000,
+    there is no need to put Grid5000 API password in clear in scripts,
+    password can be stored in the desktop environment keyring if
+    available.
+
 To use execo on grid5000, you need to install it inside grid5000, for
 example on a frontend. execo dependencies are installed on grid5000
-frontends.
+frontends. (Note: to use execo_g5k from outside Grid5000, see
+:ref:`tutorial-configuration`)
 
 oarsub example
 --------------
@@ -261,32 +275,116 @@ the OAR job afterwards::
  jobs = oarsub([
    ( OarSubmission(resources = "/cluster=2/nodes=4"), "nancy")
  ])
- nodes = []
- wait_oar_job_start(jobs[0][0], jobs[0][1])
- nodes = get_oar_job_nodes(jobs[0][0], jobs[0][1])
- # group nodes by cluster
- sources, targets = [ list(n) for c, n in itertools.groupby(
-   sorted(nodes,
-          lambda n1, n2: cmp(
-            g5k_host_get_cluster(n1),
-            g5k_host_get_cluster(n2))),
-   g5k_host_get_cluster) ]
- servers = Remote("iperf -s",
-                  targets,
-                  connection_params = default_oarsh_oarcp_params)
- servers.ignore_exit_code = True
- clients = Remote("iperf -c {{[t.address for t in targets]}}",
-                  sources,
-                  connection_params = default_oarsh_oarcp_params)
- servers.start()
- sleep(1)
- clients.run()
- servers.kill().wait()
- print Report([ servers, clients ]).to_string()
- oardel([(jobs[0][0], jobs[0][1])])
+ if jobs[0][0]:
+     try:
+         nodes = []
+         wait_oar_job_start(jobs[0][0], jobs[0][1])
+         nodes = get_oar_job_nodes(jobs[0][0], jobs[0][1])
+         # group nodes by cluster
+         sources, targets = [ list(n) for c, n in itertools.groupby(
+           sorted(nodes,
+                  lambda n1, n2: cmp(
+                    get_host_cluster(n1),
+                    get_host_cluster(n2))),
+           get_host_cluster) ]
+         servers = Remote("iperf -s",
+                          targets,
+                          connection_params = default_oarsh_oarcp_params)
+         for p in servers.processes:
+             p.ignore_exit_code = p.nolog_exit_code = True
+         clients = Remote("iperf -c {{[t.address for t in targets]}}",
+                          sources,
+                          connection_params = default_oarsh_oarcp_params)
+         servers.start()
+         sleep(1)
+         clients.run()
+         servers.kill().wait()
+         print Report([ servers, clients ]).to_string()
+         for index, p in enumerate(clients.processes):
+             print "client %s -> server %s - stdout:" % (p.host.address,
+                                                         targets[index].address)
+             print p.stdout
+     finally:
+         oardel([(jobs[0][0], jobs[0][1])])
 
-We ignore the exit code of servers because they are killed at the end,
-thus they always have a non-zero exit code.
+This example shows how python try / finally construct can be used to
+make sure reserved resources are always released at the end of the
+job. It also shows how we can use python tools (itertools.groupby) to
+group hosts by cluster, to build an experiment topology, then use this
+topology with execo substitutions. The exit code of the servers is
+ignored (not counted as an error and not logged) because it is normal
+that they are killed at the end (thus they always have a non-zero exit
+code).
+
+grid5000 planning
+-----------------
+
+In this example, the planning module is used to automatically compute
+how many resources we can get on Grid5000.
+
+Here, we simply ask for the maximum number of Grid5000 nodes that we
+can get right now for a 10 minutes job, we then perform the
+reservation with oargrid, wait the job start and retrieve the list of
+nodes. Then, we connect with a TaktukRemote (similar as a Remote, but
+using Taktuk under the hood, for scaling to huge number of remote
+nodes) and remotely execute shell commands to get the current cpufreq
+governor for each core, as well as the hyperthreading activation
+state. To each remote process, a stdout_handler is added which directs
+its stdout to a file on localhost, the filename being <nodename>.out::
+
+ from execo import *
+ from execo_g5k import *
+
+ blacklisted = [ "graphite", "reims", "helios-6.sophia.grid5000.fr",
+    "helios-42.sophia.grid5000.fr", "helios-44.sophia.grid5000.fr",
+    "sol-21.sophia.grid5000.fr", "suno-3.sophia.grid5000.fr" ]
+
+ planning = get_planning()
+ slots = compute_slots(planning, 60*10, blacklisted)
+ wanted = { "grid5000": 0 }
+ start_date, end_date, resources = find_first_slot(slots, wanted)
+ actual_resources = distribute_hosts(resources, wanted, blacklisted)
+ job_specs = get_jobs_specs(actual_resources, blacklisted)
+ jobid, sshkey = oargridsub(job_specs, start_date,
+                            walltime = end_date - start_date)
+ if jobid:
+     try:
+         wait_oargrid_job_start(jobid)
+         nodes = get_oargrid_job_nodes(jobid)
+
+         check = TaktukRemote('cat $(find /sys/devices/system/cpu/ '
+                              '-name scaling_governor) ; '
+                              'find /sys/devices/system/cpu '
+                              '-name thread_siblings_list -exec cat {} \; '
+                              '| grep , >/dev/null '
+                              '&& echo "hyperthreading on" '
+                              '|| echo "hyperthreading off"',
+                              nodes,
+                              connection_params = default_oarsh_oarcp_params)
+         for p in check.processes:
+             p.stdout_handlers.append("%s.out" % (p.host.address,))
+         check.run()
+     finally:
+         oargriddel([jobid])
+
+After running this code, you get in the current directory on localhost
+a file for each remote hosts containing the scaling governor and
+hyperthreading state (easy to check they are all the same with ``cat *
+| sort -u``)
+
+This code also shows how some clusters / sites or nodes can be
+blacklisted if needed.
+
+Note that with this kind of code, there is still the possibility that
+the oar or oargrid reservation fails, since oar is not transactional,
+and someone can still reserve some resources between the moment we
+inquire the available resources and the moment we perform the
+reservation.
+
+The planning module has several possibilities and modes, see its
+documentation for further reference.
+
+
 
 execo_g5k.api_utils
 -------------------
