@@ -981,10 +981,10 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self.ended = True
             for h in self._stdout_files:
                 self._stdout_files[h].close()
-                del self._stdout_files[h]
+            self._stdout_files.clear()
             for h in self._stderr_files:
                 self._stderr_files[h].close()
-                del self._stderr_files[h]
+            self._stderr_files.clear()
         self._log_terminated()
         for handler in self.lifecycle_handlers:
             try:
