@@ -623,10 +623,10 @@ class TaktukRemote(Action):
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(repr(self.processes[index].cmd)[1:-1]), "]", "-]",)
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(pipes.quote(self.processes[index].cmd)[1:-1]), "]", "-]",)
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(repr(self.processes[index].cmd)[1:-1]), "]", "-]",)
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(pipes.quote(self.processes[index].cmd)[1:-1]), "]", "-]",)
             self._taktuk_hosts_order.append(index)
 
     def _init_processes(self):
