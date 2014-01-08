@@ -27,7 +27,7 @@ from time_utils import format_unixts, get_seconds
 from utils import compact_output, nice_cmdline, intr_cond_wait
 from report import Report
 import errno, os, re, shlex, signal, subprocess
-import threading, time, pipes
+import threading, time, pipes, sys, traceback
 
 class ProcessLifecycleHandler(object):
 
@@ -339,7 +339,11 @@ class ProcessBase(object):
                         self._stdout_files[handler].close()
                         del self._stdout_files[handler]
             except Exception, e:
-                logger.error("process stdout handler %s raised exception %s for process %s" % (handler, e, self))
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                logger.error("process stdout handler %s raised exception for process %s:\n%s" % (
+                        handler,
+                        self,
+                        "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))))
 
     def _handle_stderr(self, string, eof, error):
         """Handle stderr activity.
@@ -371,7 +375,11 @@ class ProcessBase(object):
                         self._stderr_files[handler].close()
                         del self._stderr_files[handler]
             except Exception, e:
-                logger.error("process stdout handler %s raised exception %s for process %s" % (handler, e, self))
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                logger.error("process stderr handler %s raised exception for process %s:\n%s" % (
+                        handler,
+                        self,
+                        "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))))
 
     @property
     def ok(self):

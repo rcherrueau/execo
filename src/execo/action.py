@@ -518,6 +518,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
         except Exception, e: #IGNORE:W0703
             logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
             logger.critical("line received = %s", string.rstrip('\n'))
+            raise
 
 class _TaktukLH(ProcessLifecycleHandler):
 
