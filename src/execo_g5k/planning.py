@@ -595,98 +595,99 @@ def _get_site_planning_MySQL(site, site_planning):
     try:
         db = MySQLdb.connect( host = 'mysql.'+site+'.grid5000.fr', port = 3306, user = 'oarreader', 
                               passwd = 'read', db = 'oar2', connect_timeout = 3)
+        try:
 
-        # Change the group_concat_max_len to retrive long hosts lists
-        db.query('SET SESSION group_concat_max_len=102400')
+            # Change the group_concat_max_len to retrive long hosts lists
+            db.query('SET SESSION group_concat_max_len=102400')
 
 # CHUNKS IS NOT FINISHED BUT WE KEEP THE REQUEST FOR LATER                 
-#        db.query("""SELECT * 
-#            FROM information_schema.COLUMNS 
-#            WHERE TABLE_SCHEMA = 'oar2' 
-#            AND TABLE_NAME = 'resources' 
-#            AND COLUMN_NAME = 'chunks' 
-#            LIMIT 1""")
-#        r = db.store_result()
-#        if len( r.fetch_row( maxrows = 0, how=1) )> 0:
-#            has_chunks = True
-#        else:
+#            db.query("""SELECT * 
+#                FROM information_schema.COLUMNS 
+#                WHERE TABLE_SCHEMA = 'oar2' 
+#                AND TABLE_NAME = 'resources' 
+#                AND COLUMN_NAME = 'chunks' 
+#                LIMIT 1""")
+#            r = db.store_result()
+#            if len( r.fetch_row( maxrows = 0, how=1) )> 0:
+#                has_chunks = True
+#            else:
 #            has_chunks = False
-#        if has_chunks:
-#            sql += ", IF(R.type = 'storage', R.chunks, null) as storage "
+#            if has_chunks:
+#                sql += ", IF(R.type = 'storage', R.chunks, null) as storage "
 
-        # Retrieving alive resources
-        sql = """SELECT DISTINCT IF(R.type = 'default',R.network_address,null) as host, 
-            IF(R.type = 'kavlan' or R.type = 'kavlan-global', R.vlan,null) as vlans,
-            IF(R.type = 'subnet', R.subnet_address, null) as subnet 
-            FROM resources R 
-            WHERE state <> 'Dead'; """
+            # Retrieving alive resources
+            sql = """SELECT DISTINCT IF(R.type = 'default',R.network_address,null) as host, 
+                IF(R.type = 'kavlan' or R.type = 'kavlan-global', R.vlan,null) as vlans,
+                IF(R.type = 'subnet', R.subnet_address, null) as subnet 
+                FROM resources R 
+                WHERE state <> 'Dead'; """
 
-        db.query(sql)
-        r = db.store_result()
-        for data in r.fetch_row( maxrows = 0, how=1 ):
-            if data['host'] is not None:
-                cluster = data['host'].split('-')[0]
-                site_planning[cluster][data['host']] = {'busy': [], 'free': []}
-            if site_planning.has_key('vlans') and data['vlans'] is not None:
-                site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
-            if site_planning.has_key('subnets') and data['subnet'] is not None:
-                site_planning['subnets'][data['subnet']] = {'busy': [], 'free': []}
-            # STORAGE WILL BE ADDED LATER
+            db.query(sql)
+            r = db.store_result()
+            for data in r.fetch_row( maxrows = 0, how=1 ):
+                if data['host'] is not None:
+                    cluster = data['host'].split('-')[0]
+                    site_planning[cluster][data['host']] = {'busy': [], 'free': []}
+                if site_planning.has_key('vlans') and data['vlans'] is not None:
+                    site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
+                if site_planning.has_key('subnets') and data['subnet'] is not None:
+                    site_planning['subnets'][data['subnet']] = {'busy': [], 'free': []}
+                # STORAGE WILL BE ADDED LATER
 
-        sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time, J.job_user AS user, 
-        GJP.start_time+MJD.moldable_walltime+TIME_TO_SEC('0:01:05') AS stop_time,  
-        GROUP_CONCAT(DISTINCT R.network_address) AS hosts, 
-        GROUP_CONCAT(DISTINCT  R.vlan ) AS vlan,
-        GROUP_CONCAT(DISTINCT R.subnet_address) AS subnets         
-        FROM jobs J
-        LEFT JOIN moldable_job_descriptions MJD
-            ON MJD.moldable_job_id=J.job_id
-        LEFT JOIN gantt_jobs_predictions GJP
-            ON GJP.moldable_job_id=MJD.moldable_id
-        INNER JOIN gantt_jobs_resources AR
-            ON AR.moldable_job_id=MJD.moldable_id  
-        LEFT JOIN resources R
-            ON AR.resource_id=R.resource_id
-        WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
-            AND queue_name<>'besteffort' 
-        GROUP BY J.job_id 
-        ORDER BY J.start_time, R.network_address, 
-            CONVERT(SUBSTRING_INDEX(SUBSTRING_INDEX(R.network_address,'.',1),'-',-1), SIGNED)"""
+            sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time, J.job_user AS user, 
+            GJP.start_time+MJD.moldable_walltime+TIME_TO_SEC('0:01:05') AS stop_time,  
+            GROUP_CONCAT(DISTINCT R.network_address) AS hosts, 
+            GROUP_CONCAT(DISTINCT  R.vlan ) AS vlan,
+            GROUP_CONCAT(DISTINCT R.subnet_address) AS subnets         
+            FROM jobs J
+            LEFT JOIN moldable_job_descriptions MJD
+                ON MJD.moldable_job_id=J.job_id
+            LEFT JOIN gantt_jobs_predictions GJP
+                ON GJP.moldable_job_id=MJD.moldable_id
+            INNER JOIN gantt_jobs_resources AR
+                ON AR.moldable_job_id=MJD.moldable_id  
+            LEFT JOIN resources R
+                ON AR.resource_id=R.resource_id
+            WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
+                AND queue_name<>'besteffort' 
+            GROUP BY J.job_id 
+            ORDER BY J.start_time, R.network_address, 
+                CONVERT(SUBSTRING_INDEX(SUBSTRING_INDEX(R.network_address,'.',1),'-',-1), SIGNED)"""
 
-        db.query(sql)
-        r = db.store_result()    
-        for job in r.fetch_row( maxrows = 0, how=1 ):
-            if job['hosts'] != '':
-                for host in job['hosts'].split(','):
-                    if host != '':
-                        cluster = host.split('-')[0]
-                        if site_planning[cluster].has_key(host):
-                            site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
-                                                                           int(job['stop_time'])))
-            if site_planning.has_key('vlans') and job['vlan'] is not None:
-                ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
-                try:
-                    vlan =  int(job['vlan'])
-                    # We are only interested in routed vlan
-                    if vlan > 3:
-                        site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
-                                                                                    int(job['stop_time'])) )
-                except:
-                    pass                                                                   
+            db.query(sql)
+            r = db.store_result()    
+            for job in r.fetch_row( maxrows = 0, how=1 ):
+                if job['hosts'] != '':
+                    for host in job['hosts'].split(','):
+                        if host != '':
+                            cluster = host.split('-')[0]
+                            if site_planning[cluster].has_key(host):
+                                site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
+                                                                               int(job['stop_time'])))
+                if site_planning.has_key('vlans') and job['vlan'] is not None:
+                    ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
+                    try:
+                        vlan =  int(job['vlan'])
+                        # We are only interested in routed vlan
+                        if vlan > 3:
+                            site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
+                                                                                        int(job['stop_time'])) )
+                    except:
+                        pass                                                                   
 
 
-            if site_planning.has_key('subnets') and job['subnets'] is not None:
+                if site_planning.has_key('subnets') and job['subnets'] is not None:
 
-                for subnet in job['subnets'].split(','):
-                    site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
-                                                                           int(job['stop_time'])))
-            # MISSING STORAGE        
+                    for subnet in job['subnets'].split(','):
+                        site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
+                                                                               int(job['stop_time'])))
+                # MISSING STORAGE        
+        finally:
+            db.close()
     except:
         logger.warn('error with '+site+', removing from computation')
         currentThread().broken = True
-    finally:
-        db.close()
-                
+
 def _get_planning_MySQL(planning):
     """Retrieve the planning using the oar2 database"""
     broken_sites =  []
