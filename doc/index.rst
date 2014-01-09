@@ -14,6 +14,7 @@ Contents:
    Readme <readme>
    User Guide <userguide>
    API Documentation <apidoc>
+   Miscellaneous <misc>
 
 Indices and tables
 ==================
