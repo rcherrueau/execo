@@ -33,6 +33,6 @@ from action import Action, wait_any_actions, wait_all_actions, \
   Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet, Local, \
   ParallelActions, SequentialActions, default_action_factory, \
   get_remote, get_fileput, get_fileget, \
-  ActionLifecycleHandler, ChainPut
+  ActionLifecycleHandler, ChainPut, filter_bad_hosts
 from report import Report
 from exception import ProcessesFailed, ActionsFailed

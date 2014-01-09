@@ -217,6 +217,10 @@ wait_all_actions
 ----------------
 .. autofunction:: execo.action.wait_all_actions
 
+filter_bad_hosts
+----------------
+.. autofunction:: execo.action.filter_bad_hosts
+
 ActionFactory
 -------------
 .. autoclass:: execo.action.ActionFactory

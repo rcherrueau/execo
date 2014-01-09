@@ -308,6 +308,28 @@ def wait_all_actions(actions, timeout = None):
                 timeout = end - time.time()
         return finished
 
+def filter_bad_hosts(action, hosts):
+    """Returns the list of host filtered from any host where any process of the action has failed.
+
+    :param action: The action from which the processes are checked
+
+    :param hosts: The iterable of hosts or host addesses to be
+      filtered and returned as a list
+    """
+    action_hosts_ko = set()
+    for p in action.processes:
+        if hasattr(p, "host") and not p.ok:
+            action_hosts_ko.add(p.host)
+    filtered_hosts = []
+    for h in hosts:
+        if isinstance(h, Host):
+            if h not in action_hosts_ko:
+                filtered_hosts.append(h)
+        else:
+            if Host(h) not in action_hosts_ko:
+                filtered_hosts.append(h)
+    return filtered_hosts
+
 class ActionNotificationProcessLH(ProcessLifecycleHandler):
 
     def __init__(self, action, total_processes):
