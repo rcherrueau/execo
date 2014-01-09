@@ -378,10 +378,18 @@ class Remote(Action):
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.hosts = get_hosts_list(hosts)
+        self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
         self._init_processes()
+
+    @property
+    def hosts(self):
+        return self._hosts
+
+    @hosts.setter
+    def hosts(self, v):
+        self._hosts = get_hosts_list(v)
 
     def _args(self):
         return [ repr(self.cmd),
@@ -619,12 +627,20 @@ class TaktukRemote(Action):
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.hosts = get_hosts_list(hosts)
+        self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
         self._taktuk_stdout_output_handler = _TaktukRemoteOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
         self._init_processes()
+
+    @property
+    def hosts(self):
+        return self._hosts
+
+    @hosts.setter
+    def hosts(self, v):
+        self._hosts = get_hosts_list(v)
 
     def _args(self):
         return [ repr(self.cmd),
@@ -759,7 +775,7 @@ class Put(Remote):
           override those in default_connection_params for connection.
         """
         super(Remote, self).__init__()
-        self.hosts = get_hosts_list(hosts)
+        self.hosts = hosts
         """Iterable of `execo.host.Host` onto which to copy the files."""
         self.local_files = local_files
         """An iterable of string of file paths. substitions described in
@@ -820,7 +836,7 @@ class Get(Remote):
           override those in default_connection_params for connection.
         """
         super(Remote, self).__init__()
-        self.hosts = get_hosts_list(hosts)
+        self.hosts = hosts
         """Iterable of `execo.host.Host` from which to get the files."""
         self.remote_files = remote_files
         """Iterable of string of file paths. substitions described in
@@ -957,7 +973,7 @@ class TaktukPut(TaktukRemote):
           override those in default_connection_params for connection.
         """
         super(TaktukRemote, self).__init__()
-        self.hosts = get_hosts_list(hosts)
+        self.hosts = hosts
         """Iterable of `execo.host.Host` onto which to copy the files."""
         self.local_files = local_files
         """Iterable of string of file paths. substitions described in
@@ -1107,7 +1123,7 @@ class TaktukGet(TaktukRemote):
           override those in default_connection_params for connection.
         """
         super(TaktukRemote, self).__init__()
-        self.hosts = get_hosts_list(hosts)
+        self.hosts = hosts
         """Iterable of `execo.host.Host` from which to get the files."""
         self.remote_files = remote_files
         """Iterable of string of file paths. Substitions described in
@@ -1467,7 +1483,7 @@ class ChainPut(SequentialActions):
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
         """
-        self.hosts = get_unique_hosts_list(hosts)
+        self.hosts = hosts
         # self.good_hosts = set(self.hosts)
         # self.bad_hosts = set()
         self.local_files = local_files
@@ -1475,6 +1491,14 @@ class ChainPut(SequentialActions):
         self.connection_params = connection_params
         super(ChainPut, self).__init__([])
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+
+    @property
+    def hosts(self):
+        return self._hosts
+
+    @hosts.setter
+    def hosts(self, v):
+        self._hosts = get_unique_hosts_list(v)
 
     def _init_actions(self):
         if len(self.hosts) > 0:
