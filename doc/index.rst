@@ -9,13 +9,11 @@ Welcome to execo
 Contents:
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
-   readme
-   tutorial
-   execo
-   execo_g5k
-   execo_engine
+   Readme <readme>
+   User Guide <userguide>
+   API Documentation <apidoc>
 
 Indices and tables
 ==================

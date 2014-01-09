@@ -1,8 +1,8 @@
-**************
-execo tutorial
-**************
+****************
+execo user guide
+****************
 
-In this tutorial, the code can be executed from python source files,
+In this user guide, the code can be executed from python source files,
 but it can also be run interactively in a python shell, such as
 ``ipython``, which is very convenient to inspect the execo objects.
 
