@@ -381,10 +381,11 @@ and someone can still reserve some resources between the moment we
 inquire the available resources and the moment we perform the
 reservation.
 
+Note also that as this example uses TaktukRemote, it must be run from
+inside Grid5000.
+
 The planning module has several possibilities and modes, see its
 documentation for further reference.
-
-
 
 execo_g5k.api_utils
 -------------------
