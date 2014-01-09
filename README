@@ -71,25 +71,26 @@ platforms
 prerequisites
 -------------
 
-execo installation absolutely requires python (>= 2.6) and make.
-Optionnal packages are (in order of decreasing importance):
+execo installation absolutely requires ``python`` (>= 2.6) and
+``make``.  Optionnal packages are (debian package names, in order of
+decreasing importance):
 
-- python-httplib2 for ``execo_g5k.api_utils`` and
-  ``execo_g5k.planning`` to work.
+- ``python-httplib2`` for `execo_g5k.api_utils` and
+  `execo_g5k.planning` to work.
 
-- python-keyring for allowing storage of ``execo_g5k.api_utils`` api
+- ``python-keyring`` for allowing storage of `execo_g5k.api_utils` api
   password in the desktop environment keyring (allowing asking it only
   once).
 
-- python-mysql for optimized planning retrieval from
-  ``execo_g5k.planning`` when used inside Grid5000.
+- ``python-mysqldb`` for optimized planning retrieval from
+  `execo_g5k.planning` when used inside Grid5000.
 
-- sphinx, graphviz for building the documentation.
+- ``sphinx-doc``, ``graphviz`` for building the documentation.
 
-At runtime, connecting to remote hosts requires ssh, scp or similar
-connection tools, and optionnaly taktuk (probably version >=
-3.6. http://taktuk.gforge.inria.fr/). ChainPut requires bourne shell
-and netcat on remote hosts.
+At runtime, connecting to remote hosts requires ``ssh``, ``scp`` or
+similar connection tools, and optionnaly ``taktuk`` (probably version
+>= 3.6. http://taktuk.gforge.inria.fr/). `execo.action.ChainPut`
+requires bourne shell and ``netcat`` on remote hosts.
 
 installation
 ------------
@@ -99,8 +100,9 @@ makefile targets:
 - build
 
 - install. Pass option PREFIX=... for installing in a non-default
-  location (default PREFIX is /usr/local). Pass option PYTHON to use
-  an explicit python interpreter (default is python).
+  location (for example: ``PREFIX=$HOME/.local/``. Default PREFIX is
+  /usr/local). Pass option PYTHON to use an explicit python
+  interpreter (default is python).
 
 - doc: to build sphinx documentation
 
@@ -175,3 +177,5 @@ How to contribute
   - <category> is free form but should indicate which part(s) of the
     module the commit affects. Omit if a commit is not specific to a
     module part.
+
+- start contributing by sending clean patches.
