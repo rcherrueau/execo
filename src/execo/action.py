@@ -692,6 +692,7 @@ class TaktukRemote(Action):
         real_taktuk_cmdline = " ".join([pipes.quote(arg) for arg in real_taktuk_cmdline])
         real_taktuk_cmdline += " && rm -f " + taktuk_options_filename
         self._taktuk = Process(real_taktuk_cmdline)
+        #self._taktuk.close_stdin = False
         self._taktuk.shell = True
         #self._taktuk.default_stdout_handler = False
         #self._taktuk.default_stderr_handler = False
@@ -710,6 +711,7 @@ class TaktukRemote(Action):
 
     def kill(self):
         retval = super(TaktukRemote, self).kill()
+        self._taktuk.ignore_exit_code = self._taktuk.nolog_exit_code = True
         self._taktuk.kill()
         return retval
 
