@@ -71,11 +71,20 @@ platforms
 prerequisites
 -------------
 
-execo installation requires make, python (>= 2.6), python-httplib2 and
-optionnaly python-keyring.
+execo installation absolutely requires python (>= 2.6) and make.
+Optionnal packages are (in order of decreasing importance):
 
-building the documentation requires sphinx, graphviz and optionnaly
-epydoc.
+- python-httplib2 for ``execo_g5k.api_utils`` and
+  ``execo_g5k.planning`` to work.
+
+- python-keyring for allowing storage of ``execo_g5k.api_utils`` api
+  password in the desktop environment keyring (allowing asking it only
+  once).
+
+- python-mysql for optimized planning retrieval from
+  ``execo_g5k.planning`` when used inside Grid5000.
+
+- sphinx, graphviz for building the documentation.
 
 At runtime, connecting to remote hosts requires ssh, scp or similar
 connection tools, and optionnaly taktuk (probably version >=
