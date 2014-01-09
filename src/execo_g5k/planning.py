@@ -211,7 +211,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
     return slots    
 
 def find_first_slot( slots, resources_wanted):
-    """ Return the first slot where some resources are available 
+    """ Return the first slot (a tuple start date, end date, resources) where some resources are available
     
     :param slots: list of slots returned by ``compute_slots``
     
@@ -236,7 +236,7 @@ def find_first_slot( slots, resources_wanted):
     
 
 def find_max_slot( slots, resources_wanted):                    
-    """Return the slot with the maximum nodes available for the given elements
+    """Return the slot (a tuple start date, end date, resources) with the maximum nodes available for the given elements
     
     :param slots: list of slots returned by ``compute_slots``
     
@@ -260,7 +260,7 @@ def find_max_slot( slots, resources_wanted):
     return max_slot
 
 def find_free_slot( slots, resources_wanted):
-    """Return the first slot with enough resources
+    """Return the first slot (a tuple start date, end date, resources) with enough resources
      
     :param slots: list of slots returned by ``compute_slots``
     
