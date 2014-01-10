@@ -344,7 +344,7 @@ def canonical_host_name(host):
     """
     h = execo.Host(host)
     h.address = __canonical_host_name_regex.sub(__canonical_sub_func, h.address)
-    if isinstance(host, str):
-        return h.address
-    else:
+    if isinstance(host, execo.Host):
         return h
+    else:
+        return h.address
