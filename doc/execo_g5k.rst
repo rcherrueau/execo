@@ -411,3 +411,21 @@ TODO: Currently, due to an ongoing bug or misconfiguration (see
 https://www.grid5000.fr/cgi-bin/bugzilla3/show_bug.cgi?id=3302), oar
 fails to access the ssh keys if they are not world-readable, so you
 need to make them so.
+
+Last but not least, execo can be configured to bypass oarsh / oarcp,
+which will save a number of open pty, as well as avoid being unable to
+kill oarsh / oarcp processes (because they run sudoed)::
+
+Note also that configuring default_oarsh_oarcp_params to bypass
+oarsh/oarcp and directly connect to port 6667 will save you from many
+problems such as high number of open pty as well as impossibility to
+kill oarsh / oarcp processes (due to it running sudoed)::
+
+ default_oarsh_oarcp_params = {
+     'user':        "oar",
+     'keyfile':     "path/to/ssh/key/used/for/oar",
+     'port':        6667,
+     'ssh':         'ssh',
+     'scp':         'scp',
+     'taktuk_connector': 'ssh',
+     }
