@@ -988,7 +988,7 @@ class TaktukPut(TaktukRemote):
         self.connection_params = connection_params
         """Dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
+        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context(['get_fileput'])
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
