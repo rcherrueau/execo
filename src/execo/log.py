@@ -89,13 +89,13 @@ logger_handler = logging.StreamHandler(sys.stdout)
 class MyFormatter(logging.Formatter):
     def format(self, record):
         if logger.getEffectiveLevel() < logging.DEBUG:
-            self._fmt = ( style.log_header("%(asctime)s %(name)s ")
+            self._fmt = ( style.log_header("%(asctime)s ")
                           + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
                           + "%(levelname)s" + _ansi_styles['default']
                           + style.log_header(" %(threadName)s:")
                           + " %(message)s" )
         else:
-            self._fmt = ( style.log_header("%(asctime)s %(name)s ")
+            self._fmt = ( style.log_header("%(asctime)s ")
                           + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
                           + "%(levelname)s:" + _ansi_styles['default']
                           + " %(message)s" )
