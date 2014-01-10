@@ -316,6 +316,38 @@ ignored (not counted as an error and not logged) because it is normal
 that they are killed at the end (thus they always have a non-zero exit
 code).
 
+execo_g5k.api_utils
+-------------------
+
+This module is automatically imported only if httplib2 is available.
+
+It provides various useful function which deal with the Grid5000 API.
+
+For example, to work interactively on all grid5000 frontends at the
+same time: Here we create a directory, copy a file inside it, then
+delete the directory, on all frontends simultaneously::
+
+ from execo import *
+ from execo_g5k import *
+ sites = get_g5k_sites()
+ Remote("mkdir -p execo_tutorial/",
+        sites,
+        connection_params = default_frontend_connection_params).run()
+ Put(sites,
+     ["~/.profile"],
+     "execo_tutorial/",
+     connection_params = default_frontend_connection_params).run()
+ Remote("rm -r execo_tutorial/",
+        sites,
+        connection_params = default_frontend_connection_params).run()
+
+If ssh proxycommand and execo configuration are configured as
+described in :ref:`tutorial-configuration`, this example can be run
+from outside grid5000.
+
+More advanced usages
+====================
+
 grid5000 planning
 -----------------
 
@@ -387,37 +419,52 @@ inside Grid5000.
 The planning module has several possibilities and modes, see its
 documentation for further reference.
 
-execo_g5k.api_utils
--------------------
+ChainPut
+--------
 
-This module is automatically imported only if httplib2 is available.
-
-It provides various useful function which deal with the Grid5000 API.
-
-For example, to work interactively on all grid5000 frontends at the
-same time: Here we create a directory, copy a file inside it, then
-delete the directory, on all frontends simultaneously::
+The following example shows how to use the `execo.action.ChainPut`
+class to perform optimized transfers of big files to many hosts. As in
+the previous example, let's reserve the maximum number of nodes
+immediately available on grid5000 for 10 minutes, and broadcast a
+generated random file of 50MB to all hosts both with parallel ``scp``
+and with ChainPut, to compare the performances. As the parallel scp
+can be very resource hungry with a lot of remote hosts, you should run
+this code from a compute node, not the frontend (simply connect to a
+node with ``oarsub -I``)::
 
  from execo import *
  from execo_g5k import *
- sites = get_g5k_sites()
- Remote("mkdir -p execo_tutorial/",
-        sites,
-        connection_params = default_frontend_connection_params).run()
- Put(sites,
-     ["~/.profile"],
-     "execo_tutorial/",
-     connection_params = default_frontend_connection_params).run()
- Remote("rm -r execo_tutorial/",
-        sites,
-        connection_params = default_frontend_connection_params).run()
 
-If ssh proxycommand and execo configuration are configured as
-described in :ref:`tutorial-configuration`, this example can be run
-from outside grid5000.
-
-More advanced usages
-====================
+ planning = get_planning()
+ slots = compute_slots(planning, 60*15)
+ wanted = { "grid5000": 0 }
+ start_date, end_date, resources = find_first_slot(slots, wanted)
+ actual_resources = distribute_hosts(resources, wanted)
+ job_specs = get_jobs_specs(actual_resources)
+ jobid, sshkey = oargridsub(job_specs, start_date,
+                            walltime = end_date - start_date)
+ if jobid:
+     try:
+         Process("dd if=/dev/urandom of=randomdata bs=1M count=50").run()
+         logger.info("wait job start")
+         wait_oargrid_job_start(jobid)
+         logger.info("get job nodes")
+         nodes = get_oargrid_job_nodes(jobid)
+         logger.info("got %i nodes" % (len(nodes),))
+         broadcast1 = ChainPut(nodes, ["randomdata"], "/tmp/",
+                               connection_params = default_oarsh_oarcp_params)
+         broadcast2 = Put(nodes, ["randomdata"], "/tmp/",
+                          connection_params = default_oarsh_oarcp_params)
+         logger.info("run chainput")
+         broadcast1.run()
+         logger.info("run parallel scp")
+         broadcast2.run()
+         logger.info("summary:\n" + Report([broadcast1, broadcast2]).to_string())
+     finally:
+         logger.info("deleting job")
+         oargriddel([jobid])
+ else:
+     logger.info("job submission failed")
 
 .. _tutorial-configuration:
 
@@ -468,6 +515,11 @@ connect to the nodes from outside::
      'taktuk_connector': 'ssh',
      'host_rewrite_func': host_rewrite_func,
      }
+
+Note also that configuring default_oarsh_oarcp_params to bypass
+oarsh/oarcp and directly connect to port 6667 will save you from many
+problems such as high number of open pty as well as impossibility to
+kill oarsh / oarcp processes (due to it running sudoed)
 
 Processes and actions factories
 -------------------------------
