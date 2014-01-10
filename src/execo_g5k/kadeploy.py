@@ -391,7 +391,7 @@ def deploy(deployment,
         check_deployed_command = g5k_configuration.get('check_deployed_command')
 
     def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, vlan): #IGNORE:W0613
-        logger.info(style.emph("check which hosts are already deployed among:") + " %s", undeployed_hosts)
+        logger.debug(style.emph("check which hosts are already deployed among:") + " %s", undeployed_hosts)
         deployment_hostnames_mapping = dict()
         if vlan:
             for host in undeployed_hosts:
@@ -416,9 +416,9 @@ def deploy(deployment,
                          + style.emph("stderr:") + "\n%s\n" % (process.stderr))
             if (process.ok):
                 newly_deployed.append(deployment_hostnames_mapping[process.host.address])
-                logger.info("OK %s", deployment_hostnames_mapping[process.host.address])
+                logger.debug("OK %s", deployment_hostnames_mapping[process.host.address])
             else:
-                logger.info("KO %s", deployment_hostnames_mapping[process.host.address])
+                logger.debug("KO %s", deployment_hostnames_mapping[process.host.address])
         return newly_deployed
 
     start_time = time.time()
@@ -442,7 +442,7 @@ def deploy(deployment,
     while (not check_enough_func(deployed_hosts, undeployed_hosts)
            and num_tries_done < num_tries):
         num_tries_done += 1
-        logger.info(style.emph("try %i, deploying on:" % (num_tries_done,)) + " %s", undeployed_hosts)
+        logger.debug(style.emph("try %i, deploying on:" % (num_tries_done,)) + " %s", undeployed_hosts)
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         kadeploy_newly_deployed, _ = kadeploy(tmp_deployment,
@@ -457,10 +457,10 @@ def deploy(deployment,
         else:
             deployed_hosts.update(kadeploy_newly_deployed)
             undeployed_hosts.difference_update(kadeploy_newly_deployed)
-        logger.info(style.emph("kadeploy reported newly deployed hosts:") + "   %s", kadeploy_newly_deployed)
-        logger.info(style.emph("check reported newly deployed hosts:") + "   %s", my_newly_deployed)
-        logger.info(style.emph("all deployed hosts:") + "     %s", deployed_hosts)
-        logger.info(style.emph("still undeployed hosts:") + " %s", undeployed_hosts)
+        logger.debug(style.emph("kadeploy reported newly deployed hosts:") + "   %s", kadeploy_newly_deployed)
+        logger.debug(style.emph("check reported newly deployed hosts:") + "   %s", my_newly_deployed)
+        logger.debug(style.emph("all deployed hosts:") + "     %s", deployed_hosts)
+        logger.debug(style.emph("still undeployed hosts:") + " %s", undeployed_hosts)
         elapsed = time.time() - last_time
         last_time = time.time()
         deploy_stats.append((elapsed,
@@ -470,13 +470,13 @@ def deploy(deployment,
                              len(deployed_hosts),
                              len(undeployed_hosts)))
 
-    logger.info(style.emph("deploy finished") + " in %i tries, %s", num_tries_done, format_seconds(time.time() - start_time))
-    logger.info("deploy  duration  attempted  deployed     deployed     total     total")
-    logger.info("                  deploys    as reported  as reported  already   still")
-    logger.info("                             by kadeploy  by check     deployed  undeployed")
-    logger.info("---------------------------------------------------------------------------")
+    logger.debug(style.emph("deploy finished") + " in %i tries, %s", num_tries_done, format_seconds(time.time() - start_time))
+    logger.debug("deploy  duration  attempted  deployed     deployed     total     total")
+    logger.debug("                  deploys    as reported  as reported  already   still")
+    logger.debug("                             by kadeploy  by check     deployed  undeployed")
+    logger.debug("---------------------------------------------------------------------------")
     for (deploy_index, deploy_stat) in enumerate(deploy_stats):
-        logger.info("#%-5.5s  %-8.8s  %-9.9s  %-11.11s  %-11.11s  %-8.8s  %-10.10s",
+        logger.debug("#%-5.5s  %-8.8s  %-9.9s  %-11.11s  %-11.11s  %-8.8s  %-10.10s",
             deploy_index,
             format_seconds(deploy_stat[0]),
             deploy_stat[1],
@@ -484,7 +484,7 @@ def deploy(deployment,
             deploy_stat[3],
             deploy_stat[4],
             deploy_stat[5])
-    logger.info(style.emph("deployed hosts:") + " %s", deployed_hosts)
-    logger.info(style.emph("undeployed hosts:") + " %s", undeployed_hosts)
+    logger.debug(style.emph("deployed hosts:") + " %s", deployed_hosts)
+    logger.debug(style.emph("undeployed hosts:") + " %s", undeployed_hosts)
 
     return (deployed_hosts, undeployed_hosts)

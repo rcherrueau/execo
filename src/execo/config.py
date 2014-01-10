@@ -44,7 +44,7 @@ FDEBUG = 5
 
 # _STARTOF_ configuration
 configuration = {
-    'log_level': logging.WARNING,
+    'log_level': logging.INFO,
     'remote_tool': SSH,
     'fileput_tool': SCP,
     'fileget_tool': SCP,
