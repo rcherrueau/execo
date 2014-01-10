@@ -1243,6 +1243,8 @@ class ParallelActions(Action):
         super(ParallelActions, self).__init__()
         self.actions = actions
         self.name = "%s %i actions" % (self.__class__.__name__, len(self.actions))
+        self.hide_subactions = False
+        """Wether to hide sub actions in stats."""
         self._init_actions()
 
     def _args(self):
@@ -1295,7 +1297,10 @@ class ParallelActions(Action):
         stats = Report.empty_stats()
         stats['name'] = self.name
         stats['sub_stats'] = [action.stats() for action in self.actions]
-        return Report.aggregate_stats(stats)
+        s = Report.aggregate_stats(stats)
+        if self.hide_subactions:
+            s['sub_stats'] = []
+        return s
 
 class SequentialSubActionLH(ActionLifecycleHandler):
 
@@ -1329,6 +1334,8 @@ class SequentialActions(Action):
         super(SequentialActions, self).__init__()
         self.actions = actions
         self.name = "%s %i actions" % (self.__class__.__name__, len(self.actions))
+        self.hide_subactions = False
+        """Wether to hide sub actions in stats."""
         self._init_actions()
 
     def _args(self):
@@ -1380,7 +1387,10 @@ class SequentialActions(Action):
         stats = Report.empty_stats()
         stats['name'] = self.name
         stats['sub_stats'] = [action.stats() for action in self.actions]
-        return Report.aggregate_stats(stats)
+        s = Report.aggregate_stats(stats)
+        if self.hide_subactions:
+            s['sub_stats'] = []
+        return s
 
 class _ChainPutActionHostFilteringLH(ActionLifecycleHandler):
 
@@ -1491,6 +1501,7 @@ class ChainPut(SequentialActions):
         self.connection_params = connection_params
         super(ChainPut, self).__init__([])
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+        self.hide_subactions = True
 
     @property
     def hosts(self):
