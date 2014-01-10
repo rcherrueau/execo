@@ -218,6 +218,8 @@ class Kadeployer(Remote):
         those in `execo_g5k.config.default_frontend_connection_params`."""
         self.deployment = deployment
         """Instance of Deployment class describing the intended kadeployment."""
+        self.timeout = None
+        """Deployment timeout"""
         self._init_processes()
         self.name = "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._fhosts), len(self.processes))
 
@@ -241,6 +243,7 @@ class Kadeployer(Remote):
                             connection_params = make_connection_params(self.frontend_connection_params,
                                                                      default_frontend_connection_params))
             p.pty = True
+            p.timeout = self.timeout
             kdstdouthandler = _KadeployStdoutHandler(self)
             p.stdout_handlers.append(kdstdouthandler)
             kdstderrhandler = _KadeployStderrHandler(self)
@@ -296,6 +299,7 @@ def kadeploy(deployment, frontend_connection_params = None, timeout = None, out 
     """
     kadeployer = Kadeployer(deployment,
                             frontend_connection_params = frontend_connection_params)
+    kadeployer.timeout = timeout
     kadeployer.out = out
     kadeployer.run()
     if not kadeployer.ok:
@@ -315,7 +319,6 @@ def deploy(deployment,
            frontend_connection_params = None,
            deploy_timeout = None,
            check_timeout = 30,
-           timeout = False,
            out = False):
     """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
@@ -378,16 +381,8 @@ def deploy(deployment,
     :param check_timeout: timeout for node deployment checks. Default
       is 30 seconds.
 
-    :param timeout: timeout for g5k operations, except deployment.
-      Default is False, which means use
-      ``execo_g5k.config.g5k_configuration['default_timeout']``. None
-      means no timeout.
-
     :param out: if True, output kadeploy stdout / stderr to stdout.
     """
-
-    if isinstance(timeout, bool) and timeout == False:
-        timeout = g5k_configuration.get('default_timeout')
 
     if check_enough_func == None:
         check_enough_func = lambda deployed, undeployed: len(undeployed) == 0
@@ -411,6 +406,7 @@ def deploy(deployment,
                 p.nolog_exit_code = True
                 p.nolog_timeout = True
                 p.nolog_error = True
+                p.timeout = check_timeout
         deployed_check.run()
         newly_deployed = list()
         for process in deployed_check.processes:
@@ -451,7 +447,8 @@ def deploy(deployment,
         tmp_deployment.hosts = undeployed_hosts
         kadeploy_newly_deployed, _ = kadeploy(tmp_deployment,
                                               frontend_connection_params = frontend_connection_params,
-                                              out = out)
+                                              out = out,
+                                              timeout = deploy_timeout)
         my_newly_deployed = []
         if check_deployed_command:
             my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
