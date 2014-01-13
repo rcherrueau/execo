@@ -1019,94 +1019,101 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         PLT.savefig (outfile, dpi=300)
 
 
-#def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
-#    """Draw the number of nodes available for the clusters (requires Matplotlib)"""
-#    
-#    startstamp = slots[0][0]
-#    endstamp = slots[-1][1]
-#    
-#        
-#    if colors is None:
-#        colors = _set_colors()
-#    
-#    xfmt = MD.DateFormatter('%d %b, %H:%M ')
-#    
-#    if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
-#        x_major_locator = MD.HourLocator(byhour = [9, 19])
-#    elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=17)):
-#        x_major_locator = MD.HourLocator(byhour = [9])
-#    else:
-#        x_major_locator = MD.AutoDateLocator()
-#
-#    max_nodes = {}
-#    total_nodes = 0
-#    slot_limits = []
-#    total_list = []
-#    i_slot = 0
-#    for slot in slots:
-#        slot_limits.append(slot[0])
-#        if i_slot+1 < len(slots):
-#            slot_limits.append(slots[i_slot+1][0])
-#            i_slot += 1
-#        
-#        for element, n_nodes in slot[2].iteritems():
-#            if element in get_g5k_clusters():
-#                if not max_nodes.has_key(element):
-#                    max_nodes[element] = []
-#                max_nodes[element].append(n_nodes)
-#                max_nodes[element].append(n_nodes)
-#            if element == 'grid5000':
-#                total_list.append(n_nodes)
-#                total_list.append(n_nodes)
-#                if n_nodes > total_nodes:
-#                    total_nodes = n_nodes
-#    
-#    
-#    slot_limits.append(endstamp)
-#    
-#    slot_limits.sort()                
-#    
-#    dates = [unixts_to_datetime(ts) for ts in slot_limits]
-#
-#    datenums = MD.date2num(dates)
-#
-#    fig = PLT.figure(figsize=(15,10), dpi=80)
-#
-#    ax = PLT.subplot(111)
-#    ax.xaxis_date()
-#    box = ax.get_position()
-#    ax.set_position([box.x0-0.07, box.y0, box.width, box.height])
-#    ax.set_xlim(unixts_to_datetime(startstamp), unixts_to_datetime(endstamp))
-#    ax.set_xlabel('Time')
-#    ax.set_ylabel('Nodes available')
-#    ax.set_ylim(0, total_nodes*1.1)
-#    ax.axhline(y = total_nodes, color = '#000000', linestyle ='-', linewidth = 2, label = 'ABSOLUTE MAXIMUM')
-#    ax.yaxis.grid(color='gray', linestyle='dashed')
-#    ax.xaxis.set_major_formatter(xfmt)
-#    ax.xaxis.set_major_locator(x_major_locator )
-#    PLT.xticks(rotation = 15)
-#
-#
-#    max_nodes_list = []
-#
-#    p_legend = []
-#    p_rects = []
-#    p_colors = []
-#    for key, value in sorted(iter(max_nodes.iteritems())):
-#        if key != 'grid5000':
-#            max_nodes_list.append(value)
-#            p_legend.append(key)
-#            p_rects.append(PLT.Rectangle((0, 0), 1, 1, fc = colors[key]))
-#            p_colors.append(colors[key])
-#            
-#    plots = PLT.stackplot(datenums, max_nodes_list, colors = p_colors)
-#    PLT.legend(p_rects, p_legend, loc='center right', ncol = 1, shadow = True, bbox_to_anchor=(1.2, 0.5))
-#
-#    if show:
-#        PLT.show()
-#    if save:
-#        fname = 'slots.png'
-#        logger.info('Saving file %s ...', fname)
-#        PLT.savefig (fname, dpi=300)
+def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
+    """Draw the number of nodes available for the clusters (requires Matplotlib)"""
+    
+    
+    if MPL.__version__ < '1.2.0':
+        logger.warning('Slots drawing use stackplot that requires matlplotlib >= 1.2.0')
+        return True
+    
+    
+    startstamp = slots[0][0]
+    endstamp = slots[-1][1]
+    
+    
+    if colors is None:
+        colors = _set_colors()
+    
+    xfmt = MD.DateFormatter('%d %b, %H:%M ')
+    
+    if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
+        x_major_locator = MD.HourLocator(byhour = [9, 19])
+    elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=17)):
+        x_major_locator = MD.HourLocator(byhour = [9])
+    else:
+        x_major_locator = MD.AutoDateLocator()
+
+    max_nodes = {}
+    total_nodes = 0
+    slot_limits = []
+    total_list = []
+    i_slot = 0
+    for slot in slots:
+        slot_limits.append(slot[0])
+        if i_slot+1 < len(slots):
+            slot_limits.append(slots[i_slot+1][0])
+            i_slot += 1
+        
+        for element, n_nodes in slot[2].iteritems():
+            if element in get_g5k_clusters():
+                if not max_nodes.has_key(element):
+                    max_nodes[element] = []
+                max_nodes[element].append(n_nodes)
+                max_nodes[element].append(n_nodes)
+            if element == 'grid5000':
+                total_list.append(n_nodes)
+                total_list.append(n_nodes)
+                if n_nodes > total_nodes:
+                    total_nodes = n_nodes
+    
+    
+    slot_limits.append(endstamp)
+    
+    slot_limits.sort()                
+    
+    dates = [unixts_to_datetime(ts) for ts in slot_limits]
+
+    datenums = MD.date2num(dates)
+
+    fig = PLT.figure(figsize=(15,10), dpi=80)
+
+    ax = PLT.subplot(111)
+    ax.xaxis_date()
+    box = ax.get_position()
+    ax.set_position([box.x0-0.07, box.y0, box.width, box.height])
+    ax.set_xlim(unixts_to_datetime(startstamp), unixts_to_datetime(endstamp))
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Nodes available')
+    ax.set_ylim(0, total_nodes*1.1)
+    ax.axhline(y = total_nodes, color = '#000000', linestyle ='-', linewidth = 2, label = 'ABSOLUTE MAXIMUM')
+    ax.yaxis.grid(color='gray', linestyle='dashed')
+    ax.xaxis.set_major_formatter(xfmt)
+    ax.xaxis.set_major_locator(x_major_locator )
+    PLT.xticks(rotation = 15)
+
+
+    max_nodes_list = []
+
+    p_legend = []
+    p_rects = []
+    p_colors = []
+    for key, value in sorted(iter(max_nodes.iteritems())):
+        if key != 'grid5000':
+            max_nodes_list.append(value)
+            p_legend.append(key)
+            p_rects.append(PLT.Rectangle((0, 0), 1, 1, fc = colors[key]))
+            p_colors.append(colors[key])
+            
+    plots = PLT.stackplot(datenums, max_nodes_list, colors = p_colors)
+    PLT.legend(p_rects, p_legend, loc='center right', ncol = 1, shadow = True, bbox_to_anchor=(1.2, 0.5))
+
+    if show:
+        PLT.show()
+    if save:
+        if outfile is None:
+            outfile = 'slots_'+format_date(startstamp)
+            logger.info('Saving file %s ...', outfile)
+        PLT.savefig (outfile, dpi=300)
 
 
