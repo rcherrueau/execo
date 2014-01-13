@@ -1015,7 +1015,7 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
     if save:
         if outfile is None:
             outfile = 'gantt_'+"_".join( [site for site in planning.keys()])+'_'+format_date(startstamp)
-        
+        logger.debug('Saving file %s ...', outfile)
         PLT.savefig (outfile, dpi=300)
 
 
@@ -1032,14 +1032,8 @@ def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
     
     :param outfile: specify the output file"""
     
-    if MPL.__version__ < '1.2.0':
-        logger.warning('Slots drawing use stackplot that requires matlplotlib >= 1.2.0')
-        return True
-    
-    
     startstamp = slots[0][0]
     endstamp = slots[-1][1]
-    
     
     if colors is None:
         colors = _set_colors()
@@ -1122,7 +1116,7 @@ def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
     if save:
         if outfile is None:
             outfile = 'slots_'+format_date(startstamp)
-            logger.info('Saving file %s ...', outfile)
+        logger.debug('Saving file %s ...', outfile)
         PLT.savefig (outfile, dpi=300)
 
 
