@@ -1020,8 +1020,17 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 
 
 def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
-    """Draw the number of nodes available for the clusters (requires Matplotlib)"""
+    """Draw the number of nodes available for the clusters (requires Matplotlib >= 1.2.0)
     
+    :param slots: a list of slot, as returned by ``compute_slots`` 
+    
+    :param colors: a dict to define element coloring ``{'element': (255., 122., 122.)}`` 
+    
+    :param show: display the slots versus time 
+    
+    :param save: save the plot to outfile
+    
+    :param outfile: specify the output file"""
     
     if MPL.__version__ < '1.2.0':
         logger.warning('Slots drawing use stackplot that requires matlplotlib >= 1.2.0')
