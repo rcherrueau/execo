@@ -87,6 +87,9 @@ decreasing importance):
 
 - ``sphinx-doc``, ``graphviz`` for building the documentation.
 
+- ``python-matplotlib`` (v >= 1.2.0) for graphical representation of
+  grid5000 plannings
+
 At runtime, connecting to remote hosts requires ``ssh``, ``scp`` or
 similar connection tools, and optionnaly ``taktuk`` (probably version
 >= 3.6. http://taktuk.gforge.inria.fr/). `execo.action.ChainPut`
