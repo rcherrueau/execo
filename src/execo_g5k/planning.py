@@ -359,7 +359,7 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                 if not real_resources.has_key(site):
                     real_resources[site] = 0
 
-    # Checking if we need a Kavlan, a KaVLAN global or none
+    # Checking if we need a Kavlan, a KaVLAN global or none
     get_kavlan = resources.has_key('kavlan')
     if get_kavlan:
         kavlan = 'kavlan'
@@ -384,7 +384,7 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
     for site in sites:
         sub_resources = ''
 
-        # Adding a KaVLAN if needed
+        #Adding a KaVLAN if needed
         if get_kavlan:
             if site in resources['kavlan']:
                 sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
@@ -401,7 +401,7 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                                   for host in blacklisted_hosts[site] ] )
             host_blacklist = True
 
-        # Adding the clusters blacklist
+        #Adding the clusters blacklist
         str_clusters = str_hosts if host_blacklist else ''
         cl_blacklist = False
         clusters_nodes = 0
@@ -443,7 +443,7 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
 
     :param excluded_elements: a list of elements that won't be used"""
     resources = {}
-    # Defining the cluster you want
+    #Defining the cluster you want
     clusters_wanted = {}
     for element, n_nodes in resources_wanted.iteritems():
         if element in get_g5k_clusters():
@@ -461,7 +461,7 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
                 resources_available[get_cluster_site(element)] -= resources_available[element]
                 resources_available[element] = 0
 
-    # Defining the sites you want
+    #Defining the sites you want
     sites_wanted = {}
     for element, n_nodes in resources_wanted.iteritems():
         if element in get_g5k_sites():
@@ -476,7 +476,7 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
                 resources_available['grid5000'] -= resources_available[element]
                 resources_available[element] = 0
 
-    # Distributing hosts on grid5000 elements
+    #Distributing hosts on grid5000 elements
     if resources_wanted.has_key('grid5000'):
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
         total_nodes = 0
