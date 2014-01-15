@@ -390,8 +390,8 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                 sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
                 get_kavlan = False
 
-        base_blacklist = '{\\\\\\\\\\\\\\"'
-        end_blacklist = '\\\\\\\\\\\\\\\"}/'
+        base_sql = '{\\\\\\\\\\\\\\"'
+        end_sql = '\\\\\\\\\\\\\\\"}/'
 
         # Creating blacklist SQL string for hosts
         host_blacklist = False
@@ -407,7 +407,11 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         clusters_nodes = 0
         for cluster in get_site_clusters(site):
             if cluster in resources:
-                sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
+                if str_hosts == '':
+                    sub_resources += "{cluster=\\'"+cluster+"\\'}"
+                else:
+                    sub_resources += base_sql+str_hosts+"cluster='"+cluster+"'"+end_sql
+                sub_resources += "/nodes="+str(resources[cluster])+'+'
                 clusters_nodes += resources[cluster]
             if cluster in excluded_elements:
                 str_clusters += "cluster not in ('"+cluster+"') and "
@@ -416,16 +420,15 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         # Generating the site blacklist string from host and cluster blacklist
         str_site = ''
         if host_blacklist or cl_blacklist:
-            str_site += base_blacklist
+            str_site += base_sql
             if not cl_blacklist:
                 str_site += str_hosts[:-4]
             else:
                 str_site += str_clusters[:-4]
-            str_site = str_site+end_blacklist
-            sub_resources += str_site
+            str_site = str_site+end_sql
 
         if real_resources[site] > 0:
-            sub_resources+="nodes="+str(real_resources[site])+'+'
+            sub_resources+=str_site+"nodes="+str(real_resources[site])+'+'
 
         if sub_resources != '':
             jobs_specs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )
