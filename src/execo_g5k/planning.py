@@ -33,10 +33,10 @@ from threading import Thread, currentThread
 
 try:
     import matplotlib as MPL
-    MPL.use('Agg')  
+    MPL.use('Agg')
     import matplotlib.pyplot as PLT
-    import matplotlib.dates as MD  
-except ImportError:    
+    import matplotlib.dates as MD
+except ImportError:
     pass
 
 _retrieve_method = None
@@ -52,27 +52,27 @@ else:
     _retrieve_method = 'API'
 
 
-def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False, 
+def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False,
             out_of_chart = False, starttime = None, endtime = None):
     """Retrieve the planning of the elements (site, cluster) and others resources.
-    Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.`` 
-    
+    Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.``
+
     :param elements: a list of Grid'5000 elemenst (grid5000, site, cluster)
-    
+
     :param vlan: a boolean to ask for KaVLAN computation
-    
+
     :param subnet: a boolean to ask for subnets computation
-    
-    :param storage: a boolean to ask for sorage computation 
-    
+
+    :param storage: a boolean to ask for sorage computation
+
     :param weeks: the number of weeks in the future for the end of the planning
-    
+
     :param out_of_chart: if True, consider that days outside weekends are busy
-    
-    Return a dict whose keys are sites, whose values are dict whose keys 
-    are cluster, subnets, kavlan or storage, 
-    whose values are planning dicts, whose keys are hosts, subnet address range, 
-    vlan number or chunk id planning respectively. 
+
+    Return a dict whose keys are sites, whose values are dict whose keys
+    are cluster, subnets, kavlan or storage,
+    whose values are planning dicts, whose keys are hosts, subnet address range,
+    vlan number or chunk id planning respectively.
     """
     if not starttime: starttime = int(time() + timedelta_to_seconds(timedelta(minutes = 1)))
     starttime = get_unixts(starttime)
@@ -82,7 +82,7 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
         sites = get_g5k_sites()
     else:
         sites = list(set([ site for site in elements if site in get_g5k_sites() ]+\
-                    [ get_cluster_site(cluster) for cluster in elements 
+                    [ get_cluster_site(cluster) for cluster in elements
                      if cluster in get_g5k_clusters() ]))
 
     planning = {}
@@ -98,15 +98,15 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
             planning[site].update( { 'subnets': {} } )
         if storage:
             planning[site].update( { 'storage': {} } )
-    
+
     if _retrieve_method == 'API':
         _get_planning_API(planning)
     elif _retrieve_method == 'MySQL':
         _get_planning_MySQL(planning)
-        
+
     if out_of_chart:
         _add_charter_to_planning(planning, starttime, endtime)
-    
+
     for site_pl in planning.itervalues():
         for res_pl in site_pl.itervalues():
             for el_planning in res_pl.itervalues():
@@ -114,27 +114,27 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
                 _merge_el_planning(el_planning['busy'])
                 _trunc_el_planning(el_planning['busy'], starttime, endtime)
                 _fill_el_planning_free(el_planning, starttime, endtime)
-                    
+
     return planning
 
 
 
 def compute_slots(planning, walltime, excluded_elements = None):
-    """Compute the slots limits and find the number of available nodes for 
-    each elements and for the given walltime. 
-    
+    """Compute the slots limits and find the number of available nodes for
+    each elements and for the given walltime.
+
     Return the list of slots where a slot is ``[ start, stop, freehosts ]`` and
-    freehosts is a dict of Grid'5000 element with number of nodes available 
+    freehosts is a dict of Grid'5000 element with number of nodes available
     ``{'grid5000': 40, 'lyon': 20, 'reims': 10, 'stremi': 10 }``.
-    
+
     WARNING: slots does not includes subnets
-    
+
     :param planning: a dict of the resources planning, returned by ``get_planning``
-    
-    :param walltime: a duration in a format supported by get_seconds where the resources 
+
+    :param walltime: a duration in a format supported by get_seconds where the resources
       are available
-              
-    :param excluded_elements: list of elements that will not be included in the slots 
+
+    :param excluded_elements: list of elements that will not be included in the slots
       computation
     """
     slots = []
@@ -142,7 +142,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
     if excluded_elements is not None:
         _remove_excluded(planning, excluded_elements)
     limits = _slots_limits(planning)
-    
+
     # Checking if we need to compile vlans planning
     kavlan = False
     kavlan_global = False
@@ -151,19 +151,19 @@ def compute_slots(planning, walltime, excluded_elements = None):
             kavlan_global = True
         else:
             kavlan = True
-    
+
     for limit in limits:
         log = ''
         free_elements = {'grid5000': 0}
-        
+
         if kavlan_global:
             free_vlans_global = []
-            
-        for site, site_planning in planning.iteritems():            
+
+        for site, site_planning in planning.iteritems():
             free_elements[site] = 0
-            
+
             for cluster, cluster_planning in site_planning.iteritems():
-                
+
                 if cluster in get_g5k_clusters():
                     free_elements[cluster] = 0
                     for host, host_planning in cluster_planning.iteritems():
@@ -177,7 +177,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
                             free_elements[site] += 1
                             free_elements[cluster] += 1
                             log += ', '+host
-                
+
             if kavlan:
                 free_vlans = 0
                 for vlan, vlan_planning in site_planning['vlans'].iteritems():
@@ -189,7 +189,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
                                 kavlan_free = True
                         if kavlan_free:
                             free_vlans += 1
-                free_elements['kavlan'] = free_vlans 
+                free_elements['kavlan'] = free_vlans
             elif kavlan_global:
                 for vlan, vlan_planning in site_planning['vlans'].iteritems():
                     if int(vlan.split('-')[1]) > 10:
@@ -201,20 +201,20 @@ def compute_slots(planning, walltime, excluded_elements = None):
                         if kavlan_global_free:
                             free_vlans_global.append(site)
                 free_elements['kavlan'] = free_vlans_global
-                     
-             
+
+
                 ## MISSING OTHER RESOURCES COMPUTATION
-                
+
         slots.append( [ limit, limit +get_seconds(walltime), free_elements] )
-    
+
     slots.sort()
-    return slots    
+    return slots
 
 def find_first_slot( slots, resources_wanted):
     """ Return the first slot (a tuple start date, end date, resources) where some resources are available
-    
+
     :param slots: list of slots returned by ``compute_slots``
-    
+
     :param resources_wanted: a dict of elements that must have some free hosts
     """
 
@@ -229,17 +229,17 @@ def find_first_slot( slots, resources_wanted):
                     vlan_free = False
         res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems() if element in resources_wanted
                           and element != 'kavlan'])
-        if res_nodes > 0 and vlan_free: 
+        if res_nodes > 0 and vlan_free:
             return slot
-            
-    return None, None, None
-    
 
-def find_max_slot( slots, resources_wanted):                    
+    return None, None, None
+
+
+def find_max_slot( slots, resources_wanted):
     """Return the slot (a tuple start date, end date, resources) with the maximum nodes available for the given elements
-    
+
     :param slots: list of slots returned by ``compute_slots``
-    
+
     :param resources_wanted: a dict of elements that must be maximized"""
     max_nodes = 0
     max_slot = None, None, None
@@ -251,8 +251,8 @@ def find_max_slot( slots, resources_wanted):
                     vlan_free = False
             elif isinstance(slot[2]['kavlan'], list):
                 if len(slot[2]['kavlan']) == 0:
-                    vlan_free = False        
-        res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems() 
+                    vlan_free = False
+        res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems()
                         if element in resources_wanted and element != 'kavlan'])
         if res_nodes > max_nodes and vlan_free:
             max_nodes = res_nodes
@@ -261,10 +261,10 @@ def find_max_slot( slots, resources_wanted):
 
 def find_free_slot( slots, resources_wanted):
     """Return the first slot (a tuple start date, end date, resources) with enough resources
-     
+
     :param slots: list of slots returned by ``compute_slots``
-    
-    :param resources_wanted: a dict describing the wanted ressources 
+
+    :param resources_wanted: a dict describing the wanted ressources
       ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``"""
     # We need to add the clusters nodes to the total nodes of a site
     real_wanted = resources_wanted.copy()
@@ -273,7 +273,7 @@ def find_free_slot( slots, resources_wanted):
             site = get_cluster_site(cluster)
             if resources_wanted.has_key(site):
                 real_wanted[site] += n_nodes
-    
+
     for slot in slots:
         vlan_free = True
         if 'kavlan' in resources_wanted:
@@ -288,19 +288,19 @@ def find_free_slot( slots, resources_wanted):
             if real_wanted.has_key(element) and real_wanted[element] > n_nodes \
                 and real_wanted != 'kavlan':
                 slot_ok = False
-                
+
         if slot_ok and vlan_free:
             if 'kavlan' in resources_wanted:
                 resources_wanted['kavlan'] = slot[2]['kavlan']
             return slot
-        
+
     return None, None, None
 
 def show_resources(resources, msg = 'Resources'):
     """Print the resources in a fancy way"""
     total_hosts = 0
     log = style.log_header(msg)+'\n'
-    
+
     for site in get_g5k_sites():
         site_added = False
         if site in resources.keys():
@@ -321,18 +321,18 @@ def show_resources(resources, msg = 'Resources'):
     elif total_hosts > 0:
         log += style.log_header('Total ').ljust(20)+str(total_hosts)
     logger.info(log)
-    
+
 
 
 def get_jobs_specs(resources, excluded_elements = None, name = None):
-    """ Generate the several job specifications from the dict of resources and the 
-    blacklisted elements 
-    
-    :param resources: a dict, whose keys are Grid'5000 element and values the 
+    """ Generate the several job specifications from the dict of resources and the
+    blacklisted elements
+
+    :param resources: a dict, whose keys are Grid'5000 element and values the
       corresponding number of n_nodes
-    
+
     :param excluded_elements: a list of elements that won't be used
-    
+
     :param name: the name of the jobs that will be given
 
     Note that the returned list of job specs is intended to be used by
@@ -344,8 +344,8 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
     code of funk https://github.com/lpouillo/Funk)
     """
     jobs_specs = []
-    
-    #Adding sites corresponding to clusters wanted
+
+    # Creating the list of sites used
     sites = []
     real_resources = resources.copy()
     for resource in resources.iterkeys():
@@ -358,16 +358,21 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                     sites.append(site)
                 if not real_resources.has_key(site):
                     real_resources[site] = 0
-    
-    n_sites = 0
-    for resource in real_resources.keys():
-        if resource in sites:
-            n_sites +=1
 
-    get_kavlan = resources.has_key('kavlan')            
+    # Checking if we need a Kavlan, a KaVLAN global or none
+    get_kavlan = resources.has_key('kavlan')
+    if get_kavlan:
+        kavlan = 'kavlan'
+        n_sites = 0
+        for resource in real_resources.keys():
+            if resource in sites:
+                n_sites +=1
+            if n_sites > 1:
+                kavlan += '-global'
+                break
 
     blacklisted_hosts = {}
-    if excluded_elements:
+    if excluded_elements is not None:
         for element in excluded_elements:
             if element not in get_g5k_clusters()+get_g5k_sites():
                 site = get_host_site(element)
@@ -378,72 +383,67 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
 
     for site in sites:
         sub_resources = ''
+
+        # Adding a KaVLAN if needed
+        if get_kavlan:
+            if site in resources['kavlan']:
+                sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
+                get_kavlan = False
+
         base_blacklist = '{\\\\\\\\\\\\\\"'
         end_blacklist = '\\\\\\\\\\\\\\\"}/'
-        
-        # Defining string for hosts
+
+        # Creating blacklist SQL string for hosts
         host_blacklist = False
         str_hosts = ''
         if blacklisted_hosts.has_key(site) and len(blacklisted_hosts[site]) > 0:
-            str_hosts = ''.join( [ "host not in ('"+host+"') and " 
+            str_hosts = ''.join( [ "host not in ('"+host+"') and "
                                   for host in blacklisted_hosts[site] ] )
             host_blacklist = True
 
-        if site in real_resources:
-            clusters_nodes = 0
-            if get_kavlan: 
-                if n_sites > 1:
-                    if site in resources['kavlan']:
-                        sub_resources="{type=\\'kavlan-global\\'}/vlan=1+"
-                        get_kavlan = False
-                else:
-                    sub_resources="{type=\\'kavlan\\'}/vlan=1+"
-                    get_kavlan = False
-                
-            cl_blacklist = False
-            if host_blacklist:
-                str_clusters = str_hosts
-            else:
-                str_clusters = ''
-            for cluster in get_site_clusters(site):
-                if cluster in resources :
-                    if resources[cluster] > 0:
-                        sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
-                        clusters_nodes += resources[cluster]
-                    else:                        
-                        str_clusters += "cluster not in ('"+cluster+"') and "
-                        cl_blacklist = True  
-            
-            if real_resources[site] > 0:
-                str_site = ''
-                if host_blacklist or cl_blacklist:
-                    str_site += base_blacklist 
-                    if not cl_blacklist:
-                        str_site += str_hosts[:-4]
-                    else:
-                        str_site += str_clusters[:-4]
-                    str_site = str_site+end_blacklist
-                    sub_resources += str_site
-                sub_resources+="nodes="+str(real_resources[site])+'+'
+        # Adding the clusters blacklist
+        str_clusters = str_hosts if host_blacklist else ''
+        cl_blacklist = False
+        clusters_nodes = 0
+        for cluster in get_site_clusters(site):
+            if cluster in resources:
+                sub_resources += "{cluster=\\'"+cluster+"\\'}/nodes="+str(resources[cluster])+'+'
+                clusters_nodes += resources[cluster]
+            if cluster in excluded_elements:
+                str_clusters += "cluster not in ('"+cluster+"') and "
+                cl_blacklist = True
 
-            
-            
-            if sub_resources != '':
-                jobs_specs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )    
-            
+        # Generating the site blacklist string from host and cluster blacklist
+        str_site = ''
+        if host_blacklist or cl_blacklist:
+            str_site += base_blacklist
+            if not cl_blacklist:
+                str_site += str_hosts[:-4]
+            else:
+                str_site += str_clusters[:-4]
+            str_site = str_site+end_blacklist
+            sub_resources += str_site
+
+        if real_resources[site] > 0:
+            sub_resources+="nodes="+str(real_resources[site])+'+'
+
+        if sub_resources != '':
+            jobs_specs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )
+
     return jobs_specs
-    
- 
+
+
 
 def distribute_hosts(resources_available, resources_wanted, excluded_elements = None):
     """ Distribute the resources on the different sites and cluster
-    
+
     :param resources_available: a dict defining the resources available
-    
-    :param resources_wanted: a dict defining the resources available you really want 
-    
+
+    :param resources_wanted: a dict defining the resources available you really want
+
     :param excluded_elements: a list of elements that won't be used"""
     resources = {}
+    # Defining the cluster you want
     clusters_wanted = {}
     for element, n_nodes in resources_wanted.iteritems():
         if element in get_g5k_clusters():
@@ -451,8 +451,17 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
     for cluster, n_nodes in clusters_wanted.iteritems():
         nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
         resources_available[get_cluster_site(cluster)] -= nodes
-        resources[cluster] = nodes 
+        resources[cluster] = nodes
 
+    # Blacklisting clusters
+    if excluded_elements:
+        for element in excluded_elements:
+            if element in get_g5k_clusters() and element in resources_available:
+                resources_available['grid5000'] -= resources_available[element]
+                resources_available[get_cluster_site(element)] -= resources_available[element]
+                resources_available[element] = 0
+
+    # Defining the sites you want
     sites_wanted = {}
     for element, n_nodes in resources_wanted.iteritems():
         if element in get_g5k_sites():
@@ -460,19 +469,21 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
     for site, n_nodes in sites_wanted.iteritems():
         resources[site] = n_nodes if n_nodes > 0 else resources_available[site]
 
-    # blacklisting cluster i.e. resources[cluster] = 0
+    # Blacklisting sites
     if excluded_elements:
-        for cluster in get_g5k_clusters():
-            if cluster in excluded_elements:
-                resources[cluster] = 0
+        for element in excluded_elements:
+            if element in get_g5k_sites() and element in resources_available:
+                resources_available['grid5000'] -= resources_available[element]
+                resources_available[element] = 0
 
+    # Distributing hosts on grid5000 elements
     if resources_wanted.has_key('grid5000'):
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
         total_nodes = 0
-    
+
         sites = [element for element in resources_available.keys() if element in get_g5k_sites() ]
         iter_sites = cycle(sites)
-        
+
         while total_nodes != g5k_nodes:
             site = iter_sites.next()
             if resources_available[site] > 0:
@@ -486,11 +497,10 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
                         resources[site] += min(total_nodes, nodes)
                     else:
                         resources[site] = min(total_nodes, nodes)
-        
+
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
-    
-    
+
     return resources
 
 
@@ -593,19 +603,19 @@ def _get_planning_API(planning):
 
 def _get_site_planning_MySQL(site, site_planning):
     try:
-        db = MySQLdb.connect( host = 'mysql.'+site+'.grid5000.fr', port = 3306, user = 'oarreader', 
+        db = MySQLdb.connect( host = 'mysql.'+site+'.grid5000.fr', port = 3306, user = 'oarreader',
                               passwd = 'read', db = 'oar2', connect_timeout = 3)
         try:
 
             # Change the group_concat_max_len to retrive long hosts lists
             db.query('SET SESSION group_concat_max_len=102400')
 
-# CHUNKS IS NOT FINISHED BUT WE KEEP THE REQUEST FOR LATER                 
-#            db.query("""SELECT * 
-#                FROM information_schema.COLUMNS 
-#                WHERE TABLE_SCHEMA = 'oar2' 
-#                AND TABLE_NAME = 'resources' 
-#                AND COLUMN_NAME = 'chunks' 
+# CHUNKS IS NOT FINISHED BUT WE KEEP THE REQUEST FOR LATER
+#            db.query("""SELECT *
+#                FROM information_schema.COLUMNS
+#                WHERE TABLE_SCHEMA = 'oar2'
+#                AND TABLE_NAME = 'resources'
+#                AND COLUMN_NAME = 'chunks'
 #                LIMIT 1""")
 #            r = db.store_result()
 #            if len( r.fetch_row( maxrows = 0, how=1) )> 0:
@@ -616,10 +626,10 @@ def _get_site_planning_MySQL(site, site_planning):
 #                sql += ", IF(R.type = 'storage', R.chunks, null) as storage "
 
             # Retrieving alive resources
-            sql = """SELECT DISTINCT IF(R.type = 'default',R.network_address,null) as host, 
+            sql = """SELECT DISTINCT IF(R.type = 'default',R.network_address,null) as host,
                 IF(R.type = 'kavlan' or R.type = 'kavlan-global', R.vlan,null) as vlans,
-                IF(R.type = 'subnet', R.subnet_address, null) as subnet 
-                FROM resources R 
+                IF(R.type = 'subnet', R.subnet_address, null) as subnet
+                FROM resources R
                 WHERE state <> 'Dead'; """
 
             db.query(sql)
@@ -634,28 +644,28 @@ def _get_site_planning_MySQL(site, site_planning):
                     site_planning['subnets'][data['subnet']] = {'busy': [], 'free': []}
                 # STORAGE WILL BE ADDED LATER
 
-            sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time, J.job_user AS user, 
-            GJP.start_time+MJD.moldable_walltime+TIME_TO_SEC('0:01:05') AS stop_time,  
-            GROUP_CONCAT(DISTINCT R.network_address) AS hosts, 
+            sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time, J.job_user AS user,
+            GJP.start_time+MJD.moldable_walltime+TIME_TO_SEC('0:01:05') AS stop_time,
+            GROUP_CONCAT(DISTINCT R.network_address) AS hosts,
             GROUP_CONCAT(DISTINCT  R.vlan ) AS vlan,
-            GROUP_CONCAT(DISTINCT R.subnet_address) AS subnets         
+            GROUP_CONCAT(DISTINCT R.subnet_address) AS subnets
             FROM jobs J
             LEFT JOIN moldable_job_descriptions MJD
                 ON MJD.moldable_job_id=J.job_id
             LEFT JOIN gantt_jobs_predictions GJP
                 ON GJP.moldable_job_id=MJD.moldable_id
             INNER JOIN gantt_jobs_resources AR
-                ON AR.moldable_job_id=MJD.moldable_id  
+                ON AR.moldable_job_id=MJD.moldable_id
             LEFT JOIN resources R
                 ON AR.resource_id=R.resource_id
             WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
-                AND queue_name<>'besteffort' 
-            GROUP BY J.job_id 
-            ORDER BY J.start_time, R.network_address, 
+                AND queue_name<>'besteffort'
+            GROUP BY J.job_id
+            ORDER BY J.start_time, R.network_address,
                 CONVERT(SUBSTRING_INDEX(SUBSTRING_INDEX(R.network_address,'.',1),'-',-1), SIGNED)"""
 
             db.query(sql)
-            r = db.store_result()    
+            r = db.store_result()
             for job in r.fetch_row( maxrows = 0, how=1 ):
                 if job['hosts'] != '':
                     for host in job['hosts'].split(','):
@@ -673,7 +683,7 @@ def _get_site_planning_MySQL(site, site_planning):
                             site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
                                                                                         int(job['stop_time'])) )
                     except:
-                        pass                                                                   
+                        pass
 
 
                 if site_planning.has_key('subnets') and job['subnets'] is not None:
@@ -681,7 +691,7 @@ def _get_site_planning_MySQL(site, site_planning):
                     for subnet in job['subnets'].split(','):
                         site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
                                                                                int(job['stop_time'])))
-                # MISSING STORAGE        
+                # MISSING STORAGE
         finally:
             db.close()
     except:
@@ -711,7 +721,7 @@ def _remove_excluded(planning, excluded_resources):
     for element in excluded_resources:
         if element in get_g5k_sites():
             del planning[element]
-    
+
     for site_pl in planning.itervalues():
         for res in site_pl.keys():
             if res in excluded_resources:
@@ -721,8 +731,8 @@ def _remove_excluded(planning, excluded_resources):
                 if element in excluded_resources:
                     del site_pl[res][element]
 
-                
-    
+
+
 
 def _merge_el_planning(el_planning):
     """An internal function to merge the busy or free planning of an element"""
@@ -736,7 +746,7 @@ def _merge_el_planning(el_planning):
                 if condition:
                     if el_planning[j][1] > el_planning[i][1]:
                         el_planning[i]=(el_planning[i][0], el_planning[j][1])
-                    
+
                     el_planning.pop(j)
                     if j == len(el_planning) - 1:
                         break
@@ -744,7 +754,7 @@ def _merge_el_planning(el_planning):
                     break
             if j == len(el_planning) - 1:
                 break
-                        
+
 def _trunc_el_planning(el_planning, starttime, endtime):
     """Modify (start, stop) tuple that are not within the (starttime, endtime) interval """
     if len(el_planning) > 0:
@@ -769,13 +779,13 @@ def _trunc_el_planning(el_planning, starttime, endtime):
                     el_planning.remove( (start, stop ) )
                     el_planning.append( (start, endtime) )
                 else:
-                    i += 1    
+                    i += 1
             if i == len(el_planning):
                 break
         el_planning.sort()
-            
-        
-                  
+
+
+
 def _fill_el_planning_free(el_planning, starttime, endtime):
     """An internal function to compute the planning free of all elements"""
     if len(el_planning['busy']) > 0:
@@ -787,41 +797,41 @@ def _fill_el_planning_free(el_planning, starttime, endtime):
             el_planning['free'].append((el_planning['busy'][len(el_planning['busy'])-1][1], endtime))
     else:
             el_planning['free'].append((starttime, endtime))
-               
+
 def _slots_limits(planning):
     """Return the limits of slots, defined by a resource state change."""
     limits = []
     for site in planning.itervalues():
         for res_pl in site.itervalues():
-            for el_planning in res_pl.itervalues():                           
+            for el_planning in res_pl.itervalues():
                     for start, stop in el_planning['busy']:
                         if start not in limits:
                             limits.append(start)
                         if stop not in limits:
                             limits.append(stop)
-                        
+
                     for start, stop in el_planning['free']:
                         if start not in limits:
                             limits.append(start)
                         if stop not in limits:
-                            limits.append(stop)                    
+                            limits.append(stop)
     limits = sorted(limits)
     limits.pop()
     return limits
 
-   
-               
+
+
 def _add_charter_to_planning(planning, starttime, endtime):
     charter_el_planning = get_charter_el_planning(starttime, endtime)
-    
+
     for site in planning.itervalues():
         for res_pl in site.itervalues():
             for el_planning in res_pl.values():
                 el_planning['busy'].sort()
                 el_planning['busy'] += charter_el_planning
                 el_planning['busy'].sort()
-                
-         
+
+
 
 def g5k_charter_time(t):
     """Is the given date in a g5k charter time period ?
@@ -920,41 +930,41 @@ def _set_colors():
             colors[cluster] = tuple(color)
             i_cluster += 1
         i_site += 1
-    
+
     return colors
 
 
 def draw_gantt(planning, colors = None, show = False, save = True, outfile = None):
     """ Draw the hosts planning for the elements you ask (requires Matplotlib)
-    
-    :param planning: the dict of elements planning 
-    
-    :param colors: a dict to define element coloring ``{'element': (255., 122., 122.)}`` 
-    
-    :param show: display the Gantt diagram 
-    
+
+    :param planning: the dict of elements planning
+
+    :param colors: a dict to define element coloring ``{'element': (255., 122., 122.)}``
+
+    :param show: display the Gantt diagram
+
     :param save: save the Gantt diagram to outfile
-    
+
     :param outfile: specify the output file"""
-    
-    
+
+
     if colors is None:
         colors = _set_colors()
-    
+
     n_sites = len(planning.keys())
     startstamp = int(10**20)
     endstamp = 0
     slots = planning.itervalues().next().itervalues().next().itervalues().next()['busy'] +\
         planning.itervalues().next().itervalues().next().itervalues().next()['free']
-    
+
 #    pprint(slots)
-    
+
     for slot in slots:
-        if slot[0] < startstamp:  
+        if slot[0] < startstamp:
             startstamp = slot[0]
         if slot[1] > endstamp:
             endstamp = slot[1]
-        
+
     n_col = 2 if n_sites > 1 else 1
     n_row = int(ceil(float(n_sites) / float(n_col)))
 #    if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=3)):
@@ -964,7 +974,7 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 #    else:
     x_major_locator = MD.AutoDateLocator()
     xfmt = MD.DateFormatter('%d %b, %H:%M ')
-    
+
     PLT.ioff()
     fig = PLT.figure(figsize=(15, 5 * n_row), dpi=80)
 
@@ -991,8 +1001,8 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         for cluster, hosts in clusters.iteritems():
             ylabel += cluster+' '
             i_host = 0
-            for key in sorted(hosts.keys(), key = lambda name: (name.split('.',1)[0].split('-')[0], 
-                                        int( name.split('.',1)[0].split('-')[1] ))):                
+            for key in sorted(hosts.keys(), key = lambda name: (name.split('.',1)[0].split('-')[0],
+                                        int( name.split('.',1)[0].split('-')[1] ))):
                 slots = hosts[key]
                 i_host +=1
                 cl_colors = {'free': colors[cluster], 'busy': colors['busy']}
@@ -1009,7 +1019,7 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         ax.set_ylabel(ylabel)
         i_site += 1
     fig.tight_layout()
-    
+
     if show:
         PLT.show()
     if save:
@@ -1021,25 +1031,25 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 
 def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
     """Draw the number of nodes available for the clusters (requires Matplotlib >= 1.2.0)
-    
-    :param slots: a list of slot, as returned by ``compute_slots`` 
-    
-    :param colors: a dict to define element coloring ``{'element': (255., 122., 122.)}`` 
-    
-    :param show: display the slots versus time 
-    
+
+    :param slots: a list of slot, as returned by ``compute_slots``
+
+    :param colors: a dict to define element coloring ``{'element': (255., 122., 122.)}``
+
+    :param show: display the slots versus time
+
     :param save: save the plot to outfile
-    
+
     :param outfile: specify the output file"""
-    
+
     startstamp = slots[0][0]
     endstamp = slots[-1][1]
-    
+
     if colors is None:
         colors = _set_colors()
-    
+
     xfmt = MD.DateFormatter('%d %b, %H:%M ')
-    
+
     if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
         x_major_locator = MD.HourLocator(byhour = [9, 19])
     elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=17)):
@@ -1057,7 +1067,7 @@ def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
         if i_slot+1 < len(slots):
             slot_limits.append(slots[i_slot+1][0])
             i_slot += 1
-        
+
         for element, n_nodes in slot[2].iteritems():
             if element in get_g5k_clusters():
                 if not max_nodes.has_key(element):
@@ -1069,12 +1079,12 @@ def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
                 total_list.append(n_nodes)
                 if n_nodes > total_nodes:
                     total_nodes = n_nodes
-    
-    
+
+
     slot_limits.append(endstamp)
-    
-    slot_limits.sort()                
-    
+
+    slot_limits.sort()
+
     dates = [unixts_to_datetime(ts) for ts in slot_limits]
 
     datenums = MD.date2num(dates)
@@ -1107,7 +1117,7 @@ def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
             p_legend.append(key)
             p_rects.append(PLT.Rectangle((0, 0), 1, 1, fc = colors[key]))
             p_colors.append(colors[key])
-            
+
     plots = PLT.stackplot(datenums, max_nodes_list, colors = p_colors)
     PLT.legend(p_rects, p_legend, loc='center right', ncol = 1, shadow = True, bbox_to_anchor=(1.2, 0.5))
 
@@ -1118,5 +1128,4 @@ def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
             outfile = 'slots_'+format_date(startstamp)
         logger.debug('Saving file %s ...', outfile)
         PLT.savefig (outfile, dpi=300)
-
 
