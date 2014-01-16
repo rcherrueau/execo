@@ -1392,35 +1392,35 @@ class SequentialActions(Action):
             s['sub_stats'] = []
         return s
 
-class _ChainPutActionHostFilteringLH(ActionLifecycleHandler):
+# class _ChainPutActionHostFilteringLH(ActionLifecycleHandler):
 
-    def __init__(self, chainput, filtered_actions):
-        super(_ChainPutActionHostFilteringLH, self).__init__()
-        self.chainput = chainput
-        self.filtered_actions = filtered_actions
+#     def __init__(self, chainput, filtered_actions):
+#         super(_ChainPutActionHostFilteringLH, self).__init__()
+#         self.chainput = chainput
+#         self.filtered_actions = filtered_actions
 
-    def end(self, action):
-        bad_hosts = [ p.host for p in
-                      action.processes
-                      if not p.ok ]
-        logger.debug(
-            "_ChainPutActionHostFilteringLH: action %s finished. bad hosts = %s" % (
-                action, bad_hosts))
-        # partie qui pose souci
-        # for a in self.filtered_actions:
-        #     logger.debug(
-        #         "removing hosts %s from action %s" % (
-        #             set(a.hosts).intersection(bad_hosts), a))
-        #     a.hosts = list(set(a.hosts).difference(bad_hosts))
-        #     a.reset()
-        # fin partie qui pose souci
-        self.chainput.bad_hosts.update(bad_hosts)
-        self.chainput.good_hosts.difference(bad_hosts)
-        logger.debug(
-            "%s:\ngood_hosts = %s\nbad_hosts = %s" % (
-                self.chainput,
-                self.chainput.good_hosts,
-                self.chainput.bad_hosts))
+#     def end(self, action):
+#         bad_hosts = [ p.host for p in
+#                       action.processes
+#                       if not p.ok ]
+#         logger.debug(
+#             "_ChainPutActionHostFilteringLH: action %s finished. bad hosts = %s" % (
+#                 action, bad_hosts))
+#         # partie qui pose souci
+#         # for a in self.filtered_actions:
+#         #     logger.debug(
+#         #         "removing hosts %s from action %s" % (
+#         #             set(a.hosts).intersection(bad_hosts), a))
+#         #     a.hosts = list(set(a.hosts).difference(bad_hosts))
+#         #     a.reset()
+#         # fin partie qui pose souci
+#         self.chainput.bad_hosts.update(bad_hosts)
+#         self.chainput.good_hosts.difference(bad_hosts)
+#         logger.debug(
+#             "%s:\ngood_hosts = %s\nbad_hosts = %s" % (
+#                 self.chainput,
+#                 self.chainput.good_hosts,
+#                 self.chainput.bad_hosts))
 
 class _ChainPutCopyTaktukProcessLH(ProcessLifecycleHandler):
 
