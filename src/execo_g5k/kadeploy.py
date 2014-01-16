@@ -95,10 +95,10 @@ class Deployment(object):
         if self.other_options: s = comma_join(s, "other_options=%r" % (self.other_options,))
         return "Deployment(%s)" % (s,)
 
-_ksoh_good_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
-_ksoh_bad_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
-_ksoh_good_node_re = re.compile("^(\S+)\s*$")
-_ksoh_bad_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
+_ksoh_deployed_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
+_ksoh_undeployed_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
+_ksoh_deployed_node_re = re.compile("^(\S+)\s*$")
+_ksoh_undeployed_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
 
 class _KadeployStdoutHandler(ProcessOutputHandler):
 
@@ -111,7 +111,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         """
         super(_KadeployStdoutHandler, self).__init__()
         self.kadeployer = kadeployer
-        self._SECTION_NONE, self._SECTION_GOODNODES, self._SECTION_BADNODES = range(3)
+        self._SECTION_NONE, self._SECTION_DEPLOYED_NODES, self._SECTION_UNDEPLOYED_NODES = range(3)
         self._current_section = self._SECTION_NONE
 
     def action_reset(self):
@@ -120,22 +120,22 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
     def read_line(self, process, string, eof, error):
         if self.kadeployer.out:
             print string,
-        if _ksoh_good_nodes_header_re.search(string) != None:
-            self._current_section = self._SECTION_GOODNODES
+        if _ksoh_deployed_nodes_header_re.search(string) != None:
+            self._current_section = self._SECTION_DEPLOYED_NODES
             return
-        if _ksoh_bad_nodes_header_re.search(string) != None:
-            self._current_section = self._SECTION_BADNODES
+        if _ksoh_undeployed_nodes_header_re.search(string) != None:
+            self._current_section = self._SECTION_UNDEPLOYED_NODES
             return
-        if self._current_section == self._SECTION_GOODNODES:
-            so = _ksoh_good_node_re.search(string)
+        if self._current_section == self._SECTION_DEPLOYED_NODES:
+            so = _ksoh_deployed_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self.kadeployer.good_hosts.add(host_address)
-        elif self._current_section == self._SECTION_BADNODES:
-            so = _ksoh_bad_node_re.search(string)
+                self.kadeployer.deployed_hosts.add(host_address)
+        elif self._current_section == self._SECTION_UNDEPLOYED_NODES:
+            so = _ksoh_undeployed_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self.kadeployer.bad_hosts.add(host_address)
+                self.kadeployer.undeployed_hosts.add(host_address)
 
 class _KadeployStderrHandler(ProcessOutputHandler):
 
@@ -205,10 +205,10 @@ class Kadeployer(Remote):
           `execo_g5k.config.default_frontend_connection_params`.
         """
         super(Remote, self).__init__()
-        self.good_hosts = set()
+        self.deployed_hosts = set()
         """Iterable of `Host` containing the deployed hosts. This iterable won't be
         complete if the Kadeployer has not terminated."""
-        self.bad_hosts = set()
+        self.undeployed_hosts = set()
         """Iterable of `Host` containing the hosts not deployed. This iterable
         won't be complete if the Kadeployer has not terminated."""
         self.out = False
@@ -253,8 +253,8 @@ class Kadeployer(Remote):
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()
-        self.good_hosts = set()
-        self.bad_hosts = set()
+        self.deployed_hosts = set()
+        self.undeployed_hosts = set()
 
     def _args(self):
         return [ repr(self.deployment) ] + Action._args(self) + Kadeployer._kwargs(self)
@@ -266,15 +266,15 @@ class Kadeployer(Remote):
 
     def _infos(self):
         return Remote._infos(self) + [ "cmds=%r" % ([ process.cmd for process in self.processes],),
-                                       "deployed_hosts=%r" % (self.good_hosts,),
-                                       "error_hosts=%r" % (self.bad_hosts,) ]
+                                       "deployed_hosts=%r" % (self.deployed_hosts,),
+                                       "undeployed_hosts=%r" % (self.undeployed_hosts,) ]
 
     def ok(self):
         ok = super(Kadeployer, self).ok
         if self.ended:
-            if len(self.good_hosts.intersection(self.bad_hosts)) != 0:
+            if len(self.deployed_hosts.intersection(self.undeployed_hosts)) != 0:
                 ok = False
-            if len(self.good_hosts.union(self.bad_hosts).symmetric_difference(self._fhosts)) != 0:
+            if len(self.deployed_hosts.union(self.undeployed_hosts).symmetric_difference(self._fhosts)) != 0:
                 ok = False
         return ok
 
@@ -309,7 +309,7 @@ def kadeploy(deployment, frontend_connection_params = None, timeout = None, out 
             logoutput += style.emph("stdout:") + "\n%s\n" % (p.stdout)
             logoutput += style.emph("stderr:") + "\n%s\n" % (p.stderr)
         logger.error(logoutput)
-    return (kadeployer.good_hosts, kadeployer.bad_hosts)
+    return (kadeployer.deployed_hosts, kadeployer.undeployed_hosts)
 
 def deploy(deployment,
            check_deployed_command = True,
