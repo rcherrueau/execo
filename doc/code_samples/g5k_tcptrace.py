@@ -48,7 +48,7 @@ if len(deployed) >= 2:
     logger.info("run tcp traffic analysis")
     tcptrace.run()
 
-    logger.info("stdout of senders:\n" + [ str(p.host) + ":\n" + p.stdout for p in send.processes ])
+    logger.info("stdout of senders:\n" + "\n".join([ p.host.address + ":\n" + p.stdout for p in send.processes ]))
     logger.info("summary:\n" + Report([conf_nodes, receive, send, capture, tcptrace]).to_string())
 else:
     logger.info("not enough deployed nodes")
