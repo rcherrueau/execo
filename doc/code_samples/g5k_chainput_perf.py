@@ -1,16 +1,18 @@
 from execo import *
 from execo_g5k import *
 
-planning = get_planning()
-slots = compute_slots(planning, 60*15)
+logger.info("compute resources to reserve")
+slots = compute_slots(get_planning(), 60*15)
 wanted = { "grid5000": 0 }
 start_date, end_date, resources = find_first_slot(slots, wanted)
 actual_resources = distribute_hosts(resources, wanted)
 job_specs = get_jobs_specs(actual_resources)
+logger.info("try to reserve " + str(actual_resources))
 jobid, sshkey = oargridsub(job_specs, start_date,
                            walltime = end_date - start_date)
 if jobid:
     try:
+        logger.info("generate random data")
         Process("dd if=/dev/urandom of=randomdata bs=1M count=50").run()
         logger.info("wait job start")
         wait_oargrid_job_start(jobid)

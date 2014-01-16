@@ -1,15 +1,20 @@
 from execo import *
 from execo_g5k import *
 
+logger.info("get currently running oar jobs")
 jobs = get_current_oar_jobs(get_g5k_sites())
-running_jobs = [job for job in jobs if get_oar_job_info(*job).get("state") == "Running" ]
+running_jobs = [ job for job in jobs if get_oar_job_info(*job).get("state") == "Running" ]
+logger.info("currently running oar jobs " + str(running_jobs))
+logger.info("get job nodes")
 nodes = [ job_nodes for job in running_jobs for job_nodes in get_oar_job_nodes(*job) ]
+logger.info("deploying %i nodes" % (len(nodes),))
 deployed, undeployed = deploy(Deployment(nodes, env_name = "wheezy-x64-min"))
+logger.info("%i deployed, %i undeployed" % (len(deployed), len(undeployed)))
 if len(deployed) >= 2:
     sources = list(deployed)[0:1]
     dests = list(deployed)[1:2]
     conn_params = {'user': 'root'}
-    install_tcptrace = Remote(
+    conf_nodes = Remote(
         "apt-get update ; apt-get -y install netcat-traditional tcpdump tcptrace",
         sources + dests, conn_params)
     send = Remote(
@@ -29,15 +34,21 @@ if len(deployed) >= 2:
     tcptrace = execo.Remote("tcptrace -Grlo1 /tmp/tmp.pcap", sources, conn_params)
     for p in tcptrace.processes: p.stdout_handlers.append("tcptrace.out")
 
-    install_tcptrace.run()
+    logger.info("configure nodes")
+    conf_nodes.run()
+    logger.info("start tcp receivers")
     receive.start()
+    logger.info("start network captures")
     capture.start()
+    logger.info("run tcp senders")
     send.run()
     receive.wait()
+    logger.info("stop network capture")
     capture.kill().wait()
+    logger.info("run tcp traffic analysis")
     tcptrace.run()
 
-    print "stdout of senders:"
-    for p in send.processes: print p.stdout
-    print "summary report:"
-    print Report([install_tcptrace, receive, send, capture, tcptrace]).to_string()
+    logger.info("stdout of senders:\n" + [ str(p.host) + ":\n" + p.stdout for p in send.processes ])
+    logger.info("summary:\n" + Report([conf_nodes, receive, send, capture, tcptrace]).to_string())
+else:
+    logger.info("not enough deployed nodes")

@@ -1,6 +1,7 @@
 from execo import *
 from execo_g5k import *
 
+logger.info("compute resources to reserve")
 blacklisted = [ "graphite", "reims", "helios-6.sophia.grid5000.fr",
    "helios-42.sophia.grid5000.fr", "helios-44.sophia.grid5000.fr",
    "sol-21.sophia.grid5000.fr", "suno-3.sophia.grid5000.fr" ]
@@ -11,13 +12,18 @@ start_date, end_date, resources = find_first_slot(slots, wanted)
 actual_resources = { cluster: 1
                      for cluster, n_nodes in resources.iteritems()
                      if cluster in get_g5k_clusters() and n_nodes > 0 }
+logger.info("try to reserve " + str(actual_resources))
 job_specs = get_jobs_specs(actual_resources, blacklisted)
 jobid, sshkey = oargridsub(job_specs, start_date,
                            walltime = end_date - start_date)
 if jobid:
     try:
+        logger.info("wait job start")
         wait_oargrid_job_start(jobid)
+        logger.info("get job nodes")
         nodes = get_oargrid_job_nodes(jobid)
+        logger.info("got %i nodes" % (len(nodes),))
+        logger.info("run cpu performance settings check")
         check = TaktukRemote('cat $(find /sys/devices/system/cpu/ '
                              '-name scaling_governor) ; '
                              'find /sys/devices/system/cpu '
@@ -31,4 +37,7 @@ if jobid:
             p.stdout_handlers.append("%s.out" % (p.host.address,))
         check.run()
     finally:
+        logger.info("deleting job")
         oargriddel([jobid])
+else:
+    logger.info("job submission failed")
