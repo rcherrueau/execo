@@ -41,6 +41,16 @@ for other shells)::
 You can put this line in your ``~/.profile`` to have your environment
 setup automatically in all shells.
 
+Configuration
+=============
+
+Execo reads configuration file ``~/.execo.conf.py``. A sample
+configuration file ``execo.conf.py.sample`` is created in execo source
+package directory when execo is built. This file can be used as a
+canvas to overide some particular configuration variables. See
+detailed documentation in :ref:`execo-configuration` and
+:ref:`execo_g5k-perfect_configuration`.
+
 execo
 =====
 
@@ -267,45 +277,10 @@ oarsub example
 Run iperf servers on a group of 4 hosts on one cluster, and iperf
 clients on a group of 4 hosts on another cluster. Each client targets
 a different server. We get nodes with an OAR submissions, and delete
-the OAR job afterwards::
+the OAR job afterwards:
 
- from execo import *
- from execo_g5k import *
- import itertools
- jobs = oarsub([
-   ( OarSubmission(resources = "/cluster=2/nodes=4"), "nancy")
- ])
- if jobs[0][0]:
-     try:
-         nodes = []
-         wait_oar_job_start(jobs[0][0], jobs[0][1])
-         nodes = get_oar_job_nodes(jobs[0][0], jobs[0][1])
-         # group nodes by cluster
-         sources, targets = [ list(n) for c, n in itertools.groupby(
-           sorted(nodes,
-                  lambda n1, n2: cmp(
-                    get_host_cluster(n1),
-                    get_host_cluster(n2))),
-           get_host_cluster) ]
-         servers = Remote("iperf -s",
-                          targets,
-                          connection_params = default_oarsh_oarcp_params)
-         for p in servers.processes:
-             p.ignore_exit_code = p.nolog_exit_code = True
-         clients = Remote("iperf -c {{[t.address for t in targets]}}",
-                          sources,
-                          connection_params = default_oarsh_oarcp_params)
-         servers.start()
-         sleep(1)
-         clients.run()
-         servers.kill().wait()
-         print Report([ servers, clients ]).to_string()
-         for index, p in enumerate(clients.processes):
-             print "client %s -> server %s - stdout:" % (p.host.address,
-                                                         targets[index].address)
-             print p.stdout
-     finally:
-         oardel([(jobs[0][0], jobs[0][1])])
+.. literalinclude:: code_samples/g5k_iperf.py
+   :language: python
 
 This example shows how python try / finally construct can be used to
 make sure reserved resources are always released at the end of the
@@ -345,59 +320,27 @@ If ssh proxycommand and execo configuration are configured as
 described in :ref:`tutorial-configuration`, this example can be run
 from outside grid5000.
 
-More advanced usages
+Other usage examples
 ====================
 
-grid5000 planning
------------------
+Check CPU performance settings of each Grid5000 clusters
+--------------------------------------------------------
 
 In this example, the planning module is used to automatically compute
 how many resources we can get on Grid5000.
 
-Here, we simply ask for the maximum number of Grid5000 nodes that we
-can get right now for a 10 minutes job, we then perform the
-reservation with oargrid, wait the job start and retrieve the list of
-nodes. Then, we connect with a TaktukRemote (similar as a Remote, but
-using Taktuk under the hood, for scaling to huge number of remote
-nodes) and remotely execute shell commands to get the current cpufreq
-governor for each core, as well as the hyperthreading activation
-state. To each remote process, a stdout_handler is added which directs
-its stdout to a file on localhost, the filename being <nodename>.out::
+This code reserves one node on each grid5000 cluster immediately
+available, for a 10 minutes job. Then it waits for the job start and
+retrieves the list of nodes. Then, we connect with a TaktukRemote
+(similar as a Remote, but using Taktuk under the hood, for scaling to
+huge number of remote nodes) and remotely execute shell commands to
+get the current cpufreq governor for each core, as well as the
+hyperthreading activation state. To each remote process, a
+stdout_handler is added which directs its stdout to a file on
+localhost, the filename being <nodename>.out:
 
- from execo import *
- from execo_g5k import *
-
- blacklisted = [ "graphite", "reims", "helios-6.sophia.grid5000.fr",
-    "helios-42.sophia.grid5000.fr", "helios-44.sophia.grid5000.fr",
-    "sol-21.sophia.grid5000.fr", "suno-3.sophia.grid5000.fr" ]
-
- planning = get_planning()
- slots = compute_slots(planning, 60*10, blacklisted)
- wanted = { "grid5000": 0 }
- start_date, end_date, resources = find_first_slot(slots, wanted)
- actual_resources = distribute_hosts(resources, wanted, blacklisted)
- job_specs = get_jobs_specs(actual_resources, blacklisted)
- jobid, sshkey = oargridsub(job_specs, start_date,
-                            walltime = end_date - start_date)
- if jobid:
-     try:
-         wait_oargrid_job_start(jobid)
-         nodes = get_oargrid_job_nodes(jobid)
-
-         check = TaktukRemote('cat $(find /sys/devices/system/cpu/ '
-                              '-name scaling_governor) ; '
-                              'find /sys/devices/system/cpu '
-                              '-name thread_siblings_list -exec cat {} \; '
-                              '| grep , >/dev/null '
-                              '&& echo "hyperthreading on" '
-                              '|| echo "hyperthreading off"',
-                              nodes,
-                              connection_params = default_oarsh_oarcp_params)
-         for p in check.processes:
-             p.stdout_handlers.append("%s.out" % (p.host.address,))
-         check.run()
-     finally:
-         oargriddel([jobid])
+.. literalinclude:: code_samples/g5k_check_cluster_cpu.py
+   :language: python
 
 After running this code, you get in the current directory on localhost
 a file for each remote hosts containing the scaling governor and
@@ -419,67 +362,46 @@ inside Grid5000.
 The planning module has several possibilities and modes, see its
 documentation for further reference.
 
-ChainPut
---------
+Compare ChainPut and parallel scp performances on many hosts on Grid5000
+------------------------------------------------------------------------
 
 The following example shows how to use the `execo.action.ChainPut`
-class to perform optimized transfers of big files to many hosts. As in
-the previous example, let's reserve the maximum number of nodes
-immediately available on grid5000 for 10 minutes, and broadcast a
-generated random file of 50MB to all hosts both with parallel ``scp``
-and with ChainPut, to compare the performances. As the parallel scp
-can be very resource hungry with a lot of remote hosts, you should run
-this code from a compute node, not the frontend (simply connect to a
-node with ``oarsub -I``)::
+class to perform optimized transfers of big files to many hosts. It
+reserves the maximum number of nodes immediately available on grid5000
+for 15 minutes, and broadcasts a generated random file of 50MB to all
+hosts both with parallel ``scp`` and with ChainPut, to compare the
+performances. As the parallel scp can be very resource hungry with a
+lot of remote hosts, you should run this code from a compute node, not
+the frontend (simply connect to a node with ``oarsub -I``):
 
- from execo import *
- from execo_g5k import *
+.. literalinclude:: code_samples/g5k_chainput_perf.py
+   :language: python
 
- planning = get_planning()
- slots = compute_slots(planning, 60*15)
- wanted = { "grid5000": 0 }
- start_date, end_date, resources = find_first_slot(slots, wanted)
- actual_resources = distribute_hosts(resources, wanted)
- job_specs = get_jobs_specs(actual_resources)
- jobid, sshkey = oargridsub(job_specs, start_date,
-                            walltime = end_date - start_date)
- if jobid:
-     try:
-         Process("dd if=/dev/urandom of=randomdata bs=1M count=50").run()
-         logger.info("wait job start")
-         wait_oargrid_job_start(jobid)
-         logger.info("get job nodes")
-         nodes = get_oargrid_job_nodes(jobid)
-         logger.info("got %i nodes" % (len(nodes),))
-         broadcast1 = ChainPut(nodes, ["randomdata"], "/tmp/",
-                               connection_params = default_oarsh_oarcp_params)
-         broadcast2 = Put(nodes, ["randomdata"], "/tmp/",
-                          connection_params = default_oarsh_oarcp_params)
-         logger.info("run chainput")
-         broadcast1.run()
-         logger.info("run parallel scp")
-         broadcast2.run()
-         logger.info("summary:\n" + Report([broadcast1, broadcast2]).to_string())
-     finally:
-         logger.info("deleting job")
-         oargriddel([jobid])
- else:
-     logger.info("job submission failed")
+Analysis of TCP traffic Grid5000 hosts, using kadeploy
+------------------------------------------------------
+
+This example does not reserve the resources, instead it find all
+currently running jobs, and tries to deploy to all nodes. It then
+selects 2 nodes, connect to them as root, installs some packages, runs
+tcp transfer between them, while, at the same time capturing the
+network traffic, and finally it runs ``tcptrace`` on the captured
+traffic:
+
+.. literalinclude:: code_samples/g5k_tcptrace.py
+   :language: python
+
+This example shows that using the `execo_g5k.deploy.deploy` function, nodes are not re
+
+More advanced usages
+====================
 
 .. _tutorial-configuration:
 
-Configuration of execo, execo_g5k
----------------------------------
+Use execo from outside Grid5000
+-------------------------------
 
-Execo reads configuration file ``~/.execo.conf.py``. A sample
-configuration file ``execo.conf.py.sample`` is created in execo source
-package directory when execo is built. This file can be used as a
-canvas to overide some particular configuration variables. See
-detailed documentation in :ref:`execo-configuration` and
-:ref:`execo_g5k-perfect_configuration`.
-
-For example, if you use ssh with a proxycommand to connect directly to
-grid5000 servers or nodes from outside, as described in
+If you use ssh with a proxycommand to connect directly to grid5000
+servers or nodes from outside, as described in
 https://www.grid5000.fr/mediawiki/index.php/SSH#Using_SSH_with_ssh_proxycommand_setup_to_access_hosts_inside_Grid.275000
 the following configuration will allow to connect to grid5000 with
 execo from outside. Note that
@@ -506,6 +428,10 @@ connect to the nodes from outside::
  default_connection_params = {'host_rewrite_func': host_rewrite_func}
  default_frontend_connection_params = {'host_rewrite_func': frontend_rewrite_func}
 
+Bypass ``oarsh`` / ``oarcp``
+----------------------------
+::
+
  default_oarsh_oarcp_params = {
      'user':        "oar",
      'keyfile':     "path/to/ssh/key/outside/grid5000",
@@ -516,10 +442,9 @@ connect to the nodes from outside::
      'host_rewrite_func': host_rewrite_func,
      }
 
-Note also that configuring default_oarsh_oarcp_params to bypass
-oarsh/oarcp and directly connect to port 6667 will save you from many
-problems such as high number of open pty as well as impossibility to
-kill oarsh / oarcp processes (due to it running sudoed)
+by directly connect to port 6667, it will save you from many problems
+such as high number of open pty as well as impossibility to kill oarsh
+/ oarcp processes (due to it running sudoed)
 
 Processes and actions factories
 -------------------------------
