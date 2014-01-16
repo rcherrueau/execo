@@ -344,6 +344,7 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
     code of funk https://github.com/lpouillo/Funk)
     """
     jobs_specs = []
+    if excluded_elements == None: excluded_elements = []
 
     # Creating the list of sites used
     sites = []
@@ -352,7 +353,7 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         if resource in get_g5k_sites() and not resource in sites:
             sites.append(resource)
         if resource in get_g5k_clusters():
-            if excluded_elements == None or resource not in excluded_elements:
+            if resource not in excluded_elements:
                 site = get_cluster_site(resource)
                 if not site in sites:
                     sites.append(site)
@@ -372,14 +373,13 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                 break
 
     blacklisted_hosts = {}
-    if excluded_elements is not None:
-        for element in excluded_elements:
-            if element not in get_g5k_clusters()+get_g5k_sites():
-                site = get_host_site(element)
-                if not blacklisted_hosts.has_key(site):
-                    blacklisted_hosts[site] = [element]
-                else:
-                    blacklisted_hosts[site].append( element )
+    for element in excluded_elements:
+        if element not in get_g5k_clusters()+get_g5k_sites():
+            site = get_host_site(element)
+            if not blacklisted_hosts.has_key(site):
+                blacklisted_hosts[site] = [element]
+            else:
+                blacklisted_hosts[site].append( element )
 
     for site in sites:
         sub_resources = ''
@@ -445,6 +445,7 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
     :param resources_wanted: a dict defining the resources available you really want
 
     :param excluded_elements: a list of elements that won't be used"""
+    if excluded_elements == None: excluded_elements = []
     resources = {}
     #Defining the cluster you want
     clusters_wanted = {}
@@ -457,12 +458,11 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
         resources[cluster] = nodes
 
     # Blacklisting clusters
-    if excluded_elements:
-        for element in excluded_elements:
-            if element in get_g5k_clusters() and element in resources_available:
-                resources_available['grid5000'] -= resources_available[element]
-                resources_available[get_cluster_site(element)] -= resources_available[element]
-                resources_available[element] = 0
+    for element in excluded_elements:
+        if element in get_g5k_clusters() and element in resources_available:
+            resources_available['grid5000'] -= resources_available[element]
+            resources_available[get_cluster_site(element)] -= resources_available[element]
+            resources_available[element] = 0
 
     #Defining the sites you want
     sites_wanted = {}
@@ -473,11 +473,10 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
         resources[site] = n_nodes if n_nodes > 0 else resources_available[site]
 
     # Blacklisting sites
-    if excluded_elements:
-        for element in excluded_elements:
-            if element in get_g5k_sites() and element in resources_available:
-                resources_available['grid5000'] -= resources_available[element]
-                resources_available[element] = 0
+    for element in excluded_elements:
+        if element in get_g5k_sites() and element in resources_available:
+            resources_available['grid5000'] -= resources_available[element]
+            resources_available[element] = 0
 
     #Distributing hosts on grid5000 elements
     if resources_wanted.has_key('grid5000'):
