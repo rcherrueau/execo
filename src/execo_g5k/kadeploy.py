@@ -269,6 +269,7 @@ class Kadeployer(Remote):
                                        "deployed_hosts=%r" % (self.deployed_hosts,),
                                        "undeployed_hosts=%r" % (self.undeployed_hosts,) ]
 
+    @property
     def ok(self):
         ok = super(Kadeployer, self).ok
         if self.ended:
