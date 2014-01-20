@@ -24,10 +24,10 @@ from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, nice_cmdline, intr_cond_wait
+from utils import compact_output, nice_cmdline, intr_cond_wait, format_exc
 from report import Report
 import errno, os, re, shlex, signal, subprocess
-import threading, time, pipes, sys, traceback
+import threading, time, pipes
 
 class ProcessLifecycleHandler(object):
 
@@ -339,11 +339,8 @@ class ProcessBase(object):
                         self._stdout_files[handler].close()
                         del self._stdout_files[handler]
             except Exception, e:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
                 logger.error("process stdout handler %s raised exception for process %s:\n%s" % (
-                        handler,
-                        self,
-                        "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))))
+                        handler, self, format_exc()))
 
     def _handle_stderr(self, string, eof, error):
         """Handle stderr activity.
@@ -375,11 +372,8 @@ class ProcessBase(object):
                         self._stderr_files[handler].close()
                         del self._stderr_files[handler]
             except Exception, e:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
                 logger.error("process stderr handler %s raised exception for process %s:\n%s" % (
-                        handler,
-                        self,
-                        "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))))
+                        handler, self, format_exc()))
 
     @property
     def ok(self):
@@ -451,7 +445,8 @@ class ProcessBase(object):
             try:
                 handler.reset(self)
             except Exception, e:
-                logger.error("process lifecycle handler %s reset raised exception %s for process %s" % (handler, e, self))
+                logger.error("process lifecycle handler %s reset raised exception for process %s:\n%s" % (
+                        handler, self, format_exc()))
         with self._lock:
             self._common_reset()
         return self
@@ -678,7 +673,8 @@ class Process(ProcessBase):
             try:
                 handler.start(self)
             except Exception, e:
-                logger.error("process lifecycle handler %s start raised exception %s for process %s" % (handler, e, self))
+                logger.error("process lifecycle handler %s start raised exception for process %s:\n%s" % (
+                        handler, self, format_exc()))
         try:
             if self.pty:
                 self.process = subprocess.Popen(self._actual_cmd(),
@@ -709,7 +705,8 @@ class Process(ProcessBase):
                 try:
                     handler.end(self)
                 except Exception, e:
-                    logger.error("process lifecycle handler %s end raised exception %s for process %s" % (handler, e, self))
+                    logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
+                        handler, self, format_exc()))
 
     def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
@@ -844,7 +841,8 @@ class Process(ProcessBase):
             try:
                 handler.end(self)
             except Exception, e:
-                logger.error("process lifecycle handler %s end raised exception %s for process %s" % (handler, e, self))
+                logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
+                        handler, self, format_exc()))
 
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
@@ -958,7 +956,8 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             try:
                 handler.start(self)
             except Exception, e:
-                logger.error("process lifecycle handler %s start raised exception %s for process %s" % (handler, e, self))
+                logger.error("process lifecycle handler %s start raised exception for process %s:\n%s" % (
+                        handler, self, format_exc()))
         return self
 
     def _set_terminated(self, exit_code = None, error = False, error_reason = None, timeouted = None, forced_kill = None):
@@ -998,7 +997,8 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             try:
                 handler.end(self)
             except Exception, e:
-                logger.error("process lifecycle handler %s end raised exception %s for process %s" % (handler, e, self))
+                logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
+                        handler, self, format_exc()))
 
 def get_process(*args, **kwargs):
     """Instanciates a `execo.process.Process` or `execo.process.SshProcess`, depending on the existence of host keyword argument"""

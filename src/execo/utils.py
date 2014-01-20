@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration
-import pipes, subprocess, os, time
+import pipes, subprocess, os, time, sys, traceback
 
 def comma_join(*args):
     return ", ".join([ arg for arg in args if len(arg) > 0 ])
@@ -98,3 +98,7 @@ def intr_cond_wait(cond, timeout = None):
     """
     t = checked_min(configuration['intr_period'], timeout)
     return cond.wait(float(t) if t else None)
+
+def format_exc():
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    return "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))

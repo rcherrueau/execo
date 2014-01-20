@@ -26,7 +26,7 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import nice_cmdline, find_exe, intr_cond_wait, intr_event_wait
+from utils import nice_cmdline, find_exe, intr_cond_wait, intr_event_wait, format_exc
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
 import threading, time, pipes, tempfile, os, shutil
@@ -150,7 +150,8 @@ class Action(object):
                 try:
                     handler.end(self)
                 except Exception, e:
-                    logger.error("action lifecycle handler %s end raised exception %s for action %s" % (handler, e, self))
+                    logger.error("action lifecycle handler %s end raised exception for action %s:\n%s" % (
+                            handler, self, format_exc()))
             self.ended = True
             self._end_event.set()
             Action._wait_multiple_actions_condition.notifyAll()
@@ -170,7 +171,8 @@ class Action(object):
             try:
                 handler.start(self)
             except Exception, e:
-                logger.error("action lifecycle handler %s start raised exception %s for action %s" % (handler, e, self))
+                logger.error("action lifecycle handler %s start raised exception for action %s:\n%s" % (
+                        handler, self, format_exc()))
         return self
 
     def kill(self):
@@ -215,7 +217,8 @@ class Action(object):
             try:
                 handler.reset(self)
             except Exception, e:
-                logger.error("action lifecycle handler %s reset raised exception %s for action %s" % (handler, e, self))
+                logger.error("action lifecycle handler %s reset raised exception for action %s:\n%s" % (
+                        handler, self, format_exc()))
         self._common_reset()
         return self
 
