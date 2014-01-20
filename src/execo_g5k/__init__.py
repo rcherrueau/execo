@@ -30,7 +30,7 @@ from oargrid import oargridsub, oargriddel, \
     get_oargrid_job_oar_jobs, wait_oargrid_job_start, \
     get_oargrid_job_nodes, get_oargrid_job_key
 
-from kadeploy import Deployment, Kadeployer, kadeploy, deploy
+from kadeploy import Deployment, Kadeployer, deploy
 
 from utils import get_kavlan_host_name
 
