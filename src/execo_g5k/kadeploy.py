@@ -265,9 +265,8 @@ class Kadeployer(Remote):
         return kwargs
 
     def _infos(self):
-        return Remote._infos(self) + [ "cmds=%r" % ([ process.cmd for process in self.processes],),
-                                       "deployed_hosts=%r" % (self.deployed_hosts,),
-                                       "undeployed_hosts=%r" % (self.undeployed_hosts,) ]
+        return Remote._infos(self) + [ "total/deployed/undeployed = %i/%i/%i" % (
+                len(self._unique_hosts), len(self.deployed_hosts), len(self.undeployed_hosts),) ]
 
     @property
     def ok(self):
