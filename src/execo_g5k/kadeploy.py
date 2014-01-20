@@ -24,7 +24,7 @@ from execo.host import get_hosts_set, Host
 from execo.log import style, logger
 from execo.process import ProcessOutputHandler, get_process
 from execo.time_utils import format_seconds
-from execo.utils import comma_join
+from execo.utils import comma_join, compact_output
 from execo_g5k.config import default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host, get_kavlan_host_name
 from utils import get_default_frontend
@@ -132,11 +132,13 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
             if so != None:
                 host_address = so.group(1)
                 self.kadeployer.deployed_hosts.add(host_address)
+                self.kadeployer._frontend_processes[process]["deployed_hosts"].add(host_address)
         elif self._current_section == self._SECTION_UNDEPLOYED_NODES:
             so = _ksoh_undeployed_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
                 self.kadeployer.undeployed_hosts.add(host_address)
+                self.kadeployer._frontend_processes[process]["undeployed_hosts"].add(host_address)
 
 class _KadeployStderrHandler(ProcessOutputHandler):
 
@@ -223,13 +225,14 @@ class Kadeployer(Remote):
         self.timeout = None
         """Deployment timeout"""
         self._init_processes()
-        self.name = "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._fhosts), len(self.processes))
+        self.name = "%s on %i hosts / %i frontends" % (self.__class__.__name__, len(self._unique_hosts), len(self.processes))
 
     def _init_processes(self):
         self.processes = []
-        self._fhosts = get_hosts_set(self.deployment.hosts)
+        self._frontend_processes = {}
+        self._unique_hosts = get_hosts_set(self.deployment.hosts)
         frontends = dict()
-        for host in self._fhosts:
+        for host in self._unique_hosts:
             frontend = _get_host_frontend(host)
             if frontends.has_key(frontend):
                 frontends[frontend].append(host)
@@ -252,11 +255,48 @@ class Kadeployer(Remote):
             p.stderr_handlers.append(kdstderrhandler)
             p.lifecycle_handlers.append(lifecycle_handler)
             self.processes.append(p)
+            self._frontend_processes[p] = {}
+            self._frontend_processes[p]["frontend"] = frontend
+            self._frontend_processes[p]["hosts"] = [host.address for host in frontends[frontend]]
+            self._frontend_processes[p]["deployed_hosts"] = set()
+            self._frontend_processes[p]["undeployed_hosts"] = set()
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()
         self.deployed_hosts = set()
         self.undeployed_hosts = set()
+
+
+    def _check_ok(self, log):
+        ok = True
+        error_logs = []
+        warn_logs = []
+        for fprocess, hosts_lists in self._frontend_processes.iteritems():
+            if ( len(hosts_lists["deployed_hosts"].intersection(hosts_lists["undeployed_hosts"])) != 0
+                 or len(hosts_lists["deployed_hosts"].union(hosts_lists["undeployed_hosts"]).symmetric_difference(hosts_lists["hosts"])) != 0 ):
+                error_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i:\n%s\nstdout:\n%s\nstderr:\n%s" % (
+                        hosts_lists["frontend"], len(hosts_lists["hosts"]), len(hosts_lists["deployed_hosts"]), len(hosts_lists["undeployed_hosts"]),
+                        fprocess, compact_output(fprocess.stdout), compact_output(fprocess.stderr)))
+                ok = False
+            else:
+                if len(hosts_lists["deployed_hosts"]) == 0:
+                    warn_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i:\n%s\nstdout:\n%s\nstderr:\n%s" % (
+                            hosts_lists["frontend"], len(hosts_lists["hosts"]), len(hosts_lists["deployed_hosts"]), len(hosts_lists["undeployed_hosts"]),
+                            fprocess, compact_output(fprocess.stdout), compact_output(fprocess.stderr)))
+                    ok = False
+                elif len(hosts_lists["undeployed_hosts"]) > 0:
+                    warn_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i" % (
+                            hosts_lists["frontend"], len(hosts_lists["hosts"]), len(hosts_lists["deployed_hosts"]), len(hosts_lists["undeployed_hosts"])))
+        if log:
+            if len(warn_logs) > 0:
+                logger.warn(str(self) + ":\n" + "\n".join(warn_logs))
+            if len(error_logs) > 0:
+                logger.error(str(self) + ":\n" + "\n".join(error_logs))
+        return ok
+
+    def _notify_terminated(self):
+        self._check_ok(True)
+        super(Kadeployer, self)._notify_terminated()
 
     def _args(self):
         return [ repr(self.deployment) ] + Action._args(self) + Kadeployer._kwargs(self)
@@ -272,13 +312,7 @@ class Kadeployer(Remote):
 
     @property
     def ok(self):
-        ok = super(Kadeployer, self).ok
-        if self.ended:
-            if len(self.deployed_hosts.intersection(self.undeployed_hosts)) != 0:
-                ok = False
-            if len(self.deployed_hosts.union(self.undeployed_hosts).symmetric_difference(self._fhosts)) != 0:
-                ok = False
-        return ok
+        return (not self.ended or self._check_ok(False)) and super(Kadeployer, self).ok
 
 def kadeploy(deployment, frontend_connection_params = None, timeout = None, out = False):
     """Deploy hosts with kadeploy3.
