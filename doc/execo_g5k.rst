@@ -120,10 +120,12 @@ kadeploy. It allows:
   soon as you have sufficient resources for setting up your experiment
   topology.
 
-The `execo_g5k.kadeploy.Kadeployer` class derives from the
+Internally, `execo_g5k.kadeploy.deploy` uses class
+`execo_g5k.kadeploy.Kadeployer` which derives from the
 `execo.action.Action` class hierarchy, and offers no special
-cleverness, it wraps kadeploy3. But as it is an action, it allows
-asynchronous control of multiple deployments in parallel, if needed.
+cleverness, but handles simultaneous deployment to multiple sites. If
+needed it also allows asynchronous control of multiple deployments in
+parallel, if needed.
 
 Deployment
 ----------
@@ -136,10 +138,6 @@ Kadeployer
 .. autoclass:: execo_g5k.kadeploy.Kadeployer
    :members:
    :show-inheritance:
-
-kadeploy
---------
-.. autofunction:: execo_g5k.kadeploy.kadeploy
 
 deploy
 -------------------

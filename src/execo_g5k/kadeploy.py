@@ -314,32 +314,6 @@ class Kadeployer(Remote):
     def ok(self):
         return (not self.ended or self._check_ok(False)) and super(Kadeployer, self).ok
 
-def kadeploy(deployment, frontend_connection_params = None, timeout = None, out = False):
-    """Deploy hosts with kadeploy3.
-
-    :param deployment: instance of Deployment class describing the
-      intended kadeployment.
-
-    :param frontend_connection_params: connection params for connecting
-      to frontends if needed. Values override those in
-      `execo_g5k.config.default_frontend_connection_params`.
-
-    :param timeout: deployment timeout. None (which is the default
-      value) means no timeout.
-
-    :param out: if True, output kadeploy stdout / stderr to stdout.
-
-    Returns a tuple (iterable of `execo.host.Host` containing the
-    deployed host, iterable of `execo.host.Host` containing the nodes
-    not deployed).
-    """
-    kadeployer = Kadeployer(deployment,
-                            frontend_connection_params = frontend_connection_params)
-    kadeployer.timeout = timeout
-    kadeployer.out = out
-    kadeployer.run()
-    return (kadeployer.deployed_hosts, kadeployer.undeployed_hosts)
-
 def deploy(deployment,
            check_deployed_command = True,
            node_connection_params = {'user': 'root'},
@@ -463,7 +437,7 @@ def deploy(deployment,
     last_time = time.time()
     deploy_stats = list()   # contains tuples ( timestamp,
                             #                   num attempted deploys,
-                            #                   len(kadeploy_newly_deployed),
+                            #                   len(kadeployer.deployed_hosts),
                             #                   len(my_newly_deployed),
                             #                   len(deployed_hosts),
                             #                   len(undeployed_hosts )
@@ -474,19 +448,20 @@ def deploy(deployment,
         logger.debug(style.emph("try %i, deploying on:" % (num_tries_done,)) + " %s", undeployed_hosts)
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
-        kadeploy_newly_deployed, _ = kadeploy(tmp_deployment,
-                                              frontend_connection_params = frontend_connection_params,
-                                              out = out,
-                                              timeout = deploy_timeout)
+        kadeployer = Kadeployer(tmp_deployment,
+                                frontend_connection_params = frontend_connection_params)
+        kadeployer.out = out
+        kadeployer.timeout = deploy_timeout
+        kadeployer.run()
         my_newly_deployed = []
         if check_deployed_command:
             my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
             deployed_hosts.update(my_newly_deployed)
             undeployed_hosts.difference_update(my_newly_deployed)
         else:
-            deployed_hosts.update(kadeploy_newly_deployed)
-            undeployed_hosts.difference_update(kadeploy_newly_deployed)
-        logger.debug(style.emph("kadeploy reported newly deployed hosts:") + "   %s", kadeploy_newly_deployed)
+            deployed_hosts.update(kadeployer.deployed_hosts)
+            undeployed_hosts.difference_update(kadeployer.deployed_hosts)
+        logger.debug(style.emph("kadeploy reported newly deployed hosts:") + "   %s", kadeployer.deployed_hosts)
         logger.debug(style.emph("check reported newly deployed hosts:") + "   %s", my_newly_deployed)
         logger.debug(style.emph("all deployed hosts:") + "     %s", deployed_hosts)
         logger.debug(style.emph("still undeployed hosts:") + " %s", undeployed_hosts)
@@ -494,7 +469,7 @@ def deploy(deployment,
         last_time = time.time()
         deploy_stats.append((elapsed,
                              len(tmp_deployment.hosts),
-                             len(kadeploy_newly_deployed),
+                             len(kadeployer.deployed_hosts),
                              len(my_newly_deployed),
                              len(deployed_hosts),
                              len(undeployed_hosts)))

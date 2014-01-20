@@ -246,8 +246,6 @@ API to use Grid5000 services:
 
 - kadeploy3
 
-  - kadeploy: basic deployment
-
   - deploy: clever kadeploy: automatically avoids to deploy already
     deployed nodes, handles retries on top of kadeploy, callbacks to
     allow dynamically deciding when we have enough nodes (even for
