@@ -104,13 +104,14 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stdout."""
 
-    def __init__(self, kadeployer):
+    def __init__(self, kadeployer, frontend):
         """
         :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
           which this `execo.process.ProcessOutputHandler` is attached.
         """
         super(_KadeployStdoutHandler, self).__init__()
         self.kadeployer = kadeployer
+        self.frontend = frontend
         self._SECTION_NONE, self._SECTION_DEPLOYED_NODES, self._SECTION_UNDEPLOYED_NODES = range(3)
         self._current_section = self._SECTION_NONE
 
@@ -119,7 +120,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
 
     def read_line(self, process, string, eof, error):
         if self.kadeployer.out:
-            print string,
+            print str(self.frontend) + ": " + string,
         if _ksoh_deployed_nodes_header_re.search(string) != None:
             self._current_section = self._SECTION_DEPLOYED_NODES
             return
@@ -141,17 +142,18 @@ class _KadeployStderrHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stderr."""
 
-    def __init__(self, kadeployer):
+    def __init__(self, kadeployer, frontend):
         """
         :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
           which this `execo.process.ProcessOutputHandler` is attached.
         """
         super(_KadeployStderrHandler, self).__init__()
         self.kadeployer = kadeployer
+        self.frontend = frontend
 
     def read_line(self, process, string, eof, error):
         if self.kadeployer.out:
-            print string,
+            print str(self.frontend) + ": " + string,
 
 _host_site_re1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
 _host_site_re2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
@@ -244,9 +246,9 @@ class Kadeployer(Remote):
                                                                      default_frontend_connection_params))
             p.pty = True
             p.timeout = self.timeout
-            kdstdouthandler = _KadeployStdoutHandler(self)
+            kdstdouthandler = _KadeployStdoutHandler(self, frontend)
             p.stdout_handlers.append(kdstdouthandler)
-            kdstderrhandler = _KadeployStderrHandler(self)
+            kdstderrhandler = _KadeployStderrHandler(self, frontend)
             p.stderr_handlers.append(kdstderrhandler)
             p.lifecycle_handlers.append(lifecycle_handler)
             self.processes.append(p)
