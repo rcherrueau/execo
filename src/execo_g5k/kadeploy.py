@@ -401,7 +401,7 @@ def deploy(deployment,
                 deployment_hostnames_mapping[get_kavlan_host_name(host, vlan)] = host
         else:
             for host in undeployed_hosts:
-                deployment_hostnames_mapping[host.address] = host
+                deployment_hostnames_mapping[host] = host
         deployed_check = get_remote(check_deployed_command,
                                     deployment_hostnames_mapping.keys(),
                                     connection_params = node_connection_params)
