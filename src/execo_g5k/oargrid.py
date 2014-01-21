@@ -29,6 +29,9 @@ from oar import format_oar_date, format_oar_duration, _date_in_range, \
 import os
 import re
 
+def _quote_hack(rdef):
+    return rdef.replace('{', '{\\\\\\\\\\\\\\"').replace('}', '\\\\\\\\\\\\\\"}')
+
 def get_oargridsub_commandline(job_specs, reservation_date = None,
                                walltime = None, job_type = None,
                                queue = None, directory = None,
@@ -58,7 +61,7 @@ def get_oargridsub_commandline(job_specs, reservation_date = None,
             oargridsub_cmdline += ' '
         else:
             oargridsub_cmdline += ','
-        oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, spec.resources)
+        oargridsub_cmdline += '%s:rdef="%s"' % (clusteralias, _quote_hack(spec.resources))
         if spec.job_type != None:
             oargridsub_cmdline += ':type="%s"' % (spec.job_type,)
         if spec.sql_properties != None:

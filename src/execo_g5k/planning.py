@@ -393,8 +393,8 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                 sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
                 get_kavlan = False
 
-        base_sql = '{\\\\\\\\\\\\\\"'
-        end_sql = '\\\\\\\\\\\\\\\"}/'
+        base_sql = '{'
+        end_sql = '}/'
 
         # Creating blacklist SQL string for hosts
         host_blacklist = False
