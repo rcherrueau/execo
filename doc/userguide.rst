@@ -329,10 +329,8 @@ how many resources we can get on Grid5000.
 
 This code reserves one node on each grid5000 cluster immediately
 available, for a 10 minutes job. Then it waits for the job start and
-retrieves the list of nodes. Then, we connect with a TaktukRemote
-(similar as a Remote, but using Taktuk under the hood, for scaling to
-huge number of remote nodes) and remotely execute shell commands to
-get the current cpufreq governor for each core, as well as the
+retrieves the list of nodes. Then, it remotely executes shell commands
+to get the current cpufreq governor for each core, as well as the
 hyperthreading activation state. To each remote process, a
 stdout_handler is added which directs its stdout to a file on
 localhost, the filename being <nodename>.out:
@@ -359,6 +357,12 @@ inside Grid5000.
 
 The planning module has several possibilities and modes, see its
 documentation for further reference.
+
+.. admonition:: TODO
+
+                example with TaktukRemote (similar as a Remote, but
+                using Taktuk under the hood, for scaling to huge
+                number of remote nodes)
 
 Compare ChainPut and parallel scp performances on many hosts on Grid5000
 ------------------------------------------------------------------------
@@ -389,6 +393,10 @@ traffic:
    :language: python
 
 This example shows that using the `execo_g5k.deploy.deploy` function, nodes are not re
+
+.. admonition:: TODO
+
+                engine usage guide
 
 More advanced usages
 ====================

@@ -19,10 +19,12 @@ if jobid:
         logger.info("get job nodes")
         nodes = get_oargrid_job_nodes(jobid)
         logger.info("got %i nodes" % (len(nodes),))
+        conn_parms = default_oarsh_oarcp_params.copy()
+        conn_parms['keyfile'] = sshkey
         broadcast1 = ChainPut(nodes, ["randomdata"], "/tmp/",
-                              connection_params = default_oarsh_oarcp_params)
+                              connection_params = conn_parms)
         broadcast2 = Put(nodes, ["randomdata"], "/tmp/",
-                         connection_params = default_oarsh_oarcp_params)
+                         connection_params = conn_parms)
         logger.info("run chainput")
         broadcast1.run()
         logger.info("run parallel scp")

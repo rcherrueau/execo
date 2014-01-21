@@ -24,15 +24,17 @@ if jobid:
         nodes = get_oargrid_job_nodes(jobid)
         logger.info("got %i nodes" % (len(nodes),))
         logger.info("run cpu performance settings check")
-        check = TaktukRemote('cat $(find /sys/devices/system/cpu/ '
-                             '-name scaling_governor) ; '
-                             'find /sys/devices/system/cpu '
-                             '-name thread_siblings_list -exec cat {} \; '
-                             '| grep , >/dev/null '
-                             '&& echo "hyperthreading on" '
-                             '|| echo "hyperthreading off"',
-                             nodes,
-                             connection_params = default_oarsh_oarcp_params)
+        conn_parms = default_oarsh_oarcp_params.copy()
+        conn_parms['keyfile'] = sshkey
+        check = Remote('find /sys/devices/system/cpu/ '
+                       '-name scaling_governor -exec cat {} \; ; '
+                       'find /sys/devices/system/cpu '
+                       '-name thread_siblings_list -exec cat {} \; '
+                       '| grep , >/dev/null '
+                       '&& echo "hyperthreading on" '
+                       '|| echo "hyperthreading off"',
+                       nodes,
+                       connection_params = conn_parms)
         for p in check.processes:
             p.stdout_handlers.append("%s.out" % (p.host.address,))
         check.run()
