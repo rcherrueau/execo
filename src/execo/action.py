@@ -1460,7 +1460,7 @@ class _ChainPutCopy(ParallelActions):
 _execo_chainput = find_exe("execo-chainput")
 class ChainPut(SequentialActions):
 
-    """Broadcast local files to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from kastafior).
+    """Broadcast local files to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from `kastafior <https://gforge.inria.fr/plugins/scmgit/cgi-bin/gitweb.cgi?p=kadeploy3/kadeploy3.git;a=tree;f=addons/kastafior;h=e5472ce9e800c80d9f54d1097ebbcba77f8ccd7a;hb=3.1.7>`_).
 
     Each broadcast is performed with a chain copy (simultaneously:
     host0 sending to host1, host1 sending to host2, ... hostN to
