@@ -393,7 +393,7 @@ def deploy(deployment,
     if check_deployed_command == True:
         check_deployed_command = g5k_configuration.get('check_deployed_command')
 
-    def check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, vlan): #IGNORE:W0613
+    def check_update_deployed(undeployed_hosts, check_deployed_command, node_connection_params, vlan): #IGNORE:W0613
         logger.debug(style.emph("check which hosts are already deployed among:") + " %s", undeployed_hosts)
         deployment_hostnames_mapping = dict()
         if vlan:
@@ -429,7 +429,7 @@ def deploy(deployment,
     undeployed_hosts = get_hosts_set(deployment.hosts)
     my_newly_deployed = []
     if check_deployed_command:
-        my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
+        my_newly_deployed = check_update_deployed(undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
         deployed_hosts.update(my_newly_deployed)
         undeployed_hosts.difference_update(my_newly_deployed)
     num_tries_done = 0
@@ -455,7 +455,7 @@ def deploy(deployment,
         kadeployer.run()
         my_newly_deployed = []
         if check_deployed_command:
-            my_newly_deployed = check_update_deployed(deployed_hosts, undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
+            my_newly_deployed = check_update_deployed(undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
             deployed_hosts.update(my_newly_deployed)
             undeployed_hosts.difference_update(my_newly_deployed)
         else:
