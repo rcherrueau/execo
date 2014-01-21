@@ -386,7 +386,10 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
 
         #Adding a KaVLAN if needed
         if get_kavlan:
-            if site in resources['kavlan']:
+            if not 'global' in kavlan:
+                sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
+                get_kavlan = False
+            elif site in resources['kavlan']:
                 sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
                 get_kavlan = False
 
