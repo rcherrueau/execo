@@ -426,7 +426,7 @@ def deploy(deployment,
 
     start_time = time.time()
     deployed_hosts = set()
-    undeployed_hosts = get_hosts_set(deployment.hosts)
+    undeployed_hosts = set([ Host(host).address for host in deployment.hosts ])
     my_newly_deployed = []
     if check_deployed_command:
         my_newly_deployed = check_update_deployed(undeployed_hosts, check_deployed_command, node_connection_params, deployment.vlan)
