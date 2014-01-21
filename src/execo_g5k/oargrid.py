@@ -109,6 +109,15 @@ def oargridsub(job_specs, reservation_date = None,
 
     Returns a tuple (oargrid_job_id, ssh_key), or (None, None) if
     error.
+
+    Note that, as oargrid does not handle correctly quoting sql
+    clauses enclosed inside braces, this function tries to
+    automatically overcome this limitation by adding some, with the
+    right escaping (backslashes). Also, note that oargrid's command
+    line parser does not handle correctly commas in sql clauses
+    enclosed inside braces, as it considers it as a rdef
+    separator. This prevents, for example, using comma separated list
+    values for ``NOT IN`` clauses.
     """
     if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
