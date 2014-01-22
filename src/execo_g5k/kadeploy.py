@@ -95,8 +95,10 @@ class Deployment(object):
         if self.other_options: s = comma_join(s, "other_options=%r" % (self.other_options,))
         return "Deployment(%s)" % (s,)
 
-_ksoh_deployed_nodes_header_re = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
-_ksoh_undeployed_nodes_header_re = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
+_ksoh_deployed_nodes_header_re1 = re.compile("^Nodes correctly deployed on cluster \w+\s*$")
+_ksoh_undeployed_nodes_header_re1 = re.compile("^Nodes not correctly deployed on cluster \w+\s*$")
+_ksoh_deployed_nodes_header_re2 = re.compile("^The \w+ is successful on nodes$")
+_ksoh_undeployed_nodes_header_re2 = re.compile("^The \w+ failed on nodes$")
 _ksoh_deployed_node_re = re.compile("^(\S+)\s*$")
 _ksoh_undeployed_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
 
@@ -121,10 +123,12 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
     def read_line(self, process, string, eof, error):
         if self.kadeployer.out:
             print str(self.frontend) + ": " + string,
-        if _ksoh_deployed_nodes_header_re.search(string) != None:
+        if (_ksoh_deployed_nodes_header_re1.search(string) != None
+            or _ksoh_deployed_nodes_header_re2.search(string) != None):
             self._current_section = self._SECTION_DEPLOYED_NODES
             return
-        if _ksoh_undeployed_nodes_header_re.search(string) != None:
+        if (_ksoh_undeployed_nodes_header_re1.search(string) != None
+            or _ksoh_undeployed_nodes_header_re2.search(string) != None):
             self._current_section = self._SECTION_UNDEPLOYED_NODES
             return
         if self._current_section == self._SECTION_DEPLOYED_NODES:
@@ -133,12 +137,16 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
                 host_address = so.group(1)
                 self.kadeployer.deployed_hosts.add(host_address)
                 self.kadeployer._frontend_processes[process]["deployed_hosts"].add(host_address)
+            else:
+                self._current_section = self._SECTION_NONE
         elif self._current_section == self._SECTION_UNDEPLOYED_NODES:
             so = _ksoh_undeployed_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
                 self.kadeployer.undeployed_hosts.add(host_address)
                 self.kadeployer._frontend_processes[process]["undeployed_hosts"].add(host_address)
+            else:
+                self._current_section = self._SECTION_NONE
 
 class _KadeployStderrHandler(ProcessOutputHandler):
 
