@@ -377,10 +377,10 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         #Adding a KaVLAN if needed
         if get_kavlan:
             if not 'global' in kavlan:
-                sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
+                sub_resources="{type='"+kavlan+"'}/vlan=1+"
                 get_kavlan = False
             elif site in resources['kavlan']:
-                sub_resources="{type=\\'"+kavlan+"\\'}/vlan=1+"
+                sub_resources="{type='"+kavlan+"'}/vlan=1+"
                 get_kavlan = False
 
         base_sql = '{'
@@ -401,7 +401,7 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         for cluster in get_site_clusters(site):
             if cluster in resources:
                 if str_hosts == '':
-                    sub_resources += "{cluster=\\'"+cluster+"\\'}"
+                    sub_resources += "{cluster='"+cluster+"'}"
                 else:
                     sub_resources += base_sql+str_hosts+"cluster='"+cluster+"'"+end_sql
                 sub_resources += "/nodes="+str(resources[cluster])+'+'
