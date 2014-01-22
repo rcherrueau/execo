@@ -97,8 +97,8 @@ class Deployment(object):
 
 _ksoh_deployed_nodes_header_re1 = re.compile("^Nodes correctly deployed on cluster \w+\s*$")       # for kadeploy3 < 3.2
 _ksoh_undeployed_nodes_header_re1 = re.compile("^Nodes not correctly deployed on cluster \w+\s*$") # for kadeploy3 < 3.2
-_ksoh_deployed_nodes_header_re2 = re.compile("^The \w+ is successful on nodes$")                   # for kadeploy3 >= 3.2
-_ksoh_undeployed_nodes_header_re2 = re.compile("^The \w+ failed on nodes$")                        # for kadeploy3 >= 3.2
+_ksoh_deployed_nodes_header_re2 = re.compile("^The \w+ is successful on nodes\s*$")                # for kadeploy3 >= 3.2
+_ksoh_undeployed_nodes_header_re2 = re.compile("^The \w+ failed on nodes\s*$")                     # for kadeploy3 >= 3.2
 _ksoh_deployed_node_re = re.compile("^(\S+)\s*$")
 _ksoh_undeployed_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
 
