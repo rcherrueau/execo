@@ -32,8 +32,6 @@ from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_sit
 from threading import Thread, currentThread
 
 try:
-    import matplotlib as MPL
-    MPL.use('Agg')
     import matplotlib.pyplot as PLT
     import matplotlib.dates as MD
 except ImportError:
