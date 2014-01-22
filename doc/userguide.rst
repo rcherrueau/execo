@@ -48,7 +48,7 @@ Execo reads configuration file ``~/.execo.conf.py``. A sample
 configuration file ``execo.conf.py.sample`` is created in execo source
 package directory when execo is built. This file can be used as a
 canvas to overide some particular configuration variables. See
-detailed documentation in :ref:`execo-configuration` and
+detailed documentation in :ref:`execo-configuration`, :ref:`execo_g5k-configuration` and
 :ref:`execo_g5k-perfect_configuration`.
 
 execo
@@ -332,19 +332,33 @@ available, for a 10 minutes job. Then it waits for the job start and
 retrieves the list of nodes. Then, it remotely executes shell commands
 to get the current cpufreq governor for each core, as well as the
 hyperthreading activation state. To each remote process, a
-stdout_handler is added which directs its stdout to a file on
-localhost, the filename being <nodename>.out:
+stdout_handler is added which directs its stdout to a file called
+<nodename>.out on localhost:
 
 .. literalinclude:: code_samples/g5k_check_cluster_cpu.py
    :language: python
+
+This code shows:
+
+- how some clusters / sites or nodes can be blacklisted if needed.
+
+- how to use `execo_g5k.config.default_oarsh_oarcp_params` to connect
+  to reserved nodes with ``oarsh``. Explicitely setting the job key is
+  mandatory unless you set $OAR_JOB_KEY_FILE in your environnement, or
+  set `execo_g5k.config.g5k_configuration['oar_job_key_file']`, as
+  described in :ref:`execo_g5k-configuration` and
+  :ref:`execo_g5k-perfect_configuration`.
+
+- how to append a `execo.process.Process.stdout_handler` which
+  redirects output to a file.
+
+- how to take care of releasing the oargridjob with a try/finally
+  block.
 
 After running this code, you get in the current directory on localhost
 a file for each remote hosts containing the scaling governor and
 hyperthreading state (easy to check they are all the same with ``cat *
 | sort -u``)
-
-This code also shows how some clusters / sites or nodes can be
-blacklisted if needed.
 
 Note that with this kind of code, there is still the possibility that
 the oar or oargrid reservation fails, since oar is not transactional,
@@ -352,29 +366,62 @@ and someone can still reserve some resources between the moment we
 inquire the available resources and the moment we perform the
 reservation.
 
-Note also that as this example uses TaktukRemote, it must be run from
-inside Grid5000.
-
 The planning module has several possibilities and modes, see its
 documentation for further reference.
 
-.. admonition:: TODO
+Using Taktuk to scale to many remote hosts
+------------------------------------------
 
-                example with TaktukRemote (similar as a Remote, but
-                using Taktuk under the hood, for scaling to huge
-                number of remote nodes)
+This example shows how `execo.action.Remote` can be (almost)
+transparently changed to `execo.action.TaktukRemote` to scale to huge
+number of remote hosts. It uses the planning module, to try to reserve
+as much nodes as possible, immediately available for a 15 minutes
+job. It then opens as many ssh connexions to each host as the host's
+number or cpu cores, first using a `execo.action.TaktukRemote`, then
+using `execo.action.Remote`, to compare performances. In each remote
+connexion, it runs ``ping`` to send one ping packet to a another
+random host of the reservation.
+
+.. literalinclude:: code_samples/g5k_taktuk_perf.py
+   :language: python
+
+Actually, what happens when running this code is that since ``oarsh``
+allocates a pseudo-terminal for each connection, parallel oarsh
+quickly saturate the number of available pty (in our tests, it fails
+after approximately 330 remote hosts). By uncommenting the commented
+code section, one can increase this limit, by bypassing oarsh and
+directly connecting (without pty) to the oar dedicated ssh server, as
+user oar, on port 6667 (this dedicated ssh server on nodes then takes
+care of sudoing to the right user who made the reservation). By doing
+this (or alternatively, by using a job_type ``allow_classic_ssh``),
+the number of parallel ssh can be slightly raised to approximately
+500, but then the limit is the number of open file descriptors. Using
+`execo.action.TaktukRemote`, we can leverage the huge scalability of
+`Taktuk <http://taktuk.gforge.inria.fr/>`_ (we have tested with more
+than 5000 concurrent remote connections).
+
+One of the constraints imposed by ``Taktuk`` is that any node of the
+connection tree must be able to connect to any other. As the oargrid
+job key is only available on the frontend on which the oargrid
+submission was done, we must propagate this key to all nodes. This can
+be done with ``Taktuk`` option ``-S``. Alternatively, this is not
+needed if setting $OAR_JOB_KEY_FILE in your environnement, or setting
+`execo_g5k.config.g5k_configuration['oar_job_key_file']`, as described
+in :ref:`execo_g5k-configuration` and
+:ref:`execo_g5k-perfect_configuration`.
 
 Compare ChainPut and parallel scp performances on many hosts on Grid5000
 ------------------------------------------------------------------------
 
 The following example shows how to use the `execo.action.ChainPut`
-class to perform optimized transfers of big files to many hosts. It
-reserves the maximum number of nodes immediately available on grid5000
-for 15 minutes, and broadcasts a generated random file of 50MB to all
-hosts both with parallel ``scp`` and with ChainPut, to compare the
-performances. As the parallel scp can be very resource hungry with a
-lot of remote hosts, you should run this code from a compute node, not
-the frontend (simply connect to a node with ``oarsub -I``):
+class (which also internally uses Taktuk) to perform optimized
+transfers of big files to many hosts. It reserves the maximum number
+of nodes immediately available on grid5000 for 15 minutes, and
+broadcasts a generated random file of 50MB to all hosts both with
+parallel ``scp`` and with ChainPut, to compare the performances. As
+the parallel scp can be very resource hungry with a lot of remote
+hosts, you should run this code from a compute node, not the frontend
+(simply connect to a node with ``oarsub -I``):
 
 .. literalinclude:: code_samples/g5k_chainput_perf.py
    :language: python

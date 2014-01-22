@@ -265,6 +265,7 @@ Plot functions
 .. autofunction:: draw_gantt
 .. autofunction:: draw_slots
 
+.. _execo_g5k-configuration:
 
 Configuration
 =============
