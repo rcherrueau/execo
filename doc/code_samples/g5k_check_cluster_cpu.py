@@ -41,5 +41,3 @@ if jobid:
     finally:
         logger.info("deleting job")
         oargriddel([jobid])
-else:
-    logger.info("job submission failed")

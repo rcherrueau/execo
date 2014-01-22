@@ -344,12 +344,12 @@ This code shows:
 
 - how to use `execo_g5k.config.default_oarsh_oarcp_params` to connect
   to reserved nodes with ``oarsh``. Explicitely setting the job key is
-  mandatory unless you set $OAR_JOB_KEY_FILE in your environnement, or
-  set `execo_g5k.config.g5k_configuration['oar_job_key_file']`, as
+  mandatory unless you set ``$OAR_JOB_KEY_FILE`` in your
+  environnement, or set ``g5k_configuration['oar_job_key_file']``, as
   described in :ref:`execo_g5k-configuration` and
   :ref:`execo_g5k-perfect_configuration`.
 
-- how to append a `execo.process.Process.stdout_handler` which
+- how to append a `execo.process.Process` ``stdout_handler`` which
   redirects output to a file.
 
 - how to take care of releasing the oargridjob with a try/finally
@@ -405,9 +405,9 @@ connection tree must be able to connect to any other. As the oargrid
 job key is only available on the frontend on which the oargrid
 submission was done, we must propagate this key to all nodes. This can
 be done with ``Taktuk`` option ``-S``. Alternatively, this is not
-needed if setting $OAR_JOB_KEY_FILE in your environnement, or setting
-`execo_g5k.config.g5k_configuration['oar_job_key_file']`, as described
-in :ref:`execo_g5k-configuration` and
+needed if setting ``$OAR_JOB_KEY_FILE`` in your environnement, or
+setting ``g5k_configuration['oar_job_key_file']``, as described in
+:ref:`execo_g5k-configuration` and
 :ref:`execo_g5k-perfect_configuration`.
 
 Compare ChainPut and parallel scp performances on many hosts on Grid5000
