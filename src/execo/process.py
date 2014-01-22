@@ -666,8 +666,6 @@ class Process(ProcessBase):
             self.start_date = time.time()
             if self.timeout != None:
                 self.timeout_date = self.start_date + self.timeout
-            if self.pty:
-                (self._ptymaster, self._ptyslave) = openpty()
         logger.debug(style.emph("start: ") + str(self))
         for handler in self.lifecycle_handlers:
             try:
@@ -677,6 +675,7 @@ class Process(ProcessBase):
                         handler, self, format_exc()))
         try:
             if self.pty:
+                (self._ptymaster, self._ptyslave) = openpty()
                 self.process = subprocess.Popen(self._actual_cmd(),
                                                 stdin = self._ptyslave,
                                                 stdout = self._ptyslave,
