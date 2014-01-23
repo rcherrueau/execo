@@ -19,4 +19,4 @@
 
 from log import logger
 from engine import Engine
-from utils import HashableDict, slugify, sweep, ParamSweeper
+from utils import HashableDict, slugify, sweep, ParamSweeper, geom, igeom

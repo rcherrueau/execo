@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import threading, os, fcntl, unicodedata, re
+import threading, os, fcntl, unicodedata, re, math
 import cPickle as pickle
 from log import logger
 
@@ -46,6 +46,23 @@ def slugify(value):
     value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
     value = unicode(re.sub('[-\s]+', '-', value))
     return value
+
+def geom(range_min, range_max, num_steps):
+    """Return a geometric progression from range_min to range_max with num_steps"""
+    if num_steps == 0: return []
+    if num_steps == 1: return [float(range_min)]
+    return ([ float(range_min) ]
+            + [ float(range_min) * math.pow(math.pow(float(range_max) / float(range_min), 1.0 / (int(num_steps) - 1)), i)
+                for i in range(0, int(num_steps)) ][1:-1]
+            + [ float(range_max) ])
+
+def igeom(range_min, range_max, num_steps):
+    """Return an integer geometric progression from range_min to range_max with num_steps"""
+    if num_steps == 0: return []
+    if num_steps == 1: return [int(range_min)]
+    return sorted(set([ int(range_min) ]
+                      + [ int(round(x)) for x in geom(range_min, range_max, num_steps) ]
+                      + [ int(range_max) ]))
 
 def sweep(parameters):
 
