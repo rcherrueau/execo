@@ -23,7 +23,7 @@ from config import g5k_configuration, \
 
 from oar import OarSubmission, oarsub, oardel, get_current_oar_jobs, \
     get_oar_job_info, wait_oar_job_start, get_oar_job_nodes, \
-    get_oar_job_subnets, get_oar_job_kavlan
+    get_oar_job_subnets, get_oar_job_kavlan, oarsubgrid
 
 from oargrid import oargridsub, oargriddel, \
     get_current_oargrid_jobs, get_oargrid_job_info, \

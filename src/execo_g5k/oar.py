@@ -675,3 +675,43 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_p
                         # resource or when kavlan isn't available
     else:
         raise ProcessesFailed, [process]
+
+def oarsubgrid(job_specs, reservation_date = None,
+               walltime = None, job_type = None,
+               queue = None, directory = None,
+               additional_options = None,
+               frontend_connection_params = None,
+               timeout = False):
+    """Similar to `execo_g5k.oargrid.oargridsub`, but instead of performing an oargrid reservation, it performs parallel oar submissions.
+
+    The only difference for the user is that it returns a list of
+    tuples (oarjob id, frontend) (as `execo_g5k.oar.oarsub`) instead
+    of an oargrid job id. It should run faster (since oar submission
+    are performed in parallel instead of sequentially, and also
+    because it bypasses the oargrid layer). As with
+    `execo_g5k.oargrid.oargridsub`, all parameters reservation_date,
+    walltime, job_type, queue, directory, additional_options from
+    job_specs are ignored and replaced by the arguments passed. As for
+    oargridsub, all job submissions must succeed. If at least one job
+    submission fails, all other jobs are deleted, and it returns an
+    empty list.
+
+    for parameter details, see `execo_g5k.oargrid.oargridsub`.
+    """
+    for job in job_specs:
+        job[0].reservation_date = reservation_date
+        job[0].walltime = walltime
+        job[0].job_type = job_type
+        job[0].queue = queue
+        job[0].directory = directory
+        job[0].additional_options = additional_options
+    jobs = oarsub(job_specs, frontend_connection_params, timeout)
+    ok = True
+    for job in jobs:
+        if not job[0]:
+            ok = False
+    if not ok:
+        oardel([job for job in jobs if job[0]])
+        return []
+    else:
+        return jobs
