@@ -54,9 +54,9 @@ def sweep(parameters):
     The aim of this function is, given a list of experiment parameters
     (named factors), and for each parameter (factor), the list of
     their possible values (named levels), to generate the cartesian
-    product of all parameter values (called a full factorial design in
-    *The Art Of Computer Systems Performance Analysis, R. Jain, Wiley
-    1991*).
+    product of all parameter values, for a full factorial experimental
+    design (*The Art Of Computer Systems Performance Analysis,
+    R. Jain, Wiley 1991*).
 
     More formally: given a a dict associating factors as keys and the
     list of their possible levels as values, this function will return
