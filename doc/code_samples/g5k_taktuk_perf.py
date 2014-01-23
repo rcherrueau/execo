@@ -1,5 +1,6 @@
 from execo import *
 from execo_g5k import *
+from execo_g5k.oar import oargridsub_hack
 import itertools, random, tempfile, shutil
 
 logger.info("compute resources to reserve")
@@ -10,14 +11,16 @@ start_date, end_date, resources = find_first_slot(slots, wanted)
 actual_resources = distribute_hosts(resources, wanted, excluded_elements = blacklisted, ratio = 0.8)
 job_specs = get_jobs_specs(actual_resources, excluded_elements = blacklisted)
 logger.info("try to reserve " + str(actual_resources))
-jobid, sshkey = oargridsub(job_specs, start_date,
-                           walltime = end_date - start_date)
-if jobid:
+jobs = oarsubgrid(job_specs, start_date,
+                  walltime = end_date - start_date,
+                  job_type = "allow_classic_ssh")
+if len(jobs) > 0:
     try:
-        logger.info("wait job start")
-        wait_oargrid_job_start(jobid)
-        logger.info("get job nodes")
-        nodes = get_oargrid_job_nodes(jobid)
+        logger.info("wait jobs start")
+        for job in jobs: wait_oar_job_start(*job)
+        logger.info("get jobs nodes")
+        nodes = []
+        for job in jobs: nodes += get_oar_job_nodes(*job)
         logger.info("got %i nodes" % (len(nodes),))
         cores = []
         nodes = sorted(nodes, key=get_host_cluster)
@@ -26,25 +29,15 @@ if jobid:
             for node in cluster_nodes:
                 cores += [ node ] * num_cores
         logger.info("for a total of %i cores" % (len(cores),))
-        tmpsshkey = tempfile.mktemp()
-        shutil.copy2(sshkey, tmpsshkey)
-        conn_parms = default_oarsh_oarcp_params.copy()
-        # conn_parms = default_connection_params.copy()
-        # conn_parms['user'] = 'oar'
-        # conn_parms['port'] = 6667
-        conn_parms['taktuk_options'] = ( "-s", "-S", "%s:%s" % (tmpsshkey, tmpsshkey))
-        conn_parms['keyfile'] = tmpsshkey
         pingtargets = [ core.address for core in cores ]
         random.shuffle(pingtargets)
-        ping1 = TaktukRemote("ping -c 1 {{pingtargets}}", cores,
-                             connection_params = conn_parms)
-        ping2 = Remote("ping -c 1 {{pingtargets}}", cores,
-                       connection_params = conn_parms)
+        ping1 = TaktukRemote("ping -c 1 {{pingtargets}}", cores)
+        ping2 = Remote("ping -c 1 {{pingtargets}}", cores)
         logger.info("run taktukremote")
         ping1.run()
         logger.info("run remote (parallel ssh)")
         ping2.run()
         logger.info("summary:\n" + Report([ping1, ping2]).to_string())
     finally:
-        logger.info("deleting job")
-        oargriddel([jobid])
+        logger.info("deleting jobs")
+        oardel(jobs)

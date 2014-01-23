@@ -385,30 +385,22 @@ another random host of the reservation.
 .. literalinclude:: code_samples/g5k_taktuk_perf.py
    :language: python
 
-Actually, what happens when running this code is that since ``oarsh``
-allocates a pseudo-terminal for each connection, parallel oarsh
-quickly saturate the number of available pty (in our tests, it fails
-after approximately 330 remote hosts). By uncommenting the commented
-code section, one can increase this limit, by bypassing oarsh and
-directly connecting (without pty) to the oar dedicated ssh server, as
-user oar, on port 6667 (this dedicated ssh server on nodes then takes
-care of sudoing to the right user who made the reservation). By doing
-this (or alternatively, by using a job_type ``allow_classic_ssh``),
-the number of parallel ssh can be slightly raised to approximately
-500, but then the limit is the number of open file descriptors. Using
-`execo.action.TaktukRemote`, we can leverage the huge scalability of
-`Taktuk <http://taktuk.gforge.inria.fr/>`_ (we have tested with more
-than 5000 concurrent remote connections).
+Using a job type ``allow_classic_ssh`` solves a lot of connection
+issues, there is no need to deal with ``oarsh``.
 
-One of the constraints imposed by ``Taktuk`` is that any node of the
-connection tree must be able to connect to any other. As the oargrid
-job key is only available on the frontend on which the oargrid
-submission was done, we must propagate this key to all nodes. This can
-be done with ``Taktuk`` option ``-S``. Alternatively, this is not
-needed if setting ``$OAR_JOB_KEY_FILE`` in your environnement, or
-setting ``g5k_configuration['oar_job_key_file']``, as described in
-:ref:`execo_g5k-configuration` and
-:ref:`execo_g5k-perfect_configuration`.
+Actually, what happens when running this code is that we can leverage
+the huge scalabilty of `Taktuk <http://taktuk.gforge.inria.fr/>`_ (we
+have tested with more than 5000 concurrent remote connections),
+whereas parallel ``ssh`` will show various limitations, in particular
+the number of open file descriptors. In our tests run on grid5000
+frontends, we can not run more than around 500 parallel ssh (this
+could probably be increased on a node where you have root
+permissions).
+
+This example also show using `execo_g5k.oar.oarsubgrid` instead of
+`execo_g5k.oargrid.oargridsub`. They are similar but oarsubgrid
+bypasses oargrid and directly performs parallel oar submissions.
+
 
 Compare ChainPut and parallel scp performances on many hosts on Grid5000
 ------------------------------------------------------------------------
@@ -425,6 +417,17 @@ hosts, you should run this code from a compute node, not the frontend
 
 .. literalinclude:: code_samples/g5k_chainput_perf.py
    :language: python
+
+In this example, we use ``oarsh``. One of the constraints imposed by
+``Taktuk`` is that any node of the connection tree must be able to
+connect to any other. As the oargrid job key is only available on the
+frontend on which the oargrid submission was done, we must propagate
+this key to all nodes. This can be done with ``Taktuk`` option
+``-S``. Alternatively, this is not needed if setting
+``$OAR_JOB_KEY_FILE`` in your environnement, or setting
+``g5k_configuration['oar_job_key_file']``, as described in
+:ref:`execo_g5k-configuration` and
+:ref:`execo_g5k-perfect_configuration`.
 
 Analysis of TCP traffic Grid5000 hosts, using kadeploy
 ------------------------------------------------------
