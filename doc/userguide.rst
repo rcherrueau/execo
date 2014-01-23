@@ -375,12 +375,12 @@ Using Taktuk to scale to many remote hosts
 This example shows how `execo.action.Remote` can be (almost)
 transparently changed to `execo.action.TaktukRemote` to scale to huge
 number of remote hosts. It uses the planning module, to try to reserve
-as much nodes as possible, immediately available for a 15 minutes
-job. It then opens as many ssh connexions to each host as the host's
-number or cpu cores, first using a `execo.action.TaktukRemote`, then
-using `execo.action.Remote`, to compare performances. In each remote
-connexion, it runs ``ping`` to send one ping packet to a another
-random host of the reservation.
+80% of as much nodes as possible, immediately available for a 15
+minutes job. It then opens as many ssh connexions to each host as the
+host's number or cpu cores, first using a `execo.action.TaktukRemote`,
+then using `execo.action.Remote`, to compare performances. In each
+remote connexion, it runs ``ping`` to send one ping packet to a
+another random host of the reservation.
 
 .. literalinclude:: code_samples/g5k_taktuk_perf.py
    :language: python
@@ -415,8 +415,8 @@ Compare ChainPut and parallel scp performances on many hosts on Grid5000
 
 The following example shows how to use the `execo.action.ChainPut`
 class (which also internally uses Taktuk) to perform optimized
-transfers of big files to many hosts. It reserves the maximum number
-of nodes immediately available on grid5000 for 15 minutes, and
+transfers of big files to many hosts. It reserves 90% of the maximum
+number of nodes immediately available on grid5000 for 15 minutes, and
 broadcasts a generated random file of 50MB to all hosts both with
 parallel ``scp`` and with ChainPut, to compare the performances. As
 the parallel scp can be very resource hungry with a lot of remote
@@ -439,11 +439,81 @@ traffic:
 .. literalinclude:: code_samples/g5k_tcptrace.py
    :language: python
 
-This example shows that using the `execo_g5k.deploy.deploy` function, nodes are not re
+If this example is run several times, only the first time the nodes
+are deployed, thanks to `execo_g5k.deploy.deploy` which runs a test
+command on each deployed node to check if the node is already
+deployed. This test command can be user customized or disabled, but
+the default should work in most situations.
 
-.. admonition:: TODO
+Using `execo_engine` for experiment development
+-----------------------------------------------
 
-                engine usage guide
+The `execo_engine` module provides tools that can be independently
+used, or combined, to ease development of complex experiments.
+
+Parameter sweeping
+..................
+
+A common need is to explore the combinations of several
+parameters. `execo_engine.utils.sweep` defines a syntax to express
+these parameters and generate the list of all parameters combinations
+(the cartesian product). The syntax also allows explicitely
+restricting the selection of some parameters combinations for some
+values of another given parameter.
+
+Checkpointed thread-safe and process-safe iterator
+..................................................
+
+The `execo_engine.utils.ParamSweeper` class allows creating
+checkpointed, thread-safe, process-safe iterators over any
+sequence. The iterated sequence may be the result of
+`execo_engine.utils.sweep`, or any sequence, provided that sequence
+elements are hashable (if needed, the
+`execo_engine.utils.HashableDict` is provided, and it used in
+sequences returned by `execo_engine.utils.sweep`).
+
+When instanciating a `execo_engine.utils.ParamSweeper`, a storage
+dictory is given, as well as the sequence to iterate. This class then
+provides methods to iterate over the sequence, each elements moving
+from states *todo*, *inprogress*, *done*, *skipped*. It is:
+
+- checkpointed: iteration progress is reliably saved to disk in the
+  storage directory
+
+- thread-safe: threads can thread-safely share and use a single
+  `execo_engine.utils.ParamSweeper` instance
+
+- process-safe: several processes can safely instanciate
+  `execo_engine.utils.ParamSweeper` sharing the same storage
+  directory, even on shared nfs storage. This allows, for example,
+  having several independant jobs exploring a single parameter space,
+  synchronizing only through independant
+  `execo_engine.utils.ParamSweeper` instances sharing the same
+  storage.
+
+Basic experiment lifecycle
+..........................
+
+The `execo_engine.engine.Engine` provides a canvas for experiment
+lifecycle. It takes care of creating or reusing an experiment
+directory, and convenient handling of logs. It provides absolutely no
+fixed workflow. It can be subclassed to provide more specialized
+engines, imposing particular workflows. To use
+`execo_engine.engine.Engine`, you inherit a class from it, put it in a
+file having the same name as the class (<classname>.py), you then run
+the experiment using the ``execo-run`` binary.
+
+Puting it all together
+......................
+
+..
+   This example
+   réserver 2 noeuds sur des sites différents
+   déployer
+   explorer des params: nb de connexions tcp concurrentes, algo de tcp window
+
+.. literalinclude:: code_samples/g5k_tcp_congestion.py
+   :language: python
 
 More advanced usages
 ====================
