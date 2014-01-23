@@ -7,7 +7,7 @@ blacklisted = [ "graphite" ]
 slots = compute_slots(get_planning(), 60*15, excluded_elements = blacklisted)
 wanted = { "grid5000": 0 }
 start_date, end_date, resources = find_first_slot(slots, wanted)
-actual_resources = distribute_hosts(resources, wanted, excluded_elements = blacklisted)
+actual_resources = distribute_hosts(resources, wanted, excluded_elements = blacklisted, ratio = 0.8)
 job_specs = get_jobs_specs(actual_resources, excluded_elements = blacklisted)
 logger.info("try to reserve " + str(actual_resources))
 jobid, sshkey = oargridsub(job_specs, start_date,

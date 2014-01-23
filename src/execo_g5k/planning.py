@@ -20,7 +20,7 @@
 from socket import getfqdn
 from time import time
 from datetime import timedelta
-from math import ceil
+from math import ceil, floor
 from itertools import cycle
 from execo import logger
 from execo.log import style
@@ -430,14 +430,17 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
 
 
 
-def distribute_hosts(resources_available, resources_wanted, excluded_elements = None):
+def distribute_hosts(resources_available, resources_wanted, excluded_elements = None, ratio = None):
     """ Distribute the resources on the different sites and cluster
 
     :param resources_available: a dict defining the resources available
 
     :param resources_wanted: a dict defining the resources available you really want
 
-    :param excluded_elements: a list of elements that won't be used"""
+    :param excluded_elements: a list of elements that won't be used
+
+    :param ratio: if not None (the default), a float between 0 and 1,
+      to actually only use a fraction of the resources."""
     if excluded_elements == None: excluded_elements = []
     resources = {}
     #Defining the cluster you want
@@ -495,6 +498,10 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
 
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
+
+    # apply optional ratio
+    if ratio != None:
+        resources.update((x, int(floor(y * ratio))) for x, y in resources.items())
 
     return resources
 

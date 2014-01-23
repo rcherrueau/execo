@@ -375,12 +375,12 @@ Using Taktuk to scale to many remote hosts
 This example shows how `execo.action.Remote` can be (almost)
 transparently changed to `execo.action.TaktukRemote` to scale to huge
 number of remote hosts. It uses the planning module, to try to reserve
-as much nodes as possible, immediately available for a 15 minutes
-job. It then opens as many ssh connexions to each host as the host's
-number or cpu cores, first using a `execo.action.TaktukRemote`, then
-using `execo.action.Remote`, to compare performances. In each remote
-connexion, it runs ``ping`` to send one ping packet to a another
-random host of the reservation.
+80% of as much nodes as possible, immediately available for a 15
+minutes job. It then opens as many ssh connexions to each host as the
+host's number or cpu cores, first using a `execo.action.TaktukRemote`,
+then using `execo.action.Remote`, to compare performances. In each
+remote connexion, it runs ``ping`` to send one ping packet to a
+another random host of the reservation.
 
 .. literalinclude:: code_samples/g5k_taktuk_perf.py
    :language: python
@@ -415,8 +415,8 @@ Compare ChainPut and parallel scp performances on many hosts on Grid5000
 
 The following example shows how to use the `execo.action.ChainPut`
 class (which also internally uses Taktuk) to perform optimized
-transfers of big files to many hosts. It reserves the maximum number
-of nodes immediately available on grid5000 for 15 minutes, and
+transfers of big files to many hosts. It reserves 90% of the maximum
+number of nodes immediately available on grid5000 for 15 minutes, and
 broadcasts a generated random file of 50MB to all hosts both with
 parallel ``scp`` and with ChainPut, to compare the performances. As
 the parallel scp can be very resource hungry with a lot of remote
