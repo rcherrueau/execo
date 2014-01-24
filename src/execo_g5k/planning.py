@@ -17,6 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 """Module provides functions to help you to plan your experiment on Grid'5000.
 """
+from pprint import pformat
 from socket import getfqdn
 from time import time
 from datetime import timedelta
@@ -475,26 +476,29 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
             resources_available[element] = 0
 
     #Distributing hosts on grid5000 elements
+    logger.debug(pformat(resources_wanted))
     if resources_wanted.has_key('grid5000'):
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
+
         total_nodes = 0
 
         sites = [element for element in resources_available.keys() if element in get_g5k_sites() ]
         iter_sites = cycle(sites)
 
-        while total_nodes != g5k_nodes:
+        while total_nodes < g5k_nodes:
             site = iter_sites.next()
-            if resources_available[site] > 0:
-                nodes =  min(resources_available[site], g5k_nodes-total_nodes)
-                if nodes == 0:
-                    sites.remove(site)
-                    iter_sites = cycle(sites)
+            if resources_available[site] == 0:
+                sites.remove(site)
+                iter_sites = cycle(sites)
+            else:
+                resources_available[site] -= 1
+                if site in resources:
+                    resources[site] += 1
                 else:
-                    total_nodes += nodes
-                    if resources.has_key(site):
-                        resources[site] += min(total_nodes, nodes)
-                    else:
-                        resources[site] = min(total_nodes, nodes)
+                    resources[site] = 1
+                total_nodes += 1
+    logger.debug(pformat(resources))
+
 
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
