@@ -17,8 +17,8 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from log import logger
-from subprocess import MAXFD
-import optparse, os, sys, time, inspect, pipes, ctypes, signal
+import optparse, os, sys, time, inspect, pipes
+from utils import redirect_outputs, copy_outputs
 
 class ArgsOptionParser(optparse.OptionParser):
 
@@ -65,54 +65,6 @@ class ArgsOptionParser(optparse.OptionParser):
         result.append(self.format_option_help(formatter))
         result.append(self.format_epilog(formatter))
         return "".join(result)
-
-def _redirect_fd(fileno, filename):
-    # create and open file filename, and redirect open file fileno to it
-    f = os.open(filename, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0644)
-    os.dup2(f, fileno)
-    os.close(f)
-
-def _disable_sigs(sigs):
-    # Disable a list of signals with sigprocmask. This makes a bunch
-    # of assumptions about various libc structures and as such, is
-    # fragile and not portable. Code taken and modified from
-    # http://stackoverflow.com/questions/3791398/how-to-stop-python-from-propagating-signals-to-subprocesses#3792294
-    libc = ctypes.CDLL('libc.so.6')
-    SIGSET_NWORDS = 1024 / (8 *  ctypes.sizeof(ctypes.c_ulong))
-    class SIGSET(ctypes.Structure):
-        _fields_ = [
-            ('val', ctypes.c_ulong * SIGSET_NWORDS)
-            ]
-    sigset = (ctypes.c_ulong * SIGSET_NWORDS)()
-    for sig in sigs:
-        ulongindex = sig / ctypes.sizeof(ctypes.c_ulong)
-        ulongoffset = sig % ctypes.sizeof(ctypes.c_ulong)
-        sigset[ulongindex] |= 1 << (ulongoffset - 1)
-    mask = SIGSET(sigset)
-    SIG_BLOCK = 0
-    libc.sigprocmask(SIG_BLOCK, ctypes.pointer(mask), 0)
-
-def _tee_fd(fileno, filename):
-    # create and open file filename, and duplicate open file fileno to it
-    pr, pw = os.pipe()
-    pid = os.fork()
-    if pid == 0:
-        os.dup2(pr, 0)
-        os.dup2(fileno, 1)
-        if (os.sysconf_names.has_key("SC_OPEN_MAX")):
-            maxfd = os.sysconf("SC_OPEN_MAX")
-        else:
-            maxfd = MAXFD
-        # close all unused fd
-        os.closerange(3, maxfd)
-        # disable signals on tee to allow getting last outputs of engine.
-        # tee will close anyway on broken pipe
-        _disable_sigs([signal.SIGINT, signal.SIGTERM])
-        os.execv('/usr/bin/tee', ['tee', '-a', filename])
-    else:
-        os.close(pr)
-        os.dup2(pw, fileno)
-        os.close(pw)
 
 def run_meth_on_engine_ancestors(instance, method_name):
     engine_ancestors = [ cls for cls in inspect.getmro(instance.__class__) if issubclass(cls, Engine) ]
@@ -206,48 +158,6 @@ class Engine(object):
         except os.error:
             pass
 
-    def _redirect_outputs(self, merge_stdout_stderr):
-        """Redirects, and optionnaly merge, stdout and stderr to file(s) in experiment directory."""
-
-        if merge_stdout_stderr:
-            stdout_redir_filename = self.result_dir + "/stdout+stderr"
-            stderr_redir_filename = self.result_dir + "/stdout+stderr"
-            logger.info("redirect stdout / stderr to %s", stdout_redir_filename)
-        else:
-            stdout_redir_filename = self.result_dir + "/stdout"
-            stderr_redir_filename = self.result_dir + "/stderr"
-            logger.info("redirect stdout / stderr to %s and %s", stdout_redir_filename, stderr_redir_filename)
-        sys.stdout.flush()
-        sys.stderr.flush()
-        _redirect_fd(1, stdout_redir_filename)
-        _redirect_fd(2, stderr_redir_filename)
-        # additionnaly force stdout unbuffered by reopening stdout
-        # file descriptor with write mode
-        # and 0 as the buffer size (unbuffered)
-        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-
-    def _copy_outputs(self, merge_stdout_stderr):
-        """Copy, and optionnaly merge, stdout and stderr to file(s) in experiment directory."""
-
-        if merge_stdout_stderr:
-            stdout_redir_filename = self.result_dir + "/stdout+stderr"
-            stderr_redir_filename = self.result_dir + "/stdout+stderr"
-        else:
-            stdout_redir_filename = self.result_dir + "/stdout"
-            stderr_redir_filename = self.result_dir + "/stderr"
-        sys.stdout.flush()
-        sys.stderr.flush()
-        _tee_fd(1, stdout_redir_filename)
-        _tee_fd(2, stderr_redir_filename)
-        # additionnaly force stdout unbuffered by reopening stdout
-        # file descriptor with write mode
-        # and 0 as the buffer size (unbuffered)
-        sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-        if merge_stdout_stderr:
-            logger.info("dup stdout / stderr to %s", stdout_redir_filename)
-        else:
-            logger.info("dup stdout / stderr to %s and %s", stdout_redir_filename, stderr_redir_filename)
-
     def __init__(self):
         self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.modules[self.__module__].__file__)))
         """Full path of the engine directory. Available to client
@@ -320,10 +230,18 @@ class Engine(object):
             self.setup_result_dir()
         self._create_result_dir()
         if self.options.output_mode:
+            if self.options.merge_outputs:
+                stdout_fname = self.result_dir + "/stdout+stderr"
+                stderr_fname = self.result_dir + "/stdout+stderr"
+            else:
+                stdout_fname = self.result_dir + "/stdout"
+                stderr_fname = self.result_dir + "/stderr"
             if self.options.output_mode == "copy":
-                self._copy_outputs(self.options.merge_outputs)
+                copy_outputs(stdout_fname, stderr_fname)
+                logger.info("dup stdout / stderr to %s and %s", stdout_fname, stderr_fname)
             elif self.options.output_mode == "redirect":
-                self._redirect_outputs(self.options.merge_outputs)
+                redirect_outputs(stdout_fname, stderr_fname)
+                logger.info("redirect stdout / stderr to %s and %s", stdout_fname, stderr_fname)
         logger.info("command line arguments: %s" % (sys.argv,))
         logger.info("command line: " + " ".join([pipes.quote(arg) for arg in sys.argv]))
         logger.info("run in directory %s", self.result_dir)
