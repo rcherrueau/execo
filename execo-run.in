@@ -44,8 +44,9 @@ module search path is:
         exit(1)
 
     module_name, _, class_name = sys.argv[1].partition(":")
+    del sys.argv[1]
     if not class_name: class_name = module_name
     engine_module = __import__(module_name)
     engine_class = getattr(engine_module, class_name)
     engine_instance = engine_class()
-    engine_instance._start()
+    engine_instance.start()

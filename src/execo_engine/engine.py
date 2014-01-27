@@ -300,7 +300,7 @@ class Engine(object):
         experiment should be located.
         """
 
-    def _start(self):
+    def start(self):
         """Start the engine.
 
         Properly initialize the experiment Engine instance, then call
@@ -309,7 +309,6 @@ class Engine(object):
         Engine.
         """
         (self.options, self.args) = self.options_parser.parse_args()
-        del self.args[0]
         logger.setLevel(self.options.log_level)
         if len(self.args) < self.options_parser.num_arguments():
             self.options_parser.print_help(sys.stderr)
