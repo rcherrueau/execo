@@ -59,16 +59,16 @@ class g5k_tcp_congestion(Engine):
                         sources.run()
                         destination.kill()
                         if comb["num_flows"] > 1:
-                            pattern = "^\[SUM\].*\s(\d+) (\w?)bits/sec$"
+                            pattern = "^\[SUM\].*\s(\d+) (\w?)bits/sec"
                         else:
-                            pattern = "^\[\s*\d+\].*\s(\d+) (\w?)bits/sec$"
+                            pattern = "^\[\s*\d+\].*\s(\d+) (\w?)bits/sec"
                         bw_mo = re.search(pattern, sources.stdout, re.MULTILINE)
                         if bw_mo:
                             bw = float(bw_mo.group(1)) * {"": 1, "K": 1e3, "M": 1e6, "G": 1e9}[bw_mo.group(2)]
                             results = { "params": comb, "bw": bw }
                             with open(result_file, "a") as f:
                                 yaml.dump([results], f, width = 72)
-                            logger.info("comb : %s bw = %f" % (comb, bw))
+                            logger.info("comb : %s bw = %f bits/s" % (comb, bw))
                             sweeper.done(comb)
                         else:
                             logger.info("comb failed: %s" % (comb,))

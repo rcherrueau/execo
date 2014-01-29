@@ -519,13 +519,14 @@ the experiment using the ``execo-run`` binary.
 Puting it all together
 ......................
 
-..
-   This example
-   réserver 2 noeuds sur des sites différents
-   déployer
-   explorer des params: nb de connexions tcp concurrentes, algo de tcp window
+experiment:
 
 .. literalinclude:: code_samples/g5k_tcp_congestion.py
+   :language: python
+
+results:
+
+.. literalinclude:: code_samples/g5k_tcp_congestion_process_results.py
    :language: python
 
 More advanced usages
