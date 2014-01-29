@@ -8,7 +8,7 @@ class g5k_tcp_congestion(Engine):
     def run(self):
         result_file = self.result_dir + "/results"
         params = {
-            "num_flows": igeom(1, 100, 10),
+            "num_flows": igeom(1, 40, 10),
             "tcp_congestion_control": ["cubic", "reno"],
             "repeat": range(0, 5),
             }
