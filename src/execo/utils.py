@@ -85,9 +85,10 @@ def intr_event_wait(event, timeout = None):
         else:
             remaining = min(timeout - (current - start), 0)
         t = checked_min(configuration['intr_period'], remaining)
-        retval = event.wait(float(t) if t else None)
-        if retval or t == remaining:
-            return retval
+        event.wait(float(t) if t else None)
+        eventflag = event.is_set()
+        if eventflag or t == remaining:
+            return eventflag
         current = time.time()
 
 def intr_cond_wait(cond, timeout = None):
