@@ -3,7 +3,7 @@
 # This file is part of Execo, released under the GNU Lesser Public
 # License, version 3 or later.
 
-.PHONY: all build install doc cleandoc sphinxdoccommon sphinxdochtml sphinxdoclatex cleansphinxdoc epydoc cleanepydoc check clean dist
+.PHONY: all build install doc cleandoc sphinxdoccommon sphinxdochtml sphinxdoclatex cleansphinxdoc clean dist
 
 PREFIX=/usr/local
 PYTHON=python
@@ -18,7 +18,7 @@ install: build
 
 doc: sphinxdochtml
 
-cleandoc: cleansphinxdoc cleanepydoc
+cleandoc: cleansphinxdoc
 
 sphinxdochtml:
 	mkdir -p doc/_template
@@ -26,17 +26,6 @@ sphinxdochtml:
 
 cleansphinxdoc:
 	rm -rf doc/_build/ doc/_template doc/_templates/
-
-epydoc: epydoc/redirect.html
-
-epydoc/redirect.html: src
-	epydoc -v --docformat "restructuredtext en" --parse-only --graph classtree --inheritance listed --html --output=epydoc src/execo src/execo_g5k src/execo_engine
-
-cleanepydoc:
-	rm -rf epydoc
-
-check:
-#TODO
 
 clean: cleandoc
 	rm -rf build dist MANIFEST execo.conf.py.sample execo-run
