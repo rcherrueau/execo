@@ -9,10 +9,7 @@ but it can also be run interactively in a python shell, such as
 Installation
 ============
 
-Prerequisites: you need (debian package names, adapt for other
-distributions): ``make``, ``python`` (>= 2.6), ``python-httplib2`` and
-optionnaly ``python-keyring``. You also need ``ssh`` and optionnaly
-``taktuk``.
+Prerequisites: see corresponding section in :doc:`readme`.
 
 In this tutorial it is shown how to install execo in subdirectory
 ``.local/`` of your home, allowing installation on computers where you
@@ -41,6 +38,14 @@ for other shells)::
 You can put this line in your ``~/.profile`` to have your environment
 setup automatically in all shells.
 
+Since python 2.7, python automatically searches modules under
+``$HOME/.local``, but for python 2.6, you also need to configure
+``PYTHONPATH`` (also optionnaly in your ``~/.profile``)::
+
+ PYTHONHOMEPATH="$HOME/.local/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
+ export PYTHONPATH="$PYTHONHOMEPATH${PYTHONPATH:+:${PYTHONPATH}}"
+
+
 Configuration
 =============
 
@@ -48,7 +53,8 @@ Execo reads configuration file ``~/.execo.conf.py``. A sample
 configuration file ``execo.conf.py.sample`` is created in execo source
 package directory when execo is built. This file can be used as a
 canvas to overide some particular configuration variables. See
-detailed documentation in :ref:`execo-configuration`, :ref:`execo_g5k-configuration` and
+detailed documentation in :ref:`execo-configuration`, :ref:`Grid5000
+Configuration <execo_g5k-configuration>` and
 :ref:`execo_g5k-perfect_configuration`.
 
 execo
@@ -263,6 +269,10 @@ API to use Grid5000 services:
     there is no need to put Grid5000 API password in clear in scripts,
     password can be stored in the desktop environment keyring if
     available.
+
+- planning: advanced interaction with oar scheduler: allows getting
+  the full planning of resources on grid5000, as well as finding time
+  slots where resources are available.
 
 To use execo on grid5000, you need to install it inside grid5000, for
 example on a frontend. execo dependencies are installed on grid5000
