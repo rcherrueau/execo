@@ -5,11 +5,14 @@ Readme / documentation for the execo package
 Execo offers a Python API for local or remote, standalone or parallel,
 processes execution. It is especially well suited for scripting
 workflows of parallel/distributed operations on local or remote hosts:
-automate a scientific workflow, conducting computer science
-experiments, performing automated tests, etc. The core python package
-is ``execo``. The ``execo_g5k`` package provides a set of tools and
-extensions for Grid5000. The ``execo_engine`` package and
-``execo-run`` script provide an extendable experiment engine.
+automate a scientific workflow, conduct computer science experiments,
+perform automated tests, etc. The core python package is
+``execo``. The ``execo_g5k`` package provides a set of tools and
+extensions for the Grid5000 testbed [1]. The ``execo_engine`` package
+provides tools to ease the development of computer sciences
+experiments.
+
+[1] https://www.grid5000.fr
 
 License
 =======
@@ -85,15 +88,16 @@ decreasing importance):
 - ``python-mysqldb`` for optimized planning retrieval from
   `execo_g5k.planning` when used inside Grid5000.
 
-- ``sphinx-doc``, ``graphviz`` for building the documentation.
+- ``sphinx-doc``, ``graphviz`` for building the documentation (usually
+  not needed for regular users).
 
-- ``python-matplotlib`` (v >= 1.2.0) for graphical representation of
+- ``python-matplotlib`` (>= 1.2.0) for graphical representation of
   grid5000 plannings
 
 At runtime, connecting to remote hosts requires ``ssh``, ``scp`` or
-similar connection tools, and optionnaly ``taktuk`` (probably version
->= 3.6. http://taktuk.gforge.inria.fr/). `execo.action.ChainPut`
-requires bourne shell and ``netcat`` on remote hosts.
+similar connection tools, and optionnaly ``taktuk`` (probably >=
+3.6. http://taktuk.gforge.inria.fr/). `execo.action.ChainPut` requires
+bourne shell and ``netcat`` on remote hosts.
 
 installation
 ------------
@@ -109,11 +113,7 @@ makefile targets:
 
 - doc: to build sphinx documentation
 
-- epydoc: to build epydoc documentation
-
-- check: to run unittests and doctests
-
-- clean
+- clean: clean all built files
 
 - dist: to create the execo package in dist/
 
@@ -155,20 +155,22 @@ UsiNg and building ClOud Testbeds UNICO, collocated with IEEE CloudCom
 How to contribute
 =================
 
-- indent with spaces, not tabs. one level of indentation is four
-  spaces (if needed: use ``reindent.py -rnv .`` in execo top
-  directory)
+- start contributing by sending clean patches or report bugs.
 
 - stay consistent with the coding and naming style
 
 - use the core systems provided (eg. the configuration system, the tty
   coloring system, the logger, etc.) instead of developing your own.
 
+- provide documented code (internal documentation as well as user
+  documentation where needed)
+
 - ask a core developer before adding a dependency or dealing with
   threads, signals (particularly: creating threads)
 
-- provide documented code (internal documentation as well as user
-  documentation where needed)
+- indent with spaces, not tabs. one level of indentation is four
+  spaces (if needed: use ``reindent.py -rnv .`` in execo top
+  directory)
 
 - recommended commit messages format:
 
@@ -180,5 +182,3 @@ How to contribute
   - <category> is free form but should indicate which part(s) of the
     module the commit affects. Omit if a commit is not specific to a
     module part.
-
-- start contributing by sending clean patches.
