@@ -8,9 +8,9 @@ class g5k_tcp_congestion(Engine):
     def run(self):
         result_file = self.result_dir + "/results"
         params = {
-            "num_flows": igeom(1, 40, 10),
+            "num_flows": igeom(1, 20, 5),
             "tcp_congestion_control": ["cubic", "reno"],
-            "repeat": range(0, 5),
+            "repeat": range(0, 3),
             }
         combs = sweep(params)
         sweeper = ParamSweeper(self.result_dir + "/sweeper", combs)
@@ -58,8 +58,11 @@ class g5k_tcp_congestion(Engine):
                         sleep(2)
                         sources.run()
                         destination.kill()
-                        bw_mo = re.search("^\[SUM\].*\s(\d+) (\w?)bits/sec",
-                                          sources.stdout, re.MULTILINE)
+                        if comb["num_flows"] > 1:
+                            pattern = "^\[SUM\].*\s(\d+) (\w?)bits/sec$"
+                        else:
+                            pattern = "^\[\s*\d+\].*\s(\d+) (\w?)bits/sec$"
+                        bw_mo = re.search(pattern, sources.stdout, re.MULTILINE)
                         if bw_mo:
                             bw = float(bw_mo.group(1)) * {"": 1, "K": 1e3, "M": 1e6, "G": 1e9}[bw_mo.group(2)]
                             results = { "params": comb, "bw": bw }
@@ -69,6 +72,10 @@ class g5k_tcp_congestion(Engine):
                             sweeper.done(comb)
                         else:
                             logger.info("comb failed: %s" % (comb,))
+                            logger.info("sources stdout:\n" + sources.stdout)
+                            logger.info("sources stderr:\n" + sources.stderr)
+                            logger.info("destination stdout:\n" + destination.stdout)
+                            logger.info("destination stderr:\n" + destination.stderr)
                             sweeper.skip(comb)
                 finally:
                     logger.info("deleting job")
