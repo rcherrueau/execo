@@ -20,6 +20,8 @@ from log import logger
 import optparse, os, sys, time, inspect, pipes
 from utils import redirect_outputs, copy_outputs
 
+_engineargs = sys.argv[1:]
+
 class ArgsOptionParser(optparse.OptionParser):
 
     """optparse.OptionParser subclass which keeps tracks of arguments for proper help string generation.
@@ -159,11 +161,14 @@ class Engine(object):
             pass
 
     def __init__(self):
-        self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(sys.modules[self.__module__].__file__)))
-        """Full path of the engine directory. Available to client
-        code, should not be modified (why would you want?)
+        self.engine_dir = None
+        """Full path of the engine directory, if available. May not be
+        available if engine code is run interactively.
         """
-        self.options_parser = ArgsOptionParser()
+        mymodule = sys.modules[self.__module__]
+        if hasattr(mymodule, "__file__"):
+            self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(mymodule.__file__)))
+        self.options_parser = ArgsOptionParser(usage = "usage: <program> [options] <arguments>")
         """An instance of
         `execo_engine.engine.ArgsOptionParser`. Subclasses of
         `execo_engine.engine.Engine` can register options and args to
@@ -218,7 +223,18 @@ class Engine(object):
         the overridden run() method of the requested experiment
         Engine.
         """
-        (self.options, self.args) = self.options_parser.parse_args()
+        (self.options, self.args) = self.options_parser.parse_args(args = _engineargs)
+        # _engineargs hack: to make running an engine from ipython
+        # more convenient: if ipython is run from command line as
+        #
+        # $ ipython -i <enginefile.py> -- [engine options]
+        #
+        # iptyhon will hack sys.argv when loading enginefile, hiding
+        # its own args, but then in the interactive shell, we get back
+        # the real sys.argv, including ipython args, so if we
+        # instanciate or start the engine interactively, we need to
+        # parse the right args from sys.argv which is thus saved at
+        # engine load time.
         logger.setLevel(self.options.log_level)
         if len(self.args) < self.options_parser.num_arguments():
             self.options_parser.print_help(sys.stderr)
