@@ -7,23 +7,9 @@
 
 import sys, os, optparse, subprocess
 
-execo_engine_search_dir = "@prefix@/share/execo/engines/"
-
-def _get_search_dirs(path):
-    search_dirs = []
-    for (dirpath, dirnames, filenames) in os.walk(path):
-        if len(filenames) > 0 and True in map(lambda s: s.endswith(".py") or s.endswith(".pyc"), filenames):
-            search_dirs.append(dirpath)
-    return search_dirs
-
 if __name__ == "__main__":
 
     progname = os.path.basename(sys.argv[0])
-    additional_search_pathes = ["."]
-    additional_search_pathes += _get_search_dirs(os.path.abspath(os.path.dirname(sys.argv[0])) + "/engines")
-    if os.environ.has_key('HOME'):
-        additional_search_pathes += _get_search_dirs(os.environ['HOME'] + "/.execo/engines")
-    additional_search_pathes += _get_search_dirs(execo_engine_search_dir)
 
     usage = """usage: %s <engine> [options] <arguments>
 
@@ -32,12 +18,8 @@ start() on it.
 
 if <engine> is of the form <engine_module_name:engine_class_name> then
 instanciate <engine_class_name> from python module
-<engine_module_name>
+<engine_module_name>""" % (progname, ", ".join(additional_search_pathes))
 
-module search path is:
-  %s, default python directories""" % (progname, ", ".join(additional_search_pathes))
-
-    sys.path[1:1] = additional_search_pathes
     if len(sys.argv) < 2:
         print "ERROR: missing argument"
         print usage,
