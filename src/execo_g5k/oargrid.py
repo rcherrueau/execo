@@ -26,6 +26,7 @@ from execo_g5k.config import default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host
 from oar import format_oar_date, format_oar_duration, _date_in_range, \
     oar_date_to_unixts, oar_duration_to_seconds
+from api_utils import get_g5k_sites, get_cluster_site
 import os
 import re
 
@@ -297,7 +298,10 @@ def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connection_params =
     if process.ok:
         job_specs = []
         for m in re.finditer("^\t(\w+) --> (\d+)", process.stdout, re.MULTILINE):
-            job_specs.append((int(m.group(2)), m.group(1)))
+            site = m.group(1)
+            if site not in get_g5k_sites():
+                site = get_cluster_site(site)
+            job_specs.append((int(m.group(2)), site))
         return job_specs
     else:
         raise ProcessesFailed, [process]
