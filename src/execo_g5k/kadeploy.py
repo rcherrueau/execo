@@ -178,6 +178,7 @@ def _get_host_frontend(host):
     #
     # - we could use get_host_site but api_utils is not always
     #   available (if api is down or if httplib2 is not available)
+    #   -> this is not true anymore (13/2/2014)
     #
     # - special bahavior: fallback to default frontend if unable to
     #   extract site from host name

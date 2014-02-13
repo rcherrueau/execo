@@ -38,13 +38,9 @@ from planning import get_planning, compute_slots, find_first_slot, \
     find_max_slot, find_free_slot, get_jobs_specs, distribute_hosts, \
     g5k_charter_time
 
-try:
-    from api_utils import get_g5k_sites, get_site_clusters, \
-        get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
-        get_cluster_site, APIConnection, APIGetException, get_host_site, \
-        get_host_cluster, group_hosts, get_resource_attributes, \
-        get_host_attributes, get_cluster_attributes, \
-        get_site_attributes, canonical_host_name
-except ImportError:
-    # probably if httplib2 is not installed.
-    pass
+from api_utils import get_g5k_sites, get_site_clusters, \
+    get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
+    get_cluster_site, APIConnection, APIGetException, get_host_site, \
+    get_host_cluster, group_hosts, get_resource_attributes, \
+    get_host_attributes, get_cluster_attributes, \
+    get_site_attributes, canonical_host_name

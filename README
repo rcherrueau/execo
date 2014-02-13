@@ -75,11 +75,8 @@ prerequisites
 -------------
 
 execo installation absolutely requires ``python`` (>= 2.6) and
-``make``.  Optionnal packages are (debian package names, in order of
-decreasing importance):
-
-- ``python-httplib2`` for `execo_g5k.api_utils` and
-  `execo_g5k.planning` to work.
+``make``. ``execo_g5k`` needs ``python-httplib2``. Optionnal packages
+are (debian package names, in order of decreasing importance):
 
 - ``python-keyring`` for allowing storage of `execo_g5k.api_utils` api
   password in the desktop environment keyring (allowing asking it only

@@ -302,9 +302,8 @@ code).
 execo_g5k.api_utils
 -------------------
 
-This module is automatically imported only if httplib2 is available.
-
-It provides various useful function which deal with the Grid5000 API.
+This module provides various useful function which deal with the
+Grid5000 API.
 
 For example, to work interactively on all grid5000 frontends at the
 same time: Here we create a directory, copy a file inside it, then
