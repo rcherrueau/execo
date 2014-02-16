@@ -295,7 +295,8 @@ def find_free_slot( slots, resources_wanted):
 
     return None, None, None
 
-def show_resources(resources, msg = 'Resources'):
+
+def show_resources(resources, msg='Resources'):
     """Print the resources in a fancy way"""
     total_hosts = 0
     log = style.log_header(msg)+'\n'
@@ -303,22 +304,22 @@ def show_resources(resources, msg = 'Resources'):
     for site in get_g5k_sites():
         site_added = False
         if site in resources.keys():
-            log += style.log_header(site).ljust(20)+' '+str(resources[site])+'\n'
+            log += style.log_header(site).ljust(20) + ' ' + str(resources[site]) + ' '
             site_added = True
         for cluster in get_site_clusters(site):
             if len(list(set(get_site_clusters(site)) & set(resources.keys()))) > 0 \
                     and not site_added:
-                log += style.log_header(site).ljust(20)+'\n'
+                log += style.log_header(site).ljust(20) + ' '
                 site_added = True
             if cluster in resources.keys():
-                log += style.emph(cluster)+': '+str(resources[cluster])+' '
+                log += style.emph(cluster) + ': ' + str(resources[cluster]) + ' '
                 total_hosts += resources[cluster]
         if site_added:
             log += '\n'
     if 'grid5000' in resources.keys():
-        log += style.log_header('Grid5000').ljust(20)+str(resources['grid5000'])
+        log += style.log_header('Grid5000').ljust(20) + str(resources['grid5000'])
     elif total_hosts > 0:
-        log += style.log_header('Total ').ljust(20)+str(total_hosts)
+        log += style.log_header('Total ').ljust(20) + str(total_hosts)
     logger.info(log)
 
 
