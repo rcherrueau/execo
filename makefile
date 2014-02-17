@@ -22,7 +22,7 @@ cleandoc: cleansphinxdoc
 
 sphinxdochtml:
 	mkdir -p doc/_template
-	sphinx-build -b html doc doc/_build/html
+	cd doc ; sphinx-build -b html . _build/html
 
 cleansphinxdoc:
 	rm -rf doc/_build/ doc/_template doc/_templates/
