@@ -1,7 +1,7 @@
 from execo import *
 from execo_g5k import *
 from execo_engine import *
-import yaml, re
+import yaml, re, itertools
 
 class g5k_tcp_congestion(Engine):
 
@@ -21,9 +21,14 @@ class g5k_tcp_congestion(Engine):
         slots = compute_slots(planning, "01:00:00", excluded_elements = blacklisted)
         wanted = {'grid5000': 0}
         start_date, end_date, resources = find_first_slot(slots, wanted)
-        actual_resources = { k:v for k,v in list({ cluster: 1
-                                                   for cluster, n_nodes in resources.iteritems()
-                                                   if cluster in get_g5k_clusters() and n_nodes > 0 }.iteritems())[0:2] }
+        actual_resources = dict(
+            { list(clusters)[0]:1 for site,clusters in
+              itertools.groupby(sorted([ cluster
+                                         for cluster, n_nodes in resources.iteritems()
+                                         if cluster in get_g5k_clusters() and n_nodes > 0 ],
+                                       lambda c1, c2: cmp(get_cluster_site(c1),
+                                                          get_cluster_site(c2))),
+                                get_cluster_site) }.items()[0:2])
         if len(actual_resources) >= 2:
             logger.info("try to reserve " + str(actual_resources))
             job_specs = get_jobs_specs(actual_resources, blacklisted)
@@ -59,12 +64,12 @@ class g5k_tcp_congestion(Engine):
                         sources.run()
                         destination.kill()
                         if comb["num_flows"] > 1:
-                            pattern = "^\[SUM\].*\s(\d+) (\w?)bits/sec"
+                            pattern = "^\[SUM\].*\s(\d+(\.\d+)?) (\w?)bits/sec"
                         else:
-                            pattern = "^\[\s*\d+\].*\s(\d+) (\w?)bits/sec"
+                            pattern = "^\[\s*\d+\].*\s(\d+(\.\d+)?) (\w?)bits/sec"
                         bw_mo = re.search(pattern, sources.stdout, re.MULTILINE)
                         if bw_mo:
-                            bw = float(bw_mo.group(1)) * {"": 1, "K": 1e3, "M": 1e6, "G": 1e9}[bw_mo.group(2)]
+                            bw = float(bw_mo.group(1)) * {"": 1, "K": 1e3, "M": 1e6, "G": 1e9}[bw_mo.group(3)]
                             results = { "params": comb, "bw": bw }
                             with open(result_file, "a") as f:
                                 yaml.dump([results], f, width = 72)

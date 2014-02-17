@@ -520,19 +520,84 @@ it and call `execo_engine.engine.Engine.start()`
 Puting it all together
 ......................
 
-experiment:
-TODO: explain
+This example show an experiment engine which measures the behavior of
+TCP congestion control mechanism with varying number of concurrent
+inter-site TCP connections (between 1 and 20) and different congestion
+control algorithms (*cubic*, the linux default, and *reno*). Each measure
+is repeated 3 times.
+
+The engine class ``g5k_tcp_congestion`` is declared and inherits from
+`execo_engine.engine.Engine`. Only the ``run`` is overridden, for a
+straightforward experiment workflow:
+
+- parameters are defined, and all parameter combinations computed
+  lines 10 to 16.
+
+- Needed resources are computed and reserved lines 19 to 38. Line 24
+  generates a `execo_g5k.planning` resource description asking for one
+  immediately available node on clusters on different sites.
+
+- If enough resources are available and grid job submission was
+  successful, when nodes are available, they are deployed with image
+  `wheezy-x64-min
+  <https://www.grid5000.fr/mediawiki/index.php/Category:Portal:Environment#Wheezy-x64-min>`_,
+  line 47. We need to deploy because we need root access on nodes to
+  be able to change the linux TCP stack congestion algorithm.
+
+- When deployment is finished, and enough nodes were deployed, the
+  iperf package is installed on nodes.
+
+- The actual parameter sweeping then starts line 53: for each
+  parameter combination, the corresponding iperf server and client are
+  run. Lines 66 to 70, iperf output is parsed.
+
+- Lines 70 to 75, extracted results are appended to a yaml results
+  file.
 
 .. literalinclude:: code_samples/g5k_tcp_congestion.py
    :language: python
+   :linenos:
+   :prepend: # file: g5k_tcp_congestion.py
 
-results:
-TODO: explain
+This engine can be run in the following way::
+
+ $ python -i <path/to/g5k_tcp_congestion.py>
+ >>> myengine = g5k_tcp_congestion()
+ >>> myengine.start()
+
+It can also be run in *ipython* to benefit from its interactive shell
+and debugger.
+
+Using yaml for storing the results allows incrementally appending to
+the file, and has the benefit of a human readable file. If there is an
+error during the experiment (such as the end of the oargrid
+reservation), the experiment can later be restarted in the same result
+directory with option ``-C``, continuing from where it stopped. It is
+even possible to change the parameter combinations, only the yet
+undone combinations will be done.
+
+Below is an example showing how to load the results and draw a graph:
 
 .. literalinclude:: code_samples/g5k_tcp_congestion_process_results.py
    :language: python
+   :prepend: # file: g5k_tcp_congestion_process_results.py
 
-TODO: put nice figure
+It can be run this way::
+
+ $ python <path/to/g5k_tcp_congestion_process_results.py> <path_to_results_file>
+
+It generates ``g5k_tcp_congestion.png``:
+
+.. image:: code_samples/g5k_tcp_congestion.png
+
+Note that this engine is simplified for the sake of demonstration
+purpose. For real experiment, for example, we should probably repeat
+measures more than 3 times to average the effect of cross-traffic on
+several measures, because we cannot really get rid of cross-traffic
+from other users on grid5000, unless we reserve the whole
+platform. The figure above was actually drawn from 10 repetitions
+instead of 3.  The figure should also probably include box and
+whiskers to show results distribution.
 
 More advanced usages
 ====================

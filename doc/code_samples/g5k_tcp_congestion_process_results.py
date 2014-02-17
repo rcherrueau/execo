@@ -1,4 +1,6 @@
 import yaml, sys
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import stats
 
@@ -26,4 +28,4 @@ if __name__ == "__main__":
     plt.xlabel('num flows')
     plt.ylabel('bandwith bits/s')
     plt.legend()
-    plt.show()
+    plt.savefig("g5k_tcp_congestion.png")
