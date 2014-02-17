@@ -193,6 +193,9 @@ Actions
 - `execo.report.Report`: aggregates the results of several Action and
   pretty-prints summary reports
 
+- `execo.action.ChainPut`: efficient broadcast (copy) of big files to
+  high number of hosts
+
 Remote example
 ..............
 
