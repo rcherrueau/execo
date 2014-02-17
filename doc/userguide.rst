@@ -521,14 +521,18 @@ Puting it all together
 ......................
 
 experiment:
+TODO: explain
 
 .. literalinclude:: code_samples/g5k_tcp_congestion.py
    :language: python
 
 results:
+TODO: explain
 
 .. literalinclude:: code_samples/g5k_tcp_congestion_process_results.py
    :language: python
+
+TODO: put nice figure
 
 More advanced usages
 ====================
