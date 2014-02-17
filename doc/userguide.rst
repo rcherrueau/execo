@@ -514,9 +514,8 @@ lifecycle. It takes care of creating or reusing an experiment
 directory, and convenient handling of logs. It provides absolutely no
 fixed workflow. It can be subclassed to provide more specialized
 engines, imposing particular workflows. To use
-`execo_engine.engine.Engine`, you inherit a class from it, put it in a
-file having the same name as the class (<classname>.py), you then run
-the experiment using the ``execo-run`` binary.
+`execo_engine.engine.Engine`, you inherit a class from it, instanciate
+it and call `execo_engine.engine.Engine.start()`
 
 Puting it all together
 ......................
