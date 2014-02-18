@@ -330,6 +330,11 @@ If ssh proxycommand and execo configuration are configured as
 described in :ref:`tutorial-configuration`, this example can be run
 from outside grid5000.
 
+Here is another example of a one-liner to list the measured flops of
+each cluster::
+
+ for cluster in get_g5k_clusters(): print cluster, ; print get_host_attributes(Host(cluster + "-1")).get("performance")
+
 Other usage examples
 ====================
 
