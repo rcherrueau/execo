@@ -593,11 +593,8 @@ It generates ``g5k_tcp_congestion.png``:
 Note that this engine is simplified for the sake of demonstration
 purpose. For real experiment, for example, we should probably repeat
 measures more than 3 times to average the effect of cross-traffic on
-several measures, because we cannot really get rid of cross-traffic
-from other users on grid5000, unless we reserve the whole
-platform. The figure above was actually drawn from 10 repetitions
-instead of 3.  The figure should also probably include box and
-whiskers to show results distribution.
+several measures. The figure above was actually drawn from 10
+repetitions instead of 3.
 
 More advanced usages
 ====================
