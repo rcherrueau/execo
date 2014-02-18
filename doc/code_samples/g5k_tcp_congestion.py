@@ -16,22 +16,26 @@ class g5k_tcp_congestion(Engine):
         sweeper = ParamSweeper(self.result_dir + "/sweeper", combs)
         logger.info("experiment plan: " + str(combs))
         logger.info("compute resources to reserve")
-        blacklisted = [ "graphite" ]
         planning = get_planning()
-        slots = compute_slots(planning, "01:00:00", excluded_elements = blacklisted)
+        slots = compute_slots(planning, "01:00:00")
         wanted = {'grid5000': 0}
         start_date, end_date, resources = find_first_slot(slots, wanted)
         actual_resources = dict(
             { list(clusters)[0]:1 for site,clusters in
               itertools.groupby(sorted([ cluster
                                          for cluster, n_nodes in resources.iteritems()
-                                         if cluster in get_g5k_clusters() and n_nodes > 0 ],
+                                         if cluster in get_g5k_clusters() and n_nodes > 0
+                                         and 1e9 ==
+                                         [adapter
+                                          for adapter in get_host_attributes(cluster + "-1")["network_adapters"]
+                                          if adapter.get("network_address") ==
+                                           cluster + "-1." + get_cluster_site(cluster) + ".grid5000.fr"][0]["rate"]],
                                        lambda c1, c2: cmp(get_cluster_site(c1),
                                                           get_cluster_site(c2))),
                                 get_cluster_site) }.items()[0:2])
         if len(actual_resources) >= 2:
             logger.info("try to reserve " + str(actual_resources))
-            job_specs = get_jobs_specs(actual_resources, blacklisted)
+            job_specs = get_jobs_specs(actual_resources)
             for job_spec in job_specs: job_spec[0].job_type = "deploy"
             logger.info("submit job: " + str(job_specs))
             jobid, sshkey = oargridsub(job_specs, start_date,
@@ -87,3 +91,7 @@ class g5k_tcp_congestion(Engine):
                     oargriddel([jobid])
         else:
             logger.info("not enough resources available: " + str(actual_resources))
+
+if __name__ == "__main__":
+    engine = g5k_tcp_congestion()
+    engine.start()

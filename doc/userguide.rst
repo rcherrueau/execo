@@ -531,28 +531,30 @@ The engine class ``g5k_tcp_congestion`` is declared and inherits from
 straightforward experiment workflow:
 
 - parameters are defined, and all parameter combinations computed
-  lines 10 to 16.
+  lines 11 to 17.
 
-- Needed resources are computed and reserved lines 19 to 38. Line 24
+- Needed resources are computed and reserved lines 20 to 43. Line 24
   generates a `execo_g5k.planning` resource description asking for one
-  immediately available node on clusters on different sites.
+  immediately available node on clusters on different sites,
+  restricted to clusters whose nodes have a 1 Gbit/s ethernet
+  interface.
 
 - If enough resources are available and grid job submission was
   successful, when nodes are available, they are deployed with image
   `wheezy-x64-min
   <https://www.grid5000.fr/mediawiki/index.php/Category:Portal:Environment#Wheezy-x64-min>`_,
-  line 47. We need to deploy because we need root access on nodes to
+  line 52. We need to deploy because we need root access on nodes to
   be able to change the linux TCP stack congestion algorithm.
 
 - When deployment is finished, and enough nodes were deployed, the
   iperf package is installed on nodes.
 
-- The actual parameter sweeping then starts line 53: for each
+- The actual parameter sweeping then starts line 58: for each
   parameter combination, the corresponding iperf server and client are
-  run. Lines 66 to 70, iperf output is parsed.
+  run. Lines 71 to 77, iperf output is parsed.
 
-- Lines 70 to 75, extracted results are appended to a yaml results
-  file.
+- Lines 78 to 80, extracted results are appended to a yaml results
+  file. Line 82, progress is checkpointed.
 
 .. literalinclude:: code_samples/g5k_tcp_congestion.py
    :language: python
@@ -562,8 +564,6 @@ straightforward experiment workflow:
 This engine can be run in the following way::
 
  $ python -i <path/to/g5k_tcp_congestion.py>
- >>> myengine = g5k_tcp_congestion()
- >>> myengine.start()
 
 It can also be run in *ipython* to benefit from its interactive shell
 and debugger.
@@ -593,7 +593,7 @@ It generates ``g5k_tcp_congestion.png``:
 Note that this engine is simplified for the sake of demonstration
 purpose. For real experiment, for example, we should probably repeat
 measures more than 3 times to average the effect of cross-traffic on
-several measures. The figure above was actually drawn from 10
+several measures. The figure above was actually drawn from 20
 repetitions instead of 3.
 
 More advanced usages
