@@ -74,9 +74,9 @@ platforms
 prerequisites
 -------------
 
-execo installation absolutely requires ``python`` (>= 2.6) and
-``make``. ``execo_g5k`` needs ``python-httplib2``. Optionnal packages
-are (debian package names, in order of decreasing importance):
+execo installation absolutely requires ``python`` (>=
+2.6). ``execo_g5k`` needs ``python-httplib2``. Optionnal packages are
+(debian package names, in order of decreasing importance):
 
 - ``python-keyring`` for allowing storage of `execo_g5k.api_utils` api
   password in the desktop environment keyring (allowing asking it only
@@ -99,25 +99,18 @@ bourne shell and ``netcat`` on remote hosts.
 installation
 ------------
 
-makefile targets:
+to install execo::
 
-- build
+ $ python setup.py install [--user]
 
-- install. Pass option PREFIX=... for installing in a non-default
-  location (for example: ``PREFIX=$HOME/.local/``. Default PREFIX is
-  /usr/local). Pass option PYTHON to use an explicit python
-  interpreter (default is python).
+to build documentation (if sphinx is available)::
 
-- doc: to build sphinx documentation
+ $ python setup.py build_sphinx
 
-- clean: clean all built files
-
-- dist: to create the execo package in dist/
-
-For execo to work correctly, if installed in $PREFIX (and if $PREFIX
-is not a standard location such as /usr), $PREFIX/bin needs to be on
-the PATH, and python install path under $PREFIX needs to be on python
-search path. Note that since python 2.6 (see PEP 370), $HOME/.local is
+For execo to work correctly, if installed in a non standard location
+such as $HOME/.local, $HOME/.local/bin needs to be on the $PATH, and
+python install path under $HOME/.local needs to be on python search
+path. Note that since python 2.6 (PEP 370), $HOME/.local is
 automatically used as a "Per user site-packages directory". Otherwise,
 PYTHONPATH can be configured in the following way::
 

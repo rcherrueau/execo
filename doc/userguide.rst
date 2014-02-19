@@ -21,14 +21,14 @@ Install from a release tar.gz package::
  $ wget http://execo.gforge.inria.fr/downloads/execo-2.1.tar.gz
  $ tar xzf execo-2.1.tar.gz
  $ cd execo-2.1/
- $ make install PREFIX=$HOME/.local
+ $ python setup.py install --user
 
 Or install from source repository if you want the very latest
 version::
 
  $ git clone git://scm.gforge.inria.fr/execo/execo.git
  $ cd execo
- $ make install PREFIX=$HOME/.local
+ $ python setup.py install --user
 
 To add ``~/.local/bin`` to ``PATH`` (i assume bash shell here, adapt
 for other shells)::
@@ -38,8 +38,8 @@ for other shells)::
 You can put this line in your ``~/.profile`` to have your environment
 setup automatically in all shells.
 
-Since python 2.7, python automatically searches modules under
-``$HOME/.local``, but for python 2.6, you also need to configure
+Since python 2.6, python automatically searches modules under
+``$HOME/.local``, but for python < 2.6, you also need to configure
 ``PYTHONPATH`` (also optionnaly in your ``~/.profile``)::
 
  PYTHONHOMEPATH="$HOME/.local/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
