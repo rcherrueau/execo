@@ -7,7 +7,12 @@
 
 from distutils.core import setup
 from distutils.command.install import install as _install
-import sys, subprocess, os, textwrap
+import sys, subprocess, os, textwrap, shutil
+
+try:
+    from sphinx.setup_command import BuildDoc
+except:
+    pass
 
 def extract_conf(fh, source_file, marker):
     s = ""
@@ -30,10 +35,10 @@ def extract_conf(fh, source_file, marker):
 
 def generate_conf_template(install_base):
     try:
-        os.makedirs(os.path.join(install_base, 'share', 'execo'))
+        os.makedirs(os.path.join(install_base, "share", "execo"))
     except os.error:
         pass
-    with open(os.path.join(install_base, 'share', 'execo', 'execo.conf.py.sample'), "w") as fh:
+    with open(os.path.join(install_base, "share", "execo", "execo.conf.py.sample"), "w") as fh:
         print >> fh, "# sample execo user configuration"
         print >> fh, "# copy this file to ~/.execo.conf.py and edit/modify it appropriately"
         print >> fh
@@ -45,13 +50,32 @@ def generate_conf_template(install_base):
         extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "default_frontend_connection_params")
         extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "default_oarsh_oarcp_params")
 
+def copy_additional_files(install_base):
+    try:
+        os.makedirs(os.path.join(install_base, "share", "execo"))
+    except os.error:
+        pass
+    #shutil.copytree(os.path.join("doc", "code_samples"), os.path.join(install_base, "share", "execo", "code_samples"), symlinks = True)
+    #shutil.copytree(os.path.join("build", "sphinx", "html"), os.path.join(install_base, "share", "execo", "documentation"), symlinks = True)
+
 class install(_install):
     def run(self):
         _install.run(self)
         self.execute(generate_conf_template, (self.install_base,),
-                     msg="Generate execo configuration template")
+                     msg = "Generate execo configuration template")
+        self.execute(copy_additional_files, (self.install_base,),
+                     msg = "Copying additional files")
 
-setup(cmdclass={'install': install},
+try:
+    cmdclass = { 'install': install,
+                 'build_sphinx': BuildDoc }
+except:
+    cmdclass = { 'install': install }
+
+name = 'execo'
+version = '2.2-dev'
+
+setup(cmdclass = cmdclass,
       name = 'execo',
       license = 'GNU GPL v3',
       version = '2.2-dev',
@@ -77,4 +101,9 @@ setup(cmdclass={'install': install},
                       'Topic :: Software Development',
                       'Topic :: System :: Clustering',
                       'Topic :: System :: Distributed Computing'],
+      command_options={
+        'build_sphinx': {
+            'project': ('setup.py', name),
+            'version': ('setup.py', version),
+            'release': ('setup.py', version)}},
       )
