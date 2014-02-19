@@ -6,9 +6,53 @@
 # License, version 3 or later.
 
 from distutils.core import setup
-import sys
+from distutils.command.install import install as _install
+import sys, subprocess, os, textwrap
 
-setup(name = 'execo',
+def extract_conf(fh, source_file, marker):
+    s = ""
+    with open(source_file, "r") as ifh:
+        insection = False
+        for line in ifh:
+            line = line.rstrip()
+            if line == "# _STARTOF_ " + marker:
+                insection = True
+                continue
+            if line == "# _ENDOF_ " + marker:
+                insection = False
+                continue
+            if insection:
+                s += line + "\n"
+    s = textwrap.dedent(s)
+    for l in s.splitlines():
+        print >> fh, "# " + l
+    print >> fh, "\n"
+
+def generate_conf_template(install_base):
+    try:
+        os.makedirs(os.path.join(install_base, 'share', 'execo'))
+    except os.error:
+        pass
+    with open(os.path.join(install_base, 'share', 'execo', 'execo.conf.py.sample'), "w") as fh:
+        print >> fh, "# sample execo user configuration"
+        print >> fh, "# copy this file to ~/.execo.conf.py and edit/modify it appropriately"
+        print >> fh
+        print >> fh, "# import logging, os, sys"
+        print >> fh
+        extract_conf(fh, os.path.join("src", "execo", "config.py"), "configuration")
+        extract_conf(fh, os.path.join("src", "execo", "config.py"), "default_connection_params")
+        extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "g5k_configuration")
+        extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "default_frontend_connection_params")
+        extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "default_oarsh_oarcp_params")
+
+class install(_install):
+    def run(self):
+        _install.run(self)
+        self.execute(generate_conf_template, (self.install_base,),
+                     msg="Generate execo configuration template")
+
+setup(cmdclass={'install': install},
+      name = 'execo',
       license = 'GNU GPL v3',
       version = '2.2-dev',
       description = 'API for parallel local or remote processes execution',

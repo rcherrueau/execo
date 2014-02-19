@@ -6,6 +6,5 @@
 /build
 /doc/_build/
 /epydoc
-/execo.conf.py.sample
 *.pyc
 *.orig
