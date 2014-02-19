@@ -79,15 +79,23 @@ except:
 name = 'execo'
 version = '2.2-dev'
 
+with open('README') as f:
+    long_description = f.read()
+
 setup(cmdclass = cmdclass,
       name = 'execo',
       license = 'GNU GPL v3',
       version = '2.2-dev',
-      description = 'API for parallel local or remote processes execution',
-      long_description = 'This module offers a high level API for parallel'
-      'local or remote processes execution with the `Action` class hierarchy,'
-      'and a lower level API with the `Process` class, for handling individual'
-      'subprocesses.',
+      description = 'Execo offers a Python API for local or remote, standalone or parallel, '
+      'processes execution. It is especially well suited for scripting '
+      'workflows of parallel/distributed operations on local or remote hosts: '
+      'automate a scientific workflow, conduct computer science experiments, '
+      'perform automated tests, etc. The core python package is '
+      '``execo``. The ``execo_g5k`` package provides a set of tools and '
+      'extensions for the Grid5000 testbed [1]. The ``execo_engine`` package '
+      'provides tools to ease the development of computer sciences '
+      'experiments.',
+      long_description = long_description,
       author = 'Matthieu Imbert',
       author_email = 'matthieu.imbert@inria.fr',
       url = 'http://execo.gforge.inria.fr',
@@ -105,6 +113,7 @@ setup(cmdclass = cmdclass,
                       'Topic :: Software Development',
                       'Topic :: System :: Clustering',
                       'Topic :: System :: Distributed Computing'],
+      platforms = [ 'unix' ],
       command_options={
         'build_sphinx': {
             'project': ('setup.py', name),
