@@ -83,9 +83,9 @@ with open('README') as f:
     long_description = f.read()
 
 setup(cmdclass = cmdclass,
-      name = 'execo',
+      name = name,
       license = 'GNU GPL v3',
-      version = '2.2-dev',
+      version = version,
       description = 'Execo offers a Python API for local or remote, standalone or parallel, '
       'processes execution. It is especially well suited for scripting '
       'workflows of parallel/distributed operations on local or remote hosts: '
