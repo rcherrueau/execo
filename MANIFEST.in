@@ -1,5 +1,4 @@
 include execo.conf.py.sample.in
-include execo-run.in
 include MANIFEST.in
 include COPYING
 include makefile

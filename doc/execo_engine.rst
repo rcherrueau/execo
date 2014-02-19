@@ -25,11 +25,9 @@ ParamSweeper
 Engine
 ======
 
-The `execo_engine.engine.Engine` class hierarchy and ``execo-run``
-command-line tool are the base for reusable experiment engines. The
-`execo_engine.engine.Engine` class is the base class for classes which
-act as experiment engines. ``execo_run`` is the launcher for those
-experiment engines.
+The `execo_engine.engine.Engine` class hierarchy is the base for
+reusable experiment engines: The class `execo_engine.engine.Engine` is
+the base class for classes which act as experiment engines.
 
 Engine
 ------

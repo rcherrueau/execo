@@ -93,14 +93,6 @@ class Engine(object):
 
     - log level selection
 
-    The instanciation of the class is done with the ``execo-run``
-    command line tool. The name of the engine (the name of the class
-    inheriting from `execo_engine.engine.Engine`) is given as first
-    argument to ``execo-run``, which will try to instanciate the class
-    from file ``<classname>.py`` in the search path (run ``execo-run``
-    without arguments to see the search path). Further arguments are
-    passed to the engine's option parser.
-
     A subclass of Engine can access the following member variables
     which are automatically defined and initialized at the right time
     by the base class `execo_engine.engine.Engine`:
