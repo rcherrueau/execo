@@ -10,7 +10,11 @@ from distutils.command.install import install as _install
 import sys, subprocess, os, textwrap, shutil
 
 try:
-    from sphinx.setup_command import BuildDoc
+    from sphinx.setup_command import BuildDoc as _BuildDoc
+    class BuildDoc(_BuildDoc):
+        def run(self):
+            os.chdir("doc")
+            _BuildDoc.run(self)
 except:
     pass
 
