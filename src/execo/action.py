@@ -26,7 +26,7 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import nice_cmdline, find_exe, intr_cond_wait, intr_event_wait, format_exc
+from utils import name_from_cmdline, find_exe, intr_cond_wait, intr_event_wait, format_exc
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
 import threading, time, pipes, tempfile, os, shutil
@@ -377,7 +377,7 @@ class Remote(Action):
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
-        self.name = nice_cmdline(self.cmd)
+        self.name = name_from_cmdline(self.cmd)
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
@@ -626,7 +626,7 @@ class TaktukRemote(Action):
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
-        self.name = nice_cmdline(self.cmd)
+        self.name = name_from_cmdline(self.cmd)
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
@@ -1190,7 +1190,7 @@ class Local(Action):
         super(Local, self).__init__()
         self.cmd = cmd
         """the command to run"""
-        self.name = nice_cmdline(self.cmd)
+        self.name = name_from_cmdline(self.cmd)
         self._init_processes()
 
     def _args(self):

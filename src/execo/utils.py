@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration
-import pipes, subprocess, os, time, sys, traceback
+import pipes, subprocess, os, time, sys, traceback, re
 
 def comma_join(*args):
     return ", ".join([ arg for arg in args if len(arg) > 0 ])
@@ -27,11 +27,19 @@ def compact_output(s):
     if thresh == 0 or len(s) <= thresh: return s
     return s[:thresh/2] + "\n[...]\n" + s[(thresh/2)-thresh:]
 
-def nice_cmdline(cmdline):
+def str_from_cmdline(cmdline):
     if hasattr(cmdline, '__iter__'):
         return " ".join([ pipes.quote(arg) for arg in cmdline ])
     else:
         return cmdline
+
+def name_from_cmdline(cmdline):
+    cmdline = str_from_cmdline(cmdline)
+    cmdline = cmdline.strip().replace("\n", " ")
+    cmdline = re.sub('\s+', ' ', cmdline, flags = re.MULTILINE)
+    if len(cmdline) > 39:
+        cmdline = cmdline[0:36] + "..."
+    return cmdline
 
 def find_files(*args):
     """run find utility with given path(es) and parameters, return the result as a list"""

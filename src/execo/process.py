@@ -24,7 +24,7 @@ from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, nice_cmdline, intr_cond_wait, format_exc
+from utils import compact_output, name_from_cmdline, intr_cond_wait, format_exc
 from report import Report
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes
@@ -215,7 +215,7 @@ class ProcessBase(object):
         descriptors (positive integer), or existing file objects, or
         filenames, to which stderr will be sent. If a filename is given,
         it will be opened in write mode, and closed on eof"""
-        self.name = nice_cmdline(self.cmd)
+        self.name = name_from_cmdline(self.cmd)
         """User-friendly name. A default is generated and can be changed."""
         self.stdout_ioerror = False
         self.stderr_ioerror = False
@@ -907,7 +907,7 @@ class SshProcess(Process):
         `execo_g5k.config.default_oarsh_oarcp_params` to set pty to
         True, because oarsh/oarcp are run sudo which forbids to send
         signals)."""
-        self.name = nice_cmdline(self.remote_cmd)
+        self.name = name_from_cmdline(self.remote_cmd)
 
     def _args(self):
         return [ style.command(repr(self.remote_cmd)),
@@ -929,7 +929,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         super(TaktukProcess, self).__init__(cmd)
         self.host = Host(host)
         self.remote_cmd = cmd
-        self.name = nice_cmdline(self.remote_cmd)
+        self.name = name_from_cmdline(self.remote_cmd)
 
     def _args(self):
         return [ style.command(repr(self.remote_cmd)),
