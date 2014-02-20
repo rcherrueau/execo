@@ -756,6 +756,11 @@ class TaktukRemote(Action):
         self._taktuk.kill()
         return retval
 
+    def wait(self, timeout = None):
+        retval = super(TaktukRemote, self).wait(timeout)
+        self._taktuk.wait()
+        return retval
+
 class Put(Remote):
 
     """Copy local files to several remote host, with ``scp`` or a similar connection tool."""
