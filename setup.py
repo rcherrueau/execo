@@ -87,7 +87,7 @@ setup(cmdclass = cmdclass,
       license = 'GNU GPL v3',
       version = version,
       description = 'Execo offers a Python API for local or remote, standalone or parallel, '
-      'processes execution. It is especially well suited for scripting '
+      'processes execution. It is especially well suited for quickly and easily scripting '
       'workflows of parallel/distributed operations on local or remote hosts: '
       'automate a scientific workflow, conduct computer science experiments, '
       'perform automated tests, etc. The core python package is '
