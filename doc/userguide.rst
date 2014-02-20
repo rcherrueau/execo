@@ -347,10 +347,20 @@ how many resources we can get on Grid5000.
 This code reserves one node on each grid5000 cluster immediately
 available, for a 10 minutes job. Then it waits for the job start and
 retrieves the list of nodes. Then, it remotely executes shell commands
-to get the current cpufreq governor for each core, as well as the
-hyperthreading activation state. To each remote process, a
-stdout_handler is added which directs its stdout to a file called
-<nodename>.out on localhost:
+to:
+
+- get the current cpufreq governor for each core (p-states)
+
+- detect if hyperthreading is on
+
+- detect if c-states are on
+
+- detect if turboboost is on
+
+(see https://www.grid5000.fr/mediawiki/index.php/CPU_parameters_in_Grid5000)
+
+To each remote process, a stdout_handler is added which directs its
+stdout to a file called <nodename>.out on localhost:
 
 .. literalinclude:: code_samples/g5k_check_cluster_cpu.py
    :language: python
@@ -373,9 +383,9 @@ This code shows:
   block.
 
 After running this code, you get in the current directory on localhost
-a file for each remote hosts containing the scaling governor and
-hyperthreading state (easy to check they are all the same with ``cat *
-| sort -u``)
+a file for each remote hosts containing the scaling governors,
+hyperthreading state, c-states state, turboboost state (easy to check
+if they are all the same with ``cat * | sort -u``)
 
 Note that with this kind of code, there is still the possibility that
 the oar or oargrid reservation fails, since oar is not transactional,

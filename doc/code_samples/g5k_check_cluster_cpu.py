@@ -26,13 +26,26 @@ if jobid:
         logger.info("run cpu performance settings check")
         conn_parms = default_oarsh_oarcp_params.copy()
         conn_parms['keyfile'] = sshkey
-        check = Remote('find /sys/devices/system/cpu/ '
-                       '-name scaling_governor -exec cat {} \; ; '
-                       'find /sys/devices/system/cpu '
-                       '-name thread_siblings_list -exec cat {} \; '
-                       '| grep , >/dev/null '
-                       '&& echo "hyperthreading on" '
-                       '|| echo "hyperthreading off"',
+        check = Remote("""\
+find /sys/devices/system/cpu/ -name scaling_governor -exec cat {} \;
+
+find /sys/devices/system/cpu -name thread_siblings_list -exec cat {} \;\\
+ | grep , >/dev/null \\
+ && echo "hyperthreading on" || echo "hyperthreading off"
+
+find /sys/devices/system/cpu -path */cpuidle/state2/time -exec cat {} \;\\
+ | grep -v 0 >/dev/null \\
+ && echo "cstates on" || echo "cstates off"
+
+if [ -e /sys/devices/system/cpu/cpufreq/boost ] ; then
+  grep 1 /sys/devices/system/cpu/cpufreq/boost >/dev/null\\
+   && echo "turboboost on" || echo "turboboost off"
+else
+  find /sys/devices/system/cpu -name scaling_available_frequencies\\
+   -exec awk \'{print $1 -$2}\' {} \; | grep 1000 >/dev/null\\
+   && echo "turboboost on" || echo "turboboost off"
+fi
+""",
                        nodes,
                        connection_params = conn_parms)
         for p in check.processes:
