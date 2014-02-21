@@ -73,7 +73,7 @@ except:
     cmdclass = { 'install': install }
 
 name = 'execo'
-version = '2.2-dev'
+version = '2.2'
 
 with open('README') as f:
     long_description = f.read()
