@@ -1,4 +1,4 @@
-# Copyright 2009-2013 INRIA Rhone-Alpes, Service Experimentation et
+# Copyright 2009-2014 INRIA Rhone-Alpes, Service Experimentation et
 # Developpement
 #
 # This file is part of Execo.
