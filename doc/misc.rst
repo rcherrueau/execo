@@ -13,3 +13,7 @@ Links to examples of code using execo
 
 - *vm5k*: a module to ease the experimentations of virtual machines for
   the grid5000 platform: https://github.com/lpouillo/vm5k
+
+- *execo-g5k-tools*: a github repository of various user-contributed
+  code of tools or experiments on grid5000:
+  https://github.com/lpouillo/execo-g5k-tools
