@@ -88,7 +88,7 @@ setup(cmdclass = cmdclass,
       'automate a scientific workflow, conduct computer science experiments, '
       'perform automated tests, etc. The core python package is '
       '``execo``. The ``execo_g5k`` package provides a set of tools and '
-      'extensions for the Grid5000 testbed [1]. The ``execo_engine`` package '
+      'extensions for the Grid5000 testbed. The ``execo_engine`` package '
       'provides tools to ease the development of computer sciences '
       'experiments.',
       long_description = long_description,
