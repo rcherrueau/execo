@@ -16,19 +16,32 @@ In this tutorial it is shown how to install execo in subdirectory
 are not root or when you don't want to mix manually installed packages
 with packages managed by your distribution package manager.
 
-Install from a release tar.gz package::
+- Install from a release tar.gz package::
 
- $ wget http://execo.gforge.inria.fr/downloads/execo-2.2.tar.gz
- $ tar xzf execo-2.2.tar.gz
- $ cd execo-2.2/
- $ python setup.py install --user
+   $ wget http://execo.gforge.inria.fr/downloads/execo-2.2.tar.gz
+   $ tar xzf execo-2.2.tar.gz
+   $ cd execo-2.2/
+   $ python setup.py install --user
 
-Or install from source repository if you want the very latest
-version::
+- Or install from source repository if you want the very latest
+  version::
 
- $ git clone git://scm.gforge.inria.fr/execo/execo.git
- $ cd execo
- $ python setup.py install --user
+   $ git clone git://scm.gforge.inria.fr/execo/execo.git
+   $ cd execo
+   $ python setup.py install --user
+
+- Or install with ``pip`` or ``easy_install``::
+
+   $ pip install --user execo
+
+  or::
+
+   $ easy_install --user execo
+
+  If running pip or easy_install from inside grid5000, don't forget to::
+
+   $ export http_proxy="http://proxy:3128"
+   $ export https_proxy="https://proxy:3128"
 
 To add ``~/.local/bin`` to ``PATH`` (i assume bash shell here, adapt
 for other shells)::
