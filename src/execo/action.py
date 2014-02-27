@@ -677,69 +677,70 @@ class TaktukRemote(Action):
         self._taktuk_hosts_order = []
         self._taktuk_commands = ()
         self._taktuk = None
-        # we can provide per-host user with taktuk, but we cannot
-        # provide per-host port or keyfile, so check that all hosts
-        # and connection_params have the same port / keyfile (or None)
-        actual_connection_params = make_connection_params(self.connection_params)
-        check_default_port = actual_connection_params['port']
-        check_default_keyfile = actual_connection_params['keyfile']
-        check_keyfiles = set()
-        check_ports = set()
-        hosts_with_explicit_user = set()
-        for host in self.hosts:
-            if host.user != None:
-                hosts_with_explicit_user.add(host)
-            if host.keyfile != None:
-                check_keyfiles.add(host.keyfile)
-            else:
-                check_keyfiles.add(check_default_keyfile)
-            if host.port != None:
-                check_ports.add(host.port)
-            else:
-                check_ports.add(check_default_port)
-        if len(check_keyfiles) > 1 or len(check_ports) > 1:
-            raise ValueError, "unable to provide more than one keyfile / port for taktuk remote connection"
-        global_keyfile = None
-        global_port = None
-        if len(check_keyfiles) == 1:
-            global_keyfile = list(check_keyfiles)[0]
-        if len(check_ports) == 1:
-            global_port = list(check_ports)[0]
-        self._gen_taktukprocesses()
-        self._gen_taktuk_commands(hosts_with_explicit_user)
-        self._taktuk_commands += ("quit",)
-        #handler = _TaktukRemoteOutputHandler(self)
-        taktuk_options_filehandle, taktuk_options_filename = tempfile.mkstemp(prefix = 'tmp_execo_taktuk_')
-        self._taktuk_commands = " ".join(self._taktuk_commands)
-        os.write(taktuk_options_filehandle, self._taktuk_commands + "\n")
-        os.close(taktuk_options_filehandle)
-        logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_commands)
-        real_taktuk_cmdline = (actual_connection_params['taktuk'],)
-        real_taktuk_cmdline += actual_connection_params['taktuk_options']
-        real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
-                                "-o", 'error="B $position # $line\\n"',
-                                "-o", 'status="C $position # $line\\n"',
-                                "-o", 'connector="D $position # $peer_position # $line\\n"',
-                                "-o", 'state="E $position # $peer_position # $line # ".event_msg($line)."\\n"',
-                                "-o", 'info="F $position # $line\\n"',
-                                "-o", 'taktuk="G $position # $line\\n"',
-                                "-o", 'message="H $position # $line\\n"',
-                                "-o", 'default="I $position # $type > $line\\n"')
-        real_taktuk_cmdline += ("-c", " ".join(
-            get_taktuk_connector_command(keyfile = global_keyfile,
-                                         port = global_port,
-                                         connection_params = self.connection_params)))
-        real_taktuk_cmdline += ("-F", taktuk_options_filename)
-        real_taktuk_cmdline = " ".join([pipes.quote(arg) for arg in real_taktuk_cmdline])
-        real_taktuk_cmdline += " && rm -f " + taktuk_options_filename
-        self._taktuk = Process(real_taktuk_cmdline)
-        #self._taktuk.close_stdin = False
-        self._taktuk.shell = True
-        #self._taktuk.default_stdout_handler = False
-        #self._taktuk.default_stderr_handler = False
-        self._taktuk.stdout_handlers.append(self._taktuk_stdout_output_handler)
-        #self._taktuk.stderr_handlers.append(self._taktuk_stderr_output_handler)
-        self._taktuk.lifecycle_handlers.append(_TaktukLH(self))
+        if len(self.hosts) > 0:
+            # we can provide per-host user with taktuk, but we cannot
+            # provide per-host port or keyfile, so check that all hosts
+            # and connection_params have the same port / keyfile (or None)
+            actual_connection_params = make_connection_params(self.connection_params)
+            check_default_port = actual_connection_params['port']
+            check_default_keyfile = actual_connection_params['keyfile']
+            check_keyfiles = set()
+            check_ports = set()
+            hosts_with_explicit_user = set()
+            for host in self.hosts:
+                if host.user != None:
+                    hosts_with_explicit_user.add(host)
+                if host.keyfile != None:
+                    check_keyfiles.add(host.keyfile)
+                else:
+                    check_keyfiles.add(check_default_keyfile)
+                if host.port != None:
+                    check_ports.add(host.port)
+                else:
+                    check_ports.add(check_default_port)
+            if len(check_keyfiles) > 1 or len(check_ports) > 1:
+                raise ValueError, "unable to provide more than one keyfile / port for taktuk remote connection"
+            global_keyfile = None
+            global_port = None
+            if len(check_keyfiles) == 1:
+                global_keyfile = list(check_keyfiles)[0]
+            if len(check_ports) == 1:
+                global_port = list(check_ports)[0]
+            self._gen_taktukprocesses()
+            self._gen_taktuk_commands(hosts_with_explicit_user)
+            self._taktuk_commands += ("quit",)
+            #handler = _TaktukRemoteOutputHandler(self)
+            taktuk_options_filehandle, taktuk_options_filename = tempfile.mkstemp(prefix = 'tmp_execo_taktuk_')
+            self._taktuk_commands = " ".join(self._taktuk_commands)
+            os.write(taktuk_options_filehandle, self._taktuk_commands + "\n")
+            os.close(taktuk_options_filehandle)
+            logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_commands)
+            real_taktuk_cmdline = (actual_connection_params['taktuk'],)
+            real_taktuk_cmdline += actual_connection_params['taktuk_options']
+            real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
+                                    "-o", 'error="B $position # $line\\n"',
+                                    "-o", 'status="C $position # $line\\n"',
+                                    "-o", 'connector="D $position # $peer_position # $line\\n"',
+                                    "-o", 'state="E $position # $peer_position # $line # ".event_msg($line)."\\n"',
+                                    "-o", 'info="F $position # $line\\n"',
+                                    "-o", 'taktuk="G $position # $line\\n"',
+                                    "-o", 'message="H $position # $line\\n"',
+                                    "-o", 'default="I $position # $type > $line\\n"')
+            real_taktuk_cmdline += ("-c", " ".join(
+                get_taktuk_connector_command(keyfile = global_keyfile,
+                                             port = global_port,
+                                             connection_params = self.connection_params)))
+            real_taktuk_cmdline += ("-F", taktuk_options_filename)
+            real_taktuk_cmdline = " ".join([pipes.quote(arg) for arg in real_taktuk_cmdline])
+            real_taktuk_cmdline += " && rm -f " + taktuk_options_filename
+            self._taktuk = Process(real_taktuk_cmdline)
+            #self._taktuk.close_stdin = False
+            self._taktuk.shell = True
+            #self._taktuk.default_stdout_handler = False
+            #self._taktuk.default_stderr_handler = False
+            self._taktuk.stdout_handlers.append(self._taktuk_stdout_output_handler)
+            #self._taktuk.stderr_handlers.append(self._taktuk_stderr_output_handler)
+            self._taktuk.lifecycle_handlers.append(_TaktukLH(self))
 
     def start(self):
         retval = super(TaktukRemote, self).start()
@@ -752,13 +753,15 @@ class TaktukRemote(Action):
 
     def kill(self):
         retval = super(TaktukRemote, self).kill()
-        self._taktuk.ignore_exit_code = self._taktuk.nolog_exit_code = True
-        self._taktuk.kill()
+        if self._taktuk:
+            self._taktuk.ignore_exit_code = self._taktuk.nolog_exit_code = True
+            self._taktuk.kill()
         return retval
 
     def wait(self, timeout = None):
         retval = super(TaktukRemote, self).wait(timeout)
-        self._taktuk.wait()
+        if self._taktuk:
+            self._taktuk.wait()
         return retval
 
 class Put(Remote):
