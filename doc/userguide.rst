@@ -146,9 +146,9 @@ Remote process over ssh
 '''''''''''''''''''''''
 
 On one host *host1* Start an `execo.process.SshProcess` *process_A*
-running a listening netcat, then wait 1 seconds, then on another host
+running a listening netcat, then on another host
 *host2* start an `execo.process.SshProcess` *process_B* running netcat
-sender, then wait wait for *process_B* termination, then kill
+sender, then wait for *process_B* termination, then kill
 *process_A*::
 
  from execo import *
@@ -157,17 +157,11 @@ sender, then wait wait for *process_B* termination, then kill
  process_A.start()
  sleep(1)
  process_B.run()
- process_A.wait()
+ process_A.kill()
  print process_A.stdout
 
 We sleep for 1 second after starting the servers to make sure that
 they are ready to receive incoming connections.
-
-The netcat option ``-i 1`` is important in this example because as
-process_A and process_B are started almost simultaneously, we want to
-introduce a little delay (1 second) before process_B tries to connect
-to process_A, to be sure that process_A has finished its
-initialization and is ready to receive incoming connections.
 
 This example shows the asynchronous control of processes: while a
 process is running (the netcat receiver), the code can do something
