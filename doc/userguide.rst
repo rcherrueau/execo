@@ -157,7 +157,7 @@ sender, then wait for *process_B* termination, then kill
  process_A.start()
  sleep(1)
  process_B.run()
- process_A.kill()
+ process_A.wait()
  print process_A.stdout
 
 We sleep for 1 second after starting the servers to make sure that
