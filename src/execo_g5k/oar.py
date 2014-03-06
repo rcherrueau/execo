@@ -164,11 +164,11 @@ def get_oarsub_commandline(job_spec):
     oarsub_cmdline = 'oarsub'
     if job_spec.additional_options != None:
         oarsub_cmdline += ' %s' % (job_spec.additional_options,)
-    if hasattr(job_spec.resources, '__iter__'):
-        resources = job_spec.resources
-    else:
-        resources = (job_spec.resources,)
-    if len(resources) > 0:
+    if job_spec.resources:
+        if hasattr(job_spec.resources, '__iter__'):
+            resources = job_spec.resources
+        else:
+            resources = (job_spec.resources,)
         oarsub_cmdline += ' -l "' + "+".join(resources)
         if job_spec.walltime != None:
             oarsub_cmdline += ',walltime=%s' % (format_oar_duration(job_spec.walltime),)
