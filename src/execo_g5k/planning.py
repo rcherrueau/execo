@@ -644,7 +644,8 @@ def _get_site_planning_MySQL(site, site_planning):
             for data in r.fetch_row( maxrows = 0, how=1 ):
                 if data['host'] is not None:
                     cluster = data['host'].split('-')[0]
-                    site_planning[cluster][data['host']] = {'busy': [], 'free': []}
+                    if cluster in site_planning:
+                        site_planning[cluster][data['host']] = {'busy': [], 'free': []}
                 if site_planning.has_key('vlans') and data['vlans'] is not None:
                     site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
                 if site_planning.has_key('subnets') and data['subnet'] is not None:
