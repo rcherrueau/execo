@@ -637,16 +637,14 @@ def _get_site_planning_MySQL(site, site_planning):
                 IF(R.type = 'kavlan' or R.type = 'kavlan-global', R.vlan,null) as vlans,
                 IF(R.type = 'subnet', R.subnet_address, null) as subnet
                 FROM resources R
-                WHERE state <> 'Dead'; """
-
+                WHERE state <> 'Dead' AND maintenance <> 'YES'; """
             db.query(sql)
             r = db.store_result()
-            for data in r.fetch_row( maxrows = 0, how=1 ):
+            for data in r.fetch_row(maxrows = 0, how=1):
                 if data['host'] is not None:
                     cluster = data['host'].split('-')[0]
-                    if cluster in site_planning:
-                        site_planning[cluster][data['host']] = {'busy': [], 'free': []}
-                if site_planning.has_key('vlans') and data['vlans'] is not None:
+                    site_planning[cluster][data['host']] = {'busy': [], 'free': []}
+                if 'vlans' in site_planning and data['vlans'] is not None:
                     site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
                 if site_planning.has_key('subnets') and data['subnet'] is not None:
                     site_planning['subnets'][data['subnet']] = {'busy': [], 'free': []}
@@ -666,12 +664,12 @@ def _get_site_planning_MySQL(site, site_planning):
                 ON AR.moldable_job_id=MJD.moldable_id
             LEFT JOIN resources R
                 ON AR.resource_id=R.resource_id
+                AND R.maintenance <> 'YES'
             WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
                 AND queue_name<>'besteffort'
             GROUP BY J.job_id
             ORDER BY J.start_time, R.network_address,
                 CONVERT(SUBSTRING_INDEX(SUBSTRING_INDEX(R.network_address,'.',1),'-',-1), SIGNED)"""
-
             db.query(sql)
             r = db.store_result()
             for job in r.fetch_row( maxrows = 0, how=1 ):
@@ -685,7 +683,7 @@ def _get_site_planning_MySQL(site, site_planning):
                 if site_planning.has_key('vlans') and job['vlan'] is not None:
                     ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
                     try:
-                        vlan =  int(job['vlan'])
+                        vlan = int(job['vlan'])
                         # We are only interested in routed vlan
                         if vlan > 3:
                             site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
@@ -693,9 +691,7 @@ def _get_site_planning_MySQL(site, site_planning):
                     except:
                         pass
 
-
                 if site_planning.has_key('subnets') and job['subnets'] is not None:
-
                     for subnet in job['subnets'].split(','):
                         site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
                                                                                int(job['stop_time'])))
@@ -793,7 +789,6 @@ def _trunc_el_planning(el_planning, starttime, endtime):
         el_planning.sort()
 
 
-
 def _fill_el_planning_free(el_planning, starttime, endtime):
     """An internal function to compute the planning free of all elements"""
     if len(el_planning['busy']) > 0:
@@ -805,6 +800,7 @@ def _fill_el_planning_free(el_planning, starttime, endtime):
             el_planning['free'].append((el_planning['busy'][len(el_planning['busy'])-1][1], endtime))
     else:
             el_planning['free'].append((starttime, endtime))
+
 
 def _slots_limits(planning):
     """Return the limits of slots, defined by a resource state change."""
@@ -824,9 +820,9 @@ def _slots_limits(planning):
                         if stop not in limits:
                             limits.append(stop)
     limits = sorted(limits)
-    limits.pop()
+    if len(limits) > 0:
+        limits.pop()
     return limits
-
 
 
 def _add_charter_to_planning(planning, starttime, endtime):
@@ -854,6 +850,7 @@ def g5k_charter_time(t):
     if dt.weekday() in [5, 6]: return False
     if dt.hour < 9 or dt.hour >= 19: return False
     return True
+
 
 def get_next_charter_period(start, end):
     """Return the next g5k charter time period.
@@ -895,6 +892,7 @@ def get_next_charter_period(start, end):
         if charter_end > end:
             charter_end = end
         return datetime_to_unixts(charter_start), datetime_to_unixts(charter_end)
+
 
 def get_charter_el_planning(start_time, end_time):
     """Returns the list of tuples (start, end) of g5k charter time periods between start_time and end_time.
