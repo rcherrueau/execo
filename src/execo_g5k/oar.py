@@ -27,9 +27,7 @@ from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connection_params
 from execo.utils import checked_min
 from execo_g5k.utils import get_frontend_host
-import os
-import re
-import time
+import os, re, time
 
 def _date_in_range(date, date_range):
     """Check that a date is inside a range. If range is None, return True."""
@@ -40,17 +38,47 @@ def _date_in_range(date, date_range):
         return False
     return True
 
-def format_oar_date(date):
+def format_oar_date(ts):
     """Return a string with the formatted date (year, month, day, hour, min, sec, ms) formatted for oar/oargrid.
 
-    timezone is local and is discarded since oar doesn't know about them.
+    timezone is forced to Europe/Paris, and timezone info is discarded, for g5k oar/oargrid.
 
-    :param date: a date in one of the formats handled.
+    :param tz: a date in one of the formats handled.
     """
-    date = int(get_unixts(date))
-    t = time.localtime(date)
-    formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
-    return formatted_time
+    # THREAD-UNSAFE IMPLEMENTATION (10000 execs: 0.45034193992614746)
+    ##############################
+    # ts = int(get_unixts(ts))
+    # oldtz = os.environ.get("TZ")
+    # os.environ["TZ"] = "Europe/Paris"
+    # time.tzset()
+    # t = time.localtime(ts)
+    # formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
+    # if oldtz:
+    #     os.environ["TZ"] = oldtz
+    # else:
+    #     del os.environ["TZ"]
+    # time.tzset()
+    # return formatted_time
+
+    # SLOWER BUT THREAD-SAFE IMPLEMENTATION (10000 execs: 35.99571108818054)
+    #######################################
+    ts = int(get_unixts(ts))
+    rend, wend = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.environ["TZ"] = "Europe/Paris"
+        time.tzset()
+        t = time.localtime(ts)
+        formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
+        os.write(wend, formatted_time)
+        os._exit(0)
+    else:
+        os.close(wend)
+        f = os.fdopen(rend)
+        formatted_time = f.read()
+        f.close()
+        os.waitpid(pid, 0)
+        return formatted_time
 
 def format_oar_duration(duration):
     """Return a string with a formatted duration (hours, mins, secs, ms) formatted for oar/oargrid.
@@ -77,8 +105,39 @@ def format_oar_duration(duration):
     return formatted_duration
 
 def oar_date_to_unixts(date):
-    """Convert a date in the format returned by oar/oargrid to an unix timestamp."""
-    return str_date_to_unixts(date)
+    """Convert a date in the format returned by oar/oargrid to an unix timestamp.
+
+    Timezone of g5k oar/oargrid timestamps is Europe/Paris."""
+    # THREAD-UNSAFE IMPLEMENTATION (10000 execs: 0.9238739013671875)
+    ##############################
+    # oldtz = os.environ.get("TZ")
+    # os.environ["TZ"] = "Europe/Paris"
+    # time.tzset()
+    # ts = str_date_to_unixts(date)
+    # if oldtz:
+    #     os.environ["TZ"] = oldtz
+    # else:
+    #     del os.environ["TZ"]
+    # time.tzset()
+    # return ts
+
+    # SLOWER BUT THREAD-SAFE IMPLEMENTATION (10000 execs: 40.95947599411011)
+    #######################################
+    rend, wend = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.environ["TZ"] = "Europe/Paris"
+        time.tzset()
+        ts = str_date_to_unixts(date)
+        os.write(wend, str(ts))
+        os._exit(0)
+    else:
+        os.close(wend)
+        f = os.fdopen(rend)
+        ts = float(f.read())
+        f.close()
+        os.waitpid(pid, 0)
+        return ts
 
 def oar_duration_to_seconds(duration):
     """Convert a duration in the format returned by oar/oargrid to a number of seconds."""
