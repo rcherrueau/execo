@@ -45,23 +45,8 @@ def format_oar_date(ts):
 
     :param tz: a date in one of the formats handled.
     """
-    # THREAD-UNSAFE IMPLEMENTATION (10000 execs: 0.45034193992614746)
-    ##############################
-    # ts = int(get_unixts(ts))
-    # oldtz = os.environ.get("TZ")
-    # os.environ["TZ"] = "Europe/Paris"
-    # time.tzset()
-    # t = time.localtime(ts)
-    # formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
-    # if oldtz:
-    #     os.environ["TZ"] = oldtz
-    # else:
-    #     del os.environ["TZ"]
-    # time.tzset()
-    # return formatted_time
-
-    # SLOWER BUT THREAD-SAFE IMPLEMENTATION (10000 execs: 35.99571108818054)
-    #######################################
+    # forking code because modifying os.environ["TZ"] and calling
+    # time.tzset() is not thread-safe
     ts = int(get_unixts(ts))
     rend, wend = os.pipe()
     pid = os.fork()
@@ -108,21 +93,8 @@ def oar_date_to_unixts(date):
     """Convert a date in the format returned by oar/oargrid to an unix timestamp.
 
     Timezone of g5k oar/oargrid timestamps is Europe/Paris."""
-    # THREAD-UNSAFE IMPLEMENTATION (10000 execs: 0.9238739013671875)
-    ##############################
-    # oldtz = os.environ.get("TZ")
-    # os.environ["TZ"] = "Europe/Paris"
-    # time.tzset()
-    # ts = str_date_to_unixts(date)
-    # if oldtz:
-    #     os.environ["TZ"] = oldtz
-    # else:
-    #     del os.environ["TZ"]
-    # time.tzset()
-    # return ts
-
-    # SLOWER BUT THREAD-SAFE IMPLEMENTATION (10000 execs: 40.95947599411011)
-    #######################################
+    # forking code because modifying os.environ["TZ"] and calling
+    # time.tzset() is not thread-safe
     rend, wend = os.pipe()
     pid = os.fork()
     if pid == 0:
