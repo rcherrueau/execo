@@ -19,6 +19,7 @@
 from log import style, logger, logger_handler
 from time_utils import format_unixts
 from utils import compact_output
+from config import configuration
 import Queue, errno, fcntl, logging, os, select, \
   signal, sys, thread, threading, time, traceback, \
   subprocess, resource
@@ -274,8 +275,10 @@ class _Conductor(object):
                 except OSError: pass
             while True:
                 # poll each second that my parent is still alive. If
-                # not, die.
+                # not, die. Optionnaly kill all instanciated childs.
                 if os.getppid() != ppid:
+                    if configuration['kill_childs_at_end']:
+                        os.killpg(0, signal.SIGTERM)
                     os._exit(0)
                 time.sleep(1)
         else:

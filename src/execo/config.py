@@ -52,6 +52,7 @@ configuration = {
     'kill_timeout': 5,
     'intr_period': 1,
     'port_range': (29800, 29850),
+    'kill_childs_at_end': True,
     'color_mode': checktty(sys.stdout)
                   and checktty(sys.stderr),
     'color_styles': {
@@ -102,6 +103,16 @@ configuration = {
 - ``port_range``: a tuple (start port, end port) of ports to use for
   the function ``execo.utils.get_port``. As all python ranges, start
   is inclusive, end is exclusive.
+
+- ``kill_childs_at_end``: Whether to try sending SIGTERM to all
+  subprocesses started through execo when the script
+  terminates. Warnings:
+
+  - this config option must be set at execo import time, changing it
+    later will be ignored
+
+  - SIGTERM is only sent to all childs or subchilds which did not try
+    to daemonize by changing their process group.
 
 - ``color_mode``: whether to colorize output (with ansi escape
   sequences)
