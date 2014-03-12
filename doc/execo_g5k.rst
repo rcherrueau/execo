@@ -257,19 +257,19 @@ Jobs generation tools
 .. autofunction:: distribute_hosts
 .. autofunction:: get_jobs_specs
 
-Charter related functions
--------------------------
-
-.. autofunction:: g5k_charter_time
-.. autofunction:: get_next_charter_period
-.. autofunction:: get_charter_el_planning
-
 Plot functions
 --------------
 .. autofunction:: draw_gantt
 .. autofunction:: draw_slots
 
 .. _execo_g5k-configuration:
+
+Grid5000 Charter
+================
+
+g5k_charter_remaining
+---------------------
+.. autofunction:: g5k_charter_remaining
 
 Configuration
 =============

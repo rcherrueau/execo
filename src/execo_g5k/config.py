@@ -33,6 +33,10 @@ g5k_configuration = {
     'api_uri': "https://api.grid5000.fr/3.0/",
     'api_username': None,
     'oar_job_key_file': None,
+    'oar_mysql_ro_db': 'oar2',
+    'oar_mysql_ro_user': 'oarreader',
+    'oar_mysql_ro_password': 'read',
+    'oar_mysql_ro_port': 3306,
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.

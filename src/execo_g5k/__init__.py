@@ -44,3 +44,8 @@ from api_utils import get_g5k_sites, get_site_clusters, \
     get_host_cluster, group_hosts, get_resource_attributes, \
     get_host_attributes, get_cluster_attributes, \
     get_site_attributes, canonical_host_name
+
+try:
+    from cluster import g5k_charter_remaining
+except:
+    pass # no mysqldb
