@@ -24,7 +24,7 @@ from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, name_from_cmdline, intr_cond_wait, format_exc
+from utils import compact_output, name_from_cmdline, intr_cond_wait, format_exc, get_port
 from report import Report
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes
@@ -1008,3 +1008,77 @@ def get_process(*args, **kwargs):
         del kwargs["host"]
         if "connection_params" in kwargs: del kwargs["connection_params"]
         return Process(*args, **kwargs)
+
+class port_forwarder_stderr_handler(ProcessOutputHandler):
+    """parses verbose ssh output to notify when forward port is actually open"""
+
+    def __init__(self, local_port, bind_address):
+        super(port_forwarder_stderr_handler, self).__init__()
+        regex = "^debug1: Local forwarding listening on %s port %i\.\s*$" % (
+            bind_address,
+            local_port)
+        self.pf_open_re = re.compile(regex)
+
+    def read_line(self, process, string, eof, error):
+        if self.pf_open_re.match(string):
+            process.forwarding.set()
+
+def get_port_forwarder(host,
+                       connection_params,
+                       remote_host,
+                       remote_port,
+                       local_port = None,
+                       bind_address = "127.0.0.1"):
+    """Create an ssh port forwarder process (ssh -L).
+
+    This port forwarding process opens a listening socket on
+    localhost, and forwards it to the given remote host / port on the
+    remote side of the ssh connection.
+
+    :param host: remote side of the ssh connection
+
+    :param connection_params: connection params for connecting to host
+
+    :param remote_host: the remote host to connect to on the remote
+      side
+
+    :param remote_port: the remote port to connect to on the remote
+      side
+
+    :param local_port: the port to use locally for the listening
+      socket. If None (the default), a port is automatically selected
+      with ``execo.utils.get_port``
+
+    :param bind_address: the bind address to use locally for the
+      listening socket. Default: 127.0.0.1, so the socket is only
+      available to localhost.
+
+    :returns: a tuple (SshProcess, local_port). The returned
+      SshProcess executes a long sleep, and needs to be started /
+      killed as usual. It is configured to show no log / error when
+      killed. The returned SshProcess has an additionnal instance
+      variable `forwarding` which is a `threading.Event` which can be
+      waited upon to be notified when the forwarding port is actually
+      open (beware: this member is not correctly reset if the
+      forwarder SshProcess is reset)
+    """
+    if not local_port:
+        local_port = get_port()
+    pf_conn_parms = make_connection_params(connection_params)
+    pf_conn_parms['ssh_options'] = pf_conn_parms['ssh_options'] + (
+        '-v',
+        '-L',
+        '%s:%i:%s:%i' % (
+            bind_address,
+            local_port,
+            Host(remote_host).address,
+            remote_port
+            ))
+    pf = SshProcess("sleep 31536000",
+                    host,
+                    connection_params = pf_conn_parms)
+    pf.ignore_exit_code = pf.nolog_exit_code = True
+    pf.forwarding = threading.Event()
+    pf.stderr_handlers.append(port_forwarder_stderr_handler(local_port,
+                                                            bind_address))
+    return pf, local_port
