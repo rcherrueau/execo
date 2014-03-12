@@ -700,7 +700,7 @@ def _get_site_planning_MySQL(site, site_planning):
         finally:
             db.close()
     except:
-        logger.warn('error with '+site+', removing from computation')
+        logger.warn('error connecting to oar database / getting planning from ' + site)
         currentThread().broken = True
 
 def _get_planning_MySQL(planning):
