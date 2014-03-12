@@ -682,14 +682,15 @@ class Process(ProcessBase):
                                                 stderr = subprocess.PIPE,
                                                 close_fds = True,
                                                 shell = self.shell,
-                                                preexec_fn = os.setsid)
+                                                preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
             else:
                 self.process = subprocess.Popen(self._actual_cmd(),
                                                 stdin = subprocess.PIPE,
                                                 stdout = subprocess.PIPE,
                                                 stderr = subprocess.PIPE,
                                                 close_fds = True,
-                                                shell = self.shell)
+                                                shell = self.shell,
+                                                preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
             self.pid = self.process.pid
             if self._actual_close_stdin():
                 self.process.stdin.close()

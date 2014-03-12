@@ -21,7 +21,7 @@ from time_utils import format_unixts
 from utils import compact_output
 import Queue, errno, fcntl, logging, os, select, \
   signal, sys, thread, threading, time, traceback, \
-  subprocess
+  subprocess, resource
 
 # assuming import of this module is triggered from "the main" thread,
 # the following call is intended to workaround python issue #7980
@@ -37,6 +37,8 @@ try:
     _MAXREAD = int(subprocess.Popen(["getconf", "_POSIX_SSIZE_MAX"], stdout=subprocess.PIPE).communicate()[0])
 except:
     _MAXREAD = 32767
+
+DEFAULT_MAXFD = 1024
 
 if sys.platform.startswith('darwin') or sys.platform.startswith('win'):
 
@@ -246,9 +248,38 @@ class _Conductor(object):
                                 # to keep track wether reaper thread is
                                 # running
         signal.set_wakeup_fd(self.__wpipe)
+        self.pgrp = self.__start_pgrp()
 
     def __str__(self):
         return "<" + style.object_repr("Conductor") + "(num processes=%i, num fds=%i, num pids=%i, timeline length=%i)>" % (len(self.__processes), len(self.__fds), len(self.__pids), len(self.__timeline))
+
+    def __start_pgrp(self):
+        # start a dedicated dummy process, having its own process
+        # group, in order to group all processes handled by this
+        # conductor
+        ppid = os.getpid()
+        pid = os.fork()
+        if pid == 0:
+            os.setpgid(0, 0)
+            os.chdir("/")
+            os.umask(0)
+            maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+            if (maxfd == resource.RLIM_INFINITY):
+                if (os.sysconf_names.has_key("SC_OPEN_MAX")):
+                    maxfd = maxfd = os.sysconf("SC_OPEN_MAX")
+                else:
+                    maxfd = DEFAULT_MAXFD
+            for fd in range(0, maxfd):
+                try: os.close(fd)
+                except OSError: pass
+            while True:
+                # poll each second that my parent is still alive. If
+                # not, die.
+                if os.getppid() != ppid:
+                    os._exit(0)
+                time.sleep(1)
+        else:
+            return pid
 
     def __wakeup(self):
         # wakeup the I/O thread
@@ -512,7 +543,7 @@ class _Conductor(object):
         # run func for the reaper thread, whose role is to wait to be
         # notified by the operating system of terminated processes
         while True:
-            exit_pid, exit_code = _checked_waitpid(-1, 0)
+            exit_pid, exit_code = _checked_waitpid(- self.pgrp, 0)
             with self.lock:
                 # this lock is needed to ensure that:
                 #
