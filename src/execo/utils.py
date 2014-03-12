@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration
-import pipes, subprocess, os, time, sys, traceback, re
+import pipes, subprocess, os, time, sys, traceback, re, functools, threading
 
 def comma_join(*args):
     return ", ".join([ arg for arg in args if len(arg) > 0 ])
@@ -111,3 +111,22 @@ def intr_cond_wait(cond, timeout = None):
 def format_exc():
     exc_type, exc_value, exc_traceback = sys.exc_info()
     return "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+
+def memoize(obj):
+    """memoizing decorator
+
+    works on functions, methods, or classes, and exposes the cache
+    publicly. From
+    https://wiki.python.org/moin/PythonDecoratorLibrary#Alternate_memoize_as_nested_functions
+    warning: not thread-safe, but as dict is a primitive type, worst
+    case race condition would be that the underlying obj is called two
+    times for the same args/kwargs, and the cache is updated serially
+    with both (necessarily identical) values for the same key."""
+    cache = obj.cache = {}
+    @functools.wraps(obj)
+    def memoizer(*args, **kwargs):
+        key = str(args) + str(kwargs)
+        if key not in cache:
+            cache[key] = obj(*args, **kwargs)
+        return cache[key]
+    return memoizer

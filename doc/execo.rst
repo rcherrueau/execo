@@ -346,6 +346,10 @@ get_hosts_set
 -------------
 .. autofunction:: execo.host.get_hosts_set
 
+memoize
+-------
+.. autofunction:: execo.utils.memoize
+
 Logging
 =======
 
