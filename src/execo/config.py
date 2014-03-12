@@ -51,6 +51,7 @@ configuration = {
     'compact_output_threshold': 4096,
     'kill_timeout': 5,
     'intr_period': 1,
+    'port_range': (29800, 29850),
     'color_mode': checktty(sys.stdout)
                   and checktty(sys.stderr),
     'color_styles': {
@@ -98,8 +99,9 @@ configuration = {
 - ``intr_period``: number of seconds between periodic check interrupt,
   for correct handling of ctrl-c
 
-- ``debug_io``: flag to activate full I/O debugging: all stdout /
-  stderr activity of all processes will be logged (warning: huge logs)
+- ``port_range``: a tuple (start port, end port) of ports to use for
+  the function ``execo.utils.get_port``. As all python ranges, start
+  is inclusive, end is exclusive.
 
 - ``color_mode``: whether to colorize output (with ansi escape
   sequences)

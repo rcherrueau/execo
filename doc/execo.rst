@@ -350,6 +350,10 @@ memoize
 -------
 .. autofunction:: execo.utils.memoize
 
+get_port
+--------
+.. autofunction:: execo.utils.get_port
+
 Logging
 =======
 

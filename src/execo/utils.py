@@ -130,3 +130,16 @@ def memoize(obj):
             cache[key] = obj(*args, **kwargs)
         return cache[key]
     return memoizer
+
+_port_lock = threading.RLock()
+
+def get_port():
+    """Thread safely returns a round-robbed port in the range ``g5k_configuration['port_range']``"""
+    with _port_lock:
+        if not hasattr(get_port, "current"):
+            get_port.current = configuration['port_range'][0]
+        else:
+            get_port.current += 1
+            if get_port.current >= configuration['port_range'][1]:
+                get_port.current = configuration['port_range'][0]
+        return get_port.current
