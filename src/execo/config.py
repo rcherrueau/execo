@@ -152,7 +152,6 @@ def make_default_connection_params():
         'chainput_nc_client_timeout': 5,
         'chainput_nc_server_timeout': 30,
         'nc': '/bin/nc.traditional -v -v',
-        'chainput_port': 64208,
         'chainput_host_retry': 5,
         'chainput_chain_retry': 10,
         'chainput_try_delay': 1,
@@ -195,9 +194,6 @@ default_connection_params = make_default_connection_params()
 
 - ``chainput_nc_server_timeout``: timeout for server to wait for
   incoming connection from previous hop
-
-- ``chainput_port``: port on which TCP servers listen for chain
-  transfers
 
 - ``chainput_host_retry``: number of times each hop in the transfer
   chain retries to connect to next hop

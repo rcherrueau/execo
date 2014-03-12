@@ -26,7 +26,7 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import name_from_cmdline, find_exe, intr_cond_wait, intr_event_wait, format_exc
+from utils import name_from_cmdline, find_exe, intr_cond_wait, intr_event_wait, format_exc, get_port
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
 import threading, time, pipes, tempfile, os, shutil
@@ -1547,6 +1547,7 @@ class ChainPut(SequentialActions):
 
             #previous_action = preparechain
             chains = []
+            port = get_port()
             for findex, f in enumerate(self.local_files):
 
                 autoremoveopt = ""
@@ -1560,7 +1561,7 @@ class ChainPut(SequentialActions):
                         actual_connection_params['nc'],
                         actual_connection_params['chainput_nc_client_timeout'],
                         actual_connection_params['chainput_nc_server_timeout'],
-                        actual_connection_params['chainput_port'],
+                        port,
                         actual_connection_params['chainput_host_retry'],
                         chain_retries,
                         actual_connection_params['chainput_try_delay'],
@@ -1580,7 +1581,7 @@ class ChainPut(SequentialActions):
                         actual_connection_params['nc'],
                         actual_connection_params['chainput_nc_client_timeout'],
                         actual_connection_params['chainput_nc_server_timeout'],
-                        actual_connection_params['chainput_port'],
+                        port,
                         actual_connection_params['chainput_host_retry'],
                         chain_retries,
                         actual_connection_params['chainput_try_delay'],
