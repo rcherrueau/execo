@@ -269,7 +269,7 @@ Grid5000 Charter
 
 g5k_charter_remaining
 ---------------------
-.. autofunction:: g5k_charter_remaining
+.. autofunction:: execo_g5k.charter.g5k_charter_remaining
 
 Configuration
 =============
