@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import datetime, os, time
+import datetime, os, time, threading
 from execo.time_utils import get_unixts, datetime_to_unixts, sleep
 from execo.utils import memoize
 from traceback import format_exc
@@ -251,25 +251,11 @@ if MySQLdb:
         r = db.store_result()
         return [data for data in r.fetch_row(maxrows = 0, how = 1)]
 
-    def g5k_charter_remaining(site, day):
-        """Returns the amount of time remaining per cluster for submitting jobs, according to the grid5000 charter.
-
-        Grid5000 usage charter:
-        https://www.grid5000.fr/mediawiki/index.php/Grid5000:UserCharter
-        This function is only available if MySQLdb is available.
-
-        :param site: name of the site
-
-        :param day: a `datetime.date`
-
-        :returns: a dict, keys are cluster names, value is remaining
-          time for each cluster (in seconds)
-        """
+    def __site_charter_remaining(site, day):
         with G5kAutoPortForwarder(site,
                                   'mysql.' + site + '.grid5000.fr',
                                   g5k_configuration['oar_mysql_ro_port']) as (host, port):
             start, end = get_oar_day_start_end(day)
-            remaining = {}
             user = g5k_configuration.get('api_username')
             if not user:
                 user = os.environ['LOGNAME']
@@ -284,10 +270,36 @@ if MySQLdb:
                         for j in _get_jobs(db, cluster, user, start, end):
                             if _job_intersect_charter_period(j):
                                 cluster_used += (j["nb_resources_scheduled"] + j["nb_resources_actual"]) * j["walltime"]
-                        remaining[cluster] = max(0, cluster_num_cores(cluster) * 3600 * 2 - cluster_used)
+                        threading.currentThread().remaining[cluster] = max(0, cluster_num_cores(cluster) * 3600 * 2 - cluster_used)
                 finally:
                     db.close()
             except Exception, e:
                 logger.warn("error connecting to oar database / getting planning from " + site)
                 logger.trace("exception:\n" + format_exc())
+
+    def g5k_charter_remaining(sites, day):
+        """Returns the amount of time remaining per cluster for submitting jobs, according to the grid5000 charter.
+
+        Grid5000 usage charter:
+        https://www.grid5000.fr/mediawiki/index.php/Grid5000:UserCharter
+        This function is only available if MySQLdb is available.
+
+        :param sites: a list of grid5000 sites
+
+        :param day: a `datetime.date`
+
+        :returns: a dict, keys are cluster names, value is remaining
+          time for each cluster (in seconds)
+        """
+        remaining = {}
+        threads = {}
+        for site in sites:
+            t = threading.Thread(target = __site_charter_remaining,
+                                 args = (site, day))
+            t.remaining = {}
+            threads[site] = t
+            t.start()
+        for site, t in threads.iteritems():
+            t.join()
+            remaining.update(t.remaining)
         return remaining
