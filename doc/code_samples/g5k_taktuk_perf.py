@@ -1,6 +1,6 @@
 from execo import *
 from execo_g5k import *
-from execo_g5k.oar import oargridsub_hack
+from execo_g5k.oar import oarsubgrid
 import itertools, random, tempfile, shutil
 
 logger.info("compute resources to reserve")
