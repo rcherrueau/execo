@@ -18,10 +18,10 @@
 
 import datetime, os, time
 from execo.time_utils import get_unixts, datetime_to_unixts, sleep
-from execo.utils import memoize, get_port
+from execo.utils import memoize, get_port, format_exc
 from execo_g5k.api_utils import get_host_attributes, get_cluster_hosts, get_site_clusters
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
-from execo_g5k.utils import get_frontend_host, format_exc
+from execo_g5k.utils import get_frontend_host
 from execo_g5k.oar import format_oar_date
 from execo.config import make_connection_params, configuration
 from execo.process import get_port_forwarder
@@ -292,7 +292,7 @@ if MySQLdb:
                     remaining[cluster] = max(0, cluster_num_cores(cluster) * 3600 * 2 - cluster_used)
             finally:
                 db.close()
-        except Exception e:
+        except Exception, e:
             logger.warn("error connecting to oar database / getting planning from " + site)
             logger.trace("exception:\n" + format_exc())
         pf.kill()
