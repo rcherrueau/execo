@@ -18,7 +18,8 @@
 
 import datetime, os, time
 from execo.time_utils import get_unixts, datetime_to_unixts, sleep
-from execo.utils import memoize, get_port, format_exc
+from execo.utils import memoize, get_port
+from traceback import format_exc
 from execo_g5k.api_utils import get_host_attributes, get_cluster_hosts, get_site_clusters
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host

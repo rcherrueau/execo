@@ -24,7 +24,8 @@ from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, name_from_cmdline, intr_cond_wait, format_exc, get_port
+from utils import compact_output, name_from_cmdline, intr_cond_wait, get_port
+from traceback import format_exc
 from report import Report
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes

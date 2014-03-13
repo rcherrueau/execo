@@ -26,7 +26,8 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import name_from_cmdline, find_exe, intr_cond_wait, intr_event_wait, format_exc, get_port
+from utils import name_from_cmdline, find_exe, intr_cond_wait, intr_event_wait, get_port
+from traceback import format_exc
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
 import threading, time, pipes, tempfile, os, shutil
