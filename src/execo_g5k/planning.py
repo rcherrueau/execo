@@ -165,8 +165,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
                     for host, host_planning in cluster_planning.iteritems():
                         host_free = False
                         for free_slot in host_planning['free']:
-                            if free_slot[0] <= limit and free_slot[1] >= limit \
-                                + get_seconds(walltime):
+                            if free_slot[0] <= limit and free_slot[1] >= limit + walltime:
                                 host_free = True
                         if host_free:
                             free_elements['grid5000'] += 1
@@ -180,8 +179,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
                     if int(vlan.split('-')[1]) < 10:
                         kavlan_free = False
                         for free_slot in vlan_planning['free']:
-                            if free_slot[0] <= limit and free_slot[1] >= limit \
-                                + get_seconds(walltime):
+                            if free_slot[0] <= limit and free_slot[1] >= limit + walltime:
                                 kavlan_free = True
                         if kavlan_free:
                             free_vlans += 1
@@ -191,8 +189,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
                     if int(vlan.split('-')[1]) > 10:
                         kavlan_global_free = False
                         for free_slot in vlan_planning['free']:
-                            if free_slot[0] <= limit and free_slot[1] >= limit \
-                                + get_seconds(walltime):
+                            if free_slot[0] <= limit and free_slot[1] >= limit  + walltime:
                                 kavlan_global_free = True
                         if kavlan_global_free:
                             free_vlans_global.append(site)
@@ -201,7 +198,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
 
                 ## MISSING OTHER RESOURCES COMPUTATION
 
-        slots.append( [ limit, limit +get_seconds(walltime), free_elements] )
+        slots.append( [ limit, limit + walltime, free_elements] )
 
     slots.sort()
     return slots
