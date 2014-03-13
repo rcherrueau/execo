@@ -266,7 +266,7 @@ if MySQLdb:
         :returns: a dict, keys are cluster names, value is remaining
           time for each cluster (in seconds)
         """
-        pf, port = get_port_forwarder(get_frontend_host(),
+        pf, port = get_port_forwarder(get_frontend_host(site),
                                       make_connection_params(default_frontend_connection_params),
                                       'mysql.' + site + '.grid5000.fr',
                                       g5k_configuration['oar_mysql_ro_port'])
