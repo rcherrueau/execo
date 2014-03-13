@@ -639,13 +639,14 @@ def _get_site_planning_MySQL(site, site_planning):
                     IF(R.type = 'kavlan' or R.type = 'kavlan-global', R.vlan,null) as vlans,
                     IF(R.type = 'subnet', R.subnet_address, null) as subnet
                     FROM resources R
-                    WHERE state <> 'Dead' AND maintenance <> 'YES'; """
+                    WHERE state <> 'Dead';"""
                 db.query(sql)
                 r = db.store_result()
                 for data in r.fetch_row(maxrows = 0, how=1):
                     if data['host'] is not None:
                         cluster = data['host'].split('-')[0]
-                        site_planning[cluster][data['host']] = {'busy': [], 'free': []}
+                        if cluster in site_planning:
+                            site_planning[cluster][data['host']] = {'busy': [], 'free': []}
                     if 'vlans' in site_planning and data['vlans'] is not None:
                         site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
                     if site_planning.has_key('subnets') and data['subnet'] is not None:
@@ -666,7 +667,6 @@ def _get_site_planning_MySQL(site, site_planning):
                     ON AR.moldable_job_id=MJD.moldable_id
                 LEFT JOIN resources R
                     ON AR.resource_id=R.resource_id
-                    AND R.maintenance <> 'YES'
                 WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
                     AND queue_name<>'besteffort'
                 GROUP BY J.job_id
@@ -675,13 +675,14 @@ def _get_site_planning_MySQL(site, site_planning):
                 db.query(sql)
                 r = db.store_result()
                 for job in r.fetch_row( maxrows = 0, how=1 ):
-                    if job['hosts'] != '':
+                    if job['hosts']:
                         for host in job['hosts'].split(','):
                             if host != '':
                                 cluster = host.split('-')[0]
-                                if site_planning[cluster].has_key(host):
-                                    site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
-                                                                                   int(job['stop_time'])))
+                                if cluster in site_planning:
+                                    if site_planning[cluster].has_key(host):
+                                        site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
+                                                                                          int(job['stop_time'])))
                     if site_planning.has_key('vlans') and job['vlan'] is not None:
                         ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
                         try:
