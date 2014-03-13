@@ -51,7 +51,7 @@ configuration = {
     'compact_output_threshold': 4096,
     'kill_timeout': 5,
     'intr_period': 1,
-    'port_range': (29800, 29850),
+    'port_range': (25500, 26700),
     'kill_childs_at_end': True,
     'color_mode': checktty(sys.stdout)
                   and checktty(sys.stderr),

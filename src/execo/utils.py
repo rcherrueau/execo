@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration
-import pipes, subprocess, os, time, sys, traceback, re, functools, threading
+import pipes, subprocess, os, time, sys, traceback, re, functools, threading, random
 
 def comma_join(*args):
     return ", ".join([ arg for arg in args if len(arg) > 0 ])
@@ -137,7 +137,7 @@ def get_port():
     """Thread safely returns a round-robbed port in the range ``g5k_configuration['port_range']``"""
     with _port_lock:
         if not hasattr(get_port, "current"):
-            get_port.current = configuration['port_range'][0]
+            get_port.current = random.randrange(configuration['port_range'][0], configuration['port_range'][1])
         else:
             get_port.current += 1
             if get_port.current >= configuration['port_range'][1]:
