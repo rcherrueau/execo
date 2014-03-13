@@ -32,6 +32,11 @@ from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_sit
     get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
 from threading import Thread, currentThread
 from charter import g5k_charter_time, get_next_charter_period
+from execo.process import get_port_forwarder
+from execo_g5k.utils import get_frontend_host
+from execo.config import make_connection_params
+from execo_g5k.config import g5k_configuration, default_frontend_connection_params
+from traceback import format_exc
 
 try:
     import matplotlib.pyplot as PLT
@@ -39,18 +44,11 @@ try:
 except ImportError:
     pass
 
-_retrieve_method = None
-
-if 'grid5000.fr' in getfqdn():
-    try:
-        import MySQLdb
-        _retrieve_method = 'MySQL'
-    except:
-        pass
-        _retrieve_method = 'API'
-else:
+try:
+    import MySQLdb
+    _retrieve_method = 'MySQL'
+except:
     _retrieve_method = 'API'
-
 
 def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False,
             out_of_chart = False, starttime = None, endtime = None):
@@ -588,8 +586,8 @@ def _get_site_planning_API(site, site_planning):
                     site_planning['subnets'][subnet]['busy'].append( (start_time, end_time))
             # STORAGE IS MISSING
     except Exception, e:
-        print "except: %s" % (e,)
-        logger.warn('Error with '+site+', removing from computation')
+        logger.warn('error connecting to oar database / getting planning from ' + site)
+        logger.trace("exception:\n" + format_exc())
         currentThread().broken = True
 
 def _get_planning_API(planning):
@@ -610,9 +608,18 @@ def _get_planning_API(planning):
         del planning[site]
 
 def _get_site_planning_MySQL(site, site_planning):
+    pf, port = get_port_forwarder(get_frontend_host(site),
+                                  make_connection_params(default_frontend_connection_params),
+                                  'mysql.' + site + '.grid5000.fr',
+                                  g5k_configuration['oar_mysql_ro_port'])
+    pf.start()
+    pf.forwarding.wait()
     try:
-        db = MySQLdb.connect( host = 'mysql.'+site+'.grid5000.fr', port = 3306, user = 'oarreader',
-                              passwd = 'read', db = 'oar2', connect_timeout = 3)
+        db = MySQLdb.connect(host = '127.0.0.1',
+                             user = g5k_configuration['oar_mysql_ro_user'],
+                             passwd = g5k_configuration['oar_mysql_ro_password'],
+                             db = g5k_configuration['oar_mysql_ro_db'],
+                             port = port)
         try:
 
             # Change the group_concat_max_len to retrive long hosts lists
@@ -699,9 +706,11 @@ def _get_site_planning_MySQL(site, site_planning):
                 # MISSING STORAGE
         finally:
             db.close()
-    except:
+    except Exception, e:
         logger.warn('error connecting to oar database / getting planning from ' + site)
+        logger.trace("exception:\n" + format_exc())
         currentThread().broken = True
+    pf.kill()
 
 def _get_planning_MySQL(planning):
     """Retrieve the planning using the oar2 database"""
