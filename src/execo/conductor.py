@@ -446,12 +446,12 @@ class _Conductor(object):
 
         Intended to be called from conductor thread.
         """
-        exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
+        exit_pid, exit_code = _checked_waitpid(- self.pgrp, os.WNOHANG)
         while exit_pid != 0:
             process = self.__pids[exit_pid]
             logger.fdebug("process pid %s terminated: %s", exit_pid, str(process))
             self.__handle_remove_process(process, exit_code)
-            exit_pid, exit_code = _checked_waitpid(-1, os.WNOHANG)
+            exit_pid, exit_code = _checked_waitpid(- self.pgrp, os.WNOHANG)
 
     def __handle_notify_process_terminated(self, pid, exit_code):
         # intended to be called from conductor thread
