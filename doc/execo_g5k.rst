@@ -271,6 +271,14 @@ g5k_charter_remaining
 ---------------------
 .. autofunction:: execo_g5k.charter.g5k_charter_remaining
 
+g5k_charter_time
+----------------
+.. autofunction:: execo_g5k.charter.g5k_charter_time
+
+get_next_charter_period
+-----------------------
+.. autofunction:: execo_g5k.charter.get_next_charter_period
+
 Configuration
 =============
 
