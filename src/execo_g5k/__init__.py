@@ -32,7 +32,7 @@ from oargrid import oargridsub, oargriddel, \
 
 from kadeploy import Deployment, Kadeployer, deploy
 
-from utils import get_kavlan_host_name
+from utils import get_kavlan_host_name, G5kAutoPortForwarder
 
 from planning import get_planning, compute_slots, find_first_slot, \
     find_max_slot, find_free_slot, get_jobs_specs, distribute_hosts, \

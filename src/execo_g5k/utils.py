@@ -17,9 +17,10 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from execo.action import ActionFactory
-from execo.config import SSH, SCP
+from execo.config import SSH, SCP, make_connection_params
 from execo.host import Host
-from execo_g5k.config import g5k_configuration
+from execo_g5k.config import g5k_configuration, default_frontend_connection_params
+from execo.process import get_port_forwarder
 import re
 import socket
 
@@ -65,3 +66,49 @@ def get_kavlan_host_name(host, vlanid):
     host_shortname, sep, fqdn = host.partition(".")
     vlan_host_name = host_shortname + "-kavlan-" + str(vlanid) + sep + fqdn
     return vlan_host_name
+
+class G5kAutoPortForwarder():
+    """Context manager for automatically opening a port forwarder if outside grid5000"""
+
+    def __init__(self, site, host, port):
+        """
+        :param site: the grid5000 site to connect to
+
+        :param host: the host to connect to in the site
+
+        :param port: the port to connect to on the host
+
+        It automatically decides if a port forwarding is needed,
+        depending if run from inside or outside grid5000.
+
+        When entering the context, it returns a tuple actual host,
+        actual port to connect to. It is the real host/port if inside
+        grid5000, or the forwarded port if outside. The forwarded
+        port, if any, is guaranteed to be operational.
+
+        When leaving the context, it kills the port forwarder
+        background process.
+        """
+        self.__site = site
+        self.__host = host
+        self.__port = port
+        self.__port_forwarder = None
+        self.__local_port = None
+
+    def __enter__(self):
+        if 'grid5000.fr' in socket.getfqdn():
+            return self.__host, self.__port
+        else:
+            self.__port_forwarder, self.__local_port = get_port_forwarder(
+                get_frontend_host(self.__site),
+                make_connection_params(default_frontend_connection_params),
+                self.__host,
+                self.__port)
+            self.__port_forwarder.start()
+            self.__port_forwarder.forwarding.wait()
+            return "127.0.0.1", self.__local_port
+
+    def __exit__(self, t, v, traceback):
+        if self.__port_forwarder:
+            self.__port_forwarder.kill()
+        return False

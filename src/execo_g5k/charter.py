@@ -18,14 +18,12 @@
 
 import datetime, os, time
 from execo.time_utils import get_unixts, datetime_to_unixts, sleep
-from execo.utils import memoize, get_port
+from execo.utils import memoize
 from traceback import format_exc
 from execo_g5k.api_utils import get_host_attributes, get_cluster_hosts, get_site_clusters
-from execo_g5k.config import g5k_configuration, default_frontend_connection_params
-from execo_g5k.utils import get_frontend_host
+from execo_g5k.config import g5k_configuration
+from execo_g5k.utils import G5kAutoPortForwarder
 from execo_g5k.oar import format_oar_date
-from execo.config import make_connection_params, configuration
-from execo.process import get_port_forwarder
 
 try:
     import MySQLdb
@@ -267,34 +265,29 @@ if MySQLdb:
         :returns: a dict, keys are cluster names, value is remaining
           time for each cluster (in seconds)
         """
-        pf, port = get_port_forwarder(get_frontend_host(site),
-                                      make_connection_params(default_frontend_connection_params),
-                                      'mysql.' + site + '.grid5000.fr',
-                                      g5k_configuration['oar_mysql_ro_port'])
-        pf.start()
-        start, end = get_oar_day_start_end(day)
-        remaining = {}
-        user = g5k_configuration.get('api_username')
-        if not user:
-            user = os.environ['LOGNAME']
-        pf.forwarding.wait()
-        try:
-            db = MySQLdb.connect(host = '127.0.0.1',
-                                 user = g5k_configuration['oar_mysql_ro_user'],
-                                 passwd = g5k_configuration['oar_mysql_ro_password'],
-                                 db = g5k_configuration['oar_mysql_ro_db'],
-                                 port = port)
+        with G5kAutoPortForwarder(site,
+                                  'mysql.' + site + '.grid5000.fr',
+                                  g5k_configuration['oar_mysql_ro_port']) as (host, port):
+            start, end = get_oar_day_start_end(day)
+            remaining = {}
+            user = g5k_configuration.get('api_username')
+            if not user:
+                user = os.environ['LOGNAME']
             try:
-                for cluster in get_site_clusters(site):
-                    cluster_used = 0
-                    for j in _get_jobs(db, cluster, user, start, end):
-                        if _job_intersect_charter_period(j):
-                            cluster_used += (j["nb_resources_scheduled"] + j["nb_resources_actual"]) * j["walltime"]
-                    remaining[cluster] = max(0, cluster_num_cores(cluster) * 3600 * 2 - cluster_used)
-            finally:
-                db.close()
-        except Exception, e:
-            logger.warn("error connecting to oar database / getting planning from " + site)
-            logger.trace("exception:\n" + format_exc())
-        pf.kill()
+                db = MySQLdb.connect(host = host, port = port,
+                                     user = g5k_configuration['oar_mysql_ro_user'],
+                                     passwd = g5k_configuration['oar_mysql_ro_password'],
+                                     db = g5k_configuration['oar_mysql_ro_db'])
+                try:
+                    for cluster in get_site_clusters(site):
+                        cluster_used = 0
+                        for j in _get_jobs(db, cluster, user, start, end):
+                            if _job_intersect_charter_period(j):
+                                cluster_used += (j["nb_resources_scheduled"] + j["nb_resources_actual"]) * j["walltime"]
+                        remaining[cluster] = max(0, cluster_num_cores(cluster) * 3600 * 2 - cluster_used)
+                finally:
+                    db.close()
+            except Exception, e:
+                logger.warn("error connecting to oar database / getting planning from " + site)
+                logger.trace("exception:\n" + format_exc())
         return remaining

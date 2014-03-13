@@ -32,10 +32,8 @@ from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_sit
     get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
 from threading import Thread, currentThread
 from charter import g5k_charter_time, get_next_charter_period
-from execo.process import get_port_forwarder
-from execo_g5k.utils import get_frontend_host
-from execo.config import make_connection_params
-from execo_g5k.config import g5k_configuration, default_frontend_connection_params
+from execo_g5k.utils import G5kAutoPortForwarder
+from execo_g5k.config import g5k_configuration
 from traceback import format_exc
 
 try:
@@ -608,109 +606,104 @@ def _get_planning_API(planning):
         del planning[site]
 
 def _get_site_planning_MySQL(site, site_planning):
-    pf, port = get_port_forwarder(get_frontend_host(site),
-                                  make_connection_params(default_frontend_connection_params),
-                                  'mysql.' + site + '.grid5000.fr',
-                                  g5k_configuration['oar_mysql_ro_port'])
-    pf.start()
-    pf.forwarding.wait()
-    try:
-        db = MySQLdb.connect(host = '127.0.0.1',
-                             user = g5k_configuration['oar_mysql_ro_user'],
-                             passwd = g5k_configuration['oar_mysql_ro_password'],
-                             db = g5k_configuration['oar_mysql_ro_db'],
-                             port = port)
+    with G5kAutoPortForwarder(site,
+                              'mysql.' + site + '.grid5000.fr',
+                              g5k_configuration['oar_mysql_ro_port']) as (host, port):
         try:
+            db = MySQLdb.connect(host = host, port = port,
+                                 user = g5k_configuration['oar_mysql_ro_user'],
+                                 passwd = g5k_configuration['oar_mysql_ro_password'],
+                                 db = g5k_configuration['oar_mysql_ro_db'])
+            try:
 
-            # Change the group_concat_max_len to retrive long hosts lists
-            db.query('SET SESSION group_concat_max_len=102400')
+                # Change the group_concat_max_len to retrive long hosts lists
+                db.query('SET SESSION group_concat_max_len=102400')
 
 # CHUNKS IS NOT FINISHED BUT WE KEEP THE REQUEST FOR LATER
-#            db.query("""SELECT *
-#                FROM information_schema.COLUMNS
-#                WHERE TABLE_SCHEMA = 'oar2'
-#                AND TABLE_NAME = 'resources'
-#                AND COLUMN_NAME = 'chunks'
-#                LIMIT 1""")
-#            r = db.store_result()
-#            if len( r.fetch_row( maxrows = 0, how=1) )> 0:
-#                has_chunks = True
-#            else:
-#            has_chunks = False
-#            if has_chunks:
-#                sql += ", IF(R.type = 'storage', R.chunks, null) as storage "
+#                db.query("""SELECT *
+#                    FROM information_schema.COLUMNS
+#                    WHERE TABLE_SCHEMA = 'oar2'
+#                    AND TABLE_NAME = 'resources'
+#                    AND COLUMN_NAME = 'chunks'
+#                    LIMIT 1""")
+#                r = db.store_result()
+#                if len( r.fetch_row( maxrows = 0, how=1) )> 0:
+#                    has_chunks = True
+#                else:
+#                has_chunks = False
+#                if has_chunks:
+#                    sql += ", IF(R.type = 'storage', R.chunks, null) as storage "
 
-            # Retrieving alive resources
-            sql = """SELECT DISTINCT IF(R.type = 'default',R.network_address,null) as host,
-                IF(R.type = 'kavlan' or R.type = 'kavlan-global', R.vlan,null) as vlans,
-                IF(R.type = 'subnet', R.subnet_address, null) as subnet
-                FROM resources R
-                WHERE state <> 'Dead' AND maintenance <> 'YES'; """
-            db.query(sql)
-            r = db.store_result()
-            for data in r.fetch_row(maxrows = 0, how=1):
-                if data['host'] is not None:
-                    cluster = data['host'].split('-')[0]
-                    site_planning[cluster][data['host']] = {'busy': [], 'free': []}
-                if 'vlans' in site_planning and data['vlans'] is not None:
-                    site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
-                if site_planning.has_key('subnets') and data['subnet'] is not None:
-                    site_planning['subnets'][data['subnet']] = {'busy': [], 'free': []}
-                # STORAGE WILL BE ADDED LATER
+                # Retrieving alive resources
+                sql = """SELECT DISTINCT IF(R.type = 'default',R.network_address,null) as host,
+                    IF(R.type = 'kavlan' or R.type = 'kavlan-global', R.vlan,null) as vlans,
+                    IF(R.type = 'subnet', R.subnet_address, null) as subnet
+                    FROM resources R
+                    WHERE state <> 'Dead' AND maintenance <> 'YES'; """
+                db.query(sql)
+                r = db.store_result()
+                for data in r.fetch_row(maxrows = 0, how=1):
+                    if data['host'] is not None:
+                        cluster = data['host'].split('-')[0]
+                        site_planning[cluster][data['host']] = {'busy': [], 'free': []}
+                    if 'vlans' in site_planning and data['vlans'] is not None:
+                        site_planning['vlans']['kavlan-'+data['vlans']] = {'busy': [], 'free': []}
+                    if site_planning.has_key('subnets') and data['subnet'] is not None:
+                        site_planning['subnets'][data['subnet']] = {'busy': [], 'free': []}
+                    # STORAGE WILL BE ADDED LATER
 
-            sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time, J.job_user AS user,
-            GJP.start_time+MJD.moldable_walltime+TIME_TO_SEC('0:01:05') AS stop_time,
-            GROUP_CONCAT(DISTINCT R.network_address) AS hosts,
-            GROUP_CONCAT(DISTINCT  R.vlan ) AS vlan,
-            GROUP_CONCAT(DISTINCT R.subnet_address) AS subnets
-            FROM jobs J
-            LEFT JOIN moldable_job_descriptions MJD
-                ON MJD.moldable_job_id=J.job_id
-            LEFT JOIN gantt_jobs_predictions GJP
-                ON GJP.moldable_job_id=MJD.moldable_id
-            INNER JOIN gantt_jobs_resources AR
-                ON AR.moldable_job_id=MJD.moldable_id
-            LEFT JOIN resources R
-                ON AR.resource_id=R.resource_id
-                AND R.maintenance <> 'YES'
-            WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
-                AND queue_name<>'besteffort'
-            GROUP BY J.job_id
-            ORDER BY J.start_time, R.network_address,
-                CONVERT(SUBSTRING_INDEX(SUBSTRING_INDEX(R.network_address,'.',1),'-',-1), SIGNED)"""
-            db.query(sql)
-            r = db.store_result()
-            for job in r.fetch_row( maxrows = 0, how=1 ):
-                if job['hosts'] != '':
-                    for host in job['hosts'].split(','):
-                        if host != '':
-                            cluster = host.split('-')[0]
-                            if site_planning[cluster].has_key(host):
-                                site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
-                                                                               int(job['stop_time'])))
-                if site_planning.has_key('vlans') and job['vlan'] is not None:
-                    ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
-                    try:
-                        vlan = int(job['vlan'])
-                        # We are only interested in routed vlan
-                        if vlan > 3:
-                            site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
-                                                                                        int(job['stop_time'])) )
-                    except:
-                        pass
+                sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time, J.job_user AS user,
+                GJP.start_time+MJD.moldable_walltime+TIME_TO_SEC('0:01:05') AS stop_time,
+                GROUP_CONCAT(DISTINCT R.network_address) AS hosts,
+                GROUP_CONCAT(DISTINCT  R.vlan ) AS vlan,
+                GROUP_CONCAT(DISTINCT R.subnet_address) AS subnets
+                FROM jobs J
+                LEFT JOIN moldable_job_descriptions MJD
+                    ON MJD.moldable_job_id=J.job_id
+                LEFT JOIN gantt_jobs_predictions GJP
+                    ON GJP.moldable_job_id=MJD.moldable_id
+                INNER JOIN gantt_jobs_resources AR
+                    ON AR.moldable_job_id=MJD.moldable_id
+                LEFT JOIN resources R
+                    ON AR.resource_id=R.resource_id
+                    AND R.maintenance <> 'YES'
+                WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
+                    AND queue_name<>'besteffort'
+                GROUP BY J.job_id
+                ORDER BY J.start_time, R.network_address,
+                    CONVERT(SUBSTRING_INDEX(SUBSTRING_INDEX(R.network_address,'.',1),'-',-1), SIGNED)"""
+                db.query(sql)
+                r = db.store_result()
+                for job in r.fetch_row( maxrows = 0, how=1 ):
+                    if job['hosts'] != '':
+                        for host in job['hosts'].split(','):
+                            if host != '':
+                                cluster = host.split('-')[0]
+                                if site_planning[cluster].has_key(host):
+                                    site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
+                                                                                   int(job['stop_time'])))
+                    if site_planning.has_key('vlans') and job['vlan'] is not None:
+                        ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
+                        try:
+                            vlan = int(job['vlan'])
+                            # We are only interested in routed vlan
+                            if vlan > 3:
+                                site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
+                                                                                            int(job['stop_time'])) )
+                        except:
+                            pass
 
-                if site_planning.has_key('subnets') and job['subnets'] is not None:
-                    for subnet in job['subnets'].split(','):
-                        site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
-                                                                               int(job['stop_time'])))
-                # MISSING STORAGE
-        finally:
-            db.close()
-    except Exception, e:
-        logger.warn('error connecting to oar database / getting planning from ' + site)
-        logger.trace("exception:\n" + format_exc())
-        currentThread().broken = True
-    pf.kill()
+                    if site_planning.has_key('subnets') and job['subnets'] is not None:
+                        for subnet in job['subnets'].split(','):
+                            site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
+                                                                                   int(job['stop_time'])))
+                    # MISSING STORAGE
+            finally:
+                db.close()
+        except Exception, e:
+            logger.warn('error connecting to oar database / getting planning from ' + site)
+            logger.trace("exception:\n" + format_exc())
+            currentThread().broken = True
 
 def _get_planning_MySQL(planning):
     """Retrieve the planning using the oar2 database"""

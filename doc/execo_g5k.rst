@@ -170,6 +170,11 @@ get_kavlan_host_name
 --------------------
 .. autofunction:: execo_g5k.utils.get_kavlan_host_name
 
+G5kAutoPortForwarder
+--------------------
+.. autoclass:: execo_g5k.utils.G5kAutoPortForwarder
+   :members:
+
 Grid5000 API utilities
 ======================
 
