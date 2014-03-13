@@ -28,7 +28,8 @@ from time_utils import sleep, Timer, format_date, format_duration, \
   get_seconds, get_unixts
 from host import Host
 from process import Process, SshProcess, get_process, \
-     ProcessLifecycleHandler, ProcessOutputHandler
+     ProcessLifecycleHandler, ProcessOutputHandler, \
+     get_port_forwarder, PortForwarder
 from action import Action, wait_any_actions, wait_all_actions, \
   Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet, Local, \
   ParallelActions, SequentialActions, default_action_factory, \

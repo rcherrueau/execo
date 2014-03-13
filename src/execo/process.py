@@ -1029,7 +1029,7 @@ def get_port_forwarder(host,
                        remote_host,
                        remote_port,
                        local_port = None,
-                       bind_address = "127.0.0.1"):
+                       bind_address = None):
     """Create an ssh port forwarder process (ssh -L).
 
     This port forwarding process opens a listening socket on
@@ -1051,8 +1051,8 @@ def get_port_forwarder(host,
       with ``execo.utils.get_port``
 
     :param bind_address: the bind address to use locally for the
-      listening socket. Default: 127.0.0.1, so the socket is only
-      available to localhost.
+      listening socket. If None (the default), it uses 127.0.0.1, so
+      the socket is only available to localhost.
 
     :returns: a tuple (SshProcess, local_port). The returned
       SshProcess executes a long sleep, and needs to be started /
@@ -1063,6 +1063,8 @@ def get_port_forwarder(host,
       open (beware: this member is not correctly reset if the
       forwarder SshProcess is reset)
     """
+    if not bind_address:
+        bind_address = "127.0.0.1"
     if not local_port:
         local_port = get_port()
     pf_conn_parms = make_connection_params(connection_params)
@@ -1083,3 +1085,49 @@ def get_port_forwarder(host,
     pf.stderr_handlers.append(port_forwarder_stderr_handler(local_port,
                                                             bind_address))
     return pf, local_port
+
+class PortForwarder():
+    """Context manager for port forwarders"""
+
+    def __init__(self,
+                 host,
+                 connection_params,
+                 remote_host,
+                 remote_port,
+                 local_port = None,
+                 bind_address = None):
+        """
+        for params: see documentation of
+        ``execo.process.get_port_forwarder``
+
+        When entering the context, it returns a tuple host, port to
+        connect to. The forwarded port is guaranteed to be
+        operational.
+
+        When leaving the context, it kills the port forwarder
+        background process.
+        """
+        self.__host = host
+        self.__connection_params = connection_params
+        self.__remote_host = remote_host
+        self.__remote_port = remote_port
+        self.__local_port = local_port
+        self.__bind_address = bind_address
+        self.__port_forwarder = None
+        self.__local_port = None
+
+    def __enter__(self):
+        self.__port_forwarder, self.__local_port = get_port_forwarder(
+            self.__host,
+            self.__connection_params,
+            self.__remote_host,
+            self.__remote_port,
+            self.__local_port,
+            self.__bind_address)
+        self.__port_forwarder.start()
+        self.__port_forwarder.forwarding.wait()
+        return "127.0.0.1", self.__local_port
+
+    def __exit__(self, t, v, traceback):
+        self.__port_forwarder.kill()
+        return False

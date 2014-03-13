@@ -354,6 +354,11 @@ get_port_forwarder
 ------------------
 .. autofunction:: execo.process.get_port_forwarder
 
+PortForwarder
+-------------
+.. autoclass:: execo.process.PortForwarder
+   :members:
+
 get_port
 --------
 .. autofunction:: execo.utils.get_port
