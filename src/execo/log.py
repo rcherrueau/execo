@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import configuration, FDEBUG, IODEBUG, TRACE
+from config import configuration, FDEBUG, IODEBUG, DETAIL
 import logging, sys, functools
 
 _ansi_styles = {
@@ -80,10 +80,10 @@ logging.addLevelName(IODEBUG, 'IODEBUG')
 def iodebug(self, message, *args, **kwargs):
     self.log(IODEBUG, message, *args, **kwargs)
 logging.Logger.iodebug = iodebug
-logging.addLevelName(TRACE, 'TRACE')
-def trace(self, message, *args, **kwargs):
-    self.log(TRACE, message, *args, **kwargs)
-logging.Logger.trace = trace
+logging.addLevelName(DETAIL, 'DETAIL')
+def detail(self, message, *args, **kwargs):
+    self.log(DETAIL, message, *args, **kwargs)
+logging.Logger.detail = detail
 
 # logger is the execo logging object
 logger = logging.getLogger("execo")

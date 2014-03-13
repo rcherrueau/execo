@@ -275,7 +275,7 @@ if MySQLdb:
                     db.close()
             except Exception, e:
                 logger.warn("error connecting to oar database / getting planning from " + site)
-                logger.trace("exception:\n" + format_exc())
+                logger.detail("exception:\n" + format_exc())
 
     def g5k_charter_remaining(sites, day):
         """Returns the amount of time remaining per cluster for submitting jobs, according to the grid5000 charter.

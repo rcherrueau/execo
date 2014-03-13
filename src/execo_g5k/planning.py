@@ -585,7 +585,7 @@ def _get_site_planning_API(site, site_planning):
             # STORAGE IS MISSING
     except Exception, e:
         logger.warn('error connecting to oar database / getting planning from ' + site)
-        logger.trace("exception:\n" + format_exc())
+        logger.detail("exception:\n" + format_exc())
         currentThread().broken = True
 
 def _get_planning_API(planning):
@@ -702,7 +702,7 @@ def _get_site_planning_MySQL(site, site_planning):
                 db.close()
         except Exception, e:
             logger.warn('error connecting to oar database / getting planning from ' + site)
-            logger.trace("exception:\n" + format_exc())
+            logger.detail("exception:\n" + format_exc())
             currentThread().broken = True
 
 def _get_planning_MySQL(planning):
