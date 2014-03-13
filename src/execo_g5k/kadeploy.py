@@ -483,13 +483,13 @@ def deploy(deployment,
                              len(deployed_hosts),
                              len(undeployed_hosts)))
 
-    logger.debug(style.emph("deploy finished") + " in %i tries, %s", num_tries_done, format_seconds(time.time() - start_time))
-    logger.debug("deploy  duration  attempted  deployed     deployed     total     total")
-    logger.debug("                  deploys    as reported  as reported  already   still")
-    logger.debug("                             by kadeploy  by check     deployed  undeployed")
-    logger.debug("---------------------------------------------------------------------------")
+    logger.trace(style.emph("deploy finished") + " in %i tries, %s", num_tries_done, format_seconds(time.time() - start_time))
+    logger.trace("deploy  duration  attempted  deployed     deployed     total     total")
+    logger.trace("                  deploys    as reported  as reported  already   still")
+    logger.trace("                             by kadeploy  by check     deployed  undeployed")
+    logger.trace("---------------------------------------------------------------------------")
     for (deploy_index, deploy_stat) in enumerate(deploy_stats):
-        logger.debug("#%-5.5s  %-8.8s  %-9.9s  %-11.11s  %-11.11s  %-8.8s  %-10.10s",
+        logger.trace("#%-5.5s  %-8.8s  %-9.9s  %-11.11s  %-11.11s  %-8.8s  %-10.10s",
             deploy_index,
             format_seconds(deploy_stat[0]),
             deploy_stat[1],

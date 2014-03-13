@@ -41,6 +41,7 @@ def checktty(f):
 
 IODEBUG = 3
 FDEBUG = 5
+TRACE = 15
 
 # _STARTOF_ configuration
 configuration = {
@@ -69,6 +70,7 @@ configuration = {
         IODEBUG: ('green', 'reverse'),
         FDEBUG: ('green', 'reverse'),
         logging.DEBUG: ('green',),
+        TRACE: ('magenta', 'bold'),
         logging.INFO: ('magenta',),
         logging.WARNING: ('cyan',),
         logging.ERROR: ('red',),
