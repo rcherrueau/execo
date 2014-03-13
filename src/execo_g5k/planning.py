@@ -808,21 +808,16 @@ def _fill_el_planning_free(el_planning, starttime, endtime):
 
 def _slots_limits(planning):
     """Return the limits of slots, defined by a resource state change."""
-    limits = []
+    limits = set()
     for site in planning.itervalues():
         for res_pl in site.itervalues():
             for el_planning in res_pl.itervalues():
                     for start, stop in el_planning['busy']:
-                        if start not in limits:
-                            limits.append(start)
-                        if stop not in limits:
-                            limits.append(stop)
-
+                        limits.add(start)
+                        limits.add(stop)
                     for start, stop in el_planning['free']:
-                        if start not in limits:
-                            limits.append(start)
-                        if stop not in limits:
-                            limits.append(stop)
+                        limits.add(start)
+                        limits.add(stop)
     limits = sorted(limits)
     if len(limits) > 0:
         limits.pop()
@@ -835,7 +830,6 @@ def _add_charter_to_planning(planning, starttime, endtime):
     for site in planning.itervalues():
         for res_pl in site.itervalues():
             for el_planning in res_pl.values():
-                el_planning['busy'].sort()
                 el_planning['busy'] += charter_el_planning
                 el_planning['busy'].sort()
 
