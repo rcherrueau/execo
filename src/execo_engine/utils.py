@@ -229,6 +229,7 @@ class _openlock():
         os.fsync(self.__file.fileno())
         fcntl.lockf(self.__file, fcntl.LOCK_UN)
         self.__file.close()
+        return False
 
 class ParamSweeper(object):
 
