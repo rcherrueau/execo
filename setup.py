@@ -7,6 +7,9 @@
 
 from distutils.core import setup
 from distutils.command.install import install as _install
+from distutils.command.clean import clean as _clean
+from distutils.dir_util import remove_tree
+from distutils import log
 import sys, subprocess, os, textwrap, shutil
 
 try:
@@ -66,11 +69,29 @@ class install(_install):
         self.execute(copy_additional_files, (self.install_base,),
                      msg = "Copying additional files")
 
+class clean(_clean):
+    def run(self):
+        if self.all:
+            sphinx_dir = os.path.join(self.build_base, "sphinx")
+            if os.path.exists(sphinx_dir):
+                remove_tree(sphinx_dir, dry_run = self.dry_run)
+            else:
+                log.warn("'%s' does not exist -- can't clean it",
+                         sphinx_dir)
+            try:
+                os.unlink("MANIFEST")
+                log.info("removing MANIFEST")
+            except:
+                log.warn("can't clean MANIFEST"),
+        _clean.run(self)
+
 try:
     cmdclass = { 'install': install,
-                 'build_sphinx': BuildDoc }
+                 'build_sphinx': BuildDoc,
+                 'clean': clean }
 except:
-    cmdclass = { 'install': install }
+    cmdclass = { 'install': install,
+                 'clean': clean }
 
 name = 'execo'
 version = '2.3-dev'
