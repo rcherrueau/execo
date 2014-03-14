@@ -18,21 +18,21 @@ if len(deployed) >= 2:
         "apt-get update ; apt-get -y install netcat-traditional tcpdump tcptrace",
         sources + dests, conn_params)
     send = Remote(
-        "dd if=/dev/zero bs=5000000 count=125 | nc -q 0 {{[d.address for d in dests]}} 6543",
+        "dd if=/dev/zero bs=5000000 count=125 | nc -q 0 {{dests}} 6543",
         sources, conn_params)
     receive = Remote(
         "nc -l -p 6543 > /dev/null",
         dests, conn_params)
     capture_if = [ [ adapter
-                     for adapter in get_host_attributes(s.address)["network_adapters"]
-                     if adapter.get("network_address") == s.address ][0]["device"]
+                     for adapter in get_host_attributes(s)["network_adapters"]
+                     if adapter.get("network_address") == s ][0]["device"]
                    for s in sources ]
     capture = Remote(
-        "tcpdump -i {{capture_if}} -w /tmp/tmp.pcap host {{[d.address for d in dests]}} and tcp port 6543",
+        "tcpdump -i {{capture_if}} -w /tmp/tmp.pcap host {{dests}} and tcp port 6543",
         sources, conn_params)
     for p in capture.processes: p.ignore_exit_code = p.nolog_exit_code = True
-    tcptrace = execo.Remote("tcptrace -Grlo1 /tmp/tmp.pcap", sources, conn_params)
-    for p in tcptrace.processes: p.stdout_handlers.append("tcptrace.out")
+    tcptrace = Remote("tcptrace -Grlo1 /tmp/tmp.pcap", sources, conn_params)
+    for p in tcptrace.processes: p.stdout_handlers.append("%s.tcptrace.out" % (p.host.address,))
 
     logger.info("configure nodes")
     conf_nodes.run()
