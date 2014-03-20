@@ -30,7 +30,7 @@ from utils import name_from_cmdline, find_exe, intr_cond_wait, intr_event_wait, 
 from traceback import format_exc
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
-import threading, time, pipes, tempfile, os, shutil
+import threading, time, pipes, tempfile, os, shutil, stat
 
 class ActionLifecycleHandler(object):
 
@@ -1539,6 +1539,7 @@ class ChainPut(SequentialActions):
             if not _execo_chainput:
                 raise EnvironmentError, "unable to find execo-chainput"
             shutil.copy2(_execo_chainput, chainscript_filename)
+            os.chmod(chainscript_filename, os.stat(chainscript_filename).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH )
 
             preparechain = TaktukPut(self.hosts,
                                      [ chainhosts_filename, chainscript_filename ],

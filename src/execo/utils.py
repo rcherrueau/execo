@@ -67,7 +67,7 @@ def which(name):
 def find_exe(name):
     """search an executable in whole execo directory. If not found, get it on the $PATH."""
     path = None
-    for exe_path in find_files(os.path.join(os.path.abspath(os.path.dirname(os.path.realpath(__file__))), "..", ".."), "-name", name):
+    for exe_path in find_files(os.path.join(os.path.abspath(os.path.dirname(os.path.realpath(__file__))), "..", "..", "bin"), "-name", name):
         path = exe_path
         break
     if not path:
