@@ -433,7 +433,11 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
     - ``scheduled_start``: unix timestamp of job's start prediction
       (may change between invocations)
 
-    - ``state``: job state
+    - ``state``: job state. Possible states: 'Waiting', 'Hold',
+      'toLaunch', 'toError', 'toAckReservation', 'Launching',
+      'Running', 'Suspended', 'Resuming', 'Finishing', 'Terminated',
+      'Error', see table jobs, column state, in oar documentation
+      http://oar.imag.fr/sources/2.5/docs/documentation/OAR-DOCUMENTATION-ADMIN/#jobs
 
     - ``name``: job name
 
