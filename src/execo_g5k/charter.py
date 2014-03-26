@@ -17,13 +17,14 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 import datetime, os, time, threading
-from execo.time_utils import get_unixts, datetime_to_unixts, sleep
+from execo.time_utils import get_unixts, datetime_to_unixts, sleep, format_unixts, format_seconds
 from execo.utils import memoize
 from traceback import format_exc
 from execo_g5k.api_utils import get_host_attributes, get_cluster_hosts, get_site_clusters
 from execo_g5k.config import g5k_configuration
 from execo_g5k.utils import G5kAutoPortForwarder
 from execo_g5k.oar import format_oar_date
+from execo.log import logger
 
 try:
     import MySQLdb
@@ -186,100 +187,109 @@ def cluster_num_cores(cluster):
 if MySQLdb:
 
     def _get_jobs(db, cluster, user, start, end):
-        q = """(SELECT
-                  jobs.job_id as job_id,
-                  jobs.job_type as job_type,
-                  jobs.job_user as user,
-                  moldable_job_descriptions.moldable_walltime as walltime,
-                  gantt_jobs_predictions_visu.start_time as start_time ,
-                  (gantt_jobs_predictions_visu.start_time + moldable_job_descriptions.moldable_walltime) as stop_time,
-                  count(*) as nb_resources_scheduled,
-                  0 as nb_resources_actual,
-                  resources.cluster as cluster
-                FROM jobs,
-                  moldable_job_descriptions,
-                  gantt_jobs_resources_visu,
-                  gantt_jobs_predictions_visu,
-                  resources
-                WHERE
-                  jobs.job_user = '%(user)s' AND jobs.stop_time = 0 AND
-                  gantt_jobs_predictions_visu.moldable_job_id = gantt_jobs_resources_visu.moldable_job_id AND
-                  gantt_jobs_predictions_visu.moldable_job_id = moldable_job_descriptions.moldable_id AND
-                  jobs.job_id = moldable_job_descriptions.moldable_job_id AND
-                  gantt_jobs_predictions_visu.start_time < %(end)i AND
-                  resources.resource_id = gantt_jobs_resources_visu.resource_id AND
-                  resources.type = 'default' AND
-                  gantt_jobs_predictions_visu.start_time >= %(start)i AND
-                  jobs.job_id not in (SELECT job_id FROM job_types where job_id = jobs.job_id AND (type = 'besteffort' OR type = 'nfs' OR type = 'iscsi') ) AND
-                  resources.cluster = '%(cluster)s'
-                GROUP BY job_id,
-                  job_type,
-                  user,
-                  walltime,
-                  start_time,
-                  stop_time
-                ORDER BY jobs.job_user)
-                UNION (SELECT
-                  jobs.job_id as job_id,
-                  jobs.job_type as job_type,
-                  jobs.job_user as user,
-                  jobs.stop_time-jobs.start_time as walltime,
-                  jobs.start_time as start_time,
-                  jobs.stop_time as stop_time,
-                  0 as nb_resources_scheduled,
-                  count(*) as nb_resources_actual,
-                  resources.cluster as cluster
-                FROM jobs,
-                  assigned_resources,
-                  resources
-                WHERE
-                  jobs.job_user = '%(user)s' AND jobs.stop_time != 0 AND
-                  jobs.stop_time != jobs.start_time AND
-                  assigned_resources.moldable_job_id = jobs.assigned_moldable_job AND
-                  jobs.start_time < %(end)i AND
-                  jobs.start_time >= %(start)i AND
-                  jobs.job_id not in (SELECT job_id FROM job_types where job_id = jobs.job_id  and (type = 'besteffort' or type = 'nfs' or type = 'iscsi') ) AND
-                  assigned_resources.resource_id = resources.resource_id AND
-                  resources.type = 'default' AND
-                  resources.cluster = '%(cluster)s'
-                GROUP BY job_id,
-                  job_type,
-                  user,
-                  walltime,
-                  start_time,
-                  stop_time
-                ORDER BY jobs.job_user)""" % {"user": user, "start": start, "end": end, "cluster": cluster}
+        q = """(
+                 SELECT J.job_id, J.job_user AS user, J.state, JT.type,
+                   J.job_type, R.cluster,
+                   MJD.moldable_walltime AS walltime,
+                   GJPV.start_time AS start_time,
+                   GJPV.start_time + MJD.moldable_walltime AS stop_time,
+                   COUNT(*) AS nb_resources_scheduled, 0 AS nb_resources_actual
+                 FROM jobs J
+                 LEFT JOIN moldable_job_descriptions MJD
+                   ON MJD.moldable_job_id = J.job_id
+                 LEFT JOIN gantt_jobs_predictions_visu GJPV
+                   ON GJPV.moldable_job_id = MJD.moldable_id
+                 INNER JOIN gantt_jobs_resources GJR
+                   ON GJR.moldable_job_id = MJD.moldable_id
+                 LEFT JOIN resources R
+                   ON GJR.resource_id = R.resource_id
+                 LEFT JOIN job_types JT
+                   ON JT.job_id = J.job_id
+                 WHERE J.job_user = '%(user)s' AND
+                   R.cluster = '%(cluster)s' AND
+                   R.type = 'default' AND
+                   ( JT.type IS NULL OR JT.type NOT IN ('besteffort', 'nfs', 'iscsi') ) AND
+                   ( ( GJPV.start_time >= %(start)i AND GJPV.start_time < %(end)i ) OR
+                     ( stop_time >= %(start)i AND stop_time < %(end)i ) )
+                 GROUP BY J.job_id
+               ) UNION (
+                 SELECT J.job_id, J.job_user AS user, J.state, JT.type,
+                   J.job_type, R.cluster,
+                   J.stop_time - J.start_time as walltime,
+                   J.start_time AS start_time,
+                   J.stop_time AS stop_time,
+                   0 AS nb_resources_scheduled, COUNT(*) AS nb_resources_actual
+                 FROM jobs J
+                 LEFT JOIN assigned_resources AR
+                   ON AR.moldable_job_id = J.assigned_moldable_job
+                 LEFT JOIN resources R
+                   ON AR.resource_id = R.resource_id
+                 LEFT JOIN job_types JT
+                   ON JT.job_id = J.job_id
+                 WHERE J.job_user = '%(user)s' AND
+                   R.cluster = '%(cluster)s' AND
+                   R.type = 'default' AND
+                   ( JT.type IS NULL OR JT.type NOT IN ('besteffort', 'nfs', 'iscsi') ) AND
+                   ( ( J.start_time >= %(start)i AND J.start_time < %(end)i ) OR
+                     ( J.stop_time >= %(start)i AND J.stop_time < %(end)i ) )
+                 GROUP BY J.job_id
+               )""" % {"user": user,
+                       "start": start,
+                       "end": end,
+                       "cluster": cluster}
         db.query(q)
         r = db.store_result()
         return [data for data in r.fetch_row(maxrows = 0, how = 1)]
 
-    def __site_charter_remaining(site, day):
+    def __site_charter_remaining(site, day, user = None):
         with G5kAutoPortForwarder(site,
                                   'mysql.' + site + '.grid5000.fr',
                                   g5k_configuration['oar_mysql_ro_port']) as (host, port):
             start, end = get_oar_day_start_end(day)
-            user = g5k_configuration.get('api_username')
             if not user:
-                user = os.environ['LOGNAME']
+                user = g5k_configuration.get('api_username')
+                if not user:
+                    user = os.environ['LOGNAME']
             try:
                 db = MySQLdb.connect(host = host, port = port,
                                      user = g5k_configuration['oar_mysql_ro_user'],
                                      passwd = g5k_configuration['oar_mysql_ro_password'],
                                      db = g5k_configuration['oar_mysql_ro_db'])
                 try:
+                    logger.debug("getting jobs for user %s on %s for %s" % (user, site, day))
+                    OOC_total_site_used = 0
+                    OOC_site_quota = 0
                     for cluster in get_site_clusters(site):
-                        cluster_used = 0
+                        total_cluster_used = 0
                         for j in _get_jobs(db, cluster, user, start, end):
+                            logger.debug("%s:%s - job: start %s, end %s, walltime %s, %s" % (
+                                    site, cluster, format_unixts(j['start_time']),
+                                    format_unixts(j['stop_time']), format_seconds(j['walltime']), j))
                             if _job_intersect_charter_period(j):
-                                cluster_used += (j["nb_resources_scheduled"] + j["nb_resources_actual"]) * j["walltime"]
-                        threading.currentThread().remaining[cluster] = max(0, cluster_num_cores(cluster) * 3600 * 2 - cluster_used)
+                                cluster_used = (j["nb_resources_scheduled"] + j["nb_resources_actual"]) * j["walltime"]
+                                logger.debug("%s:%s job %i intersects charter -> uses %is of cluster quota" % (
+                                        site, cluster, j['job_id'], cluster_used,))
+                                total_cluster_used += cluster_used
+                        cluster_quota = cluster_num_cores(cluster) * 3600 * 2
+                        logger.debug("%s:%s total cluster used = %i (%s), cluster quota = %i (%s)" % (
+                                site, cluster,
+                                total_cluster_used, format_seconds(total_cluster_used),
+                                cluster_quota, format_seconds(cluster_quota)))
+                        threading.currentThread().remaining[cluster] = max(0, cluster_quota - total_cluster_used)
+                        OOC_total_site_used += total_cluster_used
+                        OOC_site_quota += cluster_quota
+                    logger.debug("%s to compare with outofchart: total used = %i (%s), %i%% of site quota = %i (%s)" % (
+                            site,
+                            OOC_total_site_used, format_seconds(OOC_total_site_used),
+                            int(float(OOC_total_site_used) / float(OOC_site_quota) * 100.0),
+                            OOC_site_quota, format_seconds(OOC_site_quota)))
                 finally:
                     db.close()
             except Exception, e:
                 logger.warn("error connecting to oar database / getting planning from " + site)
                 logger.detail("exception:\n" + format_exc())
 
-    def g5k_charter_remaining(sites, day):
+    def g5k_charter_remaining(sites, day, user = None):
         """Returns the amount of time remaining per cluster for submitting jobs, according to the grid5000 charter.
 
         Grid5000 usage charter:
@@ -297,7 +307,8 @@ if MySQLdb:
         threads = {}
         for site in sites:
             t = threading.Thread(target = __site_charter_remaining,
-                                 args = (site, day))
+                                 args = (site, day),
+                                 kwargs = {'user': user})
             t.remaining = {}
             threads[site] = t
             t.start()
