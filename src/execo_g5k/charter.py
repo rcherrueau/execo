@@ -166,11 +166,13 @@ def get_next_charter_period(start, end):
             charter_start = start.replace(hour = 9, minute = 0, second = 0, microsecond = 0)
         else:
             charter_start = datetime.datetime.combine(_next_work_day(start.date()), datetime.time(9, 0, 0))
+        if charter_start > end:
+            return None, None
         charter_end = charter_start.replace(hour = 19, minute = 0, second = 0, microsecond = 0)
         return oar_datetime_to_unixts(charter_start), datetime_to_unixts(min(end, charter_end))
 
 def _job_intersect_charter_period(job):
-    return (get_next_charter_period(job['start_time'], job['stop_time']) != None, None)
+    return (get_next_charter_period(job['start_time'], job['stop_time']) != (None, None))
 
 @memoize
 def cluster_num_cores(cluster):
