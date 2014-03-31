@@ -256,29 +256,29 @@ if MySQLdb:
                                      passwd = g5k_configuration['oar_mysql_ro_password'],
                                      db = g5k_configuration['oar_mysql_ro_db'])
                 try:
-                    logger.debug("getting jobs for user %s on %s for %s" % (user, site, day))
+                    logger.trace("getting jobs for user %s on %s for %s" % (user, site, day))
                     OOC_total_site_used = 0
                     OOC_site_quota = 0
                     for cluster in get_site_clusters(site):
                         total_cluster_used = 0
                         for j in _get_jobs(db, cluster, user, start, end):
-                            logger.debug("%s:%s - job: start %s, end %s, walltime %s, %s" % (
+                            logger.trace("%s:%s - job: start %s, end %s, walltime %s, %s" % (
                                     site, cluster, format_unixts(j['start_time']),
                                     format_unixts(j['stop_time']), format_seconds(j['walltime']), j))
                             if _job_intersect_charter_period(j):
                                 cluster_used = (j["nb_resources_scheduled"] + j["nb_resources_actual"]) * j["walltime"]
-                                logger.debug("%s:%s job %i intersects charter -> uses %is of cluster quota" % (
+                                logger.trace("%s:%s job %i intersects charter -> uses %is of cluster quota" % (
                                         site, cluster, j['job_id'], cluster_used,))
                                 total_cluster_used += cluster_used
                         cluster_quota = cluster_num_cores(cluster) * 3600 * 2
-                        logger.debug("%s:%s total cluster used = %i (%s), cluster quota = %i (%s)" % (
+                        logger.trace("%s:%s total cluster used = %i (%s), cluster quota = %i (%s)" % (
                                 site, cluster,
                                 total_cluster_used, format_seconds(total_cluster_used),
                                 cluster_quota, format_seconds(cluster_quota)))
                         threading.currentThread().remaining[cluster] = max(0, cluster_quota - total_cluster_used)
                         OOC_total_site_used += total_cluster_used
                         OOC_site_quota += cluster_quota
-                    logger.debug("%s to compare with outofchart: total used = %i (%s), %i%% of site quota = %i (%s)" % (
+                    logger.trace("%s to compare with outofchart: total used = %i (%s), %i%% of site quota = %i (%s)" % (
                             site,
                             OOC_total_site_used, format_seconds(OOC_total_site_used),
                             int(float(OOC_total_site_used) / float(OOC_site_quota) * 100.0),
