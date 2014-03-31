@@ -175,16 +175,15 @@ def get_next_charter_period(start, end):
 def _job_intersect_charter_period(job):
     return (get_next_charter_period(job['start_time'], job['stop_time']) != (None, None))
 
-@memoize
-def cluster_num_cores(cluster):
-    """Returns the num of cores for a grid5000 cluster
-
-    Results are cached between calls for speed."""
-    num_host_cores = get_host_attributes(cluster + "-1")["architecture"]["smt_size"]
-    num_hosts = len(get_cluster_hosts(cluster))
-    return num_hosts * num_host_cores
-
 if MySQLdb:
+
+    def _cluster_num_available_cores(db, cluster):
+        q = "SELECT COUNT(*) AS num_available_cores FROM resources WHERE cluster = '%s' AND state != 'Dead' AND type='default'" % (cluster,)
+        db.query(q)
+        r = db.store_result()
+        data = r.fetch_row(maxrows = 0, how = 1)
+        logger.trace("num available cores %s = %s" % (cluster, data[0]["num_available_cores"]))
+        return data[0]["num_available_cores"]
 
     def _get_jobs(db, cluster, user, start, end):
         q = """(
@@ -270,7 +269,8 @@ if MySQLdb:
                                 logger.trace("%s:%s job %i intersects charter -> uses %is of cluster quota" % (
                                         site, cluster, j['job_id'], cluster_used,))
                                 total_cluster_used += cluster_used
-                        cluster_quota = cluster_num_cores(cluster) * 3600 * 2
+                        #cluster_quota = cluster_num_cores(cluster) * 3600 * 2
+                        cluster_quota = _cluster_num_available_cores(db, cluster) * 3600 * 2
                         logger.trace("%s:%s total cluster used = %i (%s), cluster quota = %i (%s)" % (
                                 site, cluster,
                                 total_cluster_used, format_seconds(total_cluster_used),
