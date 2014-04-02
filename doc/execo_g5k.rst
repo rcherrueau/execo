@@ -284,6 +284,21 @@ get_next_charter_period
 -----------------------
 .. autofunction:: execo_g5k.charter.get_next_charter_period
 
+
+Grid5000 Topology
+=================
+.. automodule:: execo_g5k.topology
+
+
+backbone_graph
+--------------
+.. autofunction:: execo_g5k.topology.backbone_graph
+
+
+site_graph
+----------
+.. autofunction:: execo_g5k.topology.site_graph
+
 Configuration
 =============
 
