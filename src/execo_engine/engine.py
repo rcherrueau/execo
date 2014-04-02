@@ -167,8 +167,8 @@ class Engine(object):
         this options parser in `execo_engine.engine.Engine.init`.
         """
         self.options_parser.add_option(
-            "-l", dest = "log_level", type = "int", default = 20,
-            help = "log level (10=DEBUG, 20=INFO, 30=WARNING, 40=ERROR, 50=CRITICAL). Default = %default")
+            "-l", dest = "log_level", default = None,
+            help = "log level (int or string). Default = inherit execo logger level")
         self.options_parser.add_option(
             "-L", dest = "output_mode", action="store_const", const = "copy", default = False,
             help = "copy stdout / stderr to log files in the experiment result directory. Default = %default")
@@ -227,7 +227,12 @@ class Engine(object):
         # instanciate or start the engine interactively, we need to
         # parse the right args from sys.argv which is thus saved at
         # engine load time.
-        logger.setLevel(self.options.log_level)
+        if self.options.log_level != None:
+            try:
+                log_level = int(self.options.log_level)
+            except:
+                log_level = self.options.log_level
+            logger.setLevel(log_level)
         if len(self.args) < self.options_parser.num_arguments():
             self.options_parser.print_help(sys.stderr)
             exit(1)
