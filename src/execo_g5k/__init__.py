@@ -51,3 +51,8 @@ try:
     from charter import g5k_charter_remaining
 except:
     pass # no mysqldb
+
+try:
+    from topology import backbone_graph, site_graph
+except:
+    pass # no networkx
