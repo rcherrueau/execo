@@ -16,8 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-""" A module based on networkx to create a topological graph of the
-Grid'5000 platform """
+""" A module based on `networkx <http://networkx.github.io/>`_ to create a
+topological graph of the Grid'5000 platform. "Nodes" are used to represent
+hosts (compute nodes, switch, router, renater) and "Edges" are the network
+links. Nodes has a kind data (+ power and core for compute nodes) 
+whereas edges has bandwidth and latency information.
+\n
+All information comes from the Grid'5000 reference API
+
+"""
 from execo import logger
 from api_cache import get_api_data
 from networkx import Graph, set_edge_attributes, get_edge_attributes
@@ -25,11 +32,12 @@ from networkx import Graph, set_edge_attributes, get_edge_attributes
 arbitrary_latency = 2.25E-3
 
 
-def backbone_graph(backbone):
+def backbone_graph():
     """Return a networkx undirected graph describing the Grid'5000
-    backbone from the list of backbone equipements"""
-    if backbone is None:
-        backbone, _, _ = get_api_data()
+    backbone from the list of backbone equipements:
+    - nodes data: kind (renater, gw, switch, )"""
+    network, _ = get_api_data()
+    backbone = network['backbone']
     gr = Graph()
     # Adding backbone equipments and links
     for equip in backbone:
@@ -51,9 +59,12 @@ def backbone_graph(backbone):
     return gr
 
 
-def site_graph(site, hosts, equips):
+def site_graph(site):
     """Return a networkx undirected graph describing the site
     topology from the dict of hosts and list of site equipments"""
+    network, all_hosts = get_api_data()
+    equips = network[site]
+    hosts = all_hosts[site]
     sgr = Graph()
     for equip in equips:
         src = equip['uid'] + '.' + site
