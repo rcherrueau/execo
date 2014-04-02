@@ -537,8 +537,8 @@ class ParamSweeper(object):
                     try:
                         combination = iter(remaining).next()
                     except StopIteration:
-                        logger.debug("%s no new combination", self.__name)
-                        logger.debug(self)
+                        logger.trace("%s no new combination", self.__name)
+                        logger.trace(self)
                         return None
                     self.__remaining.discard(combination)
                     self.__inprogress.add(combination)
@@ -546,8 +546,8 @@ class ParamSweeper(object):
                         self.__filtered_inprogress.add(combination)
                     inprogress_file.truncate(0)
                     pickle.dump(self.__inprogress, inprogress_file)
-            logger.debug("%s new combination: %s", self.__name, combination)
-            logger.debug(self)
+            logger.trace("%s new combination: %s", self.__name, combination)
+            logger.trace(self)
             return combination
 
     def done(self, combination):
@@ -566,8 +566,8 @@ class ParamSweeper(object):
                     pickle.dump(combination, done_file)
                     inprogress_file.truncate(0)
                     pickle.dump(self.__inprogress, inprogress_file)
-            logger.debug("%s combination done: %s", self.__name, combination)
-            logger.debug(self)
+            logger.trace("%s combination done: %s", self.__name, combination)
+            logger.trace(self)
 
     def skip(self, combination):
         """mark the given element *skipped*"""
@@ -582,8 +582,8 @@ class ParamSweeper(object):
                     self.__filtered_inprogress.discard(combination)
                     inprogress_file.truncate(0)
                     pickle.dump(self.__inprogress, inprogress_file)
-            logger.debug("%s combination skipped: %s", self.__name, combination)
-            logger.debug(self)
+            logger.trace("%s combination skipped: %s", self.__name, combination)
+            logger.trace(self)
 
     def cancel(self, combination):
         """cancel processing of the given combination, but don't mark it as skipped, it comes back in the *todo* queue."""
@@ -597,8 +597,8 @@ class ParamSweeper(object):
                     self.__filtered_inprogress.discard(combination)
                     inprogress_file.truncate(0)
                     pickle.dump(self.__inprogress, inprogress_file)
-            logger.debug("%s combination cancelled: %s", self.__name, combination)
-            logger.debug(self)
+            logger.trace("%s combination cancelled: %s", self.__name, combination)
+            logger.trace(self)
 
     def reset(self, reset_inprogress = False):
         """reset container: iteration will start from beginning, state *skipped* are forgotten, state *done* are **not** forgotten.
@@ -618,8 +618,8 @@ class ParamSweeper(object):
                         self.__filtered_inprogress.clear()
                         inprogress_file.truncate(0)
                         pickle.dump(self.__inprogress, inprogress_file)
-            logger.debug("%s reset", self.__name)
-            logger.debug(self)
+            logger.trace("%s reset", self.__name)
+            logger.trace(self)
 
     def stats(self):
         """if combinations are in the format output by `sweep`, return a dict detailing number and ratios of remaining, skipped, done, inprogress combinations per combination parameter value."""
