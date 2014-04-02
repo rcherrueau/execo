@@ -55,4 +55,4 @@ except:
 try:
     from topology import backbone_graph, site_graph
 except:
-    pass # no networkx
+    pass # no networkx
