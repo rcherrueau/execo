@@ -32,6 +32,7 @@ g5k_configuration = {
     'default_frontend' : None,
     'api_uri': "https://api.grid5000.fr/3.0/",
     'api_username': None,
+    'api_additional_args': None,
     'oar_job_key_file': None,
     'oar_mysql_ro_db': 'oar2',
     'oar_mysql_ro_user': 'oarreader',
@@ -80,6 +81,10 @@ g5k_configuration = {
 - ``api_username``: username to use for requests to the Grid5000 REST
   API. If None, no credentials will be used, which is fine when
   running on a Grid5000 frontend.
+
+- ``api_additional_args``: additional arguments to append at the end
+  all requests to g5k api. May be used to request the testing branch
+  (use: api_additional_args = ["branch=testing"])
 
 - ``oar_job_key_file``: ssh key to use for oar. If defined, takes
   precedence over environment variable OAR_JOB_KEY_FILE.

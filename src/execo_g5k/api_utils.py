@@ -88,14 +88,16 @@ class APIGetException(Exception):
     def __str__(self):
         return "<APIGetException uri=%r response=%s content=%r>" % (self.uri, self.response, self.content)
 
-
-class APIConnection:
+class APIConnection(object):
     """Basic class for easily getting url contents.
 
     Intended to be used to get content from restfull apis, particularly the grid5000 api.
     """
 
-    def __init__(self, base_uri = None, username = None, password = None, headers = None, timeout = 300):
+    def __init__(self, base_uri = None,
+                 username = None, password = None,
+                 headers = None, additional_args = None,
+                 timeout = 300):
         """:param base_uri: server base uri. defaults to
           ``g5k_configuration.get('api_uri')``
 
@@ -111,6 +113,9 @@ class APIConnection:
         :param headers: http headers to use. If None (default),
           default headers accepting json answer will be used.
 
+        :param additional_args: a list of optional arguments (strings)
+          to pass at the end of the url of all http requests.
+
         :param timeout: timeout for the http connection.
         """
         if not base_uri:
@@ -122,6 +127,12 @@ class APIConnection:
             self.headers = {
                 'ACCEPT': 'application/json'
             }
+        self.additional_args = additional_args
+        if g5k_configuration.get("api_additional_args"):
+            if self.additional_args:
+                self.additional_args.extend(g5k_configuration["api_additional_args"])
+            else:
+                self.additional_args = g5k_configuration["api_additional_args"]
         if username:
             self.username = username
         else:
@@ -144,6 +155,12 @@ class APIConnection:
         if self.username and self.password:
             http.add_credentials(self.username, self.password)
         uri = self.base_uri + "/" + relative_uri.lstrip("/")
+        if self.additional_args and len(self.additional_args) > 0:
+            args_string = "&".join(self.additional_args)
+            if "?" in uri:
+                uri += "&" + args_string
+            else:
+                uri += "?" + args_string
         response, content = http.request(uri,
                                          headers = self.headers)
         if response['status'] not in ['200', '304']:
