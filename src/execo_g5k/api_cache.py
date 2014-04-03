@@ -83,10 +83,10 @@ def _write_api_cache(cache_dir=_cache_dir):
     network['backbone'] = get_resource_attributes('/network_equipments')['items']
 
     for site in sorted(get_g5k_sites()):
-        logger.info(site)
+        logger.detail(site)
         hosts[site] = {}
         for cluster in get_site_clusters(site):
-            logger.info('* ' + cluster)
+            logger.detail('* ' + cluster)
             hosts[site][cluster] = get_resource_attributes(
                 'sites/' + site + '/clusters/' + cluster + '/nodes')['items']
 
