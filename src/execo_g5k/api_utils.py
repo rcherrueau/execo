@@ -127,12 +127,9 @@ class APIConnection(object):
             self.headers = {
                 'ACCEPT': 'application/json'
             }
-        self.additional_args = additional_args
-        if g5k_configuration.get("api_additional_args"):
-            if self.additional_args:
-                self.additional_args.extend(g5k_configuration["api_additional_args"])
-            else:
-                self.additional_args = g5k_configuration["api_additional_args"]
+        self.additional_args = g5k_configuration["api_additional_args"]
+        if additional_args:
+            self.additional_args.extend(additional_args)
         if username:
             self.username = username
         else:

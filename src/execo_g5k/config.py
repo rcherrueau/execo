@@ -32,7 +32,7 @@ g5k_configuration = {
     'default_frontend' : None,
     'api_uri': "https://api.grid5000.fr/3.0/",
     'api_username': None,
-    'api_additional_args': None,
+    'api_additional_args': [],
     'oar_job_key_file': None,
     'oar_mysql_ro_db': 'oar2',
     'oar_mysql_ro_user': 'oarreader',
