@@ -106,6 +106,7 @@ def site_graph(site):
                 else:
                     dst = adapt['switch'] + '.' + site
                 if not sgr.has_edge(src, dst):
-                    sgr.add_edge(src, dst, bandwidth=adapt['rate'],
-                                 latency=latency, weight=0.5)
+                    sgr.add_edge(src, dst,
+                                 bandwidth=adapt['rate'],
+                                 latency=latency)
     return sgr
