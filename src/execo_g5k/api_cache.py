@@ -27,7 +27,7 @@ from pickle import load, dump
 from execo import logger
 from api_utils import get_resource_attributes, get_g5k_sites, get_site_clusters
 
-_cache_dir = environ['HOME'] + '/.g5k/api_cache/'
+_cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
 
 
 def get_api_data(cache_dir=_cache_dir):
