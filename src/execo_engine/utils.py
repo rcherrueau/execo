@@ -438,19 +438,20 @@ class ParamSweeper(object):
     def __nolock_update(self, done_file, inprogress_file):
         done_file.seek(0, os.SEEK_END)
         new_done_filepos = done_file.tell()
-        if new_done_filepos > self.__done_filepos:
-            done_file.seek(self.__done_filepos, os.SEEK_SET)
-            new_done = list()
-            while True:
-                try:
-                    new_done.append(pickle.load(done_file))
-                    self.__done_filepos = done_file.tell()
-                except:
-                    done_file.truncate(self.__done_filepos)
-                    break
-            self.__done.update(new_done)
-            self.__remaining.difference_update(new_done)
-            self.__filtered_done.update(set(new_done).intersection(self.__sweeps))
+        if new_done_filepos >= self.__done_filepos:
+            if new_done_filepos > self.__done_filepos:
+                done_file.seek(self.__done_filepos, os.SEEK_SET)
+                new_done = list()
+                while True:
+                    try:
+                        new_done.append(pickle.load(done_file))
+                        self.__done_filepos = done_file.tell()
+                    except:
+                        done_file.truncate(self.__done_filepos)
+                        break
+                self.__done.update(new_done)
+                self.__remaining.difference_update(new_done)
+                self.__filtered_done.update(set(new_done).intersection(self.__sweeps))
             inprogress_file.seek(0, os.SEEK_SET)
             try:
                 self.__inprogress = pickle.load(inprogress_file)
@@ -458,8 +459,8 @@ class ParamSweeper(object):
                 inprogress_file.truncate(0)
                 self.__inprogress.clear()
             self.__remaining.difference_update(self.__inprogress)
-            self.__filtered_inprogress.intersection_update(self.__sweeps)
-        elif new_done_filepos < self.__done_filepos:
+            self.__filtered_inprogress.intersection_update(self.__inprogress)
+        else:
             self.__nolock_full_update(done_file, inprogress_file)
 
     def update(self):
