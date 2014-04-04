@@ -535,68 +535,81 @@ class ParamSweeper(object):
             logger.trace(self)
 
     def stats(self):
-        """if combinations are in the format output by `sweep`, return a dict detailing number and ratios of remaining, skipped, done, inprogress combinations per combination parameter value."""
-
-        def count(combs):
-            counts = dict()
-            for comb in combs:
-                for k in comb:
-                    if not counts.has_key(k):
-                        counts[k] = dict()
-                    if not counts[k].has_key(comb[k]):
-                        counts[k][comb[k]] = 0
-                    counts[k][comb[k]] += 1
-            return counts
-
+        """Atomically return the tuple (sweeps, remaining, skipped, inprogress, done)"""
         with self.__lock:
             sweeps = self.get_sweeps()
             remaining = self.get_remaining()
             skipped = self.get_skipped()
             inprogress = self.get_inprogress()
             done = self.get_done()
-        ctotal = count(sweeps)
-        cremaining = count(remaining)
-        cskipped = count(skipped)
-        cinprogress = count(inprogress)
-        cdone = count(done)
-        remaining_ratio = dict()
-        skipped_ratio = dict()
-        inprogress_ratio = dict()
-        done_ratio = dict()
-        for k1 in ctotal:
-            remaining_ratio[k1] = dict()
-            skipped_ratio[k1] = dict()
-            inprogress_ratio[k1] = dict()
-            done_ratio[k1] = dict()
-            for k2 in ctotal[k1]:
-                if cremaining.has_key(k1) and cremaining[k1].has_key(k2):
-                    r = cremaining[k1][k2]
-                else:
-                    r = 0
-                remaining_ratio[k1][k2] = float(r) / float(ctotal[k1][k2])
-                if cskipped.has_key(k1) and cskipped[k1].has_key(k2):
-                    s = cskipped[k1][k2]
-                else:
-                    s = 0
-                skipped_ratio[k1][k2] = float(s) / float(ctotal[k1][k2])
-                if cinprogress.has_key(k1) and cinprogress[k1].has_key(k2):
-                    i = cinprogress[k1][k2]
-                else:
-                    i = 0
-                inprogress_ratio[k1][k2] = float(i) / float(ctotal[k1][k2])
-                if cdone.has_key(k1) and cdone[k1].has_key(k2):
-                    d = cdone[k1][k2]
-                else:
-                    d = 0
-                done_ratio[k1][k2] = float(d) / float(ctotal[k1][k2])
-        return {
-            "total": ctotal,
-            "remaining": cremaining,
-            "remaining_ratio": remaining_ratio,
-            "skipped": cskipped,
-            "skipped_ratio": skipped_ratio,
-            "inprogress": cinprogress,
-            "inprogress_ratio": inprogress_ratio,
-            "done": cdone,
-            "done_ratio": done_ratio
-            }
+            return (sweeps,
+                    remaining,
+                    skipped,
+                    inprogress,
+                    done)
+
+def sweep_stats(stats):
+    """taking stats tuple returned by `execo_engine.sweep.ParamSweeper.stats`, and if the ParamSweeper sweeps are in the format output by `execo_engine.sweep.sweep`, returns a dict detailing number and ratios of remaining, skipped, done, inprogress combinations per combination parameter value."""
+
+    def count(combs):
+        counts = dict()
+        for comb in combs:
+            for k in comb:
+                if not counts.has_key(k):
+                    counts[k] = dict()
+                if not counts[k].has_key(comb[k]):
+                    counts[k][comb[k]] = 0
+                counts[k][comb[k]] += 1
+        return counts
+
+    (sweeps,
+     remaining,
+     skipped,
+     inprogress,
+     done) = stats
+    ctotal = count(sweeps)
+    cremaining = count(remaining)
+    cskipped = count(skipped)
+    cinprogress = count(inprogress)
+    cdone = count(done)
+    remaining_ratio = dict()
+    skipped_ratio = dict()
+    inprogress_ratio = dict()
+    done_ratio = dict()
+    for k1 in ctotal:
+        remaining_ratio[k1] = dict()
+        skipped_ratio[k1] = dict()
+        inprogress_ratio[k1] = dict()
+        done_ratio[k1] = dict()
+        for k2 in ctotal[k1]:
+            if cremaining.has_key(k1) and cremaining[k1].has_key(k2):
+                r = cremaining[k1][k2]
+            else:
+                r = 0
+            remaining_ratio[k1][k2] = float(r) / float(ctotal[k1][k2])
+            if cskipped.has_key(k1) and cskipped[k1].has_key(k2):
+                s = cskipped[k1][k2]
+            else:
+                s = 0
+            skipped_ratio[k1][k2] = float(s) / float(ctotal[k1][k2])
+            if cinprogress.has_key(k1) and cinprogress[k1].has_key(k2):
+                i = cinprogress[k1][k2]
+            else:
+                i = 0
+            inprogress_ratio[k1][k2] = float(i) / float(ctotal[k1][k2])
+            if cdone.has_key(k1) and cdone[k1].has_key(k2):
+                d = cdone[k1][k2]
+            else:
+                d = 0
+            done_ratio[k1][k2] = float(d) / float(ctotal[k1][k2])
+    return {
+        "total": ctotal,
+        "remaining": cremaining,
+        "remaining_ratio": remaining_ratio,
+        "skipped": cskipped,
+        "skipped_ratio": skipped_ratio,
+        "inprogress": cinprogress,
+        "inprogress_ratio": inprogress_ratio,
+        "done": cdone,
+        "done_ratio": done_ratio
+        }

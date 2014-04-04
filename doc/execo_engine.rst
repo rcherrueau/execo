@@ -22,6 +22,10 @@ ParamSweeper
 .. autoclass:: execo_engine.sweep.ParamSweeper
    :members:
 
+sweep_stats
+-----------
+.. autofunction:: execo_engine.sweep.sweep_stats
+
 geom
 ----
 .. autofunction:: execo_engine.sweep.geom

@@ -20,4 +20,4 @@
 from log import logger
 from engine import Engine
 from utils import slugify, redirect_outputs, copy_outputs
-from sweep import HashableDict, sweep, ParamSweeper, geom, igeom
+from sweep import HashableDict, sweep, ParamSweeper, geom, igeom, sweep_stats
