@@ -73,7 +73,7 @@ def sweep(parameters):
     allows to explore some factor / level combinations only for some
     levels of a given factor.
 
-    The returned list contains `execo_engine.utils.HashableDict`
+    The returned list contains `execo_engine.sweep.HashableDict`
     instead of dict, which is a simple subclass of dict, so that
     parameters combinations can be used as dict keys (but don't modify
     them in such cases)
@@ -193,13 +193,13 @@ class ParamSweeper(object):
     This container is intended to be used in the following way: at the
     beginning of the experiment, you initialize a ParamSweeper with
     the list of experiment configurations (which can result from a
-    call to `execo_engine.utils.sweep`, but not necessarily) and a
+    call to `execo_engine.sweep.sweep`, but not necessarily) and a
     directory for the persistence. During execution, you request
     (possibly from several concurrent threads or processes) new
     experiment configurations with
-    `execo_engine.utils.ParamSweeper.get_next`, mark them *done* or
-    *skipped* with `execo_engine.utils.ParamSweeper.done` and
-    `execo_engine.utils.ParamSweeper.skip`. At a later date, you can
+    `execo_engine.sweep.ParamSweeper.get_next`, mark them *done* or
+    *skipped* with `execo_engine.sweep.ParamSweeper.done` and
+    `execo_engine.sweep.ParamSweeper.skip`. At a later date, you can
     relaunch the same script, it will continue from where it left,
     also retrying the skipped configurations. This works well when
     used with `execo_engine.engine.Engine` startup option ``-c``
@@ -417,7 +417,7 @@ class ParamSweeper(object):
         return self.__remaining.copy()
 
     def get_inprogress(self):
-        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.utils.ParamSweeper.get_next`, not yet marked *done* or *skipped*)
+        """returns an iterable of elements currently processed (which were obtained by a call to `execo_engine.sweep.ParamSweeper.get_next`, not yet marked *done* or *skipped*)
 
         The returned iterable is a copy (safe to use without fearing
         concurrent mutations by another thread).

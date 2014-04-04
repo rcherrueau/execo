@@ -492,7 +492,7 @@ Parameter sweeping
 ..................
 
 A common need is to explore the combinations of several
-parameters. `execo_engine.utils.sweep` defines a syntax to express
+parameters. `execo_engine.sweep.sweep` defines a syntax to express
 these parameters and generate the list of all parameters combinations
 (the cartesian product). The syntax also allows explicitely
 restricting the selection of some parameters combinations for some
@@ -501,15 +501,15 @@ values of another given parameter.
 Checkpointed thread-safe and process-safe iterator
 ..................................................
 
-The `execo_engine.utils.ParamSweeper` class allows creating
+The `execo_engine.sweep.ParamSweeper` class allows creating
 checkpointed, thread-safe, process-safe iterators over any
 sequence. The iterated sequence may be the result of
-`execo_engine.utils.sweep`, or any sequence, provided that sequence
+`execo_engine.sweep.sweep`, or any sequence, provided that sequence
 elements are hashable (if needed, the
-`execo_engine.utils.HashableDict` is provided, and it used in
-sequences returned by `execo_engine.utils.sweep`).
+`execo_engine.sweep.HashableDict` is provided, and it used in
+sequences returned by `execo_engine.sweep.sweep`).
 
-When instanciating a `execo_engine.utils.ParamSweeper`, a storage
+When instanciating a `execo_engine.sweep.ParamSweeper`, a storage
 dictory is given, as well as the sequence to iterate. This class then
 provides methods to iterate over the sequence, each elements moving
 from states *todo*, *inprogress*, *done*, *skipped*. It is:
@@ -518,14 +518,14 @@ from states *todo*, *inprogress*, *done*, *skipped*. It is:
   storage directory
 
 - thread-safe: threads can thread-safely share and use a single
-  `execo_engine.utils.ParamSweeper` instance
+  `execo_engine.sweep.ParamSweeper` instance
 
 - process-safe: several processes can safely instanciate
-  `execo_engine.utils.ParamSweeper` sharing the same storage
+  `execo_engine.sweep.ParamSweeper` sharing the same storage
   directory, even on shared nfs storage. This allows, for example,
   having several independant jobs exploring a single parameter space,
   synchronizing only through independant
-  `execo_engine.utils.ParamSweeper` instances sharing the same
+  `execo_engine.sweep.ParamSweeper` instances sharing the same
   storage.
 
 Basic experiment lifecycle
