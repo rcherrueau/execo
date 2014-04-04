@@ -27,8 +27,11 @@ All information comes from the Grid'5000 reference API
 """
 from execo import logger
 from api_cache import get_api_data
+from api_utils import get_g5k_sites
 from networkx import Graph, set_edge_attributes, get_edge_attributes, \
-    draw_networkx_nodes, draw_networkx_edges, draw_networkx_labels
+    draw_networkx_nodes, draw_networkx_edges, draw_networkx_labels, \
+    graphviz_layout, spring_layout
+import matplotlib.pyplot as plt
 
 arbitrary_latency = 2.25E-3
 
@@ -116,39 +119,83 @@ def site_graph(site):
     return sgr
 
 
-# def gr_to_map(gr, out='png'):
-#     """Export a topology graph to a map"""
-#     backbone = [node[0] for node in gr.nodes_iter(data=True)
-#     if node[1]['kind'] == 'renater']
-#     gw_nodes = [node[0] for node in gr.nodes_iter(data=True)
-#         if node[1]['kind'] == 'router']
-#     sw_nodes = [node[0] for node in gr.nodes_iter(data=True)
-#         if node[1]['kind'] == 'switch']
-#     nodes_nodes = [node[0] for node in gr.nodes_iter(data=True)
-#         if node[1]['kind'] == 'node']
-# 
-#     edges_1G = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-#         if edge[2]['bandwidth'] == 1000000000]
-#     edges_3G = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-#         if edge[2]['bandwidth'] == 3000000000]
-#     edges_10G = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-#         if edge[2]['bandwidth'] == 10000000000]
-#     edges_20G = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-#         if edge[2]['bandwidth'] == 20000000000]
-#     edges_other = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-#         if edge[2]['bandwidth'] not in [1000000000, 3000000000, 10000000000,
-#                                         20000000000]]
-# 
-# 
-# 
-#     logger.info('Drawing nodes')
-#     draw_networkx_nodes(gr, pos, nodelist=backbone,
-#         node_shape='p', node_color='#9CF7BC', node_size=200)
-#     draw_networkx_nodes(gr, pos, nodelist=gw_nodes,
-#         node_shape='8', node_color='#BFDFF2', node_size=300,
-#         labels=gw_nodes)
-#     draw_networkx_nodes(gr, pos, nodelist=sw_nodes,
-#         node_shape='s', node_color='#F5C9CD', node_size=100)
-#     draw_networkx_nodes(gr, pos, nodelist=nodes_nodes,
-#         node_shape='o', node_color='#F0F7BE', node_size=10)
+def remove_non_g5k(gr):
+    logger.detail('Removing stalc, infiniband, myrinet ')
+    for node in gr.nodes():
+        if 'ib.' in node or 'stalc' in node or 'voltaire' in node or 'ib-' in node\
+            or 'summit' in node or 'ipmi' in node or 'CICT' in node or 'mxl2' in node\
+            or 'grelon' in node or 'myrinet' in node or 'salome' in node or 'interco' in node:
+            gr.remove_node(node)
 
+
+def gr_to_map(gr, outfile=None, config=None):
+    """Export a topology graph to a map"""
+    sites = []
+    for node in gr.nodes_iter():
+        site = node.split('.')[1]
+        if site not in sites and site in get_g5k_sites():
+            sites.append(site)
+    sites.sort()
+    if outfile is None:
+        outfile = '_'.join(sites) + '.png'
+    if config is None:
+        config = {'nodes': {
+                    'renater': {'color': '#9CF7BC', 'shape': 'p', 'size': 200},
+                    'router': {'color': '#BFDFF2', 'shape': '8', 'size': 300},
+                    'switch': {'color': '#F5C9CD', 'shape': 's', 'size': 100},
+                    'node': {'color': '#F0F7BE', 'shape': 'o', 'size': 30},
+                    },
+                'edges': {
+                    1000000000: {'width': 0.1, 'color': '#aaaaaa'},
+                    3000000000: {'width': 0.6, 'color': '#333333'},
+                    10000000000: {'width': 1.0, 'color': '#111111'},
+                    20000000000: {'width': 2.0, 'color': '#8FC2FF'},
+                    'other': {'width': 1.0, 'color': '#FF4E5A'}
+                    }
+                }
+    sites = []
+
+    plt.figure(figsize=(15, 15))
+    logger.detail('Defining positions')
+    try:
+        pos = graphviz_layout(gr, prog='neato')
+    except:
+        logger.warning('No graphviz installed, using spring layout that ' + \
+                       ' does not scale well ...')
+        pos = spring_layout(gr, iterations=100)
+
+    for kind in ['renater', 'router', 'switch', 'node']:
+        nodes = [node[0] for node in gr.nodes_iter(data=True)
+                 if node[1]['kind'] == kind]
+        draw_networkx_nodes(gr, pos, nodelist=nodes,
+            node_shape=config['nodes'][kind]['shape'],
+            node_color=config['nodes'][kind]['color'],
+            node_size=config['nodes'][kind]['size'])
+    for bandwidth, params in config['edges'].iteritems():
+        if bandwidth != 'other':
+            edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
+                 if edge[2]['bandwidth'] == bandwidth]
+            draw_networkx_edges(gr, pos, edgelist=edges,
+                    width=params['width'], edge_color=params['color'])
+    edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
+         if edge[2]['bandwidth'] not in config['edges'].keys()]
+    draw_networkx_edges(gr, pos, edgelist=edges,
+            width=config['edges']['other']['width'],
+            edge_color=config['edges']['other']['color'])
+    labels = {}
+    for node, data in gr.nodes_iter(data=True):
+        if data['kind'] == 'renater':
+            labels[node] = node.split('.')[1].title()
+        elif data['kind'] == 'node' and '-1.' in node:
+            labels[node] = node.split('-')[0]
+    draw_networkx_labels(gr, pos, labels=labels,
+                        font_size=16, font_weight='normal')
+    plt.axis('off')
+    plt.tight_layout()
+    logger.detail('Saving file to %s', outfile)
+    plt.savefig(outfile, bbox_inches='tight', dpi=300)
+
+
+def gr_to_simgrid():
+    """Produce a SimGrid platform XML file"""
+    print 'not finished'
