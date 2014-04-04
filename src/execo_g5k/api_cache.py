@@ -23,7 +23,7 @@ Data are stored in $HOME/.topo5k under pickle format
 - one file for all network equipments
 """
 from os import makedirs, environ
-from pickle import load, dump
+from cPickle import load, dump
 from execo import logger
 from api_utils import get_resource_attributes, get_g5k_sites, get_site_clusters
 
