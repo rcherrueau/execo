@@ -327,18 +327,18 @@ def get_site_attributes(site):
     return get_resource_attributes('/sites/' + site)
 
 
-def get_g5k_measures(host, metric, startstamp, endstamp, resolution = 5):
+def get_g5k_measures(host, metric, startstamp, endstamp, resolution=5):
     """ Return a dict with the api values"""
     if isinstance(host, execo.Host):
         host = host.address
     host = canonical_host_name(host)
     host_shortname, _, _ = host.partition(".")
     site = get_host_site(host)
-    return get_resource_attributes('/sites/' + site 
+    return get_resource_attributes('/sites/' + site
                                    + '/metrics/' + metric
                                    + '/timeseries/' + host_shortname
                                    + '?resolution=' + str(resolution)
-                                   + '&from=' + str(startstamp) 
+                                   + '&from=' + str(startstamp)
                                    + '&to=' + str(endstamp))
 
 __canonical_host_name_regex = re.compile("^([a-zA-Z]+-\d+)(-kavlan-\d+)?(\.([.\w]+))?")
