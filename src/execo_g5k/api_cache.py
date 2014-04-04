@@ -28,15 +28,25 @@ from execo import logger
 from api_utils import get_resource_attributes, get_g5k_sites, get_site_clusters
 
 _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
+_network = None
+_hosts = None
 
 
 def get_api_data(cache_dir=_cache_dir):
     """Return two dicts containing the data from network,
     and hosts """
-    if _is_cache_old(cache_dir):
-        network, hosts = _write_api_cache(cache_dir)
+    global _network
+    global _hosts
+
+    if not _network or not _hosts:
+        if _is_cache_old(cache_dir):
+            network, hosts = _write_api_cache(cache_dir)
+        else:
+            network, hosts = _read_api_cache(cache_dir)
+        _network, _hosts = network, hosts
     else:
-        network, hosts = _read_api_cache(cache_dir)
+        logger.debug('Data already loaded in memory')
+        network, hosts = _network, _hosts
 
     return network, hosts
 
