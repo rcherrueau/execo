@@ -55,6 +55,7 @@ logger
 ------
 Default and convenient logger for engines.
 Inherits its properties from the execo logger.
+
 .. data:: execo_engine.log.logger
 
 
