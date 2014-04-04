@@ -15,12 +15,21 @@ Parameter sweeping
 
 sweep
 -----
-.. autofunction:: execo_engine.utils.sweep
+.. autofunction:: execo_engine.sweep.sweep
 
 ParamSweeper
 ------------
-.. autoclass:: execo_engine.utils.ParamSweeper
+.. autoclass:: execo_engine.sweep.ParamSweeper
    :members:
+
+geom
+----
+.. autofunction:: execo_engine.sweep.geom
+
+igeom
+-----
+.. autofunction:: execo_engine.sweep.igeom
+
 
 Engine
 ======
@@ -46,10 +55,12 @@ logger
 ------
 Default and convenient logger for engines.
 Inherits its properties from the execo logger.
+.. data:: execo_engine.log.logger
+
 
 HashableDict
 ------------
-.. autoclass:: execo_engine.utils.HashableDict
+.. autoclass:: execo_engine.sweep.HashableDict
    :members:
 
 ArgsOptionParser
