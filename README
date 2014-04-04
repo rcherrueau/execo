@@ -91,6 +91,8 @@ execo installation absolutely requires ``python`` (>=
 - ``python-matplotlib`` (>= 1.2.0) for graphical representation of
   grid5000 plannings
 
+- ``python-networkx`` for module ``execo_g5k.topology``
+
 At runtime, connecting to remote hosts requires ``ssh``, ``scp`` or
 similar connection tools, and optionnaly ``taktuk`` (probably >=
 3.6. http://taktuk.gforge.inria.fr/). `execo.action.ChainPut` requires
