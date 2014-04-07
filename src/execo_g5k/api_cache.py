@@ -45,7 +45,7 @@ def get_api_data(cache_dir=_cache_dir):
             network, hosts = _read_api_cache(cache_dir)
         _network, _hosts = network, hosts
     else:
-        logger.debug('Data already loaded in memory')
+        logger.detail('Data already loaded in memory')
         network, hosts = _network, _hosts
 
     return network, hosts
@@ -66,13 +66,13 @@ def _is_cache_old(cache_dir=_cache_dir):
         local_commit = f.readline()
         f.close()
         if local_commit != _get_api_commit():
-            logger.debug('Cache is too old')
+            logger.detail('Cache is too old')
             cache_is_old = True
         else:
-            logger.debug('Already at the latest commit')
+            logger.detail('Already at the latest commit')
     except:
         pass
-        logger.debug('No commit version found')
+        logger.detail('No commit version found')
         cache_is_old = True
 
     return cache_is_old
@@ -83,13 +83,13 @@ def _write_api_cache(cache_dir=_cache_dir):
     the cache directory"""
     try:
         makedirs(cache_dir)
-        logger.debug('No cache found, directory created.')
+        logger.detail('No cache found, directory created.')
     except:
-        logger.debug('Cache directory is present')
+        logger.detail('Cache directory is present')
         pass
 
     network, hosts = {}, {}
-    logger.debug('Retrieving topology data from API...')
+    logger.detail('Retrieving topology data from API...')
     network['backbone'] = get_resource_attributes('/network_equipments')['items']
 
     for site in sorted(get_g5k_sites()):
@@ -106,7 +106,7 @@ def _write_api_cache(cache_dir=_cache_dir):
         dump(network[site], f)
         f.close()
 
-    logger.debug('Writing data to cache ...')
+    logger.detail('Writing data to cache ...')
     f = open(cache_dir + 'network', 'w')
     dump(network, f)
     f.close()
@@ -127,7 +127,7 @@ def _read_api_cache(cache_dir=_cache_dir):
     - network = the network_equipements of all sites and backbone
     - hosts = the hosts of all sites
     """
-    logger.debug('Reading data from cache ...')
+    logger.detail('Reading data from cache ...')
     f_network = open(cache_dir + 'network')
     network = load(f_network)
     f_network.close()
