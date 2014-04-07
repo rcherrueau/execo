@@ -25,13 +25,16 @@ whereas edges has bandwidth and latency information.
 All information comes from the Grid'5000 reference API
 
 """
+from time import time
 from execo import logger
+from execo_g5k.oar import format_date
 from api_cache import get_api_data
 from api_utils import get_g5k_sites
 from networkx import Graph, set_edge_attributes, get_edge_attributes, \
     draw_networkx_nodes, draw_networkx_edges, draw_networkx_labels, \
     graphviz_layout, spring_layout
 import matplotlib.pyplot as plt
+import matplotlib.patches
 
 arbitrary_latency = 2.25E-3
 
@@ -44,7 +47,8 @@ def backbone_graph():
     - nodes data: kind (renater, gw, switch, )"""
     network, _ = get_api_data()
     backbone = network['backbone']
-    gr = Graph()
+    gr = Graph(api_commit=backbone[0]['version'],
+               date=format_date(time()))
     # Adding backbone equipments and links
     for equip in backbone:
         src = equip['uid'].replace('renater-', 'renater.')
@@ -72,7 +76,8 @@ def site_graph(site):
     network, all_hosts = get_api_data()
     equips = network[site]
     hosts = all_hosts[site]
-    sgr = Graph()
+    sgr = Graph(api_commit=equips[0]['version'],
+                date=format_date(time()))
     for equip in equips:
         src = equip['uid'] + '.' + site
         if not sgr.has_node(src):
@@ -128,7 +133,7 @@ def remove_non_g5k(gr):
             gr.remove_node(node)
 
 
-def gr_to_map(gr, outfile=None, config=None):
+def gr_to_image(gr, outfile=None, config=None):
     """Export a topology graph to a map"""
     sites = []
     for node in gr.nodes_iter():
@@ -155,7 +160,8 @@ def gr_to_map(gr, outfile=None, config=None):
                 }
     sites = []
 
-    plt.figure(figsize=(15, 15))
+    fig = plt.figure(figsize=(15, 15))
+    ax = fig.add_subplot(111)
     logger.detail('Defining positions')
     try:
         pos = graphviz_layout(gr, prog='neato')
@@ -192,6 +198,17 @@ def gr_to_map(gr, outfile=None, config=None):
                         font_size=16, font_weight='normal')
     plt.axis('off')
     plt.tight_layout()
+
+    plt.text(0, 0, 'Created by topo5k \n' + gr.graph['date'] + '\n'
+             'API commit ' +gr.graph['api_commit'])
+    legend = matplotlib.patches.Rectangle((635, 600), 60, 120, color='#333333')
+    ax.add_patch(legend)
+    i = 0
+    for kind, param in config['nodes'].iteritems():
+        plt.text(640, 675 - i, kind, fontdict={'color': param['color'], 'size': 20,
+                                         'variant': 'small-caps'})
+        i += 20
+    
     logger.detail('Saving file to %s', outfile)
     plt.savefig(outfile, bbox_inches='tight', dpi=300)
 
