@@ -305,7 +305,7 @@ gr_to_image
 .. autofunction:: execo_g5k.topology.gr_to_image
 
 gr_to_simgrid
------------
+-------------
 .. autofunction:: execo_g5k.topology.gr_to_simgrid
 
 
