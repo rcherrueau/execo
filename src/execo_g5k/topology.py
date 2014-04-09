@@ -183,7 +183,7 @@ def gr_to_image(gr, outfile=None, config=None):
                 }
     sites = []
 
-    fig = plt.figure(figsize=(15, 15))
+    fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
     logger.detail('Defining positions')
     try:
@@ -233,7 +233,7 @@ def gr_to_image(gr, outfile=None, config=None):
     i = 0
     for kind, param in config['nodes'].iteritems():
         plt.text(0.91, 0.977 - i * 0.001, kind, fontdict={'color': param['color'],
-                    'size': 20, 'variant': 'small-caps', 'weight': 'bold'},
+                    'size': 14, 'variant': 'small-caps', 'weight': 'bold'},
                  transform=ax.transAxes)
         i += 20
 
