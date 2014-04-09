@@ -26,15 +26,17 @@ All information comes from the Grid'5000 reference API
 
 """
 from time import time
-from execo import logger
+from execo import logger, Host
+from execo.log import style
 from execo_g5k.oar import format_date
+from itertools import product
 from api_cache import get_api_data
 from api_utils import get_g5k_sites
 from networkx import Graph, set_edge_attributes, get_edge_attributes, \
     draw_networkx_nodes, draw_networkx_edges, draw_networkx_labels, \
-    graphviz_layout, spring_layout
-import matplotlib.pyplot as plt
-import matplotlib.patches
+    graphviz_layout, spring_layout, shortest_path, all_neighbors, \
+    get_node_attributes
+
 
 arbitrary_latency = 2.25E-3
 
@@ -124,17 +126,37 @@ def site_graph(site):
     return sgr
 
 
+def filter_compute_nodes(gr, nodes):
+    """Remove compute nodes that are not in nodes list"""
+
+    for node, data in gr.nodes_iter(data=True):
+        if data['kind'] == 'node' and Host(node + '.grid5000.fr') not in nodes:
+            gr.remove_node(node)
+
+    for node, data in gr.nodes_iter(data=True):
+        if data['kind'] == 'switch':
+            switch_has_node = False
+            for dest in all_neighbors(gr, node):
+                if get_node_attributes(gr, 'kind')[dest] == 'node':
+                    switch_has_node = True
+                    break
+            if not switch_has_node:
+                gr.remove_node(node)
+
+
 def remove_non_g5k(gr):
     logger.detail('Removing stalc, infiniband, myrinet ')
+    to_remove = ['ib.', 'stalc', 'voltaire', 'ib-', 'summit', 'ipmi', 'CICT'
+                 'mxl2', 'grelon', 'myrinet', 'salome', 'interco']
     for node in gr.nodes():
-        if 'ib.' in node or 'stalc' in node or 'voltaire' in node or 'ib-' in node\
-            or 'summit' in node or 'ipmi' in node or 'CICT' in node or 'mxl2' in node\
-            or 'grelon' in node or 'myrinet' in node or 'salome' in node or 'interco' in node:
+        if any(s in node for s in to_remove):
             gr.remove_node(node)
 
 
 def gr_to_image(gr, outfile=None, config=None):
     """Export a topology graph to a map"""
+    import matplotlib.pyplot as plt
+    import matplotlib.patches
     sites = []
     for node in gr.nodes_iter():
         site = node.split('.')[1]
@@ -142,7 +164,7 @@ def gr_to_image(gr, outfile=None, config=None):
             sites.append(site)
     sites.sort()
     if outfile is None:
-        outfile = '_'.join(sites) + '.png'
+        outfile = '_'.join(sites) + '_' + gr.graph['date'] + '.png'
     if config is None:
         config = {'nodes': {
                     'renater': {'color': '#9CF7BC', 'shape': 'p', 'size': 200},
@@ -151,7 +173,7 @@ def gr_to_image(gr, outfile=None, config=None):
                     'node': {'color': '#F0F7BE', 'shape': 'o', 'size': 30},
                     },
                 'edges': {
-                    1000000000: {'width': 0.1, 'color': '#aaaaaa'},
+                    1000000000: {'width': 0.2, 'color': '#666666'},
                     3000000000: {'width': 0.6, 'color': '#333333'},
                     10000000000: {'width': 1.0, 'color': '#111111'},
                     20000000000: {'width': 2.0, 'color': '#8FC2FF'},
@@ -200,19 +222,120 @@ def gr_to_image(gr, outfile=None, config=None):
     plt.tight_layout()
 
     plt.text(0, 0, 'Created by topo5k \n' + gr.graph['date'] + '\n'
-             'API commit ' +gr.graph['api_commit'])
-    legend = matplotlib.patches.Rectangle((635, 600), 60, 120, color='#333333')
+             'API commit ' + gr.graph['api_commit'],
+             transform=ax.transAxes)
+
+    legend = matplotlib.patches.Rectangle((0.90, 0.91), 0.15, 0.24,
+                            color='#444444', transform=ax.transAxes)
     ax.add_patch(legend)
+
     i = 0
     for kind, param in config['nodes'].iteritems():
-        plt.text(640, 675 - i, kind, fontdict={'color': param['color'], 'size': 20,
-                                         'variant': 'small-caps'})
+        plt.text(0.91, 0.977 - i * 0.001, kind, fontdict={'color': param['color'],
+                    'size': 20, 'variant': 'small-caps', 'weight': 'bold'},
+                 transform=ax.transAxes)
         i += 20
-    
-    logger.detail('Saving file to %s', outfile)
+
+    logger.info('Saving file to %s', style.emph(outfile))
     plt.savefig(outfile, bbox_inches='tight', dpi=300)
 
 
-def gr_to_simgrid():
+def gr_to_simgrid(gr, outfile=None):
     """Produce a SimGrid platform XML file"""
-    print 'not finished'
+    default_routing = 'Floyd'
+    suffix = '.grid5000.fr'
+    from xml.dom import minidom
+    from xml.etree.ElementTree import Element, SubElement, tostring, parse
+
+    def prettify(elem):
+        """Return a pretty-printed XML string for the Element.  """
+        rough_string = tostring(elem, 'utf-8')
+        reparsed = minidom.parseString(rough_string)
+        return reparsed.toprettyxml(indent="  ").replace('<?xml version="1.0" ?>\n', '')
+
+    # Creating the AS
+    platform = Element('platform', attrib={'version': '3'})
+    sites = list(set(map(lambda y: y.split('.')[-1],
+                         filter(lambda x: 'gw-' in x, gr.nodes()))))
+    if len(sites) > 1:
+        main_as = SubElement(platform, 'AS', attrib={'id': 'grid5000.fr',
+                                        'routing': default_routing})
+
+        for site in sites:
+            SubElement(main_as, 'AS', attrib={'id': site + suffix, 
+                                              'routing': default_routing})
+        # Creating the backbone links
+        for element1, element2, attrib in sorted(gr.edges_iter(data=True)):
+            element1, element2 = sorted([element1, element2])
+            SubElement(main_as, 'link', attrib={'id': element1 + '_' + element2,
+                                    'latency': str(attrib['latency']),
+                                    'bandwidth': str(attrib['bandwidth'])})
+        # Creating the backbone routes between gateways
+        gws = [n for n, d in gr.nodes_iter(data=True) if 'gw' in n]
+        for el in product(gws, gws):
+            if el[0] != el[1]:
+                p = main_as.find("./ASroute/[@gw_src='" + el[1] + \
+                                 "'][@gw_dst='" + el[0] + "']")
+                if p is None:
+                    asroute = SubElement(main_as, 'ASroute', attrib={
+                        'gw_src': el[0] + suffix,
+                        'gw_dst': el[1] + suffix,
+                        'src': el[0].split('.')[0].split('-')[1] + suffix,
+                        'dst': el[1].split('.')[0].split('-')[1] + suffix})
+                    path = shortest_path(gr, el[0], el[1])
+                    for i in range(len(path) - 1):
+                        el1, el2 = sorted([path[i], path[i + 1]])
+                        SubElement(asroute, 'link_ctn',
+                                   attrib={'id': el1 + '_' + el2})
+    # Creating the elements on each site
+    for site in sites:
+        sgr = gr.subgraph(filter(lambda x: site in x, gr.nodes()))
+        if len(sites) > 1:
+            site_el = main_as.find("./AS/[@id='" + site + suffix + "']")
+        else:
+            site_el = SubElement(platform, 'AS', attrib={'id': site + suffix,
+                                        'routing': default_routing})
+        # Creating the routers
+        for node in sgr.nodes_iter(data=True):
+            if 'kind' not in node[1]:
+                print node[0]
+                exit()
+        routers = sorted([node for node in sgr.nodes_iter(data=True)
+                          if node[1]['kind'] == 'router'])
+        for router, attrib in routers:
+            SubElement(site_el, 'router', attrib={'id': router})
+        # Creating the hosts
+        hosts = sorted([node for node in sgr.nodes_iter(data=True)
+                    if node[1]['kind'] == 'node'],
+                    key=lambda node: (node[0].split('.', 1)[0].split('-')[0],
+                            int(node[0].split('.', 1)[0].split('-')[1])))
+        for n, d in hosts:
+            SubElement(site_el, 'host', attrib={'id': n,
+                                                'power': str(d['power']),
+                                                'core': str(d['core'])})
+        # Creating the links
+        for element1, element2, attrib in sgr.edges_iter(data=True):
+            element1, element2 = sorted([element1, element2])
+            SubElement(site_el, 'link', attrib={
+                    'id': element1 + '_' + element2,
+                    'latency': str(attrib['latency']),
+                    'bandwidth': str(attrib['bandwidth'])})
+        for n, d in hosts:
+            route = SubElement(site_el, 'route', attrib={
+                            'src': 'gw-' + site + '.' + site + suffix,
+                            'dst': n + suffix})
+            path = shortest_path(sgr, 'gw-' + site + '.' + site, n)
+            for i in range(len(path) - 1):
+                el1, el2 = sorted([path[i], path[i + 1]])
+                SubElement(route, 'link_ctn', attrib={'id': el1 + '_' + el2})
+
+    if not outfile:
+        outfile = 'g5k_platform'
+    if not '.xml' in outfile:
+        outfile += '.xml'
+    logger.info('Saving file to %s', style.emph(outfile))
+    f = open(outfile, 'w')
+    f.write('<?xml version=\'1.0\'?>\n<!DOCTYPE platform SYSTEM ' + \
+            '"http://simgrid.gforge.inria.fr/simgrid.dtd">\n' +
+             prettify(platform))
+    f.close()
