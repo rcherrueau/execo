@@ -8,14 +8,57 @@
 from distutils.core import setup
 from distutils.command.install import install as _install
 from distutils.command.clean import clean as _clean
+from distutils.command.build_py import build_py as _build_py
 from distutils.dir_util import remove_tree
 from distutils import log
-import sys, subprocess, os, textwrap, shutil
+import sys, subprocess, os, textwrap, shutil, re
 
 try:
     from sphinx.setup_command import BuildDoc
 except:
     pass
+
+def get_git_version():
+    # returns git tag / sha as string
+    # returns None if not available
+    try:
+        p = subprocess.Popen(["git", "describe", "--tags", "--dirty", "--always"],
+                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    except EnvironmentError:
+        return None
+    version = p.communicate()[0].rstrip()
+    if p.returncode != 0:
+        return None
+    return version
+
+VERSION_PY = """
+# Do not edit. This file is originally generated from git information.
+# Distribution tarballs contain a pre-generated copy of this file.
+__version__ = '%s'
+"""
+
+def update_version_py():
+    version_filename = "src/execo/_version.py"
+    version = get_git_version()
+    if version or not os.path.isfile(version_filename):
+        if not version: version = "UNKNOWN"
+        with open(version_filename, "w") as f:
+            f.write(VERSION_PY % version)
+
+def get_version():
+    gitversion = get_git_version()
+    if gitversion:
+        return gitversion
+    try:
+        with open("src/execo/_version.py") as f:
+            for line in f.readlines():
+                mo = re.match("__version__ = '([^']*)'", line)
+                if mo:
+                    version = mo.group(1)
+                    return version
+    except EnvironmentError:
+        pass
+    return "UNKNOWN"
 
 def extract_conf(fh, source_file, marker):
     s = ""
@@ -61,6 +104,11 @@ def copy_additional_files(install_base):
     #shutil.copytree(os.path.join("doc", "code_samples"), os.path.join(install_base, "share", "execo", "code_samples"), symlinks = True)
     #shutil.copytree(os.path.join("build", "sphinx", "html"), os.path.join(install_base, "share", "execo", "documentation"), symlinks = True)
 
+class build_py(_build_py):
+    def run(self):
+        update_version_py()
+        _build_py.run(self)
+
 class install(_install):
     def run(self):
         _install.run(self)
@@ -85,55 +133,54 @@ class clean(_clean):
                 log.warn("can't clean MANIFEST"),
         _clean.run(self)
 
-try:
-    cmdclass = { 'install': install,
-                 'build_sphinx': BuildDoc,
-                 'clean': clean }
-except:
-    cmdclass = { 'install': install,
-                 'clean': clean }
+if __name__ == "__main__":
 
-name = 'execo'
-version = '2.3-dev'
+    try:
+        cmdclass = { 'build_py': build_py,
+                     'install': install,
+                     'build_sphinx': BuildDoc,
+                     'clean': clean }
+    except:
+        cmdclass = { 'build_py': build_py,
+                     'install': install,
+                     'clean': clean }
 
-with open('README') as f:
-    long_description = f.read()
+    with open('README') as f:
+        long_description = f.read()
 
-setup(cmdclass = cmdclass,
-      name = name,
-      license = 'GNU GPL v3',
-      version = version,
-      description = 'Execo offers a Python API for local or remote, standalone or parallel, '
-      'processes execution. It is especially well suited for quickly and easily scripting '
-      'workflows of parallel/distributed operations on local or remote hosts: '
-      'automate a scientific workflow, conduct computer science experiments, '
-      'perform automated tests, etc. The core python package is '
-      '``execo``. The ``execo_g5k`` package provides a set of tools and '
-      'extensions for the Grid5000 testbed. The ``execo_engine`` package '
-      'provides tools to ease the development of computer sciences '
-      'experiments.',
-      long_description = long_description,
-      author = 'Matthieu Imbert',
-      author_email = 'matthieu.imbert@inria.fr',
-      url = 'http://execo.gforge.inria.fr',
-      package_dir = {'': 'src'},
-      packages = [ 'execo', 'execo_g5k', 'execo_engine' ],
-      scripts = [ 'bin/execo-chainput' ],
-      classifiers = [ 'Development Status :: 4 - Beta',
-                      'Environment :: Console',
-                      'Intended Audience :: Developers',
-                      'Intended Audience :: Information Technology',
-                      'Intended Audience :: Science/Research',
-                      'Intended Audience :: System Administrators',
-                      'Operating System :: POSIX :: Linux',
-                      'Programming Language :: Python :: 2.5',
-                      'Topic :: Software Development',
-                      'Topic :: System :: Clustering',
-                      'Topic :: System :: Distributed Computing'],
-      platforms = [ 'unix' ],
-      command_options={
-        'build_sphinx': {
-            'project': ('setup.py', name),
-            'version': ('setup.py', version),
-            'release': ('setup.py', version)}},
-      )
+    name = 'execo'
+    version = get_version()
+
+    setup(cmdclass = cmdclass,
+          name = name,
+          license = 'GNU GPL v3',
+          version = version,
+          description = 'Execo offers a Python API for local or remote, standalone or parallel, '
+          'processes execution. It is especially well suited for quickly and easily scripting '
+          'workflows of parallel/distributed operations on local or remote hosts: '
+          'automate a scientific workflow, conduct computer science experiments, '
+          'perform automated tests, etc. The core python package is '
+          '``execo``. The ``execo_g5k`` package provides a set of tools and '
+          'extensions for the Grid5000 testbed. The ``execo_engine`` package '
+          'provides tools to ease the development of computer sciences '
+          'experiments.',
+          long_description = long_description,
+          author = 'Matthieu Imbert',
+          author_email = 'matthieu.imbert@inria.fr',
+          url = 'http://execo.gforge.inria.fr',
+          package_dir = {'': 'src'},
+          packages = [ 'execo', 'execo_g5k', 'execo_engine' ],
+          scripts = [ 'bin/execo-chainput' ],
+          classifiers = [ 'Development Status :: 4 - Beta',
+                          'Environment :: Console',
+                          'Intended Audience :: Developers',
+                          'Intended Audience :: Information Technology',
+                          'Intended Audience :: Science/Research',
+                          'Intended Audience :: System Administrators',
+                          'Operating System :: POSIX :: Linux',
+                          'Programming Language :: Python :: 2.5',
+                          'Topic :: Software Development',
+                          'Topic :: System :: Clustering',
+                          'Topic :: System :: Distributed Computing'],
+          platforms = [ 'unix' ]
+          )

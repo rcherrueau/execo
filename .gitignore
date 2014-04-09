@@ -8,3 +8,4 @@
 /epydoc
 *.pyc
 *.orig
+/src/execo/_version.py
