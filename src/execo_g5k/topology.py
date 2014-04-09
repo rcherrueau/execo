@@ -154,7 +154,7 @@ def remove_non_g5k(gr):
 
 
 def gr_to_image(gr, outfile=None, config=None):
-    """Export a topology graph to a map"""
+    """Export a topology graph to a image"""
     import matplotlib.pyplot as plt
     import matplotlib.patches
     sites = []
@@ -164,7 +164,8 @@ def gr_to_image(gr, outfile=None, config=None):
             sites.append(site)
     sites.sort()
     if outfile is None:
-        outfile = '_'.join(sites) + '_' + gr.graph['date'] + '.png'
+        outfile = '_'.join(sites) + '_' + gr.graph['date'].replace(' ', '_') \
+            + '.png'
     if config is None:
         config = {'nodes': {
                     'renater': {'color': '#9CF7BC', 'shape': 'p', 'size': 200},

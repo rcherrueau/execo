@@ -299,6 +299,16 @@ site_graph
 ----------
 .. autofunction:: execo_g5k.topology.site_graph
 
+
+gr_to_image
+-----------
+.. autofunction:: execo_g5k.topology.gr_to_image
+
+gr_to_simgrid
+-----------
+.. autofunction:: execo_g5k.topology.gr_to_simgrid
+
+
 Configuration
 =============
 
