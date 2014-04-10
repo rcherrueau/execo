@@ -8,11 +8,9 @@ easily scripting workflows of parallel/distributed operations on local
 or remote hosts: automate a scientific workflow, conduct computer
 science experiments, perform automated tests, etc. The core python
 package is ``execo``. The ``execo_g5k`` package provides a set of
-tools and extensions for the Grid5000 testbed [1]. The
-``execo_engine`` package provides tools to ease the development of
-computer sciences experiments.
-
-[1] https://www.grid5000.fr
+tools and extensions for the `Grid5000 <https://www.grid5000.fr>`_
+testbed. The ``execo_engine`` package provides tools to ease the
+development of computer sciences experiments.
 
 License
 =======

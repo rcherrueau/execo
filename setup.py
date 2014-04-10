@@ -60,20 +60,24 @@ def get_version():
         pass
     return "UNKNOWN"
 
-def extract_conf(fh, source_file, marker):
+def read_file(filename, start_marker = None, end_marker = None):
     s = ""
-    with open(source_file, "r") as ifh:
-        insection = False
+    with open(filename, "r") as ifh:
+        insection = (start_marker == None)
         for line in ifh:
             line = line.rstrip()
-            if line == "# _STARTOF_ " + marker:
+            if start_marker != None and line == start_marker and not insection:
                 insection = True
                 continue
-            if line == "# _ENDOF_ " + marker:
+            if end_marker != None and line == end_marker and insection:
                 insection = False
-                continue
+                break
             if insection:
                 s += line + "\n"
+    return s.rstrip()
+
+def extract_conf(fh, source_file, marker):
+    s = read_file(source_file, "# _STARTOF_ " + marker, "# _ENDOF_ " + marker)
     s = textwrap.dedent(s)
     for l in s.splitlines():
         print >> fh, "# " + l
@@ -146,9 +150,6 @@ if __name__ == "__main__":
                      'install': install,
                      'clean': clean }
 
-    with open('README') as f:
-        long_description = f.read()
-
     name = 'execo'
     version = get_version()
 
@@ -156,16 +157,8 @@ if __name__ == "__main__":
           name = name,
           license = 'GNU GPL v3',
           version = version,
-          description = 'Execo offers a Python API for local or remote, standalone or parallel, '
-          'processes execution. It is especially well suited for quickly and easily scripting '
-          'workflows of parallel/distributed operations on local or remote hosts: '
-          'automate a scientific workflow, conduct computer science experiments, '
-          'perform automated tests, etc. The core python package is '
-          '``execo``. The ``execo_g5k`` package provides a set of tools and '
-          'extensions for the Grid5000 testbed. The ``execo_engine`` package '
-          'provides tools to ease the development of computer sciences '
-          'experiments.',
-          long_description = long_description,
+          description = read_file("README", "", ""), # first parapgraph delimited by two empty lines
+          long_description = read_file("README"),
           author = 'Matthieu Imbert',
           author_email = 'matthieu.imbert@inria.fr',
           url = 'http://execo.gforge.inria.fr',
