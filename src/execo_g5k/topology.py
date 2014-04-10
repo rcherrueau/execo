@@ -216,14 +216,21 @@ def gr_to_image(gr, outfile=None, config=None):
     draw_networkx_edges(gr, pos, edgelist=edges,
             width=config['edges']['other']['width'],
             edge_color=config['edges']['other']['color'])
-    labels = {}
+    # Adding labels
+    labels = {'renater': {'nodes': {}, 'font_size': 16, 'font_weight': 'bold'},
+          'switch': {'nodes': {}, 'font_size': 12, 'font_weight': 'normal'},
+          'cluster': {'nodes': {}, 'font_size': 14, 'font_weight': 'normal'}
+            }
     for node, data in gr.nodes_iter(data=True):
         if data['kind'] == 'renater':
-            labels[node] = node.split('.')[1].title()
+            labels['renater']['nodes'][node] = node.split('.')[1].title()
+        elif data['kind'] == 'switch':
+            labels['switch']['nodes'][node] = node.split('.')[0]
         elif data['kind'] == 'node' and '-1.' in node:
-            labels[node] = node.split('-')[0]
-    draw_networkx_labels(gr, pos, labels=labels,
-                        font_size=16, font_weight='normal')
+            labels['cluster']['nodes'][node] = node.split('-')[0]
+    for label, data in labels.iteritems():
+        draw_networkx_labels(gr, pos, labels=data['nodes'],
+                font_size=data['font_size'], font_weight=data['font_weight'])
     plt.axis('off')
     plt.tight_layout()
 
