@@ -1,0 +1,25 @@
+{% extends '!layout.html' %}
+{%- block rootrellink %}
+<script language="javascript">
+function change_doc_version() {
+  document.location.href = document.getElementById('docversion').value
+}
+function select_doc_version() {
+  if (document.location.href.indexOf("/doc/latest-stable") != -1) {
+    document.getElementById('docversion').selectedIndex = 0;
+  } else if (document.location.href.indexOf("/doc/dev") != -1) {
+    document.getElementById('docversion').selectedIndex = 1;
+  } else {
+    document.getElementById('docversion').hidden = true;
+  }
+}
+window.onload = select_doc_version
+</script>
+<select id="docversion"
+        name="Documentation Version"
+        onchange="change_doc_version();">
+  <option value="/doc/latest-stable">latest-stable</option>
+  <option value="/doc/dev">development</option>
+</select>
+{{ super() }}
+{% endblock %}
