@@ -123,17 +123,6 @@ or::
 
  $ easy_install --user execo
 
-For execo to work correctly, if installed in a non standard location
-such as $HOME/.local, $HOME/.local/bin needs to be on the $PATH, and
-python install path under $HOME/.local needs to be on python search
-path. Note that since python 2.6 (PEP 370), $HOME/.local is
-automatically used as a "Per user site-packages directory". Otherwise,
-PYTHONPATH can be configured in the following way::
-
- $ export PATH="$PREFIX/bin${PATH:+:${PATH}}"
- $ PYTHONHOMEPATH="$PREFIX/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
- $ export PYTHONPATH="$PYTHONHOMEPATH${PYTHONPATH:+:${PYTHONPATH}}"
-
 Usage
 =====
 

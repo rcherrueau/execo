@@ -43,22 +43,6 @@ with packages managed by your distribution package manager.
    $ export http_proxy="http://proxy:3128"
    $ export https_proxy="https://proxy:3128"
 
-To add ``~/.local/bin`` to ``PATH`` (i assume bash shell here, adapt
-for other shells)::
-
- $ export PATH="$HOME/.local/bin${PATH:+:${PATH}}"
-
-You can put this line in your ``~/.profile`` to have your environment
-setup automatically in all shells.
-
-Since python 2.6, python automatically searches modules under
-``$HOME/.local``, but for python < 2.6, you also need to configure
-``PYTHONPATH`` (also optionnaly in your ``~/.profile``)::
-
- PYTHONHOMEPATH="$HOME/.local/"$(python -c "import sys,os; print os.sep.join(['lib', 'python' + sys.version[:3], 'site-packages'])")
- export PYTHONPATH="$PYTHONHOMEPATH${PYTHONPATH:+:${PYTHONPATH}}"
-
-
 Configuration
 =============
 
