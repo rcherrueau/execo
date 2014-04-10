@@ -26,7 +26,7 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import name_from_cmdline, find_exe, intr_cond_wait, intr_event_wait, get_port
+from utils import name_from_cmdline, intr_cond_wait, intr_event_wait, get_port
 from traceback import format_exc
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
@@ -1466,7 +1466,9 @@ class _ChainPutCopy(ParallelActions):
         else:
             return super(_ChainPutCopy, self).start()
 
-_execo_chainput = find_exe("execo-chainput")
+_execo_chainput = os.path.abspath(os.path.join(os.path.dirname(__file__), "execo-chainput"))
+if not os.path.isfile(_execo_chainput): _execo_chainput = None
+
 class ChainPut(SequentialActions):
 
     """Broadcast local files to several remote host, with an unencrypted, unauthenticated chain of host to host copies (idea taken from `kastafior <https://gforge.inria.fr/plugins/scmgit/cgi-bin/gitweb.cgi?p=kadeploy3/kadeploy3.git;a=tree;f=addons/kastafior;h=e5472ce9e800c80d9f54d1097ebbcba77f8ccd7a;hb=3.1.7>`_).

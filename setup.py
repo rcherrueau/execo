@@ -164,7 +164,7 @@ if __name__ == "__main__":
           url = 'http://execo.gforge.inria.fr',
           package_dir = {'': 'src'},
           packages = [ 'execo', 'execo_g5k', 'execo_engine' ],
-          scripts = [ 'bin/execo-chainput' ],
+          package_data = { 'execo': ['execo-chainput'] },
           classifiers = [ 'Development Status :: 4 - Beta',
                           'Environment :: Console',
                           'Intended Audience :: Developers',

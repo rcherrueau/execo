@@ -41,39 +41,6 @@ def name_from_cmdline(cmdline):
         cmdline = cmdline[0:36] + "..."
     return cmdline
 
-def find_files(*args):
-    """run find utility with given path(es) and parameters, return the result as a list"""
-    find_args = "find " + " ".join([pipes.quote(arg) for arg in args])
-    p = subprocess.Popen(find_args, shell = True,
-                         stdout = subprocess.PIPE,
-                         stderr = subprocess.PIPE)
-    (stdout, stderr) = p.communicate()
-    p.wait()
-    return [ p for p in stdout.split("\n") if p ]
-
-def which(name):
-    """return full path of executable on the $PATH"""
-    p = subprocess.Popen("which " + name, shell = True,
-                         stdout = subprocess.PIPE,
-                         stderr = subprocess.PIPE)
-    (stdout, stderr) = p.communicate()
-    p.wait()
-    stdout = stdout.rstrip()
-    if len(stdout) > 0:
-        return stdout
-    else:
-        return None
-
-def find_exe(name):
-    """search an executable in whole execo directory. If not found, get it on the $PATH."""
-    path = None
-    for exe_path in find_files(os.path.join(os.path.abspath(os.path.dirname(os.path.realpath(__file__))), "..", "..", "bin"), "-name", name):
-        path = exe_path
-        break
-    if not path:
-        path = which(name)
-    return path
-
 def checked_min(a, b):
     """a min function which ignores an argument if its value is None"""
     if a == None: return b
