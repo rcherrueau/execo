@@ -146,10 +146,15 @@ def filter_compute_nodes(gr, nodes):
 
 def remove_non_g5k(gr):
     logger.detail('Removing stalc, infiniband, myrinet ')
-    to_remove = ['ib.', 'stalc', 'voltaire', 'ib-', 'summit', 'ipmi', 'CICT'
+    to_remove = ['ib.', 'stalc', 'voltaire', 'ib-', 'summit', 'ipmi', 'CICT',
                  'mxl2', 'grelon', 'myrinet', 'salome', 'interco']
     for node in gr.nodes():
         if any(s in node for s in to_remove):
+            remove_edges = []
+            for dest in all_neighbors(gr, node):
+                remove_edges.append((node, dest))
+                remove_edges.append((dest, node))
+            gr.remove_edges_from(remove_edges)
             gr.remove_node(node)
 
 
@@ -241,8 +246,15 @@ def gr_to_image(gr, outfile=None, config=None):
     plt.savefig(outfile, bbox_inches='tight', dpi=300)
 
 
-def gr_to_simgrid(gr, outfile=None, tool='Generated using execo_g5k.topology'):
-    """Produce a SimGrid platform XML file"""
+def gr_to_simgrid(gr, outfile=None, tool_signature='Generated using execo_g5k.topology',
+                  compact=False):
+    """Produce a SimGrid platform XML file
+    :params outfile: name of the output file
+
+    :params tool: signature added in comment of the XML file
+
+    :params compact: use compact description, i.e. cluster instead 
+    ofhosts"""
     default_routing = 'Floyd'
     suffix = '.grid5000.fr'
     from xml.dom import minidom
@@ -304,23 +316,26 @@ def gr_to_simgrid(gr, outfile=None, tool='Generated using execo_g5k.topology'):
         routers = sorted([node for node in sgr.nodes_iter(data=True)
                           if node[1]['kind'] == 'router'])
         for router, attrib in routers:
-            SubElement(site_el, 'router', attrib={'id': router})
+            SubElement(site_el, 'router', attrib={'id': router + suffix})
         # Creating the hosts
         hosts = sorted([node for node in sgr.nodes_iter(data=True)
                     if node[1]['kind'] == 'node'],
                     key=lambda node: (node[0].split('.', 1)[0].split('-')[0],
                             int(node[0].split('.', 1)[0].split('-')[1])))
         for n, d in hosts:
-            SubElement(site_el, 'host', attrib={'id': n,
+            SubElement(site_el, 'host', attrib={'id': n + suffix,
                                                 'power': str(d['power']),
                                                 'core': str(d['core'])})
         # Creating the links
         for element1, element2, attrib in sgr.edges_iter(data=True):
-            element1, element2 = sorted([element1, element2])
-            SubElement(site_el, 'link', attrib={
-                    'id': element1 + '_' + element2,
-                    'latency': str(attrib['latency']),
-                    'bandwidth': str(attrib['bandwidth'])})
+            if sgr.has_node(element1) and sgr.has_node(element2):
+                element1, element2 = sorted([element1 + suffix, element2 + suffix])
+                if not site_el.find("./link[@id='" + element1 + '_' + \
+                                    element2 + "']"):
+                    SubElement(site_el, 'link', attrib={
+                        'id': element1 + '_' + element2,
+                        'latency': str(attrib['latency']),
+                        'bandwidth': str(attrib['bandwidth'])})
         for n, d in hosts:
             route = SubElement(site_el, 'route', attrib={
                             'src': 'gw-' + site + '.' + site + suffix,
@@ -328,7 +343,8 @@ def gr_to_simgrid(gr, outfile=None, tool='Generated using execo_g5k.topology'):
             path = shortest_path(sgr, 'gw-' + site + '.' + site, n)
             for i in range(len(path) - 1):
                 el1, el2 = sorted([path[i], path[i + 1]])
-                SubElement(route, 'link_ctn', attrib={'id': el1 + '_' + el2})
+                SubElement(route, 'link_ctn', attrib={'id': el1 + suffix + \
+                                                      '_' + el2 + suffix})
 
     if not outfile:
         outfile = 'g5k_platform'
@@ -338,7 +354,7 @@ def gr_to_simgrid(gr, outfile=None, tool='Generated using execo_g5k.topology'):
     f = open(outfile, 'w')
     f.write('<?xml version=\'1.0\'?>\n<!DOCTYPE platform SYSTEM ' + \
             '"http://simgrid.gforge.inria.fr/simgrid.dtd">\n' + \
-            '<!-- ' + tool + '\n     ' +\
+            '<!-- ' + tool_signature + '\n     ' +\
             'API commit ' + gr.graph['api_commit'] + \
             '\n     ' + format_date(gr.graph['date']) + ' -->\n' + \
              prettify(platform))
