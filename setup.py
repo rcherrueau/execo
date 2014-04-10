@@ -101,8 +101,6 @@ def copy_additional_files(install_base):
         os.makedirs(os.path.join(install_base, "share", "execo"))
     except os.error:
         pass
-    #shutil.copytree(os.path.join("doc", "code_samples"), os.path.join(install_base, "share", "execo", "code_samples"), symlinks = True)
-    #shutil.copytree(os.path.join("build", "sphinx", "html"), os.path.join(install_base, "share", "execo", "documentation"), symlinks = True)
 
 class build_py(_build_py):
     def run(self):
@@ -126,11 +124,14 @@ class clean(_clean):
             else:
                 log.warn("'%s' does not exist -- can't clean it",
                          sphinx_dir)
-            try:
-                os.unlink("MANIFEST")
-                log.info("removing MANIFEST")
-            except:
-                log.warn("can't clean MANIFEST"),
+            def rm(f):
+                try:
+                    os.unlink(f)
+                    log.info("removing " + f)
+                except:
+                    log.warn("can't clean " + f),
+            rm("MANIFEST")
+            rm("src/execo/_version.py")
         _clean.run(self)
 
 if __name__ == "__main__":
