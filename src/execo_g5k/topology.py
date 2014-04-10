@@ -241,7 +241,7 @@ def gr_to_image(gr, outfile=None, config=None):
     plt.savefig(outfile, bbox_inches='tight', dpi=300)
 
 
-def gr_to_simgrid(gr, outfile=None):
+def gr_to_simgrid(gr, outfile=None, tool='Generated using execo_g5k.topology'):
     """Produce a SimGrid platform XML file"""
     default_routing = 'Floyd'
     suffix = '.grid5000.fr'
@@ -300,7 +300,7 @@ def gr_to_simgrid(gr, outfile=None):
         for node in sgr.nodes_iter(data=True):
             if 'kind' not in node[1]:
                 print node[0]
-                exit()
+
         routers = sorted([node for node in sgr.nodes_iter(data=True)
                           if node[1]['kind'] == 'router'])
         for router, attrib in routers:
@@ -337,6 +337,9 @@ def gr_to_simgrid(gr, outfile=None):
     logger.info('Saving file to %s', style.emph(outfile))
     f = open(outfile, 'w')
     f.write('<?xml version=\'1.0\'?>\n<!DOCTYPE platform SYSTEM ' + \
-            '"http://simgrid.gforge.inria.fr/simgrid.dtd">\n' +
+            '"http://simgrid.gforge.inria.fr/simgrid.dtd">\n' + \
+            '<!-- ' + tool + '\n     ' +\
+            'API commit ' + gr.graph['api_commit'] + \
+            '\n     ' + format_date(gr.graph['date']) + ' -->\n' + \
              prettify(platform))
     f.close()
