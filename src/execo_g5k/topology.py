@@ -216,7 +216,7 @@ def gr_to_image(gr, outfile=None, config=None):
     draw_networkx_edges(gr, pos, edgelist=edges,
             width=config['edges']['other']['width'],
             edge_color=config['edges']['other']['color'])
-    # Adding labels
+    # Adding labels
     labels = {'renater': {'nodes': {}, 'font_size': 16, 'font_weight': 'bold'},
           'switch': {'nodes': {}, 'font_size': 12, 'font_weight': 'normal'},
           'cluster': {'nodes': {}, 'font_size': 14, 'font_weight': 'normal'}
