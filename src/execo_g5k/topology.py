@@ -256,12 +256,14 @@ def gr_to_image(gr, outfile=None, config=None):
 def gr_to_simgrid(gr, outfile=None, tool_signature='Generated using execo_g5k.topology',
                   compact=False):
     """Produce a SimGrid platform XML file
+
     :params outfile: name of the output file
 
     :params tool: signature added in comment of the XML file
 
-    :params compact: use compact description, i.e. cluster instead 
-    ofhosts"""
+    :params compact: use compact description, i.e. cluster instead
+      ofhosts
+    """
     default_routing = 'Floyd'
     suffix = '.grid5000.fr'
     from xml.dom import minidom
