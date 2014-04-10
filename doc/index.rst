@@ -5,6 +5,12 @@
 
 Welcome to execo
 ================
+Execo is a Python library that allows you to finely manage operating systems process on thousands of remote hosts.
+It is well designed for :
+- prototype experiment distributed systems
+- automatize admin tasks
+- create reproducible experiments
+
 
 Contents:
 
