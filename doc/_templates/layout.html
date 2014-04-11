@@ -1,25 +1,44 @@
 {% extends '!layout.html' %}
-{%- block rootrellink %}
-<script language="javascript">
-function change_doc_version() {
-  document.location.href = document.getElementById('docversion').value
-}
-function select_doc_version() {
-  if (document.location.href.indexOf("/doc/latest-stable") != -1) {
-    document.getElementById('docversion').selectedIndex = 0;
-  } else if (document.location.href.indexOf("/doc/dev") != -1) {
-    document.getElementById('docversion').selectedIndex = 1;
-  } else {
-    document.getElementById('docversion').hidden = true;
-  }
-}
-window.onload = select_doc_version
-</script>
-<select id="docversion"
-        name="Documentation Version"
-        onchange="change_doc_version();">
-  <option value="/doc/latest-stable">latest-stable</option>
-  <option value="/doc/dev">development</option>
-</select>
+
+{%- block relbar1 %}
+
+<div style="float: right;">
+
+  <select id="docversions">
+  </select>
+
+  <script language="javascript">
+
+    var available_versions = new Array("latest-stable", "dev");
+    var sversions = $("#docversions");
+
+    function init_doc_versions() {
+      $("#docversions").find('option').remove();
+      found_version = false;
+      $.each(available_versions, function(i, v) {
+        o = new Option(v, v);
+        if (document.location.href.indexOf("doc/" + v) != -1) {
+          o.selected = true;
+          found_version = true;
+        }
+        sversions.append(o);
+      });
+      if (! found_version) {
+        $("#docversions")[0].hidden = true;
+      }
+    }
+
+    function change_doc_version() {
+      document.location.href = "/doc/" + $("#docversions")[0].value;
+    }
+
+    window.addEventListener('pageshow', init_doc_versions, false);
+    $("#docversions").change(change_doc_version);
+
+  </script>
+
+</div>
+
 {{ super() }}
+
 {% endblock %}
