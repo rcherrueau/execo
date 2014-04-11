@@ -56,10 +56,13 @@ links
 - mailing lists:
 
   - execo-users@lists.gforge.inria.fr for execo users
+    (https://lists.gforge.inria.fr/mailman/listinfo/execo-users)
 
   - execo-devel@lists.gforge.inria.fr to discuss execo development
+    (https://lists.gforge.inria.fr/mailman/listinfo/execo-devel)
 
   - execo-commits@lists.gforge.inria.fr to be notified of commits
+    (https://lists.gforge.inria.fr/mailman/listinfo/execo-commits)
 
 - bug tracker: http://bugzilla.inria.fr - product: execo
 
