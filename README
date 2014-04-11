@@ -50,21 +50,22 @@ links
 
   - development version: http://execo.gforge.inria.fr/doc/dev
 
-- project page on INRIA Forge: http://gforge.inria.fr/projects/execo/
-
 - package download: http://execo.gforge.inria.fr/downloads or
   https://gforge.inria.fr/frs/?group_id=2901
 
-- code repository: git://scm.gforge.inria.fr/execo/execo.git
+- mailing lists:
+
+  - execo-users@lists.gforge.inria.fr for execo users
+
+  - execo-devel@lists.gforge.inria.fr to discuss execo development
+
+  - execo-commits@lists.gforge.inria.fr to be notified of commits
 
 - bug tracker: http://bugzilla.inria.fr - product: execo
 
-- tutorial: http://execo.gforge.inria.fr/doc/tutorial.html
+- code repository: git://scm.gforge.inria.fr/execo/execo.git
 
-- documentation: http://execo.gforge.inria.fr/doc/
-
-- contribs:
-  https://gforge.inria.fr/plugins/scmgit/cgi-bin/gitweb.cgi?p=execo/execo.git;a=tree;f=contrib
+- project page on INRIA Forge: http://gforge.inria.fr/projects/execo/
 
 platforms
 ---------
