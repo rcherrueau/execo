@@ -262,7 +262,7 @@ def gr_to_simgrid(gr, outfile=None, tool_signature='Generated using execo_g5k.to
     :params tool: signature added in comment of the XML file
 
     :params compact: use compact description, i.e. cluster instead
-      ofhosts
+      of hosts
     """
     default_routing = 'Floyd'
     suffix = '.grid5000.fr'
@@ -318,10 +318,6 @@ def gr_to_simgrid(gr, outfile=None, tool_signature='Generated using execo_g5k.to
             site_el = SubElement(platform, 'AS', attrib={'id': site + suffix,
                                         'routing': default_routing})
         # Creating the routers
-        for node in sgr.nodes_iter(data=True):
-            if 'kind' not in node[1]:
-                print node[0]
-
         routers = sorted([node for node in sgr.nodes_iter(data=True)
                           if node[1]['kind'] == 'router'])
         for router, attrib in routers:
