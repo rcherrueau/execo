@@ -99,8 +99,8 @@ _ksoh_deployed_nodes_header_re1 = re.compile("^Nodes correctly deployed on clust
 _ksoh_undeployed_nodes_header_re1 = re.compile("^Nodes not correctly deployed on cluster \w+\s*$") # for kadeploy3 < 3.2
 _ksoh_deployed_nodes_header_re2 = re.compile("^The \w+ is successful on nodes\s*$")                # for kadeploy3 >= 3.2
 _ksoh_undeployed_nodes_header_re2 = re.compile("^The \w+ failed on nodes\s*$")                     # for kadeploy3 >= 3.2
-_ksoh_deployed_node_re = re.compile("^(\S+)\s*$")
-_ksoh_undeployed_node_re = re.compile("^(\S+)(\s+\(.*\))?\s*$")
+_ksoh_deployed_node_re = re.compile("^(\w+-\d+\.\w+\.grid5000\.fr)\s*$")
+_ksoh_undeployed_node_re = re.compile("^(\w+-\d+\.\w+\.grid5000\.fr)(\s+\(.*)?\s*$")
 
 class _KadeployStdoutHandler(ProcessOutputHandler):
 
@@ -137,16 +137,12 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
                 host_address = so.group(1)
                 self.kadeployer.deployed_hosts.add(host_address)
                 self.kadeployer._frontend_processes[process]["deployed_hosts"].add(host_address)
-            else:
-                self._current_section = self._SECTION_NONE
         elif self._current_section == self._SECTION_UNDEPLOYED_NODES:
             so = _ksoh_undeployed_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
                 self.kadeployer.undeployed_hosts.add(host_address)
                 self.kadeployer._frontend_processes[process]["undeployed_hosts"].add(host_address)
-            else:
-                self._current_section = self._SECTION_NONE
 
 class _KadeployStderrHandler(ProcessOutputHandler):
 
