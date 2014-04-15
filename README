@@ -2,15 +2,16 @@
 Readme / documentation for the execo package
 ********************************************
 
-Execo offers a Python API for local or remote, standalone or parallel,
-processes execution. It is especially well suited for quickly and
-easily scripting workflows of parallel/distributed operations on local
-or remote hosts: automate a scientific workflow, conduct computer
-science experiments, perform automated tests, etc. The core python
-package is ``execo``. The ``execo_g5k`` package provides a set of
-tools and extensions for the `Grid5000 <https://www.grid5000.fr>`_
-testbed. The ``execo_engine`` package provides tools to ease the
-development of computer sciences experiments.
+Execo offers a Python API for asynchronous control of local or remote,
+standalone or parallel, unix processes. It is especially well suited
+for quickly and easily scripting workflows of parallel/distributed
+operations on local or remote hosts: automate a scientific workflow,
+conduct computer science experiments, perform automated tests,
+etc. The core python package is ``execo``. The ``execo_g5k`` package
+provides a set of tools and extensions for the `Grid5000
+<https://www.grid5000.fr>`_ testbed. The ``execo_engine`` package
+provides tools to ease the development of computer sciences
+experiments.
 
 License
 =======
@@ -39,14 +40,15 @@ latest stable version: v2.2 (2014-02-21)
 Installation instructions
 =========================
 
-links
------
+useful links
+------------
 
 - home page:  http://execo.gforge.inria.fr
 
 - documentation pages:
 
-  - latest stable release: http://execo.gforge.inria.fr/doc/latest-stable
+  - latest stable release:
+    http://execo.gforge.inria.fr/doc/latest-stable
 
   - development version: http://execo.gforge.inria.fr/doc/dev
 
@@ -90,14 +92,12 @@ execo installation absolutely requires ``python`` (>=
   password in the desktop environment keyring (allowing asking it only
   once).
 
-- ``python-mysqldb`` for optimized planning retrieval from
-  `execo_g5k.planning` when used inside Grid5000.
+- ``python-mysqldb`` for optimized interface to Grid5000 OAR planning.
 
 - ``sphinx-doc``, ``graphviz`` for building the documentation (usually
   not needed for regular users).
 
-- ``python-matplotlib`` (>= 1.2.0) for graphical representation of
-  grid5000 plannings
+- ``python-matplotlib`` (>= 1.2.0) for some graphical representations.
 
 - ``python-networkx`` for module ``execo_g5k.topology``
 
