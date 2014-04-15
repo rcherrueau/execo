@@ -407,7 +407,7 @@ def gr_to_simgrid(gr=None, outfile=None, compact=False,
                                 sgr.nodes_iter(data=True)))
         for router, attrib in routers:
             SubElement(site_el, 'router', attrib={'id': router + suffix})
-        # Creating the compute hosts
+        # Creating the compute hosts
         if compact:
             _sg_hosts_compact(site=site, sgr=sgr, element=site_el)
         else:
