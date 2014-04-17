@@ -21,10 +21,10 @@ topological graph of the Grid'5000 platform. "Nodes" are used to represent
 hosts (compute nodes, switch, router, renater) and "Edges" are the network
 links. Nodes has a kind data (+ power and core for compute nodes) 
 whereas edges has bandwidth and latency information.
-\n
-All information comes from the Grid'5000 reference API
 
+All information comes from the Grid'5000 reference API
 """
+
 from time import time
 from execo import logger, Host
 from execo.log import style
