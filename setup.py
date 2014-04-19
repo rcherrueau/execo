@@ -9,6 +9,7 @@ from distutils.core import setup
 from distutils.command.install import install as _install
 from distutils.command.clean import clean as _clean
 from distutils.command.build_py import build_py as _build_py
+from distutils.command.sdist import sdist as _sdist
 from distutils.dir_util import remove_tree
 from distutils import log
 import sys, subprocess, os, textwrap, shutil, re
@@ -111,6 +112,11 @@ class build_py(_build_py):
         update_version_py()
         _build_py.run(self)
 
+class sdist(_sdist):
+    def run(self):
+        update_version_py()
+        _sdist.run(self)
+
 class install(_install):
     def run(self):
         _install.run(self)
@@ -142,11 +148,13 @@ if __name__ == "__main__":
 
     try:
         cmdclass = { 'build_py': build_py,
+                     'sdist': sdist,
                      'install': install,
                      'build_sphinx': BuildDoc,
                      'clean': clean }
     except:
         cmdclass = { 'build_py': build_py,
+                     'sdist': sdist,
                      'install': install,
                      'clean': clean }
 
