@@ -77,9 +77,9 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
     if 'grid5000' in elements:
         sites = get_g5k_sites()
     else:
-        sites = list(set([ site for site in elements if site in get_g5k_sites() ]+\
-                    [ get_cluster_site(cluster) for cluster in elements
-                     if cluster in get_g5k_clusters() ]))
+        sites = list(set([site for site in elements if site in get_g5k_sites()]+\
+                    [get_cluster_site(cluster) for cluster in elements
+                     if cluster in get_g5k_clusters()]))
 
     planning = {}
     for site in sites:
@@ -89,11 +89,11 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
 
     for site in sites:
         if vlan:
-            planning[site].update( { 'vlans': {} } )
+            planning[site].update({'vlans': {}})
         if subnet:
-            planning[site].update( { 'subnets': {} } )
+            planning[site].update({'subnets': {}})
         if storage:
-            planning[site].update( { 'storage': {} } )
+            planning[site].update({'storage': {}})
 
     if _retrieve_method == 'API':
         _get_planning_API(planning)
@@ -143,7 +143,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
     kavlan = False
     kavlan_global = False
     if 'vlans' in (planning.itervalues().next().keys()):
-        if len(planning.keys()) >1:
+        if len(planning.keys()) > 1:
             kavlan_global = True
         else:
             kavlan = True
@@ -171,7 +171,7 @@ def compute_slots(planning, walltime, excluded_elements = None):
                             free_elements['grid5000'] += 1
                             free_elements[site] += 1
                             free_elements[cluster] += 1
-                            log += ', '+host
+                            log += ', ' + host
 
             if kavlan:
                 free_vlans = 0
@@ -194,11 +194,9 @@ def compute_slots(planning, walltime, excluded_elements = None):
                         if kavlan_global_free:
                             free_vlans_global.append(site)
                 free_elements['kavlan'] = free_vlans_global
-
-
                 ## MISSING OTHER RESOURCES COMPUTATION
 
-        slots.append( [ limit, limit + walltime, free_elements] )
+        slots.append([ limit, limit + walltime, free_elements])
 
     slots.sort()
     return slots
