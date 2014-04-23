@@ -118,9 +118,10 @@ def site_graph(site):
             for adapt in filter(lambda n: n['enabled'] and not n['management']
                                 and n['interface'] == 'Ethernet',
                                 host['network_adapters']):
-                if adapt['switch'] is None:
+                if not 'switch' in adapt or adapt['switch'] is None:
                     logger.warning('%s: link between %s and %s is not correct',
                                     site, src, dst)
+                    print adapt
                 else:
                     dst = adapt['switch'] + '.' + site
                 if not sgr.has_edge(src, dst):
@@ -162,7 +163,8 @@ def remove_non_g5k(gr):
             gr.remove_node(node)
 
 
-def gr_to_image(gr=None, outfile=None, config=None, graphviz_program='neato'):
+def gr_to_image(gr=None, outfile=None, config=None, 
+                all_nodes=False, dpi=300, graphviz_program='neato'):
     """Export a topology graph to a image"""
     sites = []
     for node in gr.nodes_iter():
@@ -219,17 +221,30 @@ def gr_to_image(gr=None, outfile=None, config=None, graphviz_program='neato'):
             width=config['edges']['other']['width'],
             edge_color=config['edges']['other']['color'])
     # Adding labels
-    labels = {'renater': {'nodes': {}, 'font_size': 16, 'font_weight': 'bold'},
-          'switch': {'nodes': {}, 'font_size': 12, 'font_weight': 'normal'},
-          'cluster': {'nodes': {}, 'font_size': 14, 'font_weight': 'normal'}
+    if all_nodes and len(gr.nodes()) > 100:
+        base_size = 1
+    else:
+        base_size = 2
+
+    labels = {'renater':
+              {'nodes': {}, 'font_size': base_size * 8, 'font_weight': 'bold'},
+              'switch':
+              {'nodes': {}, 'font_size': base_size * 6, 'font_weight': 'normal'},
+              'cluster':
+              {'nodes': {}, 'font_size': base_size * 7, 'font_weight': 'normal'}
             }
+    cluster_added = []
     for node, data in gr.nodes_iter(data=True):
         if data['kind'] == 'renater':
             labels['renater']['nodes'][node] = node.split('.')[1].title()
         elif data['kind'] == 'switch':
             labels['switch']['nodes'][node] = node.split('.')[0]
-        elif data['kind'] == 'node' and '-1.' in node:
-            labels['cluster']['nodes'][node] = node.split('-')[0]
+        elif data['kind'] == 'node':
+            if not node.split('-')[0] in cluster_added:
+                labels['cluster']['nodes'][node] = node.split('-')[0]
+                cluster_added.append(node.split('-')[0])
+            elif all_nodes:
+                labels['cluster']['nodes'][node] = node.split('.')[0]
     for data in labels.itervalues():
         draw_networkx_labels(gr, pos, labels=data['nodes'],
                 font_size=data['font_size'], font_weight=data['font_weight'])
@@ -253,7 +268,7 @@ def gr_to_image(gr=None, outfile=None, config=None, graphviz_program='neato'):
         i += 20
 
     logger.info('Saving file to %s', style.emph(outfile))
-    plt.savefig(outfile, bbox_inches='tight', dpi=300)
+    plt.savefig(outfile, bbox_inches='tight', dpi=dpi)
 
 
 def gr_to_simgrid(gr=None, outfile=None, compact=False,
