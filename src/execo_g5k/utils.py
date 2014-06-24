@@ -20,6 +20,7 @@ from execo.action import ActionFactory
 from execo.config import SSH, SCP, make_connection_params
 from execo.host import Host
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
+from execo_g5k.api_utils import get_resource_attributes
 from execo.process import get_port_forwarder
 import re
 import socket
@@ -112,3 +113,43 @@ class G5kAutoPortForwarder():
         if self.__port_forwarder:
             self.__port_forwarder.kill()
         return False
+
+def get_kavlan_network(kavlan, site):
+    """Retrieve the network parameters for a given kavlan from the API"""
+    network, mask_size = None, None
+    equips = get_resource_attributes('/sites/' + site + '/network_equipments/')
+    for equip in equips['items']:
+        if 'vlans' in equip and len(equip['vlans']) > 2:
+            all_vlans = equip['vlans']
+    for info in all_vlans.itervalues():
+        if type(info) == type({}) and 'name' in info \
+            and info['name'] == 'kavlan-' + str(kavlan):
+            network, _, mask_size = info['addresses'][0].partition('/',)
+    return network, mask_size
+
+def get_kavlan_ip_mac(kavlan, site):
+    """Retrieve the network parameters for a given kavlan from the API"""
+    network, mask_size = get_kavlan_network(kavlan, site)
+    min_2 = (kavlan - 4) * 64 + 2 if kavlan < 8 \
+            else (kavlan - 8) * 64 + 2 if kavlan < 10 \
+            else 216
+    ips = [".".join([str(part) for part in ip]) for ip in
+           [ip for ip in get_ipv4_range(tuple([int(part)
+                for part in network.split('.')]), int(mask_size))
+           if ip[3] not in [0, 254, 255] and ip[2] >= min_2]]
+    return ips
+
+def get_ipv4_range(network, mask_size):
+    """Get the ipv4 range from a network and a mask_size"""
+    net = (network[0] << 24
+            | network[1] << 16
+            | network[2] << 8
+            | network[3])
+    mask = ~(2 ** (32 - mask_size) - 1)
+    ip_start = net & mask
+    ip_end = net | ~mask
+    return [((ip & 0xff000000) >> 24,
+              (ip & 0xff0000) >> 16,
+              (ip & 0xff00) >> 8,
+              ip & 0xff)
+             for ip in xrange(ip_start, ip_end + 1)]
