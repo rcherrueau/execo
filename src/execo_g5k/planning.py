@@ -441,7 +441,7 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
     clusters_wanted = {}
     for element, n_nodes in resources_wanted.iteritems():
         if element in get_g5k_clusters():
-            clusters_wanted[element] =  n_nodes
+            clusters_wanted[element] = n_nodes
     for cluster, n_nodes in clusters_wanted.iteritems():
         nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
         resources_available[get_cluster_site(cluster)] -= nodes
@@ -457,7 +457,7 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
     #Defining the sites you want
     sites_wanted = {}
     for element, n_nodes in resources_wanted.iteritems():
-        if element in get_g5k_sites():
+        if element in get_g5k_sites() and element not in excluded_elements:
             sites_wanted[element] = n_nodes
     for site, n_nodes in sites_wanted.iteritems():
         resources[site] = n_nodes if n_nodes > 0 else resources_available[site]
