@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-"""Module that manage the cache of the Grid'5000 Reference API (hosts and network equipments)
+"""Module that manage the cache of the Grid'5000 Reference API (hosts and 
+network equipments)
 
-Data are stored in $HOME/.topo5k under pickle format
+Data are stored in $HOME/.execo/g5k_api_cache/' under pickle format
 
 - one file for all hosts
 
