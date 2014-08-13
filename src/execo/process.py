@@ -87,7 +87,7 @@ class ProcessOutputHandler(object):
                 break
         if eof or error:
             self.read_line(process, self._buffer[process], eof, error)
-            self._buffer[process] = ""
+            del self._buffer[process]
 
     def read_line(self, process, string, eof, error):
         """Handle string read line by line from a `execo.process.ProcessBase`'s stream.
