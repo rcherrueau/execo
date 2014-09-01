@@ -53,6 +53,23 @@ clusters, whose values are hosts.
 __api_passwords = dict()
 # private dictionnary keyed by username, storing cached passwords
 
+def _ask_password(username, message, password_check_func):
+    import getpass
+    for pass_try in range(3):
+        password = getpass.getpass(message)
+        if password_check_func(username, password):
+            return password
+    return None
+
+def _get_api_password_check_func(username, password):
+    try:
+        http = httplib2.Http(disable_ssl_certificate_validation = True)
+    except TypeError:
+        http = httplib2.Http()
+    http.add_credentials(username, password)
+    response, content = http.request("https://api.grid5000.fr")
+    return (response['status'] in ['200', '304'])
+
 def _get_api_password(username):
     with _lock:
         if not __api_passwords.get(username):
@@ -63,15 +80,16 @@ def _get_api_password(username):
                 # only use keyring if available and usable
                 pass
             if not __api_passwords.get(username):
-                import getpass
-                __api_passwords[username] = getpass.getpass(
-                    "Grid5000 API authentication password for user %s" % (username,))
-                try:
-                    import keyring
-                    keyring.set_password("grid5000_api", username, __api_passwords[username])
-                except:
-                    # only use keyring if available and usable
-                    pass
+                __api_passwords[username] = _ask_password(username,
+                                                          "Grid5000 API authentication password for user %s" % (username,),
+                                                          _get_api_password_check_func)
+                if __api_passwords[username]:
+                    try:
+                        import keyring
+                        keyring.set_password("grid5000_api", username, __api_passwords[username])
+                    except:
+                        # only use keyring if available and usable
+                        pass
         return __api_passwords[username]
 
 class APIGetException(Exception):
