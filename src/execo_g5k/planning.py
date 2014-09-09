@@ -218,8 +218,9 @@ def find_first_slot( slots, resources_wanted):
             elif isinstance(slot[2]['kavlan'], list):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False
-        res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems() if element in resources_wanted
+        res_nodes = sum([ nodes for element, nodes in slot[2].iteritems() if element in resources_wanted
                           and element != 'kavlan'])
+
         if res_nodes > 0 and vlan_free:
             return slot
 

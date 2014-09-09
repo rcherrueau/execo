@@ -69,7 +69,7 @@ def _is_cache_old(cache_dir=_cache_dir):
         local_commit = f.readline()
         f.close()
         if local_commit != _get_api_commit():
-            logger.detail('Cache is too old')
+            logger.info('Cache is outdated, will retrieve the latest commit')
             cache_is_old = True
         else:
             logger.detail('Already at the latest commit')
