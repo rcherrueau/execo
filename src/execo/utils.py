@@ -106,3 +106,9 @@ def get_port():
             if get_port.current >= configuration['port_range'][1]:
                 get_port.current = configuration['port_range'][0]
         return get_port.current
+
+def str_to_collection(arg):
+    if not hasattr(arg, "__iter__"):
+        return [ arg ]
+    else:
+        return arg
