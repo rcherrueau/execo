@@ -103,6 +103,37 @@ class ProcessOutputHandler(object):
         """
         pass
 
+def handle_process_output(process, handler, string, eof, error):
+    """Handle the output of a process.
+
+    :param process: the affected process
+
+    :param handler: instance of `execo.process.ProcessOutputHandler`,
+      or existing file descriptor (positive integer), or existing file
+      object, or filename, to which output will be sent. If a filename
+      is given, it will be opened in write mode, and closed on eof
+
+    :param string: the string to output
+
+    :param eof: boolean, whether the output stream is eof
+
+    :param error: boolean, whether the output stream is in error
+
+    """
+    if isinstance(handler, int):
+        os.write(handler, string)
+    elif isinstance(handler, ProcessOutputHandler):
+        handler.read(process, string, eof, error)
+    elif hasattr(handler, "write"):
+        handler.write(string)
+    elif isinstance(handler, basestring):
+        if not process._out_files.get(handler):
+            process._out_files[handler] = open(handler, "w")
+        process._out_files[handler].write(string)
+        if eof:
+            process._out_files[handler].close()
+            del process._out_files[handler]
+
 class _debugio_output_handler(ProcessOutputHandler):
 
     def __init__(self, prefix):
@@ -221,8 +252,7 @@ class ProcessBase(object):
         self.stdout_ioerror = False
         self.stderr_ioerror = False
         self._lock = threading.RLock()
-        self._stdout_files = dict()
-        self._stderr_files = dict()
+        self._out_files = dict()
 
     def _common_reset(self):
         # all methods _common_reset() of this class hierarchy contain
@@ -326,19 +356,7 @@ class ProcessBase(object):
             self.stdout_ioerror = True
         for handler in self.stdout_handlers:
             try:
-                if isinstance(handler, int):
-                    os.write(handler, string)
-                elif isinstance(handler, ProcessOutputHandler):
-                    handler.read(self, string, eof, error)
-                elif hasattr(handler, "write"):
-                    handler.write(string)
-                elif isinstance(handler, basestring):
-                    if not self._stdout_files.get(handler):
-                        self._stdout_files[handler] = open(handler, "w")
-                    self._stdout_files[handler].write(string)
-                    if eof:
-                        self._stdout_files[handler].close()
-                        del self._stdout_files[handler]
+                handle_process_output(self, handler, string, eof, error)
             except Exception, e:
                 logger.error("process stdout handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
@@ -359,19 +377,7 @@ class ProcessBase(object):
             self.stderr_ioerror = True
         for handler in self.stderr_handlers:
             try:
-                if isinstance(handler, int):
-                    os.write(handler, string)
-                elif isinstance(handler, ProcessOutputHandler):
-                    handler.read(self, string, eof, error)
-                elif hasattr(handler, "write"):
-                    handler.write(string)
-                elif isinstance(handler, basestring):
-                    if not self._stderr_files.get(handler):
-                        self._stderr_files[handler] = open(handler, "w")
-                    self._stderr_files[handler].write(string)
-                    if eof:
-                        self._stderr_files[handler].close()
-                        del self._stderr_files[handler]
+                handle_process_output(self, handler, string, eof, error)
             except Exception, e:
                 logger.error("process stderr handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
@@ -831,12 +837,9 @@ class Process(ProcessBase):
                 self.process.stdout.close()
             if self.process.stderr:
                 self.process.stderr.close()
-            for h in self._stdout_files:
-                self._stdout_files[h].close()
-                del self._stdout_files[h]
-            for h in self._stderr_files:
-                self._stderr_files[h].close()
-                del self._stderr_files[h]
+            for h in self._out_files:
+                self._out_files[h].close()
+                del self._out_files[h]
         self._log_terminated()
         for handler in self.lifecycle_handlers:
             try:
@@ -987,12 +990,9 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
                 self.forced_kill = True
             self.end_date = time.time()
             self.ended = True
-            for h in self._stdout_files:
-                self._stdout_files[h].close()
-            self._stdout_files.clear()
-            for h in self._stderr_files:
-                self._stderr_files[h].close()
-            self._stderr_files.clear()
+            for h in self._out_files:
+                self._out_files[h].close()
+            self._out_files.clear()
         self._log_terminated()
         for handler in self.lifecycle_handlers:
             try:
