@@ -27,7 +27,7 @@ from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
 from utils import name_from_cmdline, intr_cond_wait, intr_event_wait, get_port, \
-    str_to_collection
+    singleton_to_collection
 from traceback import format_exc
 from substitutions import get_caller_context, remote_substitute
 from time_utils import get_seconds, format_date
@@ -394,7 +394,7 @@ class Remote(Action):
 
     @hosts.setter
     def hosts(self, v):
-        self._hosts = get_hosts_list(str_to_collection(v))
+        self._hosts = get_hosts_list(singleton_to_collection(v))
 
     def _args(self):
         return [ repr(self.cmd),
@@ -645,7 +645,7 @@ class TaktukRemote(Action):
 
     @hosts.setter
     def hosts(self, v):
-        self._hosts = get_hosts_list(str_to_collection(v))
+        self._hosts = get_hosts_list(singleton_to_collection(v))
 
     def _args(self):
         return [ repr(self.cmd),
@@ -1524,7 +1524,7 @@ class ChainPut(SequentialActions):
 
     @hosts.setter
     def hosts(self, v):
-        self._hosts = get_unique_hosts_list(str_to_collection(v))
+        self._hosts = get_unique_hosts_list(singleton_to_collection(v))
 
     def _init_actions(self):
         if len(self.hosts) > 0:

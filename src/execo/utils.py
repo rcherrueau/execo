@@ -107,7 +107,8 @@ def get_port():
                 get_port.current = configuration['port_range'][0]
         return get_port.current
 
-def str_to_collection(arg):
+def singleton_to_collection(arg):
+    """Converts single object (including strings) to list of length one containing it"""
     if not hasattr(arg, "__iter__"):
         return [ arg ]
     else:
