@@ -106,14 +106,8 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stdout."""
 
-    def __init__(self, kadeployer, frontend):
-        """
-        :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
-          which this `execo.process.ProcessOutputHandler` is attached.
-        """
+    def __init__(self):
         super(_KadeployStdoutHandler, self).__init__()
-        self.kadeployer = kadeployer
-        self.frontend = frontend
         self._SECTION_NONE, self._SECTION_DEPLOYED_NODES, self._SECTION_UNDEPLOYED_NODES = range(3)
         self._current_section = self._SECTION_NONE
 
@@ -121,8 +115,8 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         self._current_section = self._SECTION_NONE
 
     def read_line(self, process, string, eof, error):
-        if self.kadeployer.out:
-            print str(self.frontend) + ": " + string,
+        if process.kadeployer.out:
+            print str(process.frontend) + ": " + string,
         if (_ksoh_deployed_nodes_header_re1.search(string) != None
             or _ksoh_deployed_nodes_header_re2.search(string) != None):
             self._current_section = self._SECTION_DEPLOYED_NODES
@@ -135,31 +129,22 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
             so = _ksoh_deployed_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self.kadeployer.deployed_hosts.add(host_address)
-                self.kadeployer._frontend_processes[process]["deployed_hosts"].add(host_address)
+                process.kadeployer.deployed_hosts.add(host_address)
+                process.deployed_hosts.add(host_address)
         elif self._current_section == self._SECTION_UNDEPLOYED_NODES:
             so = _ksoh_undeployed_node_re.search(string)
             if so != None:
                 host_address = so.group(1)
-                self.kadeployer.undeployed_hosts.add(host_address)
-                self.kadeployer._frontend_processes[process]["undeployed_hosts"].add(host_address)
+                process.kadeployer.undeployed_hosts.add(host_address)
+                process.undeployed_hosts.add(host_address)
 
 class _KadeployStderrHandler(ProcessOutputHandler):
 
     """Parse kadeploy3 stderr."""
 
-    def __init__(self, kadeployer, frontend):
-        """
-        :param kadeployer: the `execo_g5k.kadeploy.Kadeployer` to
-          which this `execo.process.ProcessOutputHandler` is attached.
-        """
-        super(_KadeployStderrHandler, self).__init__()
-        self.kadeployer = kadeployer
-        self.frontend = frontend
-
     def read_line(self, process, string, eof, error):
-        if self.kadeployer.out:
-            print str(self.frontend) + ": " + string,
+        if process.kadeployer.out:
+            print str(process.frontend) + ": " + string,
 
 _host_site_re1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
 _host_site_re2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
@@ -180,7 +165,7 @@ def _get_host_frontend(host):
     #   extract site from host name
     #
     # - raises exception if host name format invalid (not sure we
-    #   would want this for a generic function
+    #   would want this for a generic function)
     frontend = None
     mo1 = _host_site_re1.search(host.address)
     if mo1 != None:
@@ -234,7 +219,6 @@ class Kadeployer(Remote):
 
     def _init_processes(self):
         self.processes = []
-        self._frontend_processes = {}
         self._unique_hosts = get_hosts_set(self.deployment.hosts)
         frontends = dict()
         for host in self._unique_hosts:
@@ -244,6 +228,8 @@ class Kadeployer(Remote):
             else:
                 frontends[frontend] = [host]
         lifecycle_handler = ActionNotificationProcessLH(self, len(frontends))
+        stdout_handler = _KadeployStdoutHandler()
+        stderr_handler = _KadeployStderrHandler()
         for frontend in frontends.keys():
             kadeploy_command = self.deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
@@ -254,44 +240,41 @@ class Kadeployer(Remote):
                                                                      default_frontend_connection_params))
             p.pty = True
             p.timeout = self.timeout
-            kdstdouthandler = _KadeployStdoutHandler(self, frontend)
-            p.stdout_handlers.append(kdstdouthandler)
-            kdstderrhandler = _KadeployStderrHandler(self, frontend)
-            p.stderr_handlers.append(kdstderrhandler)
+            p.stdout_handlers.append(stdout_handler)
+            p.stderr_handlers.append(stderr_handler)
             p.lifecycle_handlers.append(lifecycle_handler)
+            p.frontend = frontend
+            p.kadeploy_hosts = [ host.address for host in frontends[frontend] ]
+            p.deployed_hosts = set()
+            p.undeployed_hosts = set()
+            p.kadeployer = self
             self.processes.append(p)
-            self._frontend_processes[p] = {}
-            self._frontend_processes[p]["frontend"] = frontend
-            self._frontend_processes[p]["hosts"] = [host.address for host in frontends[frontend]]
-            self._frontend_processes[p]["deployed_hosts"] = set()
-            self._frontend_processes[p]["undeployed_hosts"] = set()
 
     def _common_reset(self):
         super(Kadeployer, self)._common_reset()
         self.deployed_hosts = set()
         self.undeployed_hosts = set()
 
-
     def _check_ok(self, log):
         ok = True
         error_logs = []
         warn_logs = []
-        for fprocess, hosts_lists in self._frontend_processes.iteritems():
-            if ( len(hosts_lists["deployed_hosts"].intersection(hosts_lists["undeployed_hosts"])) != 0
-                 or len(hosts_lists["deployed_hosts"].union(hosts_lists["undeployed_hosts"]).symmetric_difference(hosts_lists["hosts"])) != 0 ):
+        for process in self.processes:
+            if ( len(process.deployed_hosts.intersection(process.undeployed_hosts)) != 0
+                 or len(process.deployed_hosts.union(process.undeployed_hosts).symmetric_difference(process.total_hosts)) != 0 ):
                 error_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i:\n%s\nstdout:\n%s\nstderr:\n%s" % (
-                        hosts_lists["frontend"], len(hosts_lists["hosts"]), len(hosts_lists["deployed_hosts"]), len(hosts_lists["undeployed_hosts"]),
-                        fprocess, compact_output(fprocess.stdout), compact_output(fprocess.stderr)))
+                        process.frontend, len(process.total_hosts), len(process.deployed_hosts), len(process.undeployed_hosts),
+                        process, compact_output(process.stdout), compact_output(process.stderr)))
                 ok = False
             else:
-                if len(hosts_lists["deployed_hosts"]) == 0:
+                if len(process.deployed_hosts) == 0:
                     warn_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i:\n%s\nstdout:\n%s\nstderr:\n%s" % (
-                            hosts_lists["frontend"], len(hosts_lists["hosts"]), len(hosts_lists["deployed_hosts"]), len(hosts_lists["undeployed_hosts"]),
-                            fprocess, compact_output(fprocess.stdout), compact_output(fprocess.stderr)))
+                            process.frontend, len(process.total_hosts), len(process.deployed_hosts), len(process.undeployed_hosts),
+                            process, compact_output(process.stdout), compact_output(process.stderr)))
                     ok = False
-                elif len(hosts_lists["undeployed_hosts"]) > 0:
+                elif len(process.undeployed_hosts) > 0:
                     warn_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i" % (
-                            hosts_lists["frontend"], len(hosts_lists["hosts"]), len(hosts_lists["deployed_hosts"]), len(hosts_lists["undeployed_hosts"])))
+                            process.frontend, len(process.total_hosts), len(process.deployed_hosts), len(process.undeployed_hosts)))
         if log:
             if len(warn_logs) > 0:
                 logger.warn(str(self) + ":\n" + "\n".join(warn_logs))
