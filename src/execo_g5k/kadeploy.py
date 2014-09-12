@@ -261,20 +261,20 @@ class Kadeployer(Remote):
         warn_logs = []
         for process in self.processes:
             if ( len(process.deployed_hosts.intersection(process.undeployed_hosts)) != 0
-                 or len(process.deployed_hosts.union(process.undeployed_hosts).symmetric_difference(process.total_hosts)) != 0 ):
+                 or len(process.deployed_hosts.union(process.undeployed_hosts).symmetric_difference(process.kadeploy_hosts)) != 0 ):
                 error_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i:\n%s\nstdout:\n%s\nstderr:\n%s" % (
-                        process.frontend, len(process.total_hosts), len(process.deployed_hosts), len(process.undeployed_hosts),
+                        process.frontend, len(process.kadeploy_hosts), len(process.deployed_hosts), len(process.undeployed_hosts),
                         process, compact_output(process.stdout), compact_output(process.stderr)))
                 ok = False
             else:
                 if len(process.deployed_hosts) == 0:
                     warn_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i:\n%s\nstdout:\n%s\nstderr:\n%s" % (
-                            process.frontend, len(process.total_hosts), len(process.deployed_hosts), len(process.undeployed_hosts),
+                            process.frontend, len(process.kadeploy_hosts), len(process.deployed_hosts), len(process.undeployed_hosts),
                             process, compact_output(process.stdout), compact_output(process.stderr)))
                     ok = False
                 elif len(process.undeployed_hosts) > 0:
                     warn_logs.append("deploy on %s, total/deployed/undeployed = %i/%i/%i" % (
-                            process.frontend, len(process.total_hosts), len(process.deployed_hosts), len(process.undeployed_hosts)))
+                            process.frontend, len(process.kadeploy_hosts), len(process.deployed_hosts), len(process.undeployed_hosts)))
         if log:
             if len(warn_logs) > 0:
                 logger.warn(str(self) + ":\n" + "\n".join(warn_logs))
