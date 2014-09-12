@@ -22,9 +22,10 @@ from execo.action import Remote, ActionNotificationProcessLH, \
 from execo.config import make_connection_params
 from execo.host import get_hosts_set, Host
 from execo.log import style, logger
-from execo.process import ProcessOutputHandler, get_process
+from execo.process import ProcessOutputHandler, get_process, \
+    handle_process_output
 from execo.time_utils import format_seconds
-from execo.utils import comma_join, compact_output
+from execo.utils import comma_join, compact_output, singleton_to_collection
 from execo_g5k.config import default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host, get_kavlan_host_name
 from utils import get_default_frontend
@@ -115,8 +116,6 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
         self._current_section = self._SECTION_NONE
 
     def read_line(self, process, string, eof, error):
-        if process.kadeployer.out:
-            print str(process.frontend) + ": " + string,
         if (_ksoh_deployed_nodes_header_re1.search(string) != None
             or _ksoh_deployed_nodes_header_re2.search(string) != None):
             self._current_section = self._SECTION_DEPLOYED_NODES
@@ -137,14 +136,6 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
                 host_address = so.group(1)
                 process.kadeployer.undeployed_hosts.add(host_address)
                 process.undeployed_hosts.add(host_address)
-
-class _KadeployStderrHandler(ProcessOutputHandler):
-
-    """Parse kadeploy3 stderr."""
-
-    def read_line(self, process, string, eof, error):
-        if process.kadeployer.out:
-            print str(process.frontend) + ": " + string,
 
 _host_site_re1 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)\.grid5000.fr$")
 _host_site_re2 = re.compile("^[^ \t\n\r\f\v\.]+\.([^ \t\n\r\f\v\.]+)$")
@@ -182,6 +173,18 @@ def _get_host_frontend(host):
                 raise ValueError, "unknown frontend for host %s" % host.address
     return frontend
 
+class FrontendPrefixWrapper(ProcessOutputHandler):
+
+    def __init__(self, handler):
+        super(FrontendPrefixWrapper, self).__init__()
+        self.handler = handler
+
+    def read_line(self, process, string, eof, error):
+        handle_process_output(process,
+                              self.handler,
+                              process.frontend + ": " + string,
+                              eof, error)
+
 class Kadeployer(Remote):
 
     """Deploy an environment with kadeploy3 on several hosts.
@@ -189,7 +192,8 @@ class Kadeployer(Remote):
     Able to deploy in parallel to multiple frontends.
     """
 
-    def __init__(self, deployment, frontend_connection_params = None):
+    def __init__(self, deployment, frontend_connection_params = None,
+                 stdout_handlers = None, stderr_handlers = None):
         """
         :param deployment: instance of Deployment class describing the
           intended kadeployment.
@@ -197,6 +201,12 @@ class Kadeployer(Remote):
         :param frontend_connection_params: connection params for
           connecting to frontends if needed. Values override those in
           `execo_g5k.config.default_frontend_connection_params`.
+
+        :param stdout_handlers: iterable of `ProcessOutputHandlers`
+          which will be passed to the actual deploy processes.
+
+        :param stderr_handlers: iterable of `ProcessOutputHandlers`
+          which will be passed to the actual deploy processes.
         """
         super(Remote, self).__init__()
         self.deployed_hosts = set()
@@ -205,8 +215,10 @@ class Kadeployer(Remote):
         self.undeployed_hosts = set()
         """Iterable of `Host` containing the hosts not deployed. This iterable
         won't be complete if the Kadeployer has not terminated."""
-        self.out = False
-        """If True, output kadeploy stdout / stderr to stdout."""
+        self._stdout_handlers = stdout_handlers
+        self._stderr_handlers = stderr_handlers
+        """Iterable of `ProcessOutputHandlers` which will be passed to the
+        actual deploy processes."""
         self.frontend_connection_params = frontend_connection_params
         """Connection params for connecting to frontends if needed. Values override
         those in `execo_g5k.config.default_frontend_connection_params`."""
@@ -228,8 +240,7 @@ class Kadeployer(Remote):
             else:
                 frontends[frontend] = [host]
         lifecycle_handler = ActionNotificationProcessLH(self, len(frontends))
-        stdout_handler = _KadeployStdoutHandler()
-        stderr_handler = _KadeployStderrHandler()
+        deploy_stdout_handler = _KadeployStdoutHandler()
         for frontend in frontends.keys():
             kadeploy_command = self.deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
@@ -240,8 +251,11 @@ class Kadeployer(Remote):
                                                                      default_frontend_connection_params))
             p.pty = True
             p.timeout = self.timeout
-            p.stdout_handlers.append(stdout_handler)
-            p.stderr_handlers.append(stderr_handler)
+            p.stdout_handlers.append(deploy_stdout_handler)
+            p.stdout_handlers.extend([ FrontendPrefixWrapper(h)
+                                       for h in singleton_to_collection(self._stdout_handlers) ])
+            p.stderr_handlers.extend([ FrontendPrefixWrapper(h)
+                                       for h in singleton_to_collection(self._stderr_handlers) ])
             p.lifecycle_handlers.append(lifecycle_handler)
             p.frontend = frontend
             p.kadeploy_hosts = [ host.address for host in frontends[frontend] ]
@@ -310,7 +324,8 @@ def deploy(deployment,
            frontend_connection_params = None,
            deploy_timeout = None,
            check_timeout = 30,
-           out = False):
+           stdout_handlers = None,
+           stderr_handlers = None):
     """Deploy nodes, many times if needed, checking which of these nodes are already deployed with a user-supplied command. If no command given for checking if nodes deployed, rely on kadeploy to know which nodes are deployed.
 
     - loop `num_tries` times:
@@ -372,7 +387,11 @@ def deploy(deployment,
     :param check_timeout: timeout for node deployment checks. Default
       is 30 seconds.
 
-    :param out: if True, output kadeploy stdout / stderr to stdout.
+    :param stdout_handlers: optional stdout handler for kadeploy
+      processes
+
+    :param stderr_handlers: optional stderr handler for kadeploy
+      processes
     """
 
     if check_enough_func == None:
@@ -437,8 +456,9 @@ def deploy(deployment,
         tmp_deployment = copy.copy(deployment)
         tmp_deployment.hosts = undeployed_hosts
         kadeployer = Kadeployer(tmp_deployment,
-                                frontend_connection_params = frontend_connection_params)
-        kadeployer.out = out
+                                frontend_connection_params = frontend_connection_params,
+                                stdout_handlers = stdout_handlers,
+                                stderr_handlers = stderr_handlers)
         kadeployer.timeout = deploy_timeout
         kadeployer.run()
         my_newly_deployed = []
