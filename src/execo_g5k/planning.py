@@ -80,7 +80,9 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
         sites = list(set([site for site in elements if site in get_g5k_sites()]+\
                     [get_cluster_site(cluster) for cluster in elements
                      if cluster in get_g5k_clusters()]))
-
+    if len(sites) == 0:
+        logger.error('Wrong elements given, must be one of the following values \n %s \n%s', elements)
+        exit()
     planning = {}
     for site in sites:
         planning[site] = {}
