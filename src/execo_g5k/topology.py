@@ -185,12 +185,16 @@ class g5k_graph(nx.Graph):
         hadoop_topology = {}
         self.add_backbone()
         for h in hosts:
-            site = get_host_site(h)
-            if site not in self.sites:
-                self.add_site(site)
-                for sw in nx.all_neighbors(self, canonical_host_name(h).address):
-                    hadoop_topology[canonical_host_name(h)] = "/" + sw.split('.')[0]
-                    break
+            try: 
+                site = get_host_site(h)
+                if site not in self.sites:
+                    self.add_site(site)
+                    for sw in nx.all_neighbors(self, canonical_host_name(h).address):
+                        hadoop_topology[canonical_host_name(h)] = "/" + sw.split('.')[0]
+                        break
+            except:
+                logger.warning('%s is not a valid Grid5000 host', h)
+                pass
                     
         return hadoop_topology
     
