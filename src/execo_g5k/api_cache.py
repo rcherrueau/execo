@@ -86,7 +86,7 @@ def _write_api_cache(cache_dir=_cache_dir):
     the cache directory"""
     try:
         makedirs(cache_dir)
-        logger.detail('No cache found, directory created.')
+        logger.detail('No cache found, directory created')
     except:
         logger.detail('Cache directory is present')
         pass
@@ -103,8 +103,8 @@ def _write_api_cache(cache_dir=_cache_dir):
             hosts[site][cluster] = get_resource_attributes(
                 'sites/' + site + '/clusters/' + cluster + '/nodes')['items']
 
-        network[site] = get_resource_attributes(
-                    'sites/' + site + '/network_equipments')['items']
+        network[site] = get_resource_attributes('sites/' + site +
+                                                '/network_equipments')['items']
         f = open(cache_dir + site + '_equips', 'w')
         dump(network[site], f)
         f.close()
