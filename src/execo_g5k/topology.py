@@ -36,12 +36,17 @@ from api_cache import get_api_data
 from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
     get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
     get_site_clusters
-import networkx as nx
 
+try:
+    import networkx as nx
+except:
+    logger.error('Networkx not found, topology module cannot be used')
+    pass
 try:
     import matplotlib.pyplot as plt
     import matplotlib.patches
 except:
+    logger.error('Matplotlib not found, no plot can be generated')
     pass
 from xml.dom import minidom
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -72,7 +77,7 @@ class g5k_graph(nx.Graph):
 
     def add_backbone(self):
         """Add the Renater backbone"""
-        logger.info('Adding %s network to the Graph', style.emph('Renater'))
+        logger.info('Add/update %s network', style.emph('Renater'))
         backbone = self.network['backbone']
         # Adding all the elements of the backbone
         for equip in backbone:
@@ -119,9 +124,8 @@ class g5k_graph(nx.Graph):
 
     def add_host(self, host):
         """Add the host to the graph, and its link to the equipment"""
-        logger.info('Adding %s', style.host(host))
-
         data = self._get_host_data(host)
+        logger.info('Adding %s', style.host(host))
         site = get_host_site(data['uid'])
         power = data['performance']['core_flops']
         cores = data['architecture']['smt_size']
@@ -153,12 +157,11 @@ class g5k_graph(nx.Graph):
             # we need to find how the switch is connected to the router
             path = self._switch_router_path(eq_uid, site)
             for i in range(len(path) - 1):
-
-                eq1_data = self._get_equip_data(path[i], site)
+                eq1_data = self._get_equip_data(path[i + 1], site)
                 self._add_node(path[i + 1] + '.' + site + suffix,
                                {'kind': eq1_data['kind'],
                                 'backplane': eq1_data['backplane_bps']})
-                attr = self._link_attr(eq1_data['linecards'], path[i + 1])
+                attr = self._link_attr(eq_data['linecards'], path[i + 1])
                 self._add_edge(path[i] + '.' + site + suffix,
                                path[i + 1] + '.' + site + suffix, attr)
 
@@ -170,7 +173,8 @@ class g5k_graph(nx.Graph):
         """Add the cluster to the graph"""
         logger.info('Adding cluster %s', style.host(cluster))
         if cluster not in get_g5k_clusters():
-            logger.error('%s is not a valid Grid\'5000 cluster', style.emph(cluster))
+            logger.error('%s is not a valid Grid\'5000 cluster', 
+                         style.emph(cluster))
             return False
         site = get_cluster_site(cluster)
         if site not in self.sites:
@@ -208,8 +212,75 @@ class g5k_graph(nx.Graph):
         if len(self.sites) > 1:
             self.add_backbone()
 
+    def get_backbone_graph(self):
+        """Get the Renater backbone nodes and edges"""
+        return self._get_subgraph_elements(lambda x: 'renater' in x)
+
+    def get_site_graph(self, site=None):
+        """Retrieve the nodes and edges of a site"""
+        return self._get_subgraph_elements(lambda x: site in x)
+
+    def get_cluster_graph(self, cluster=None):
+        """Retrieve the nodes and edges of a cluster"""
+        return self._get_subgraph_elements(lambda x: cluster in x)
+
+    def get_routers(self):
+        """Retrieve the routers of a graph """
+        return sorted(filter(lambda x: x[1]['kind'] == 'router',
+                             self.nodes_iter(data=True)))
+
+    def site_clusters(self, site):
+        """Compute the information of the clusters of a site"""
+        clusters = {}
+        for host in filter(lambda n: n[1]['kind'] == 'node' and site in n[0],
+                           self.nodes(True)):
+            hostname, suffix = host[0].split('.', 1)
+            cluster = hostname.split('-')[0]
+            if cluster not in clusters:
+                clusters[cluster] = {'equips': {},
+                                     'suffix': '.' + suffix,
+                                     'prefix': cluster + '-',
+                                     'core': host[1]['cores'],
+                                     'power': host[1]['power']}
+            for equip in nx.all_neighbors(self, host[0]):
+                clusters[cluster]['latency'] = self.edge[host[0]][equip]['latency']
+                clusters[cluster]['bandwidth'] = self.edge[host[0]][equip]['bandwidth']
+                if equip not in clusters[cluster]['equips']:
+                    clusters[cluster]['equips'][equip] = [host[0]]
+                else:
+                    clusters[cluster]['equips'][equip].append(host[0])
+
+        for cluster, data in clusters.iteritems():
+            if len(data['equips']) == 1:
+                radical_list = map(lambda x: int(x.split('.')[0].split('-')[1]),
+                                   data['equips'].itervalues().next())
+                radical = str(min(radical_list)) + '-' + str(max(radical_list))
+                data['equips'][data['equips'].keys()[0]] = radical
+            else:
+                for equip, hosts in data['equips'].iteritems():
+                    router = list(set(filter(lambda x: 'gw-' in x,
+                                             nx.all_neighbors(self, equip))))[0]
+                    clusters[cluster]['bb_lat'] = self.edge[router][equip]['latency']
+                    clusters[cluster]['bb_bw'] = self.edge[router][equip]['bandwidth']
+                    radical_list = map(lambda x: int(x.split('.')[0].split('-')[1]),
+                                       hosts)
+                    radical = ''
+                    for k, g in groupby(enumerate(radical_list),
+                                        lambda (i, x): i - x):
+                        radical_range = map(itemgetter(1), g)
+                        if len(radical_range) > 1:
+                            radical += str(min(radical_range)) + '-' + \
+                                str(max(radical_range))
+                        else:
+                            radical += str(radical_range[0])
+                        radical += ','
+                    radical = radical[:-1]
+                    data['equips'][equip] = radical
+        return clusters
+
     def _add_node(self, name, attr):
-        """ """
+        """A method that add a node with its attribute or update attributes
+        if the node is present"""
         if not self.has_node(name):
             logger.detail('Adding %s with %s', style.host(name), pformat(attr))
             self.add_node(name, attr)
@@ -220,7 +291,8 @@ class g5k_graph(nx.Graph):
                 nx.set_node_attributes(self, k, {name: v})
 
     def _add_edge(self, src, dst, attr):
-        """ """
+        """A method that add an edge with its attribute or update attributes
+        if the edge is present"""
         if not self.has_edge(src, dst):
             logger.detail('Adding link between %s and %s with attributes %s',
                           style.host(src), style.host(dst), pformat(attr))
@@ -232,7 +304,7 @@ class g5k_graph(nx.Graph):
                 nx.set_edge_attributes(self, k, {(src, dst): v})
 
     def _switch_router_path(self, switch_uid, site):
-        """ """
+        """Find the several elements between a switch and a router"""
         path = [switch_uid]
         router = 'gw-' + site
         lc_data = self._get_equip_data(switch_uid, site)['linecards']
@@ -255,7 +327,7 @@ class g5k_graph(nx.Graph):
         return path
 
     def _link_attr(self, lc_data, uid):
-        """ """
+        """Retrieve the bandwith and latency of a link to an element"""
         bandwidth = 0
         latency = None
         for lc in filter(lambda n: 'ports' in n, lc_data):
@@ -265,7 +337,7 @@ class g5k_graph(nx.Graph):
                     active_if = True
                     if 'port' in port and kind == 'node':
                         iface = filter(lambda a: a["device"] == port['port'],
-                                        self._get_host_data(uid)['network_adapters'])[0]
+                                       self._get_host_data(uid)['network_adapters'])[0]
                         if not iface['mounted']:
                             active_if = False
                     if active_if:
@@ -277,10 +349,13 @@ class g5k_graph(nx.Graph):
         return {'bandwidth': bandwidth, 'latency': latency}
 
     def _get_host_data(self, host):
-        """ """
+        """Return the attributes of a host"""
+        if isinstance(host, Host):
+            host = host.address
         host = canonical_host_name(host)
         if '.' not in host:
-            uid, cluster, site = host, get_host_cluster(host), get_host_site(host)
+            uid, cluster, site = host, get_host_cluster(host), \
+                get_host_site(host)
         else:
             uid, site, _, _ = host.split('.')
             cluster = uid.split('-')[0]
@@ -294,37 +369,21 @@ class g5k_graph(nx.Graph):
         return filter(lambda h: h['uid'] == uid, self.hosts[site][cluster])[0]
 
     def _get_equip_data(self, uid, site):
-        """ """
+        """Return the attributes of a network equipments"""
         return filter(lambda eq: eq['uid'] == uid, self.network[site])[0]
 
     def _get_subgraph_elements(self, my_filter):
-        """ """
+        """Return the nodes and edges matching a filter on nodes"""
         sgr = self.subgraph(filter(my_filter, self.nodes()))
         return sgr.nodes(data=True), sgr.edges(data=True)
 
-    def get_backbone_graph(self):
-        """Get the Renater backbone nodes and edges"""
-        return self._get_subgraph_elements(lambda x: 'renater' in x)
-
-    def get_site_graph(self, site=None):
-        """Retrieve the nodes and edges of a site"""
-        return self._get_subgraph_elements(lambda x: site in x)
-
-    def get_cluster_graph(self, cluster=None):
-        """Retrieve the nodes and edges of a cluster"""
-        return self._get_subgraph_elements(lambda x: cluster in x)
-
-    def get_routers(self):
-        """Retrieve the routers of a graph """
-        return sorted(filter(lambda x: x[1]['kind'] == 'router',
-                             self.nodes_iter(data=True)))
-
 
 def treemap(gr, legend=None, labels=None, layout='neato',
-            all_nodes=False, with_linecards=False):
-    """Create a treemap of the topology"""
+            all_nodes=False, compact=False):
+    """Create a treemap of the topology and return a matplotlib figure"""
 
     def _default_legend():
+        """Create a default legend for the several treemap elements"""
         legend = {'nodes': {'renater':
                             {'color': '#9CF7BC', 'shape': 'p', 'size': 200},
                             'router':
@@ -333,6 +392,8 @@ def treemap(gr, legend=None, labels=None, layout='neato',
                             {'color': '#F5C9CD', 'shape': 's', 'size': 100},
                             'node':
                             {'color': '#F0F7BE', 'shape': 'o', 'size': 30},
+                            'cluster':
+                            {'color': '#F0F7BE', 'shape': 'd', 'size': 200},
                             },
                   'edges': {1000000000:
                             {'width': 0.2, 'color': '#666666'},
@@ -353,6 +414,7 @@ def treemap(gr, legend=None, labels=None, layout='neato',
         return legend
 
     def _default_labels(all_nodes=False):
+        """Define the font for the several treemap elements"""
         if all_nodes:
             base_size = 1
         else:
@@ -377,25 +439,43 @@ def treemap(gr, legend=None, labels=None, layout='neato',
         legend = _default_legend()
     if labels is None:
         labels = _default_labels(all_nodes)
+    if not compact:
+        elements = ['renater', 'router', 'switch', 'node']
+    else:
+        for site in gr.sites:
+            for cluster, data in gr.site_clusters(site).iteritems():
+                for equip, radicals in data['equips'].items():
+                    gr.add_node(cluster + ' (' + radicals + ')',
+                                {'kind': 'cluster'})
+                    gr.add_edge(cluster + ' (' + radicals + ')', equip,
+                                {'bandwidth': data['bandwidth']})
+
+        gr.remove_nodes_from(map(lambda n: n[0],
+                                 filter(lambda n: n[1]['kind'] == 'node',
+                                        gr.nodes(True))))
+
+        elements = ['renater', 'router', 'switch', 'cluster']
+
     logger.detail('Legend and labels initialized')
     # Initializing plot
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
+
     logger.detail('Defining positions')
     try:
         pos = nx.graphviz_layout(gr, prog=layout)
     except:
-        logger.warning('No graphviz installed, using spring layout that' + \
+        logger.warning('No graphviz installed, using spring layout that' +
                        ' does not scale well ...')
         pos = nx.spring_layout(gr, iterations=100)
     # Adding the nodes
-    for kind in ['renater', 'router', 'switch', 'node']:
+    for k in elements:
         nodes = [node[0] for node in gr.nodes_iter(data=True)
-                 if node[1]['kind'] == kind]
+                 if node[1]['kind'] == k]
         nodes = nx.draw_networkx_nodes(gr, pos, nodelist=nodes,
-                                       node_shape=legend['nodes'][kind]['shape'],
-                                       node_color=legend['nodes'][kind]['color'],
-                                       node_size=legend['nodes'][kind]['size'])
+                                       node_shape=legend['nodes'][k]['shape'],
+                                       node_color=legend['nodes'][k]['color'],
+                                       node_size=legend['nodes'][k]['size'])
 
     # Adding the edges
     for bandwidth, params in legend['edges'].iteritems():
@@ -417,6 +497,8 @@ def treemap(gr, legend=None, labels=None, layout='neato',
             labels['renater']['nodes'][node] = node.split('.')[1].title()
         elif data['kind'] == 'switch':
             labels['switch']['nodes'][node] = node.split('.')[0]
+        elif data['kind'] == 'cluster':
+            labels['cluster']['nodes'][node] = node.split('.')[0]
         elif data['kind'] == 'node':
             if all_nodes:
                 labels['cluster']['nodes'][node] = node.split('.')[0]
@@ -438,40 +520,178 @@ def treemap(gr, legend=None, labels=None, layout='neato',
     return fig
 
 
-# def simgrid_topology(gr, outfile=None, compact=False, routing=None,
-#                      tool_signature='Generated using execo_g5k.topology'):
-#     """Produce a SimGrid platform XML file
-#     :params gr: a graph object representing the topology
-# 
-#     :param compact: a boolean to use compact formulation (clusters
-#     instead of hosts)
-# 
-#     :params outfile: name of the output file
-# 
-#     :params tool: signature added in comment of the XML file
-#     """
-# 
-#     if routing is None:
-#         routing = 'Floyd'
-# 
-#     # Creating the AS
-#     platform = Element('platform', attrib={'version': '3'})
-# 
-#     if len(gr.sites) > 1:
-#         logger.debug(pformat(gr.sites))
-#         main_as = add_AS(platform, 'grid5000.fr', routing)
-# 
-#         # Adding an AS per site
+def hadoop(gr, hosts):
+    """A method that find the associate"""
+    hadoop_topology = {}
+    for h in hosts:
+        print h
+        for sw in nx.all_neighbors(gr, canonical_host_name(h).address):
+            print canonical_host_name
+            hadoop_topology[canonical_host_name(h)] = "/" + \
+                sw.split('.')[0]
+
+    return hadoop_topology
+
+
+def simgrid(gr, outfile=None, compact=False, routing=None,
+            tool_signature='Generated using execo_g5k.topology'):
+    """Produce a SimGrid platform XML file
+    :params gr: a graph object representing the topology
+
+    :param compact: a boolean to use compact formulation (clusters
+    instead of hosts)
+
+    :params outfile: name of the output file
+
+    :params tool: signature added in comment of the XML file
+    """
+
+    def AS_full(gr, AS_site):
+        """Create all the elements of a site AS in expanded description """
+        site = AS_site.get('id').split('.')[0]
+        nodes, edges = gr.get_site_graph(site)
+        # Adding the router
+        for router in filter(lambda n: n[1]['kind'] == 'router', nodes):
+            add_router(AS_site, router[0])
+            if 'gw-' in router[0]:
+                gateway = router[0]
+        # Adding the hosts
+        hosts = filter(lambda n: n[1]['kind'] == 'node', nodes)
+        for host in hosts:
+            add_host(AS_site, host[0], host[1]['cores'],
+                     host[1]['power'])
+        # Adding the links
+        for edge in filter(lambda x: 'renater' not in x[0]
+                           and 'renater' not in x[1],
+                           edges):
+            add_link(AS_site, edge[0], edge[1],
+                     edge[2]['bandwidth'], edge[2]['latency'])
+        # Adding the routes between compute hosts and gateway
+        for n, d in hosts:
+            add_route(gr, AS_site, n, gateway)
+
+    def AS_compact(gr, AS_site):
+        """Create all the element of a site AS in compact description """
+        site = AS_site.get('id').split('.')[0]
+        nodes, edges = gr.get_site_graph(site)
+
+        # Adding the router as an AS
+        for router in filter(lambda n: n[1]['kind'] == 'router', nodes):
+            if 'gw' in router[0]:
+                gateway = router[0]
+                AS_router = add_AS(AS_site, 'gw_' + site)
+                add_router(AS_router, gateway)
+        # Adding the cluster (splitted if needed)
+        clusters = gr.site_clusters(site)
+        for cluster, data in clusters.iteritems():
+            if len(data['equips']) == 1:
+                # We check that the switch or linecard does not contains other nodes
+                add_cluster(AS_site, cluster, data['prefix'],
+                            data['suffix'],
+                            data['equips'][data['equips'].keys()[0]],
+                            data['core'], data['power'],
+                            data['bandwidth'], data['latency'])
+
+            else:
+                AS_cabinet = add_AS(AS_site, 'AS_' + cluster)
+                for cabinet, values in data['equips'].iteritems():
+                    add_cluster(AS_cabinet, 'AS_' +
+                                cabinet.split('.')[0], data['prefix'], data['suffix'],
+                                values,
+                                data['core'], data['power'],
+                                data['bandwidth'], data['latency'],
+                                data['bb_bw'], data['bb_lat'])
+
+    def add_AS(elem, AS_id, routing="Floyd"):
+        """Add an AS Element to an element"""
+        return SubElement(elem, 'AS', attrib={'id': AS_id, 'routing': routing})
+
+    def add_router(elem, router_id):
+        """Create a router Element"""
+        return SubElement(elem, 'router', attrib={'id': router_id})
+
+    def add_host(elem, host_id, core, power):
+        """Create a host Element """
+        return SubElement(elem, 'host', attrib={'id': host_id,
+                                                'core': str(core),
+                                                'power': str(power)})
+
+    def add_cluster(elem, cluster_id, prefix, suffix, radical,
+                    core, power, bw, lat, bb_bw=None, bb_lat=None):
+        """Create a cluster Element """
+        attrib = {'id': cluster_id,
+                  'prefix': prefix,
+                  'suffix': suffix,
+                  'radical': radical,
+                  'power': "%.2E" % power,
+                  'core': str(core),
+                  'bw':  "%.2E" % bw,
+                  'lat': "%.2E" % lat}
+        if bb_bw:
+            attrib['bb_bw'] = "%.2E" % bb_bw
+        if bb_lat:
+            attrib['bb_lat'] = "%.2E" % bb_lat
+        return SubElement(elem, 'cluster', attrib=attrib)
+
+    def add_link(elem, src, dst, bandwidth, latency):
+        """Create a link Element"""
+        src, dst = sorted([src, dst])
+        return SubElement(elem, 'link',
+                          attrib={'id': src + '_' + dst,
+                                  'latency': "%.2E" % latency,
+                                  'bandwidth': "%.2E" % bandwidth})
+
+    def add_route(gr, elem, src, dst):
+        """Create a route Element between nodes"""
+        route = SubElement(elem, 'route',
+                           attrib={'src': src, 'dst': dst})
+        path = nx.shortest_path(gr, src, dst)
+        for i in range(len(path) - 1):
+            el1, el2 = sorted([path[i], path[i + 1]])
+            SubElement(route, 'link_ctn',
+                       attrib={'id': el1 + '_' + el2})
+
+    def add_ASroute(gr, elem, src, dst, gw_src, gw_dst):
+        """Create a route elem.SubElement between nodes"""
+        AS_route = SubElement(elem, 'ASroute',
+                              attrib={'gw_src': gw_src,
+                                      'gw_dst': gw_dst,
+                                      'src': src,
+                                      'dst': dst})
+        path = nx.shortest_path(gr, gw_src, gw_dst)
+        for i in range(len(path) - 1):
+            el1, el2 = sorted([path[i], path[i + 1]])
+            SubElement(AS_route, 'link_ctn',
+                       attrib={'id': el1 + '_' + el2})
+
+    logger.info('Generating SimGrid topology')
+    if routing is None:
+        routing = 'Full'
+
+    # Creating the AS
+    platform = Element('platform', attrib={'version': '3'})
+
+    if len(gr.sites) == 1:
+        main_as = add_AS(platform, 'AS_' + gr.sites[0], routing)
+        if compact:
+            print gr.site_clusters(gr.sites[0])
+        else:
+            print 'full'
+    else:
+        main_as = add_AS(platform, 'AS_grid5000', routing)
+
+
+        # Adding an AS per site
 #         for site in gr.sites:
-#             AS_site = add_AS(main_as, site + suffix, routing)
+#             AS_site = add_AS(main_as, 'AS_' + site, routing)
 #             if not compact:
-#                 full(AS_site)
+#                 AS_full(gr, AS_site)
 #             else:
-#                 compact(AS_site)
+#                 AS_compact(gr, AS_site)
 # 
 #         # Create the backbone links
 #         backbone = gr.get_backbone_graph()
-#         for element1, element2, attrib in backbone.egdes_iter(True):
+#         for element1, element2, attrib in backbone[1]:
 #             element1, element2 = sorted([element1, element2])
 #             add_link(main_as, element1, element2,
 #                      attrib['bandwidth'], attrib['latency'])
@@ -479,187 +699,37 @@ def treemap(gr, legend=None, labels=None, layout='neato',
 #         gws = [n for n in gr.nodes() if 'gw' in n]
 #         for el in (gws, gws):
 #             if el[0] != el[1]:
-#                 p = main_as.find("./ASroute/[@gw_src='" + el[1] +
-#                                  "'][@gw_dst='" + el[0] + "']")
+#                 p = main_as.find("./ASroute/[@gw_src='" + el[0] +
+#                                  "'][@gw_dst='" + el[1] + "']")
 #                 if p is None:
 #                     src = '.'.join(el[0].split('.')[1:])
 #                     dst = '.'.join(el[1].split('.')[1:])
-#                     add_ASroute(main_as, src, dst,
-#                                 el[0], el[1], self)
+#                     add_ASroute(gr, main_as, src, dst,
+#                                 el[0], el[1])
 # 
 #     else:
 #         main_as = add_AS(platform, gr.sites[0] + suffix, routing)
 #         if not compact:
-#             full(main_as)
+#             AS_full(gr, main_as)
 #         else:
-#             compact(main_as)
+#             AS_compact(gr, main_as)
+
+    if not outfile:
+        outfile = 'g5k_platform'
+    if '.xml' not in outfile:
+        outfile += '.xml'
+    logger.info('Saving file to %s', style.emph(outfile))
+    f = open(outfile, 'w')
+    f.write('<?xml version="1.0" encoding="UTF-8"?>\n' +
+            '<!DOCTYPE platform SYSTEM ' +
+            '"http://simgrid.gforge.inria.fr/simgrid.dtd">\n' +
+            '<!-- ' + tool_signature + '\n     ' +
+            'API commit ' + gr.graph['api_commit'] +
+            '\n     ' + format_date(gr.graph['date']) + ' -->\n' +
+            prettify(platform))
+    f.close()
+
 # 
-#     if not outfile:
-#         outfile = 'g5k_platform'
-#     if '.xml' not in outfile:
-#         outfile += '.xml'
-#     logger.info('Saving file to %s', style.emph(outfile))
-#     f = open(outfile, 'w')
-#     f.write('<?xml version="1.0" encoding="UTF-8"?>\n' +
-#             '<!DOCTYPE platform SYSTEM ' +
-#             '"http://simgrid.gforge.inria.fr/simgrid.dtd">\n' +
-#             '<!-- ' + tool_signature + '\n     ' +
-#             'API commit ' + gr.graph['api_commit'] +
-#             '\n     ' + format_date(gr.graph['date']) + ' -->\n' +
-#             prettify(platform))
-#     f.close()
-# 
-#     def full(gr, AS_site):
-#         """Create all the elements of a site AS in expanded description """
-#         site = AS_site.get('id').split('.')[0]
-#         sgr = gr.get_site_graph(gr, site)
-#         # Adding the router
-#         for router in get_routers(sgr):
-#             add_router(AS_site, router[0])
-#             if 'gw-' in router[0]:
-#                 gateway = router[0]
-#         # Adding the hosts
-#         hosts = get_compute_hosts(get_site_graph(self, site))
-#         for host in hosts:
-#             add_host(AS_site, host[0], host[1]['core'],
-#                               host[1]['power'])
-#         # Adding the links
-#         for edge in filter(lambda x: 'renater' not in x[0]
-#                            and 'renater' not in x[1],
-#                       sgr.edges_iter(data=True)):
-#             add_link(AS_site, edge[0], edge[1],
-#                         edge[2]['bandwidth'], edge[2]['latency'])
-#         # Adding the routes between compute hosts and gateway
-#         for n, d in hosts:
-#             add_route(AS_site, n, gateway, sgr)
-#  
-#     def compact(gr, AS_site):
-#         """Create all the element of a site AS in compact description """
-#         site = AS_site.get('id').split('.')[0]
-#         sgr = get_site_graph(self, site)
-#         # Adding the router as an AS
-#         for router in get_routers(sgr):
-#             if 'gw' in router[0]:
-#                 gateway = router[0]
-#                 AS_router = add_AS(AS_site, 'gw_' + site)
-#                 add_router(AS_router, gateway)
-#         # Adding the cluster (splitted if needed)
-#         clusters = get_clusters(sgr)
-#         for cluster, data in clusters.iteritems():
-#             if len(data['equips']) == 1:
-#                 # We check that the switch or linecard does not contains other nodes
-#                 if len(list(filter(lambda x: cluster not in x,
-#                         nx.all_neighbors(sgr, data['equips'].keys()[0])))) > 0:
-#                     logger.warning('Other elements on the same network ' +
-#                             'equipements for cluster ' + cluster
-#                             + ', switching to full mode')
-#                     hosts = filter(lambda x: cluster in x[0],
-#                                    get_compute_hosts(get_site_graph(self, site)))
-#                     for host in hosts:
-#                         add_host(AS_site, host[0], host[1]['core'],
-#                               host[1]['power'])
-#  
-#                 else:
-#                     add_cluster(AS_site, cluster, data['prefix'],
-#                         data['suffix'],
-#                         data['equips'][data['equips'].keys()[0]],
-#                         data['core'], data['power'],
-#                         data['bandwidth'], data['latency'])
-#  
-#             else:
-#                 AS_cabinet = add_AS(AS_site, 'AS_' + cluster)
-#                 for cabinet, values in data['equips'].iteritems():
-#                     add_cluster(AS_cabinet, 'AS_' + \
-#                         cabinet.split('.')[0], data['prefix'], data['suffix'],
-#                         values,
-#                         data['core'], data['power'],
-#                         data['bandwidth'], data['latency'],
-#                         data['bb_bw'], data['bb_lat'])
-#  
-#     def add_AS(gr, elem, AS_id, routing="Floyd"):
-#         """Add an AS Element to an element"""
-#         return SubElement(elem, 'AS', attrib={'id': AS_id, 'routing': routing})
-#  
-#     def add_router(gr, elem, router_id):
-#         """Create a router Element"""
-#         return SubElement(elem, 'router', attrib={'id': router_id})
-#  
-#     def add_host(gr, elem, host_id, core, power):
-#         """Create a host Element """
-#         return SubElement(elem, 'host', attrib={'id': host_id,
-#                                                 'core': str(core),
-#                                                 'power': str(power)})
-#  
-#     def add_cluster(gr, elem, cluster_id, prefix, suffix, radical,
-#                     core, power, bw, lat, bb_bw=None, bb_lat=None):
-#         """Create a cluster Element """
-#         attrib = {
-#                 'id': cluster_id,
-#                 'prefix': prefix,
-#                 'suffix': suffix,
-#                 'radical': radical,
-#                 'power': "%.2E" % power,
-#                 'core': str(core),
-#                 'bw':  "%.2E" % bw,
-#                 'lat': "%.2E" % lat}
-#         if bb_bw:
-#             attrib['bb_bw'] = "%.2E" % bb_bw
-#         if bb_lat:
-#             attrib['bb_lat'] = "%.2E" % bb_lat
-#         return SubElement(elem, 'cluster', attrib=attrib)
-#  
-#     def add_link(gr, elem, src, dst, bandwidth, latency):
-#         """Create a link Element"""
-#         src, dst = sorted([src, dst])
-#         return SubElement(elem, 'link', attrib={
-#                 'id': src + '_' + dst,
-#                 'latency': "%.2E" % latency,
-#                 'bandwidth': "%.2E" % bandwidth})
-#  
-#     def add_route(gr, elem, src, dst, gr):
-#         """Create a route Element between nodes"""
-#         route = SubElement(elem, 'route', attrib={
-#                 'src': src,
-#                 'dst': dst})
-#         path = nx.shortest_path(gr, src, dst)
-#         for i in range(len(path) - 1):
-#             el1, el2 = sorted([path[i], path[i + 1]])
-#             SubElement(route, 'link_ctn',
-#                        attrib={'id': el1 + '_' + el2})
-#  
-#     def add_ASroute(gr, elem, src, dst, gw_src, gw_dst, gr):
-#         """Create a route elem.SubElement between nodes"""
-#         AS_route = SubElement(elem, 'ASroute', attrib={
-#                         'gw_src': gw_src,
-#                         'gw_dst': gw_dst,
-#                         'src': src,
-#                         'dst': dst})
-#         path = nx.shortest_path(gr, gw_src, gw_dst)
-#         for i in range(len(path) - 1):
-#             el1, el2 = sorted([path[i], path[i + 1]])
-#             SubElement(AS_route, 'link_ctn',
-#                    attrib={'id': el1 + '_' + el2})
-# 
-# 
-# def hadoop_topology(self, hosts):
-#         """A method that find the associate"""
-#         hadoop_topology = {}
-#         self.add_backbone()
-#         for h in hosts:
-#             try:
-#                 site = get_host_site(h)
-#                 if site not in self.sites:
-#                     self.add_site(site)
-#                     for sw in nx.all_neighbors(self, 
-#                                                canonical_host_name(h).address):
-#                         hadoop_topology[canonical_host_name(h)] = "/" + \
-#                             sw.split('.')[0]
-#                         break
-#             except:
-#                 logger.warning('%s is not a valid Grid5000 host', h)
-#                 pass
-# 
-#         return hadoop_topology
 # 
 # 
 # 
@@ -685,50 +755,7 @@ def treemap(gr, legend=None, labels=None, layout='neato',
 # 
 # def get_clusters(gr):
 #     """Retrieve the clusters of a graph """
-#     clusters = {}
-#     for host in get_compute_hosts(gr):
-#         hostname, suffix = host[0].split('.', 1)
-#         cluster = hostname.split('-')[0]
-#         if not cluster in clusters:
-#             clusters[cluster] = {'equips': {},
-#                                  'suffix': '.' + suffix,
-#                                  'prefix': cluster + '-',
-#                                  'core': host[1]['core'],
-#                                  'power': host[1]['power']}
-#         for equip in nx.all_neighbors(gr, host[0]):
-#             clusters[cluster]['latency'] = gr.edge[host[0]][equip]['latency']
-#             clusters[cluster]['bandwidth'] = gr.edge[host[0]][equip]['bandwidth']
-#             if equip not in clusters[cluster]['equips']:
-#                 clusters[cluster]['equips'][equip] = [host[0]]
-#             else:
-#                 clusters[cluster]['equips'][equip].append(host[0])
-# 
-#     for cluster, data in clusters.iteritems():
-#         if len(data['equips']) == 1:
-#             radical_list = map(lambda x: int(x.split('.')[0].split('-')[1]),
-#                             data['equips'].itervalues().next())
-#             radical = str(min(radical_list)) + '-' + str(max(radical_list))
-#             data['equips'][data['equips'].keys()[0]] = radical
-#         else:
-#             for equip, hosts in data['equips'].iteritems():
-#                 router = list(set(filter(lambda x: 'gw-' in x,
-#                                          nx.all_neighbors(gr, equip))))[0]
-#                 clusters[cluster]['bb_lat'] = gr.edge[router][equip]['latency']
-#                 clusters[cluster]['bb_bw'] = gr.edge[router][equip]['bandwidth']
-#                 radical_list = map(lambda x: int(x.split('.')[0].split('-')[1]),
-#                                 hosts)
-#                 radical = ''
-#                 for k, g in groupby(enumerate(radical_list), lambda (i, x): i - x):
-#                     radical_range = map(itemgetter(1), g)
-#                     if len(radical_range) > 1:
-#                         radical += str(min(radical_range)) + '-' + \
-#                         str(max(radical_range))
-#                     else:
-#                         radical += radical_range[0]
-#                     radical += ','
-#                 radical = radical[:-1]
-#                 data['equips'][equip] = radical
-#     return clusters
+#     
 # 
 # 
 # def filter_nodes(gr, nodes):
@@ -762,14 +789,15 @@ def treemap(gr, legend=None, labels=None, layout='neato',
 #                 remove_edges.append((dest, node))
 #             gr.remove_edges_from(remove_edges)
 #             gr.remove_node(node)
-# 
-# 
+#
+#
+
 def prettify(elem):
     """Return a pretty-printed XML string for the Element"""
     rough_string = tostring(elem, 'utf-8')
     reparsed = minidom.parseString(rough_string)
-    return reparsed.toprettyxml(indent="  ").replace(
-            '<?xml version="1.0" ?>\n', '')
+    return reparsed.toprettyxml(indent="  ").replace('<?xml version="1.0" ?>\n',
+                                                     '')
 
 
 
