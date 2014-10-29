@@ -94,12 +94,12 @@ def extract_conf(fh, source_file, marker):
         print >> fh, "# " + l
     print >> fh, "\n"
 
-def generate_conf_template(install_base):
+def generate_conf_template(root):
     try:
-        os.makedirs(os.path.join(install_base, "share", "execo"))
+        os.makedirs(os.path.join(root, "share", "execo"))
     except os.error:
         pass
-    with open(os.path.join(install_base, "share", "execo", "execo.conf.py.sample"), "w") as fh:
+    with open(os.path.join(root, "share", "execo", "execo.conf.py.sample"), "w") as fh:
         print >> fh, "# sample execo user configuration"
         print >> fh, "# copy this file to ~/.execo.conf.py and edit/modify it appropriately"
         print >> fh
@@ -111,9 +111,9 @@ def generate_conf_template(install_base):
         extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "default_frontend_connection_params")
         extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "default_oarsh_oarcp_params")
 
-def copy_additional_files(install_base):
+def copy_additional_files(root):
     try:
-        os.makedirs(os.path.join(install_base, "share", "execo"))
+        os.makedirs(os.path.join(root, "share", "execo"))
     except os.error:
         pass
 
@@ -130,9 +130,13 @@ class sdist(_sdist):
 class install(_install):
     def run(self):
         _install.run(self)
-        self.execute(generate_conf_template, (self.install_base,),
+        if self.root:
+            root = self.root
+        else:
+            root = self.install_base
+        self.execute(generate_conf_template, (root,),
                      msg = "Generate execo configuration template")
-        self.execute(copy_additional_files, (self.install_base,),
+        self.execute(copy_additional_files, (root,),
                      msg = "Copying additional files")
 
 class clean(_clean):
