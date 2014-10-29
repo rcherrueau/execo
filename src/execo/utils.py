@@ -97,7 +97,7 @@ def memoize(obj):
 _port_lock = threading.RLock()
 
 def get_port():
-    """Thread safely returns a round-robbed port in the range ``g5k_configuration['port_range']``"""
+    """Thread safely returns a round-robbed port in the range ``configuration['port_range']``"""
     with _port_lock:
         if not hasattr(get_port, "current"):
             get_port.current = random.randrange(configuration['port_range'][0], configuration['port_range'][1])
