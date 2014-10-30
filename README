@@ -99,7 +99,7 @@ execo installation absolutely requires ``python`` (>=
 
 - ``python-matplotlib`` (>= 1.2.0) for some graphical representations.
 
-- ``python-networkx`` for module ``execo_g5k.topology``
+- ``python-networkx``, ``python-pygraphviz``, ``graphviz``  for module ``execo_g5k.topology``
 
 At runtime, connecting to remote hosts requires ``ssh``, ``scp`` or
 similar connection tools, and optionnaly ``taktuk`` (probably >=
