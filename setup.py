@@ -135,6 +135,14 @@ class install(_install):
         self.execute(copy_additional_files, (self.install_data,),
                      msg = "Copying additional files")
 
+class install_doc(_install):
+    def run(self):
+        self.run_command('build_doc')
+        build = self.get_finalized_command('build')
+        build_dir = os.path.join(os.path.abspath(build.build_base), "sphinx", "html")
+        build_dir = os.path.abspath(build_dir)
+        self.copy_tree(build_dir, os.path.join(self.install_data, "share", "doc", "execo", "html"))
+
 class clean(_clean):
     def run(self):
         if self.all:
@@ -160,7 +168,8 @@ if __name__ == "__main__":
         cmdclass = { 'build_py': build_py,
                      'sdist': sdist,
                      'install': install,
-                     'build_sphinx': BuildDoc,
+                     'build_doc': BuildDoc,
+                     'install_doc': install_doc,
                      'clean': clean }
     except:
         cmdclass = { 'build_py': build_py,

@@ -116,9 +116,13 @@ tree::
 
 to build documentation (if sphinx is available)::
 
- $ python setup.py build_sphinx
+ $ python setup.py build_doc
 
-It is also possible to install execo automatically with ``pip`` or
+to install documentation (if sphinx is available)::
+
+ $ python setup.py install_doc
+
+It is possible to install execo automatically with ``pip`` or
 ``easy_install``::
 
  $ pip install --user execo
