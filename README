@@ -131,6 +131,11 @@ or::
 
  $ easy_install --user execo
 
+It is possible to generate a debian package. For example, in the execo
+package toplevel dir, run (the .deb will be generated in ../)::
+
+ $ debuild --no-tgz-check -b -i -I -k<signing key id>
+
 Usage
 =====
 

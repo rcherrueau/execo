@@ -1,0 +1,6 @@
+#!/usr/bin/make -f
+
+export PYBUILD_NAME=python-execo
+export PYBUILD_AFTER_INSTALL={interpreter} setup.py install_doc --install-layout deb --root {destdir}
+%:
+	dh $@ --with python2,sphinxdoc --buildsystem=pybuild
