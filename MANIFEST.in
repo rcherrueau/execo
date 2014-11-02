@@ -1,3 +1,11 @@
+prune debian/python-execo/
 include MANIFEST.in
 include COPYING
 include doc/conf.py doc/*.rst doc/execo.png doc/_static/execo-icon.ico doc/code_samples/*
+exclude debian/*
+include debian/changelog
+include debian/compat
+include debian/control
+include debian/copyright
+include debian/python-execo.lintian-overrides
+include debian/rules
