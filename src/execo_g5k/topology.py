@@ -196,8 +196,6 @@ class g5k_graph(nx.Graph):
         for cluster in get_site_clusters(site):
             self.add_cluster(cluster)
 
-        return True
-
     def add_site_router(self, site):
         """Add the site router and it's connection to Renater"""
         data = filter(lambda n: n['kind'] == 'router', self.network[site])[0]
@@ -386,43 +384,49 @@ class g5k_graph(nx.Graph):
         return sgr.nodes(data=True), sgr.edges(data=True)
 
 
-def treemap(gr, legend=None, labels=None, layout='neato',
-            all_nodes=False, compact=False):
+def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None, 
+            layout='neato', all_nodes=False, compact=False):
     """Create a treemap of the topology and return a matplotlib figure"""
 
-    def _default_legend():
-        """Create a default legend for the several treemap elements"""
-        legend = {'nodes': {'renater':
-                            {'color': '#9CF7BC', 'shape': 'p', 'size': 200},
-                            'router':
-                            {'color': '#BFDFF2', 'shape': '8', 'size': 300},
-                            'switch':
-                            {'color': '#F5C9CD', 'shape': 's', 'size': 100},
-                            'node':
-                            {'color': '#F0F7BE', 'shape': 'o', 'size': 30},
-                            'cluster':
-                            {'color': '#F0F7BE', 'shape': 'd', 'size': 200},
-                            },
-                  'edges': {1000000000:
-                            {'width': 0.2, 'color': '#666666'},
-                            3000000000:
-                            {'width': 0.6, 'color': '#333333'},
-                            10000000000:
-                            {'width': 1.0, 'color': '#111111'},
-                            20000000000:
-                            {'width': 2.0, 'color': '#111111'},
-                            30000000000:
-                            {'width': 3.0, 'color': '#111111'},
-                            40000000000:
-                            {'width': 4.0, 'color': '#111111'},
-                            'other':
-                            {'width': 1.0, 'color': '#FF4E5A'}
-                            }
-                  }
-        return legend
+    _default_color = '#000000'
+    _default_shape = 'o'
+    _default_size = 100
+    _default_width = 1.0
+    _default_font_size = 10
+    _default_font_weight = 'normal'
 
-    def _default_labels(all_nodes=False):
-        """Define the font for the several treemap elements"""
+    def _default_str_func(n):
+        return n.split('.')[0]
+
+    def _default_nodes_legend():
+        """Create a default legend for the nodes"""
+        return {'renater':
+                {'color': '#9CF7BC', 'shape': 'p', 'size': 200},
+                'router':
+                {'color': '#BFDFF2', 'shape': '8', 'size': 300},
+                'switch':
+                {'color': '#F5C9CD', 'shape': 's', 'size': 100},
+                'node':
+                {'color': '#F0F7BE', 'shape': 'o', 'size': 30},
+                'cluster':
+                {'color': '#F0F7BE', 'shape': 'd', 'size': 200},
+                'default':
+                {'color': _default_color, 'shape': _default_shape,
+                 'size': _default_size}
+                }
+
+    def _default_edges_legend():
+        """Defines the width and color of the edges based on bandwidth"""
+        return {1000000000: {'width': 0.2, 'color': '#666666'},
+                3000000000: {'width': 0.6, 'color': '#333333'},
+                10000000000: {'width': 1.0, 'color': '#111111'},
+                20000000000: {'width': 2.0, 'color': '#111111'},
+                30000000000: {'width': 3.0, 'color': '#111111'},
+                40000000000: {'width': 4.0, 'color': '#111111'},
+                'default': {'width': _default_width, 'color': _default_color}}
+
+    def _default_nodes_labels(all_nodes=False):
+        """Defines the font labels"""
         if all_nodes:
             base_size = 1
         else:
@@ -431,44 +435,49 @@ def treemap(gr, legend=None, labels=None, layout='neato',
         def _default_str_func(n):
             return n.split('.')[0]
 
-        labels = {'renater':
-                  {'nodes': {},
-                   'font_size': base_size * 8,
-                   'font_weight': 'bold',
-                   'str_func': lambda n: n.split('.')[1].title()},
-                  'router':
-                  {'nodes': {},
-                   'font_size': base_size * 8,
-                   'font_weight': 'bold',
-                   'str_func': _default_str_func},
-                  'switch':
-                  {'nodes': {},
-                   'font_size': base_size * 6,
-                   'font_weight': 'normal',
-                   'str_func': _default_str_func},
-                  'cluster':
-                  {'nodes': {},
-                   'font_size': base_size * 7,
-                   'font_weight': 'normal',
-                   'str_func': _default_str_func},
-                  'node':
-                  {'nodes': {},
-                   'font_size': base_size * 4,
-                   'font_weight': 'normal',
-                   'str_func': _default_str_func},
-                  'default':
-                  {'nodes': {},
-                   'font_size': base_size * 4,
-                   'font_weight': 'normal',
-                   'str_func': _default_str_func}
-                  }
-        return labels
+        return {'renater':
+                {'nodes': {},
+                 'font_size': base_size * 8,
+                 'font_weight': 'bold',
+                 'str_func': lambda n: n.split('.')[1].title()},
+                'router':
+                {'nodes': {},
+                 'font_size': base_size * 8,
+                 'font_weight': 'bold',
+                 'str_func': _default_str_func},
+                'switch':
+                {'nodes': {},
+                 'font_size': base_size * 6,
+                 'font_weight': 'normal',
+                 'str_func': _default_str_func},
+                'cluster':
+                {'nodes': {},
+                 'font_size': base_size * 7,
+                 'font_weight': 'normal',
+                 'str_func': _default_str_func},
+                'node':
+                {'nodes': {},
+                 'font_size': base_size * 5,
+                 'font_weight': 'normal',
+                 'str_func': _default_str_func},
+                'default':
+                {'nodes': {},
+                 'font_size': _default_font_size,
+                 'font_weight': _default_font_weight,
+                 'str_func': _default_str_func}
+                }
 
-    # Setting defaults legend and labels
-    if legend is None:
-        legend = _default_legend()
-    if labels is None:
-        labels = _default_labels(all_nodes)
+    # Setting legend and labels
+    _nodes_legend = _default_nodes_legend()
+    _edges_legend = _default_edges_legend()
+    _nodes_labels = _default_nodes_labels()
+    if nodes_legend:
+        _nodes_legend.update(nodes_legend)
+    if edges_legend:
+        _edges_legend.update(edges_legend)
+    if nodes_labels:
+        _nodes_labels.update(nodes_labels)
+
     if not compact:
         elements = ['renater', 'router', 'switch', 'node']
     else:
@@ -503,33 +512,46 @@ def treemap(gr, legend=None, labels=None, layout='neato',
         nodes = [node[0] for node in gr.nodes_iter(data=True)
                  if node[1]['kind'] == k]
         nodes = nx.draw_networkx_nodes(gr, pos, nodelist=nodes,
-                                       node_shape=legend['nodes'][k]['shape'],
-                                       node_color=legend['nodes'][k]['color'],
-                                       node_size=legend['nodes'][k]['size'])
+                                       node_shape=_nodes_legend[k]['shape']
+                                       if 'shape' in _nodes_legend[k] else
+                                       _default_shape,
+                                       node_color=_nodes_legend[k]['color']
+                                       if 'color' in _nodes_legend[k] else
+                                       _default_color,
+                                       node_size=_nodes_legend[k]['size']
+                                       if 'size' in _nodes_legend[k] else
+                                       _default_size)
 
     # Adding the edges
-    for bandwidth, params in legend['edges'].iteritems():
+    for bandwidth, params in _edges_legend.iteritems():
         if bandwidth != 'other':
             edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
                      if edge[2]['bandwidth'] == bandwidth]
             nx.draw_networkx_edges(gr, pos, edgelist=edges,
-                                   width=params['width'],
-                                   edge_color=params['color'])
+                                   width=params['width'] if 'width' in params
+                                   else _default_width,
+                                   edge_color=params['color'] if 'color' in params
+                                   else _default_color)
     edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-             if edge[2]['bandwidth'] not in legend['edges'].keys()]
+             if edge[2]['bandwidth'] not in _edges_legend.keys()]
     nx.draw_networkx_edges(gr, pos, edgelist=edges,
-                           width=legend['edges']['other']['width'],
-                           edge_color=legend['edges']['other']['color'])
+                           width=_edges_legend['default']['width'],
+                           edge_color=_edges_legend['default']['color'])
     # Adding the labels
     for node, data in gr.nodes_iter(data=True):
-        if data['kind'] in labels:
-            labels[data['kind']]['nodes'][node] = labels[data['kind']]['str_func'](node)
+        if 'nodes' not in _nodes_labels[data['kind']]:
+            _nodes_labels[data['kind']]['nodes'] = {}
+        if data['kind'] in _nodes_labels:
+            _nodes_labels[data['kind']]['nodes'][node] = _nodes_labels[data['kind']]['str_func'](node) \
+                if 'str_func' in _nodes_labels[data['kind']] else _default_str_func(node)
         else:
-            labels['default']['nodes'][node] = labels['default']['str_func'](node)
-    for data in labels.itervalues():
+            _nodes_labels['default']['nodes'][node] = _nodes_labels['default']['str_func'](node)
+    for data in _nodes_labels.itervalues():
         nx.draw_networkx_labels(gr, pos, labels=data['nodes'],
-                                font_size=data['font_size'],
-                                font_weight=data['font_weight'])
+                                font_size=data['font_size']
+                                if 'font_size' in data else _default_font_size,
+                                font_weight=data['font_weight']
+                                if 'font_weight' in data else _default_font_weight)
 
     plt.axis('off')
     plt.tight_layout()
