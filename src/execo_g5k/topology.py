@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
+from networkx.algorithms.approximation import clustering_coefficient
 
 """ A module based on `networkx <http://networkx.github.io/>`_ to create a
 topological graph of the Grid'5000 platform. "Nodes" are used to represent
@@ -60,7 +61,9 @@ class g5k_graph(nx.Graph):
 
     def __init__(self, sites=None):
         """Retrieve API data and initialize the Graph with api_commit
-        and date of generations"""
+        and date of generations
+        :params sites: add the topoloy of the given sites
+        (can be a string or list of string)"""
         super(g5k_graph, self).__init__()
         # reading API data
         self.network, self.hosts = get_api_data()
@@ -124,8 +127,6 @@ class g5k_graph(nx.Graph):
     def add_host(self, host):
         """Add the host to the graph, and its link to the equipment"""
         data = self._get_host_data(host)
-#         if isinstance(host, Host):
-#             host = host.adress
         logger.info('Adding %s', style.host(host))
         site = get_host_site(data['uid'])
         power = data['performance']['core_flops']
@@ -135,7 +136,7 @@ class g5k_graph(nx.Graph):
         self._add_node(host_name, attr)
 
         if site not in self.sites:
-            self.add_site_router(site)
+            self._add_site_router(site)
 
         # Finding the equipment
         eq_uid = filter(lambda n: n['enabled'] and not n['management'] and
@@ -170,33 +171,63 @@ class g5k_graph(nx.Graph):
         self._add_edge(host_name, eq_name,
                        self._link_attr(eq_data['linecards'], data['uid']))
 
+    def remove_host(self, host):
+        """Remove an host from the graph """
+        if isinstance(host, Host):
+            host = host.address
+        logger.info('Removing %s', style.host(host))
+        if host in self.nodes():
+            self.remove_node(host)
+
     def add_cluster(self, cluster):
         """Add the cluster to the graph"""
         logger.info('Adding cluster %s', style.host(cluster))
         if cluster not in get_g5k_clusters():
-            logger.error('%s is not a valid Grid\'5000 cluster', 
+            logger.error('%s is not a valid Grid\'5000 cluster',
                          style.emph(cluster))
             return False
         site = get_cluster_site(cluster)
         if site not in self.sites:
-            self.add_site_router(site)
+            self._add_site_router(site)
 
         for host in get_cluster_hosts(cluster):
             self.add_host(host)
+
+    def remove_cluster(self, cluster):
+        """Remove a cluster from the graph"""
+        logger.info('Removing cluster %s', style.host(cluster))
+        if cluster not in get_g5k_clusters():
+            logger.error('%s is not a valid Grid\'5000 cluster',
+                         style.emph(cluster))
+            return
+        for host in get_cluster_hosts(cluster):
+            self.remove_host(host)
 
     def add_site(self, site):
         """Add the site to the graph"""
         logger.info('Adding site %s', style.host(site))
         if site not in get_g5k_sites():
             logger.error('%s is not a valid Grid\'5000 site', style.emph(site))
-            return False
+            return
         if site not in self.sites:
-            self.add_site_router(site)
+            self._add_site_router(site)
 
         for cluster in get_site_clusters(site):
             self.add_cluster(cluster)
 
-    def add_site_router(self, site):
+    def remove_site(self, site):
+        """Remove the site from the graph"""
+        logger.info('Removing site %s', style.host(site))
+        if site not in get_g5k_sites():
+            logger.error('%s is not a valid Grid\'5000 site', style.emph(site))
+            return
+        for cluster in get_site_clusters(site):
+            self.remove_cluster(cluster)
+        self._remove_site_router(site)
+
+        self.sites.remove(site)
+
+    def _add_site_router(self, site):
         """Add the site router and it's connection to Renater"""
         data = filter(lambda n: n['kind'] == 'router', self.network[site])[0]
         router_name = data['uid'] + '.' + site + suffix
@@ -210,6 +241,24 @@ class g5k_graph(nx.Graph):
             self.sites.append(site)
         if len(self.sites) > 1:
             self.add_backbone()
+
+    def _remove_site_router(self, site):
+        data = filter(lambda n: n['kind'] == 'router', self.network[site])[0]
+        router_name = data['uid'] + '.' + site + suffix
+        if router_name in self.nodes():
+            self.remove_node(router_name)
+
+    def get_hosts(self, site=None):
+        """Return the compute hosts from the graph.
+        :params site: if site is a valid g5k site, return only the hosts
+        of this site"""
+        if site in get_g5k_sites():
+            return sorted(filter(lambda x: site in x[0] and
+                                 x[1]['kind'] == 'router',
+                                 self.nodes_iter(data=True)))
+        else:
+            return sorted(filter(lambda x: x[1]['kind'] == 'router',
+                                 self.nodes_iter(data=True)))
 
     def get_backbone_graph(self):
         """Get the Renater backbone nodes and edges"""
@@ -249,12 +298,13 @@ class g5k_graph(nx.Graph):
                                      'core': host[1]['cores'],
                                      'power': host[1]['power']}
             for equip in nx.all_neighbors(self, host[0]):
-                clusters[cluster]['latency'] = self.edge[host[0]][equip]['latency']
-                clusters[cluster]['bandwidth'] = self.edge[host[0]][equip]['bandwidth']
-                if equip not in clusters[cluster]['equips']:
-                    clusters[cluster]['equips'][equip] = [host[0]]
-                else:
-                    clusters[cluster]['equips'][equip].append(host[0])
+                if self.node[equip]['kind'] in ['switch', 'router']:
+                    clusters[cluster]['latency'] = self.edge[host[0]][equip]['latency']
+                    clusters[cluster]['bandwidth'] = self.edge[host[0]][equip]['bandwidth']
+                    if equip not in clusters[cluster]['equips']:
+                        clusters[cluster]['equips'][equip] = [host[0]]
+                    else:
+                        clusters[cluster]['equips'][equip].append(host[0])
 
         for cluster, data in clusters.iteritems():
             if len(data['equips']) == 1:
@@ -381,7 +431,7 @@ class g5k_graph(nx.Graph):
     def _get_subgraph_elements(self, my_filter):
         """Return the nodes and edges matching a filter on nodes"""
         sgr = self.subgraph(filter(my_filter, self.nodes()))
-        return sgr.nodes(data=True), sgr.edges(data=True)
+        return sgr
 
 
 def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None, 
