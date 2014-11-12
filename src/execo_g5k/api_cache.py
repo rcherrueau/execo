@@ -92,7 +92,7 @@ def _write_api_cache(cache_dir=_cache_dir):
         pass
 
     network, hosts = {}, {}
-    logger.detail('Retrieving topology data from API...')
+    logger.info('Retrieving topology data from API...')
     network['backbone'] = get_resource_attributes('/network_equipments')['items']
 
     for site in sorted(get_g5k_sites()):
