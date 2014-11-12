@@ -62,8 +62,9 @@ class g5k_graph(nx.Graph):
     def __init__(self, sites=None):
         """Retrieve API data and initialize the Graph with api_commit
         and date of generations
-        :params sites: add the topoloy of the given sites
-        (can be a string or list of string)"""
+
+        :param sites: add the topoloy of the given sites
+         (can be a string or list of string)"""
         super(g5k_graph, self).__init__()
         # reading API data
         self.network, self.hosts = get_api_data()
@@ -243,6 +244,7 @@ class g5k_graph(nx.Graph):
             self.add_backbone()
 
     def _remove_site_router(self, site):
+        """Remove the site router"""
         data = filter(lambda n: n['kind'] == 'router', self.network[site])[0]
         router_name = data['uid'] + '.' + site + suffix
         if router_name in self.nodes():
@@ -434,9 +436,21 @@ class g5k_graph(nx.Graph):
         return sgr
 
 
-def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None, 
+def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
             layout='neato', all_nodes=False, compact=False):
-    """Create a treemap of the topology and return a matplotlib figure"""
+    """Create a treemap of the topology and return a matplotlib figure
+
+    :param nodes_legend: a dict of dicts containing the parameter used to draw
+     the nodes, such as 'myelement': {'color': '#9CF7BC', 'shape': 'p',
+     'size': 200}
+
+    :param edges_legend: a dict of dicts containing the parameter used to draw
+     the edges, such as bandwidth: {'width': 0.2, 'color': '#666666'}
+
+    :param nodes_labels: a dict of dicts containing the font parameters for
+     the labels, such as 'myelement ': {'nodes': {}, 'font_size': 8,
+     'font_weight': 'bold', 'str_func': lambda n: n.split('.')[1].title()}
+    """
 
     _default_color = '#000000'
     _default_shape = 'o'
