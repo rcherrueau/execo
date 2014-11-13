@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
-from networkx.algorithms.approximation import clustering_coefficient
 
 """ A module based on `networkx <http://networkx.github.io/>`_ to create a
 topological graph of the Grid'5000 platform. "Nodes" are used to represent
@@ -37,16 +36,12 @@ from api_cache import get_api_data
 from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
     get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
     get_site_clusters
+import networkx as nx
 
-try:
-    import networkx as nx
-except:
-    logger.error('Networkx not found, topology module cannot be used')
-    pass
 try:
     import matplotlib.pyplot as plt
 except:
-    logger.error('Matplotlib not found, no plot can be generated')
+    logger.warning('Matplotlib not found, no plot can be generated')
     pass
 from xml.dom import minidom
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -56,8 +51,8 @@ suffix = '.grid5000.fr'
 
 
 class g5k_graph(nx.Graph):
-    """Main graph representing the topology of the Grid'5000 platform. All nodes elements
-    are defined with their FQDN"""
+    """Main graph representing the topology of the Grid'5000 platform. All
+    nodes elements are defined with their FQDN"""
 
     def __init__(self, sites=None):
         """Retrieve API data and initialize the Graph with api_commit
@@ -574,7 +569,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     # Adding the nodes
     for k in elements:
         nodes = [node[0] for node in gr.nodes_iter(data=True)
-                 if node[1]['kind'] == k]
+                 if 'kind' in node[1] and node[1]['kind'] == k]
         nodes = nx.draw_networkx_nodes(gr, pos, nodelist=nodes,
                                        node_shape=_nodes_legend[k]['shape']
                                        if 'shape' in _nodes_legend[k] else
@@ -590,7 +585,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     for bandwidth, params in _edges_legend.iteritems():
         if bandwidth != 'other':
             edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-                     if edge[2]['bandwidth'] == bandwidth]
+                     if 'bandwith' in edge[2] and edge[2]['bandwidth'] == bandwidth]
             nx.draw_networkx_edges(gr, pos, edgelist=edges,
                                    width=params['width'] if 'width' in params
                                    else _default_width,
