@@ -39,10 +39,6 @@ from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
 import networkx as nx
 
 try:
-    import os
-    import matplotlib
-    if 'DISPLAY' not in os.environ:
-        matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 except:
     logger.warning('Matplotlib not found, no plot can be generated')
@@ -62,7 +58,7 @@ class g5k_graph(nx.Graph):
         """Retrieve API data and initialize the Graph with api_commit
         and date of generations
 
-        :param sites: add the topoloy of the given sites
+        :param sites: add the topology of the given site(s)
          (can be a string or list of string)"""
         super(g5k_graph, self).__init__()
         # reading API data
@@ -458,6 +454,9 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
 
     :param compact: represent only on node for a cluster/cabinet
 
+    WARNING: This function use matplotlib.figure that by default requires a
+    DISPLAY. If you want use this on a headless host, you need to change the
+    matplotlib backend before to import execo_g5k.topology module.
     """
 
     _default_color = '#000000'

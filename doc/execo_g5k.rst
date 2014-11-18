@@ -293,6 +293,8 @@ Grid5000 Topology
 .. autoclass:: execo_g5k.topology.g5k_graph
    :members:
 
+.. autofunction:: execo_g5k.topology.treemap
+
 
 Configuration
 =============
