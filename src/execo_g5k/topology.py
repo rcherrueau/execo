@@ -25,7 +25,7 @@ whereas edges has bandwidth and latency information.
 All information comes from the Grid'5000 reference API.
 """
 
-from pprint import pformat, pprint
+from pprint import pformat
 from time import time
 from execo import logger, Host
 from execo.log import style
@@ -39,6 +39,10 @@ from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
 import networkx as nx
 
 try:
+    import os
+    import matplotlib
+    if 'DISPLAY' not in os.environ:
+        matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 except:
     logger.warning('Matplotlib not found, no plot can be generated')
@@ -304,6 +308,7 @@ class g5k_graph(nx.Graph):
                         clusters[cluster]['equips'][equip].append(host[0])
 
         for cluster, data in clusters.iteritems():
+
             if len(data['equips']) == 1:
                 radical_list = map(lambda x: int(x.split('.')[0].split('-')[1]),
                                    data['equips'].itervalues().next())
@@ -311,12 +316,15 @@ class g5k_graph(nx.Graph):
                 data['equips'][data['equips'].keys()[0]] = radical
             else:
                 for equip, hosts in data['equips'].iteritems():
-                    router = list(set(filter(lambda x: 'gw-' in x,
-                                             nx.all_neighbors(self, equip))))[0]
-                    clusters[cluster]['bb_lat'] = self.edge[router][equip]['latency']
-                    clusters[cluster]['bb_bw'] = self.edge[router][equip]['bandwidth']
-                    radical_list = map(lambda x: int(x.split('.')[0].split('-')[1]),
-                                       hosts)
+                    if 'gw-' in equip:
+                        router = equip
+                    else:
+                        router = list(set(filter(lambda x: 'gw-' in x,
+                                                 nx.all_neighbors(self, equip))))[0]
+                        clusters[cluster]['bb_lat'] = self.edge[router][equip]['latency']
+                        clusters[cluster]['bb_bw'] = self.edge[router][equip]['bandwidth']
+                    radical_list = sorted(map(lambda x: int(x.split('.')[0].split('-')[1]),
+                                              hosts))
                     radical = ''
                     for k, g in groupby(enumerate(radical_list),
                                         lambda (i, x): i - x):
@@ -432,7 +440,7 @@ class g5k_graph(nx.Graph):
 
 
 def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
-            layout='neato', all_nodes=False, compact=False):
+            layout='neato', compact=False):
     """Create a treemap of the topology and return a matplotlib figure
 
     :param nodes_legend: a dict of dicts containing the parameter used to draw
@@ -445,6 +453,11 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     :param nodes_labels: a dict of dicts containing the font parameters for
      the labels, such as 'myelement ': {'nodes': {}, 'font_size': 8,
      'font_weight': 'bold', 'str_func': lambda n: n.split('.')[1].title()}
+
+    :param layout: the graphviz tool to be used to compute node position
+
+    :param compact: represent only on node for a cluster/cabinet
+
     """
 
     _default_color = '#000000'
@@ -484,24 +497,21 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                 40000000000: {'width': 4.0, 'color': '#111111'},
                 'default': {'width': _default_width, 'color': _default_color}}
 
-    def _default_nodes_labels(all_nodes=False):
+    def _default_nodes_labels(compact=False):
         """Defines the font labels"""
-        if all_nodes:
-            base_size = 1
-        else:
-            base_size = 2
+        base_size = 2 if compact else 1
 
         def _default_str_func(n):
             return n.split('.')[0]
 
         return {'renater':
                 {'nodes': {},
-                 'font_size': base_size * 8,
-                 'font_weight': 'bold',
+                 'font_size': base_size * 6,
+                 'font_weight': 'normal',
                  'str_func': lambda n: n.split('.')[1].title()},
                 'router':
                 {'nodes': {},
-                 'font_size': base_size * 8,
+                 'font_size': base_size * 6,
                  'font_weight': 'bold',
                  'str_func': _default_str_func},
                 'switch':
@@ -511,7 +521,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                  'str_func': _default_str_func},
                 'cluster':
                 {'nodes': {},
-                 'font_size': base_size * 7,
+                 'font_size': base_size * 5,
                  'font_weight': 'normal',
                  'str_func': _default_str_func},
                 'node':
@@ -529,7 +539,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     # Setting legend and labels
     _nodes_legend = _default_nodes_legend()
     _edges_legend = _default_edges_legend()
-    _nodes_labels = _default_nodes_labels()
+    _nodes_labels = _default_nodes_labels(compact)
     if nodes_legend:
         _nodes_legend.update(nodes_legend)
     if edges_legend:
@@ -543,9 +553,9 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
         for site in gr.sites:
             for cluster, data in gr.site_clusters(site).iteritems():
                 for equip, radicals in data['equips'].items():
-                    gr.add_node(cluster + ' (' + radicals + ')',
+                    gr.add_node(cluster + '\n' + radicals,
                                 {'kind': 'cluster'})
-                    gr.add_edge(cluster + ' (' + radicals + ')', equip,
+                    gr.add_edge(cluster + '\n' + radicals, equip,
                                 {'bandwidth': data['bandwidth']})
 
         gr.remove_nodes_from(map(lambda n: n[0],
@@ -585,7 +595,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     for bandwidth, params in _edges_legend.iteritems():
         if bandwidth != 'other':
             edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-                     if 'bandwith' in edge[2] and edge[2]['bandwidth'] == bandwidth]
+                     if 'bandwidth' in edge[2] and edge[2]['bandwidth'] == bandwidth]
             nx.draw_networkx_edges(gr, pos, edgelist=edges,
                                    width=params['width'] if 'width' in params
                                    else _default_width,
@@ -593,6 +603,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                                    else _default_color)
     edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
              if edge[2]['bandwidth'] not in _edges_legend.keys()]
+
     nx.draw_networkx_edges(gr, pos, edgelist=edges,
                            width=_edges_legend['default']['width'],
                            edge_color=_edges_legend['default']['color'])
@@ -605,6 +616,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                 if 'str_func' in _nodes_labels[data['kind']] else _default_str_func(node)
         else:
             _nodes_labels['default']['nodes'][node] = _nodes_labels['default']['str_func'](node)
+
     for data in _nodes_labels.itervalues():
         nx.draw_networkx_labels(gr, pos, labels=data['nodes'],
                                 font_size=data['font_size']
