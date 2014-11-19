@@ -387,11 +387,11 @@ def deploy(deployment,
     :param check_timeout: timeout for node deployment checks. Default
       is 30 seconds.
 
-    :param stdout_handlers: optional stdout handler for kadeploy
-      processes
+    :param stdout_handlers: iterable of `ProcessOutputHandlers`
+          which will be passed to the actual deploy processes.
 
-    :param stderr_handlers: optional stderr handler for kadeploy
-      processes
+    :param stderr_handlers: iterable of `ProcessOutputHandlers`
+          which will be passed to the actual deploy processes.
     """
 
     if check_enough_func == None:
