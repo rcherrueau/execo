@@ -13,7 +13,7 @@ import sys, subprocess, os, textwrap, shutil, re
 # use correct import depending on install tool to avoid the "error:
 # option --single-version-externally-managed not recognized" issue
 # when using pip
-if 'USE_SETUPTOOLS' in os.environ or 'pip' in __file__:
+if 'USE_SETUPTOOLS' in os.environ or 'pip' in __file__ or (os.environ.has_key('_') and 'pip' in os.environ["_"]):
     from setuptools import setup
     from setuptools.command.install import install as _install
     from setuptools.command.build_py import build_py as _build_py
