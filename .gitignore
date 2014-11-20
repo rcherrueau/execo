@@ -16,3 +16,5 @@
 /debian/python-execo.prerm.debhelper
 /debian/python-execo.substvars
 /debian/files
+setup.cfg
+src/execo.egg-info/

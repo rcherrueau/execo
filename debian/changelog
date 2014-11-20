@@ -1,3 +1,9 @@
+python-execo (2.4.2) unstable; urgency=low
+
+  * new upstream bugfix release
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Thu, 20 Nov 2014 14:50:00 +0100
+
 python-execo (2.4) unstable; urgency=low
 
   * Initial debian packaging release
