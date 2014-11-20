@@ -1,5 +1,5 @@
-python-execo (2.3-30-g8c2f92e-dirty) unstable; urgency=low
+python-execo (2.4) unstable; urgency=low
 
   * Initial debian packaging release
 
- -- Matthieu Imbert <matthieu.imbert@inria.fr>  Thu, 30 Oct 2014 08:53:15 +0100
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Thu, 20 Nov 2014 10:46:00 +0100
