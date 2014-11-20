@@ -14,7 +14,7 @@ import sys, subprocess, os, textwrap, shutil, re
 # option --single-version-externally-managed not recognized" issue
 # when using pip
 if 'USE_SETUPTOOLS' in os.environ or 'pip' in __file__:
-    from setuptools.core import setup
+    from setuptools import setup
     from setuptools.command.install import install as _install
     from setuptools.command.build_py import build_py as _build_py
     from setuptools.command.sdist import sdist as _sdist
