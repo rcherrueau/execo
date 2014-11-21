@@ -10,15 +10,12 @@ from distutils.dir_util import remove_tree
 from distutils import log
 import sys, subprocess, os, textwrap, shutil, re
 
-# use correct import depending on install tool to avoid the "error:
-# option --single-version-externally-managed not recognized" issue
-# when using pip
-if 'USE_SETUPTOOLS' in os.environ or 'pip' in __file__ or (os.environ.has_key('_') and 'pip' in os.environ["_"]):
+try:
     from setuptools import setup
     from setuptools.command.install import install as _install
     from setuptools.command.build_py import build_py as _build_py
     from setuptools.command.sdist import sdist as _sdist
-else:
+except:
     from distutils.core import setup
     from distutils.command.install import install as _install
     from distutils.command.build_py import build_py as _build_py
