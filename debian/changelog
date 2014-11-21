@@ -1,6 +1,12 @@
+python-execo (2.4.3) unstable; urgency=low
+
+  * new upstream bugfix release: again fix pip packaging
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Thu, 21 Nov 2014 08:48:00 +0100
+
 python-execo (2.4.2) unstable; urgency=low
 
-  * new upstream bugfix release
+  * new upstream bugfix release: fix pip packaging
 
  -- Matthieu Imbert <matthieu.imbert@inria.fr>  Thu, 20 Nov 2014 14:50:00 +0100
 
