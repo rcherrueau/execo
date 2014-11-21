@@ -43,6 +43,10 @@ with packages managed by your distribution package manager.
    $ export http_proxy="http://proxy:3128"
    $ export https_proxy="https://proxy:3128"
 
+- Or install for debian package::
+
+   $ dpkg -i python-execo_2.4.3_all.deb
+
 Configuration
 =============
 
