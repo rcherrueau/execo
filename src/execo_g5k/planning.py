@@ -18,7 +18,6 @@
 """Module provides functions to help you to plan your experiment on Grid'5000.
 """
 from pprint import pformat
-from socket import getfqdn
 from time import time
 from datetime import timedelta
 from math import ceil, floor
@@ -27,7 +26,7 @@ from execo import logger
 from execo.log import style
 from execo_g5k import OarSubmission
 from execo.time_utils import timedelta_to_seconds, get_seconds, \
-    unixts_to_datetime, get_unixts, datetime_to_unixts, format_date
+    unixts_to_datetime, get_unixts, format_date
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
     get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
 from threading import Thread, currentThread
@@ -48,8 +47,9 @@ try:
 except:
     _retrieve_method = 'API'
 
-def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage = False,
-            out_of_chart = False, starttime = None, endtime = None):
+
+def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
+            out_of_chart=False, starttime=None, endtime=None):
     """Retrieve the planning of the elements (site, cluster) and others resources.
     Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.``
 
@@ -116,8 +116,7 @@ def get_planning(elements = ['grid5000'], vlan = False, subnet = False, storage 
     return planning
 
 
-
-def compute_slots(planning, walltime, excluded_elements = None):
+def compute_slots(planning, walltime, excluded_elements=None):
     """Compute the slots limits and find the number of available nodes for
     each elements and for the given walltime.
 
@@ -198,19 +197,19 @@ def compute_slots(planning, walltime, excluded_elements = None):
                 free_elements['kavlan'] = free_vlans_global
                 ## MISSING OTHER RESOURCES COMPUTATION
 
-        slots.append([ limit, limit + walltime, free_elements])
+        slots.append([limit, limit + walltime, free_elements])
 
     slots.sort()
     return slots
 
-def find_first_slot( slots, resources_wanted):
+
+def find_first_slot(slots, resources_wanted):
     """ Return the first slot (a tuple start date, end date, resources) where some resources are available
 
     :param slots: list of slots returned by ``compute_slots``
 
     :param resources_wanted: a dict of elements that must have some free hosts
     """
-
     for slot in slots:
         vlan_free = True
         if 'kavlan' in resources_wanted:
@@ -220,8 +219,8 @@ def find_first_slot( slots, resources_wanted):
             elif isinstance(slot[2]['kavlan'], list):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False
-        res_nodes = sum([ nodes for element, nodes in slot[2].iteritems() if element in resources_wanted
-                          and element != 'kavlan'])
+        res_nodes = sum([nodes for element, nodes in slot[2].iteritems()
+                         if element in resources_wanted and element != 'kavlan'])
 
         if res_nodes > 0 and vlan_free:
             return slot
@@ -229,7 +228,7 @@ def find_first_slot( slots, resources_wanted):
     return None, None, None
 
 
-def find_max_slot( slots, resources_wanted):
+def find_max_slot(slots, resources_wanted):
     """Return the slot (a tuple start date, end date, resources) with the maximum nodes available for the given elements
 
     :param slots: list of slots returned by ``compute_slots``
@@ -253,7 +252,8 @@ def find_max_slot( slots, resources_wanted):
             max_slot = slot
     return max_slot
 
-def find_free_slot( slots, resources_wanted):
+
+def find_free_slot(slots, resources_wanted):
     """Return the first slot (a tuple start date, end date, resources) with enough resources
 
     :param slots: list of slots returned by ``compute_slots``
