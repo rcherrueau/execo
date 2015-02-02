@@ -92,7 +92,7 @@ def _write_api_cache(cache_dir=_cache_dir):
         pass
 
     network, hosts = {}, {}
-    logger.info('Retrieving topology data from API...')
+    logger.info('Retrieving data from API...')
     network['backbone'] = get_resource_attributes('/network_equipments')['items']
 
     for site in sorted(get_g5k_sites()):
@@ -100,14 +100,14 @@ def _write_api_cache(cache_dir=_cache_dir):
         hosts[site] = {}
         for cluster in get_site_clusters(site):
             logger.detail('* ' + cluster)
-            hosts[site][cluster] = get_resource_attributes(
-                'sites/' + site + '/clusters/' + cluster + '/nodes')['items']
-
-        network[site] = get_resource_attributes('sites/' + site +
-                                                '/network_equipments')['items']
-        f = open(cache_dir + site + '_equips', 'w')
-        dump(network[site], f)
-        f.close()
+            hosts[site][cluster] = {}
+            for host in get_resource_attributes('sites/' + site + '/clusters/' 
+                                                + cluster + '/nodes')['items']:
+                hosts[site][cluster][host['uid']] = host 
+            
+        network[site] = {}    
+        for equip in get_resource_attributes('sites/' + site + '/network_equipments')['items']:
+            network[site][equip['uid']] = equip
 
     logger.detail('Writing data to cache ...')
     f = open(cache_dir + 'network', 'w')
