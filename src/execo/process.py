@@ -539,9 +539,6 @@ class Process(ProcessBase):
         :param cmd: string or tuple containing the command and args to run.
         """
         super(Process, self).__init__(cmd)
-        self.close_stdin = None
-        """Whether or not to close subprocess's stdin. If None (default value),
-        automatically choose based on pty."""
         self.shell = False
         """Whether or not to use a shell to run the cmd. See ``subprocess.Popen``"""
         self.pty = False
@@ -559,14 +556,12 @@ class Process(ProcessBase):
         self._ptymaster = None
         self._ptyslave = None
         self.__start_pending = False
-
-    def _actual_close_stdin(self):
-        # return actual close_stdin behavior
-        if self.close_stdin == None:
-            if self.pty: return False
-            else: return True
-        else:
-            return self.close_stdin
+        self.stdout_fd = None
+        """the subprocess stdout filehandle or None if not available."""
+        self.stderr_fd = None
+        """the subprocess stderr filehandle or None if not available."""
+        self.stdin = None
+        """the subprocess stdin filehandle or None if not available."""
 
     def _actual_kill_subprocesses(self):
         # return actual kill_subprocesses behavior
@@ -594,6 +589,9 @@ class Process(ProcessBase):
         self._already_got_sigterm = False
         self._ptymaster = None
         self._ptyslave = None
+        self.stdout_fd = None
+        self.stderr_fd = None
+        self.stdin = None
 
     def _args(self):
         return ProcessBase._args(self) + Process._kwargs(self)
@@ -603,54 +601,11 @@ class Process(ProcessBase):
 
     def _infos(self):
         infos = []
-        if self.close_stdin != None: infos.append("close_stdin=%r" % (self.close_stdin,))
         if self.shell != False: infos.append("shell=%r" % (self.shell,))
         if self.pty != False: infos.append("pty=%r" % (self.pty,))
         if self.kill_subprocesses != None: infos.append("kill_subprocesses=%r" % (self.kill_subprocesses,))
         infos.append("pid=%s" % (self.pid,))
         return ProcessBase._infos(self) + infos
-
-    @property
-    def stdout_fd(self):
-        """Return the subprocess stdout filehandle.
-
-        Or None if not available.
-        """
-        with self._lock:
-            if self.process != None:
-                if self.pty:
-                    return self._ptymaster
-                else:
-                    return self.process.stdout.fileno()
-            else:
-                return None
-
-    @property
-    def stderr_fd(self):
-        """Return the subprocess stderr filehandle.
-
-        Or None if not available.
-        """
-        with self._lock:
-            if self.process != None:
-                return self.process.stderr.fileno()
-            else:
-                return None
-
-    @property
-    def stdin_fd(self):
-        """Return the subprocess stdin filehandle.
-
-        Or None if not available.
-        """
-        with self._lock:
-            if self.process != None and not self._actual_close_stdin():
-                if self.pty:
-                    return self._ptymaster
-                else:
-                    return self.process.stdin.fileno()
-            else:
-                return None
 
     def start(self):
         """Start the subprocess."""
@@ -690,6 +645,8 @@ class Process(ProcessBase):
                                                 close_fds = True,
                                                 shell = self.shell,
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
+                self.stdout_fd = self._ptymaster
+                self.stdin = self._ptymaster
             else:
                 self.process = subprocess.Popen(self._actual_cmd(),
                                                 stdin = subprocess.PIPE,
@@ -698,9 +655,10 @@ class Process(ProcessBase):
                                                 close_fds = True,
                                                 shell = self.shell,
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
+                self.stdout_fd = self.process.stdout.fileno()
+                self.stderr_fd = self.process.stderr.fileno()
+                self.stdin = self.process.stdin.fileno()
             self.pid = self.process.pid
-            if self._actual_close_stdin():
-                self.process.stdin.close()
         except OSError, e:
             with self._lock:
                 self.error = True
