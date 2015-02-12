@@ -560,7 +560,7 @@ class Process(ProcessBase):
         """the subprocess stdout filehandle or None if not available."""
         self.stderr_fd = None
         """the subprocess stderr filehandle or None if not available."""
-        self.stdin = None
+        self.stdin_fd = None
         """the subprocess stdin filehandle or None if not available."""
 
     def _actual_kill_subprocesses(self):
@@ -591,7 +591,7 @@ class Process(ProcessBase):
         self._ptyslave = None
         self.stdout_fd = None
         self.stderr_fd = None
-        self.stdin = None
+        self.stdin_fd = None
 
     def _args(self):
         return ProcessBase._args(self) + Process._kwargs(self)
@@ -646,7 +646,8 @@ class Process(ProcessBase):
                                                 shell = self.shell,
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
                 self.stdout_fd = self._ptymaster
-                self.stdin = self._ptymaster
+                self.stderr_fd = self.process.stderr.fileno()
+                self.stdin_fd = self._ptymaster
             else:
                 self.process = subprocess.Popen(self._actual_cmd(),
                                                 stdin = subprocess.PIPE,
@@ -657,7 +658,7 @@ class Process(ProcessBase):
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
                 self.stdout_fd = self.process.stdout.fileno()
                 self.stderr_fd = self.process.stderr.fileno()
-                self.stdin = self.process.stdin.fileno()
+                self.stdin_fd = self.process.stdin.fileno()
             self.pid = self.process.pid
         except OSError, e:
             with self._lock:
@@ -830,6 +831,9 @@ class Process(ProcessBase):
     def run(self, timeout = None):
         """Start subprocess then wait for its end."""
         return self.start().wait(timeout)
+
+    def write(self, s):
+        os.write(self.stdin_fd, s)
 
 class SshProcess(Process):
 
