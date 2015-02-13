@@ -674,7 +674,7 @@ class Process(ProcessBase):
                     logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
-    def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
+    def kill(self, sig = signal.SIGTERM, ignore_exit_code = True, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
 
         :param sig: the signal to send
@@ -694,6 +694,7 @@ class Process(ProcessBase):
         additionnal_processes_to_kill = []
         with self._lock:
             if self.pid != None and not self.ended:
+                if ignore_exit_code: self.ignore_exit_code = True
                 if sig == signal.SIGTERM:
                     self._already_got_sigterm = True
                     if auto_sigterm_timeout == True:
