@@ -350,10 +350,6 @@ memoize
 -------
 .. autofunction:: execo.utils.memoize
 
-get_port_forwarder
-------------------
-.. autofunction:: execo.process.get_port_forwarder
-
 PortForwarder
 -------------
 .. autoclass:: execo.process.PortForwarder

@@ -21,7 +21,7 @@ from execo.config import SSH, SCP, make_connection_params
 from execo.host import Host
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
 from execo_g5k.api_utils import get_resource_attributes
-from execo.process import get_port_forwarder
+from execo.process import PortForwarder
 import re
 import socket
 
@@ -100,14 +100,14 @@ class G5kAutoPortForwarder():
         if 'grid5000.fr' in socket.getfqdn():
             return self.__host, self.__port
         else:
-            self.__port_forwarder, self.__local_port = get_port_forwarder(
+            self.__port_forwarder = PortForwarder(
                 get_frontend_host(self.__site),
                 make_connection_params(default_frontend_connection_params),
                 self.__host,
                 self.__port)
             self.__port_forwarder.start()
             self.__port_forwarder.forwarding.wait()
-            return "127.0.0.1", self.__local_port
+            return "127.0.0.1", self.__port_forwarder.local_port
 
     def __exit__(self, t, v, traceback):
         if self.__port_forwarder:

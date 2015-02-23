@@ -997,110 +997,110 @@ class port_forwarder_stderr_handler(ProcessOutputHandler):
         if self.pf_open_re.match(string):
             process.forwarding.set()
 
-def get_port_forwarder(host,
-                       connection_params,
-                       remote_host,
-                       remote_port,
-                       local_port = None,
-                       bind_address = None):
-    """Create an ssh port forwarder process (ssh -L).
-
-    This port forwarding process opens a listening socket on
-    localhost, and forwards it to the given remote host / port on the
-    remote side of the ssh connection.
-
-    :param host: remote side of the ssh connection
-
-    :param connection_params: connection params for connecting to host
-
-    :param remote_host: the remote host to connect to on the remote
-      side
-
-    :param remote_port: the remote port to connect to on the remote
-      side
-
-    :param local_port: the port to use locally for the listening
-      socket. If None (the default), a port is automatically selected
-      with ``execo.utils.get_port``
-
-    :param bind_address: the bind address to use locally for the
-      listening socket. If None (the default), it uses 127.0.0.1, so
-      the socket is only available to localhost.
-
-    :returns: a tuple (SshProcess, local_port). The returned
-      SshProcess executes a long sleep, and needs to be started /
-      killed as usual. It is configured to show no log / error when
-      killed. The returned SshProcess has an additionnal instance
-      variable `forwarding` which is a `threading.Event` which can be
-      waited upon to be notified when the forwarding port is actually
-      open (beware: this member is not correctly reset if the
-      forwarder SshProcess is reset)
-    """
-    if not bind_address:
-        bind_address = "127.0.0.1"
-    if not local_port:
-        local_port = get_port()
-    pf_conn_parms = make_connection_params(connection_params)
-    pf_conn_parms['ssh_options'] = pf_conn_parms['ssh_options'] + (
-        '-v',
-        '-L',
-        '%s:%i:%s:%i' % (
-            bind_address,
-            local_port,
-            Host(remote_host).address,
-            remote_port
-            ))
-    pf = SshProcess("sleep 31536000",
-                    host,
-                    connection_params = pf_conn_parms)
-    pf.ignore_exit_code = pf.nolog_exit_code = True
-    pf.forwarding = threading.Event()
-    pf.stderr_handlers.append(port_forwarder_stderr_handler(local_port,
-                                                            bind_address))
-    return pf, local_port
-
-class PortForwarder():
-    """Context manager for port forwarders"""
+class PortForwarder(SshProcess):
 
     def __init__(self,
                  host,
-                 connection_params,
                  remote_host,
                  remote_port,
                  local_port = None,
-                 bind_address = None):
-        """
-        for params: see documentation of
-        ``execo.process.get_port_forwarder``
+                 bind_address = None,
+                 connection_params = None):
+        """Create an ssh port forwarder process (ssh -L).
 
-        When entering the context, it returns a tuple host, port to
-        connect to. The forwarded port is guaranteed to be
-        operational.
+        This port forwarding process opens a listening socket on
+        localhost, and forwards it to the given remote host / port on the
+        remote side of the ssh connection.
 
-        When leaving the context, it kills the port forwarder
-        background process.
+        :param host: remote side of the ssh connection
+
+        :param remote_host: the remote host to connect to on the remote
+          side
+
+        :param remote_port: the remote port to connect to on the remote
+          side
+
+        :param local_port: the port to use locally for the listening
+          socket. If None (the default), a port is automatically selected
+          with ``execo.utils.get_port``
+
+        :param bind_address: the bind address to use locally for the
+          listening socket. If None (the default), it uses 127.0.0.1, so
+          the socket is only available to localhost.
+
+        :param connection_params: connection params for connecting to host
         """
-        self.__host = host
-        self.__connection_params = connection_params
-        self.__remote_host = remote_host
-        self.__remote_port = remote_port
-        self.__local_port = local_port
-        self.__bind_address = bind_address
-        self.__port_forwarder = None
-        self.__local_port = None
+        self.bind_address = bind_address
+        if not self.bind_address:
+            self.bind_address = "127.0.0.1"
+        self.local_port = local_port
+        """The local port of the tunnel"""
+        if not self.local_port:
+            self.local_port = get_port()
+        self.remote_host = remote_host
+        self.remote_port = remote_port
+        pf_conn_parms = make_connection_params(connection_params)
+        pf_conn_parms['ssh_options'] = pf_conn_parms['ssh_options'] + (
+            '-v',
+            '-L',
+            '%s:%i:%s:%i' % (
+                self.bind_address,
+                self.local_port,
+                Host(self.remote_host).address,
+                self.remote_port
+                ))
+        super(PortForwarder, self).__init__("sleep 31536000",
+                                            host,
+                                            connection_params = pf_conn_parms)
+        self.forwarding = threading.Event()
+        """`threading.Event` which can be waited upon to be notified when the forwarding port is actually open"""
+        self.stderr_handlers.append(port_forwarder_stderr_handler(local_port,
+                                                                  bind_address))
+
+    def _common_reset(self):
+        super(PortForwarder, self)._common_reset()
+        self.forwarding.clear()
+
+    def _args(self):
+        return [ repr(self.host),
+                 repr(self.remote_host),
+                 repr(self.remote_port),
+                 repr(self.local_port),
+                 repr(self.bind_address) ] + self._kwargs()
+
+    def _infos(self):
+        return [ "forwarding=%r" % (self.forwarding,) ] + SshProcess._infos(self)
 
     def __enter__(self):
-        self.__port_forwarder, self.__local_port = get_port_forwarder(
-            self.__host,
-            self.__connection_params,
-            self.__remote_host,
-            self.__remote_port,
-            self.__local_port,
-            self.__bind_address)
-        self.__port_forwarder.start()
-        self.__port_forwarder.forwarding.wait()
-        return "127.0.0.1", self.__local_port
+        """Context manager enter function: waits for the forwarding port to be ready"""
+        self.start()
+        self.forwarding.wait()
+        return self
 
-    def __exit__(self, t, v, traceback):
-        self.__port_forwarder.kill()
-        return False
+class SerialSsh(SshProcess):
+
+    def __init__(self,
+                 host,
+                 device,
+                 speed,
+                 connection_params = None):
+        """Create a connection to a serial port through ssh.
+
+        :param host: remote side of the ssh connection
+
+        :param device: the serial device on the remote host
+
+        :param speed: serial port speed
+
+        :param connection_params: connection params for connecting to host
+        """
+        self.device = device
+        self.speed = speed
+        super(SerialSsh, self).__init__("stty -F %s %s rows 0 columns 0 line 0 intr ^C quit ^\\\ erase ^? kill ^U eof ^D eol undef eol2 undef swtch undef start ^Q stop ^S susp ^Z rprnt ^R werase ^W lnext ^V flush ^O min 1 time 0 -parenb -parodd cs8 hupcl -cstopb cread clocal -crtscts -ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff -iuclc -ixany -imaxbel -iutf8 -opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0 -isig -icanon -iexten -echo echoe echok -echonl -noflsh -xcase -tostop -echoprt echoctl echoke ; cat %s & cat > %s" % (self.device, self.speed, self.device, self.device),
+                                        host,
+                                        connection_params = connection_params)
+
+    def _args(self):
+        return [ repr(self.host),
+                 repr(self.device),
+                 repr(self.speed) ] + self._kwargs()
