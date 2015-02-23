@@ -484,6 +484,15 @@ class ProcessBase(object):
                 stats['num_finished_ok'] +=1
             return stats
 
+    def __enter__(self):
+        """Context manager enter function: returns self"""
+        return self
+
+    def __exit__(self, t, v, traceback):
+        """Context manager leave function: kills the process"""
+        self.kill()
+        return False
+
 def _get_childs(pid):
     childs = []
     try:
