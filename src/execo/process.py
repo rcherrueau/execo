@@ -24,7 +24,7 @@ from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, name_from_cmdline, intr_cond_wait, get_port
+from utils import compact_output, name_from_cmdline, intr_cond_wait, get_port, intr_event_wait
 from traceback import format_exc
 from report import Report
 import errno, os, re, shlex, signal, subprocess
@@ -169,6 +169,7 @@ class ProcessBase(object):
         """
         :param cmd: string or tuple containing the command and args to run.
         """
+        self._lock = threading.RLock()
         self.cmd = cmd
         """Process command line: string or tuple containing the command and args to
         run."""
@@ -176,10 +177,18 @@ class ProcessBase(object):
         """Remote host, if relevant"""
         self.started = False
         """Whether the process was started or not"""
+        self.started_event = threading.Event()
+        """Event raised when the process is actually started"""
+        self.started_condition = threading.Condition(self._lock)
+        """Condition notified when the process is actually started"""
         self.start_date = None
         """Process start date or None if not yet started"""
         self.ended = False
         """Whether the process has ended or not"""
+        self.ended_event = threading.Event()
+        """Event raised when the process has actually ended"""
+        self.ended_condition = threading.Condition(self._lock)
+        """Condition notified when the process has actually ended"""
         self.end_date = None
         """Process end date or None if not yet ended"""
         self.error = False
@@ -251,7 +260,6 @@ class ProcessBase(object):
         """User-friendly name. A default is generated and can be changed."""
         self.stdout_ioerror = False
         self.stderr_ioerror = False
-        self._lock = threading.RLock()
         self._out_files = dict()
 
     def _common_reset(self):
@@ -264,8 +272,10 @@ class ProcessBase(object):
         # no lock taken. This is the job of calling code to
         # synchronize.
         self.started = False
+        self.started_event.clear()
         self.start_date = None
         self.ended = False
+        self.ended_event.clear()
         self.end_date = None
         self.error = False
         self.error_reason = None
@@ -632,18 +642,11 @@ class Process(ProcessBase):
         # of locked section to avoid deadlock with logging lock, and
         # to allow calling lifecycle handlers outside the lock
         with self._lock:
-            self.started = True
-            self.__start_pending = False
             self.start_date = time.time()
             if self.timeout != None:
                 self.timeout_date = self.start_date + self.timeout
         logger.debug(style.emph("start: ") + str(self))
-        for handler in self.lifecycle_handlers:
-            try:
-                handler.start(self)
-            except Exception, e:
-                logger.error("process lifecycle handler %s start raised exception for process %s:\n%s" % (
-                        handler, self, format_exc()))
+        start_error = False
         try:
             if self.pty:
                 (self._ptymaster, self._ptyslave) = openpty()
@@ -670,12 +673,28 @@ class Process(ProcessBase):
                 self.stdin_fd = self.process.stdin.fileno()
             self.pid = self.process.pid
         except OSError, e:
+            start_error = True
+        with self._lock:
+            self.started = True
+            self.__start_pending = False
+            self.started_condition.notify_all()
+        self.started_event.set()
+        if start_error:
             with self._lock:
                 self.error = True
                 self.error_reason = e
                 self.ended = True
                 self.end_date = time.time()
-                self._log_terminated()
+                self.ended_condition.notify_all()
+            self.ended_event.set()
+        for handler in self.lifecycle_handlers:
+            try:
+                handler.start(self)
+            except Exception, e:
+                logger.error("process lifecycle handler %s start raised exception for process %s:\n%s" % (
+                        handler, self, format_exc()))
+        if self.error:
+            self._log_terminated()
             for handler in self.lifecycle_handlers:
                 try:
                     handler.end(self)
@@ -694,11 +713,9 @@ class Process(ProcessBase):
           SIGKILL if the subprocess is not yet terminated
         """
         logger.debug(style.emph("kill with signal %s:" % sig) + " %s" % (str(self),))
-        if self.__start_pending:
-            while self.started != True:
-                logger.debug("waiting for process to be actually started: " + str(self))
-                with the_conductor.lock:
-                    intr_cond_wait(the_conductor.condition)
+        with self._lock:
+            if self.__start_pending:
+                intr_cond_wait(self.started_condition)
         other_debug_logs=[]
         additionnal_processes_to_kill = []
         with self._lock:
@@ -810,6 +827,8 @@ class Process(ProcessBase):
             for h in self._out_files:
                 self._out_files[h].close()
                 del self._out_files[h]
+            self.ended_condition.notify_all()
+        self.ended_event.set()
         self._log_terminated()
         for handler in self.lifecycle_handlers:
             try:
@@ -821,13 +840,11 @@ class Process(ProcessBase):
     def wait(self, timeout = None):
         """Wait for the subprocess end."""
         logger.debug(style.emph("wait: ") + " %s" % (str(self),))
-        if self.__start_pending:
-            while self.started != True:
-                logger.debug("waiting for process to be actually started: " + str(self))
-                with the_conductor.lock:
-                    intr_cond_wait(the_conductor.condition)
-        if not self.started:
-            raise ValueError, "Trying to wait a process which has not been started"
+        with self._lock:
+            if self.__start_pending:
+                intr_cond_wait(self.started_condition)
+            elif not self.started:
+                raise ValueError, "Trying to wait a process which has not been started"
         timeout = get_seconds(timeout)
         if timeout != None:
             end = time.time() + timeout
@@ -844,6 +861,9 @@ class Process(ProcessBase):
         return self.start().wait(timeout)
 
     def write(self, s):
+        with self._lock:
+            if self.__start_pending:
+                intr_cond_wait(self.started_condition)
         os.write(self.stdin_fd, s)
 
 class SshProcess(Process):
@@ -928,6 +948,8 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self.start_date = time.time()
             if self.timeout != None:
                 self.timeout_date = self.start_date + self.timeout
+            self.started_condition.notify_all()
+        self.started_event.set()
         logger.debug(style.emph("start:") + " %s" % (str(self),))
         for handler in self.lifecycle_handlers:
             try:
@@ -966,6 +988,8 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             for h in self._out_files:
                 self._out_files[h].close()
             self._out_files.clear()
+            self.ended_condition.notify_all()
+        self.ended_event.set()
         self._log_terminated()
         for handler in self.lifecycle_handlers:
             try:
