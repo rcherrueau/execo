@@ -318,10 +318,9 @@ def show_resources(resources, msg='Resources'):
     logger.info(log)
 
 
-
-def get_jobs_specs(resources, excluded_elements = None, name = None):
-    """ Generate the several job specifications from the dict of resources and the
-    blacklisted elements
+def get_jobs_specs(resources, excluded_elements=None, name=None):
+    """ Generate the several job specifications from the dict of resources and
+    the blacklisted elements
 
     :param resources: a dict, whose keys are Grid'5000 element and values the
       corresponding number of n_nodes
@@ -331,7 +330,8 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
     :param name: the name of the jobs that will be given
     """
     jobs_specs = []
-    if excluded_elements == None: excluded_elements = []
+    if excluded_elements == None:
+        excluded_elements = []
 
     # Creating the list of sites used
     sites = []
@@ -344,29 +344,29 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                 site = get_cluster_site(resource)
                 if not site in sites:
                     sites.append(site)
-                if not real_resources.has_key(site):
+                if not site in real_resources:
                     real_resources[site] = 0
 
     # Checking if we need a Kavlan, a KaVLAN global or none
-    get_kavlan = resources.has_key('kavlan')
+    get_kavlan = 'kavlan' in resources
     if get_kavlan:
         kavlan = 'kavlan'
         n_sites = 0
         for resource in real_resources.keys():
             if resource in sites:
-                n_sites +=1
+                n_sites += 1
             if n_sites > 1:
                 kavlan += '-global'
                 break
 
     blacklisted_hosts = {}
     for element in excluded_elements:
-        if element not in get_g5k_clusters()+get_g5k_sites():
+        if element not in get_g5k_clusters() + get_g5k_sites():
             site = get_host_site(element)
-            if not blacklisted_hosts.has_key(site):
+            if not 'site' in blacklisted_hosts:
                 blacklisted_hosts[site] = [element]
             else:
-                blacklisted_hosts[site].append( element )
+                blacklisted_hosts[site].append(element)
 
     for site in sites:
         sub_resources = ''
@@ -374,10 +374,10 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         #Adding a KaVLAN if needed
         if get_kavlan:
             if not 'global' in kavlan:
-                sub_resources="{type='"+kavlan+"'}/vlan=1+"
+                sub_resources = "{type='" + kavlan + "'}/vlan=1+"
                 get_kavlan = False
             elif site in resources['kavlan']:
-                sub_resources="{type='"+kavlan+"'}/vlan=1+"
+                sub_resources = "{type='" + kavlan + "'}/vlan=1+"
                 get_kavlan = False
 
         base_sql = '{'
@@ -386,9 +386,9 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         # Creating blacklist SQL string for hosts
         host_blacklist = False
         str_hosts = ''
-        if blacklisted_hosts.has_key(site) and len(blacklisted_hosts[site]) > 0:
-            str_hosts = ''.join( [ "host not in ('"+host+"') and "
-                                  for host in blacklisted_hosts[site] ] )
+        if site in blacklisted_hosts and len(blacklisted_hosts[site]) > 0:
+            str_hosts = ''.join(["host not in ('" + host + "') and "
+                                for host in blacklisted_hosts[site]])
             host_blacklist = True
 
         #Adding the clusters blacklist
@@ -396,15 +396,16 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
         cl_blacklist = False
         clusters_nodes = 0
         for cluster in get_site_clusters(site):
-            if cluster in resources:
+            if cluster in resources and resources[cluster] > 0:
                 if str_hosts == '':
-                    sub_resources += "{cluster='"+cluster+"'}"
+                    sub_resources += "{cluster='" + cluster + "'}"
                 else:
-                    sub_resources += base_sql+str_hosts+"cluster='"+cluster+"'"+end_sql
-                sub_resources += "/nodes="+str(resources[cluster])+'+'
+                    sub_resources += base_sql + str_hosts + "cluster='" + \
+                        cluster + "'" + end_sql
+                sub_resources += "/nodes=" + str(resources[cluster]) + '+'
                 clusters_nodes += resources[cluster]
             if cluster in excluded_elements:
-                str_clusters += "cluster not in ('"+cluster+"') and "
+                str_clusters += "cluster not in ('" + cluster + "') and "
                 cl_blacklist = True
 
         # Generating the site blacklist string from host and cluster blacklist
@@ -415,19 +416,21 @@ def get_jobs_specs(resources, excluded_elements = None, name = None):
                 str_site += str_hosts[:-4]
             else:
                 str_site += str_clusters[:-4]
-            str_site = str_site+end_sql
+            str_site = str_site + end_sql
 
         if real_resources[site] > 0:
-            sub_resources+=str_site+"nodes="+str(real_resources[site])+'+'
+            sub_resources += str_site + "nodes=" + str(real_resources[site]) +\
+                '+'
 
         if sub_resources != '':
-            jobs_specs.append( (OarSubmission(resources = sub_resources[:-1], name = name), site) )
+            jobs_specs.append((OarSubmission(resources=sub_resources[:-1],
+                                             name=name), site))
 
     return jobs_specs
 
 
-
-def distribute_hosts(resources_available, resources_wanted, excluded_elements = None, ratio = None):
+def distribute_hosts(resources_available, resources_wanted,
+                     excluded_elements=None, ratio=None):
     """ Distribute the resources on the different sites and cluster
 
     :param resources_available: a dict defining the resources available
@@ -494,7 +497,6 @@ def distribute_hosts(resources_available, resources_wanted, excluded_elements = 
                     resources[site] = 1
                 total_nodes += 1
     logger.debug(pformat(resources))
-
 
     if resources_wanted.has_key('kavlan'):
         resources['kavlan'] = resources_available['kavlan']
