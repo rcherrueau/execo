@@ -54,7 +54,7 @@ class g5k_graph(nx.Graph):
     """Main graph representing the topology of the Grid'5000 platform. All
     nodes elements are defined with their FQDN"""
 
-    def __init__(self, sites=None):
+    def __init__(self, sites=None, with_linecards=False):
         """Retrieve API data and initialize the Graph with api_commit
         and date of generations
 
@@ -72,11 +72,13 @@ class g5k_graph(nx.Graph):
                 sites = [sites]
             for site in sites:
                 self.add_site(site)
+        self.with_linecards = with_linecards
 
     def add_backbone(self):
         """Add the Renater backbone"""
         logger.info('Add/update %s network', style.emph('Renater'))
         backbone = self.network['backbone']
+
         # Adding all the elements of the backbone
         for equip in backbone:
             src = equip['uid'].replace('renater-', 'renater.') + suffix
@@ -225,7 +227,10 @@ class g5k_graph(nx.Graph):
 
     def _add_site_router(self, site):
         """Add the site router and it's connection to Renater"""
-        data = filter(lambda n: n['kind'] == 'router', self.network[site])[0]
+
+        data = filter(lambda n: n['kind'] == 'router',
+                      self.network[site].values())[0]
+
         router_name = data['uid'] + '.' + site + suffix
         renater_name = 'renater.' + site + suffix
         self._add_node(router_name, {'kind': 'router',
@@ -240,7 +245,8 @@ class g5k_graph(nx.Graph):
 
     def _remove_site_router(self, site):
         """Remove the site router"""
-        data = filter(lambda n: n['kind'] == 'router', self.network[site])[0]
+        data = filter(lambda n: n['kind'] == 'router',
+                      self.network[site].values())[0]
         router_name = data['uid'] + '.' + site + suffix
         if router_name in self.nodes():
             self.remove_node(router_name)
@@ -423,11 +429,11 @@ class g5k_graph(nx.Graph):
             logger.error('Unable to find the site of %s', host)
             return None
 
-        return filter(lambda h: h['uid'] == uid, self.hosts[site][cluster])[0]
+        return self.hosts[site][cluster][uid]
 
     def _get_equip_data(self, uid, site):
         """Return the attributes of a network equipments"""
-        return filter(lambda eq: eq['uid'] == uid, self.network[site])[0]
+        return self.network[site][uid]
 
     def _get_subgraph_elements(self, my_filter):
         """Return the nodes and edges matching a filter on nodes"""
@@ -631,3 +637,4 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     plt.text(0.1, 0, title, transform=ax.transAxes)
 
     return fig
+

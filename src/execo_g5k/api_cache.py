@@ -104,8 +104,7 @@ def _write_api_cache(cache_dir=_cache_dir):
             for host in get_resource_attributes('sites/' + site + '/clusters/' 
                                                 + cluster + '/nodes')['items']:
                 hosts[site][cluster][host['uid']] = host 
-            
-        network[site] = {}    
+        network[site] = {}
         for equip in get_resource_attributes('sites/' + site + '/network_equipments')['items']:
             network[site][equip['uid']] = equip
 
