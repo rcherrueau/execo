@@ -920,6 +920,13 @@ class SshProcess(Process):
     def _infos(self):
         return [ "real cmd=%r" % (self.cmd,) ] + Process._infos(self)
 
+def _escape_taktuk_cmd_args(s):
+    # [ ] are used as taktuk argument delimiter
+    # ! is used as taktuk escape character
+    s = s.replace('!', '!!')
+    s = s.replace(']', '!]')
+    return s
+
 class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     r"""Dummy process similar to `execo.process.SshProcess`."""
@@ -998,6 +1005,11 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             except Exception, e:
                 logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
+
+    # def write(self, s):
+    #     buf = "%i input [ %s ]\n" % (self._taktuk_index + 1, _escape_taktuk_cmd_args(s))
+    #     logger.iodebug("write to taktuk fd %s: %r" % (self._taktuk_remote._taktuk.stdin_fd, buf))
+    #     os.write(self._taktuk_remote._taktuk.stdin_fd, buf)
 
 def get_process(*args, **kwargs):
     """Instanciates a `execo.process.Process` or `execo.process.SshProcess`, depending on the existence of host keyword argument"""

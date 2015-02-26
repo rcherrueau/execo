@@ -544,7 +544,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                                 process._set_terminated(error = True, error_reason = "taktuk connection failed")
                             else: # 5: connection lost
                                 process._set_terminated(error = True, error_reason = "taktuk connection lost")
-                        elif state_code in (0, 1, 2, 4, 8):
+                        elif state_code in (0, 1, 2, 4, 8, 19):
                             pass
                         else:
                             self._log_unexpected_output(string)
@@ -721,6 +721,7 @@ class TaktukRemote(Action):
             os.close(taktuk_options_filehandle)
             logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_commands)
             real_taktuk_cmdline = (actual_connection_params['taktuk'],)
+            real_taktuk_cmdline += ("-E", "!")
             real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
                                     "-o", 'error="B $position # $line\\n"',
                                     "-o", 'status="C $position # $line\\n"',
