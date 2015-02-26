@@ -662,15 +662,18 @@ class TaktukRemote(Action):
             p = TaktukProcess(remote_substitute(self.cmd, self.hosts, index, self._caller_context),
                               host = host)
             p.lifecycle_handlers.append(processlh)
+            p._taktuk_remote = self
             self.processes.append(p)
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h not in hosts_with_explicit_user ]:
             self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _escape_brackets_in_taktuk_options(self.processes[index].cmd), "]", "-]",)
             self._taktuk_hosts_order.append(index)
+            self.processes[index]._taktuk_index = index
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h in hosts_with_explicit_user ]:
             self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _escape_brackets_in_taktuk_options(self.processes[index].cmd), "]", "-]",)
             self._taktuk_hosts_order.append(index)
+            self.processes[index]._taktuk_index = index
 
     def _init_processes(self):
         # taktuk code common to TaktukRemote and subclasses TaktukGet
