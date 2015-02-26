@@ -756,7 +756,6 @@ class TaktukRemote(Action):
     def kill(self):
         retval = super(TaktukRemote, self).kill()
         if self._taktuk:
-            self._taktuk.ignore_exit_code = self._taktuk.nolog_exit_code = True
             self._taktuk.kill()
         return retval
 
