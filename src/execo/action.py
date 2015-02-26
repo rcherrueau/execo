@@ -583,7 +583,7 @@ class _TaktukLH(ProcessLifecycleHandler):
                                               timeouted = timeouted,
                                               forced_kill = forced_kill)
 
-def _quote_taktuk_brackets(s):
+def _escape_brackets_in_taktuk_options(s):
     for c in [ '[', ']' ]:
         s = s.replace( c, '\\' + c )
     return s
@@ -666,10 +666,10 @@ class TaktukRemote(Action):
 
     def _gen_taktuk_commands(self, hosts_with_explicit_user):
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h not in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(self.processes[index].cmd), "]", "-]",)
+            self._taktuk_commands += ("-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _escape_brackets_in_taktuk_options(self.processes[index].cmd), "]", "-]",)
             self._taktuk_hosts_order.append(index)
         for (index, host) in [ (idx, h) for (idx, h) in enumerate(self.hosts) if h in hosts_with_explicit_user ]:
-            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _quote_taktuk_brackets(self.processes[index].cmd), "]", "-]",)
+            self._taktuk_commands += ("-l", host.user, "-m", get_rewritten_host_address(host.address, self.connection_params), "-[", "exec", "[", _escape_brackets_in_taktuk_options(self.processes[index].cmd), "]", "-]",)
             self._taktuk_hosts_order.append(index)
 
     def _init_processes(self):
