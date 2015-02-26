@@ -710,7 +710,7 @@ class TaktukRemote(Action):
                 global_port = list(check_ports)[0]
             self._gen_taktukprocesses()
             self._gen_taktuk_commands(hosts_with_explicit_user)
-            self._taktuk_commands += ("quit",)
+            #self._taktuk_commands += ("quit",)
             #handler = _TaktukRemoteOutputHandler(self)
             taktuk_options_filehandle, taktuk_options_filename = tempfile.mkstemp(prefix = 'tmp_execo_taktuk_')
             self._taktuk_commands = " ".join(self._taktuk_commands)
@@ -765,6 +765,14 @@ class TaktukRemote(Action):
         if self._taktuk:
             self._taktuk.wait()
         return retval
+
+    def _notify_terminated(self):
+        try:
+            os.write(self._taktuk.stdin_fd, "quit\n\n")
+            self._taktuk.kill()
+        except:
+            pass
+        super(TaktukRemote, self)._notify_terminated()
 
 class Put(Remote):
 
