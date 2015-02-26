@@ -269,6 +269,15 @@ class Action(object):
             stats['end_date'] = None
         return stats
 
+    def __enter__(self):
+        """Context manager enter function: returns self"""
+        return self
+
+    def __exit__(self, t, v, traceback):
+        """Context manager leave function: kills the action"""
+        self.kill()
+        return False
+
 def wait_any_actions(actions, timeout = None):
     """Wait for any of the actions given to terminate.
 
