@@ -864,6 +864,7 @@ class Process(ProcessBase):
         with self._lock:
             if self.__start_pending:
                 intr_cond_wait(self.started_condition)
+        logger.iodebug("write to fd %s: %r" % (self.stdin_fd, s))
         os.write(self.stdin_fd, s)
 
 class SshProcess(Process):
