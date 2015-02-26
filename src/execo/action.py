@@ -718,7 +718,6 @@ class TaktukRemote(Action):
             os.close(taktuk_options_filehandle)
             logger.debug("generated taktuk tmp cmd file %s with content:\n%s", taktuk_options_filename, self._taktuk_commands)
             real_taktuk_cmdline = (actual_connection_params['taktuk'],)
-            real_taktuk_cmdline += actual_connection_params['taktuk_options']
             real_taktuk_cmdline += ("-o", 'output="A $position # $line\\n"',
                                     "-o", 'error="B $position # $line\\n"',
                                     "-o", 'status="C $position # $line\\n"',
@@ -728,6 +727,7 @@ class TaktukRemote(Action):
                                     "-o", 'taktuk="G $position # $line\\n"',
                                     "-o", 'message="H $position # $line\\n"',
                                     "-o", 'default="I $position # $type > $line\\n"')
+            real_taktuk_cmdline += actual_connection_params['taktuk_options']
             real_taktuk_cmdline += ("-c", " ".join(
                 get_taktuk_connector_command(keyfile = global_keyfile,
                                              port = global_port,
