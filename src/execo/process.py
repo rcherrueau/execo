@@ -861,9 +861,10 @@ class Process(ProcessBase):
         return self.start().wait(timeout)
 
     def write(self, s):
-        with self._lock:
-            if self.__start_pending:
-                intr_cond_wait(self.started_condition)
+        if self.__start_pending:
+            with self._lock:
+                if self.__start_pending:
+                    intr_cond_wait(self.started_condition)
         logger.iodebug("write to fd %s: %r" % (self.stdin_fd, s))
         os.write(self.stdin_fd, s)
 
