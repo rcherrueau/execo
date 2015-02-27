@@ -441,6 +441,10 @@ class Remote(Action):
                 process.kill()
         return retval
 
+    def write(self, s):
+        for process in self.processes:
+            process.write(s)
+
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
 
     """Parse taktuk output."""
