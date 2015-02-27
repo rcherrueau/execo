@@ -163,6 +163,15 @@ class ProcessBase(object):
     the process, in order to provide specific actions or stdout/stderr
     parsing when needed. See `execo.process.ProcessLifecycleHandler`
     and `execo.process.ProcessOutputHandler`.
+
+    A ProcessBase and its subclasses can act as a context manager
+    object, allowing to write code such as::
+
+     with Process(...).start() as p:
+       [...do something...]
+
+    When exiting the contex manager scope, the process is
+    automatically killed.
     """
 
     def __init__(self, cmd):
@@ -711,6 +720,9 @@ class Process(ProcessBase):
           that the subprocess has terminated after a preset timeout,
           when it has received a SIGTERM, and automatically send
           SIGKILL if the subprocess is not yet terminated
+
+        By default, sending signals to processes automatically ignores
+        and disable logs of exit code != 0.
         """
         logger.debug(style.emph("kill with signal %s:" % sig) + " %s" % (str(self),))
         with self._lock:
@@ -861,6 +873,15 @@ class Process(ProcessBase):
         return self.start().wait(timeout)
 
     def write(self, s):
+        """Write on the Process standard input
+
+        Allows process instances to behave as file-like objects. You
+        can for example print to a Process.
+
+        This method automatically waits for the standard input to be
+        actually writable if the process was just started (as the
+        start is asynchronous).
+        """
         if self.__start_pending:
             with self._lock:
                 if self.__start_pending:

@@ -69,6 +69,15 @@ class Action(object):
     all processes in the Action to finish. An Action can be run
     (`execo.action.Action.run`), it means start it then wait for it to
     complete.
+
+    An Action and its subclasses can act as a context manager object,
+    allowing to write code such as::
+
+     with Remote(...).start() as r:
+       [...do something...]
+
+    When exiting the contex manager scope, the remote is automatically
+    killed.
     """
 
     _wait_multiple_actions_condition = threading.Condition()
@@ -373,7 +382,7 @@ class Remote(Action):
 
     def __init__(self, cmd, hosts, connection_params = None):
         """
-        :param cmd: the command to run remotely. substitions
+        :param cmd: the command to run remotely. Substitions
           described in `execo.substitutions.remote_substitute` will be
           performed.
 
@@ -442,6 +451,11 @@ class Remote(Action):
         return retval
 
     def write(self, s):
+        """Write on the Remote processes standard inputs
+
+        Allows Remote instances to behave as file-like objects. You
+        can for example print to a Remote.
+        """
         for process in self.processes:
             process.write(s)
 
