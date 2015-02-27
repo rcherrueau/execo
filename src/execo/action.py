@@ -22,7 +22,7 @@ from execo.process import get_process
 from host import get_hosts_list, get_unique_hosts_list
 from log import style, logger
 from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
-    TaktukProcess, Process
+    TaktukProcess, Process, SerialSsh
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
@@ -1642,6 +1642,96 @@ class ChainPut(SequentialActions):
         else:
             self.actions = []
         super(ChainPut, self)._init_actions()
+
+class RemoteSerial(Action):
+
+    """Open a serial port on several hosts in parallel through ``ssh`` or a similar remote connection tool.
+
+    The serial port can be read (standard output) and written to (standard input).
+    """
+
+    def __init__(self, hosts, device, speed, connection_params = None):
+        """:param hosts: iterable of `execo.host.Host` to which to
+          connect and open the serial device.
+
+        :param device: The Path to the serial device on the remote
+          hosts (for example: ``/dev/ttyUSB1``). Substitions described
+          in `execo.substitutions.remote_substitute` will be
+          performed.
+
+        :param speed: the speed of the serial port (for example:
+          115200)
+
+        :param connection_params: a dict similar to
+          `execo.config.default_connection_params` whose values will
+          override those in default_connection_params for connection.
+
+        """
+        super(RemoteSerial, self).__init__()
+        self.connection_params = connection_params
+        """A dict similar to `execo.config.default_connection_params` whose values
+        will override those in default_connection_params for connection."""
+        self.hosts = hosts
+        """Iterable of `execo.host.Host` to which to connect and run the command."""
+        self.device = device
+        """Path to the serial devices on the remote hosts. (for example:
+        ``/dev/ttyUSB1``). Substitions described in
+        `execo.substitutions.remote_substitute` will be performed."""
+        self.speed = speed
+        """The speed of the serial port (for example: 115200)"""
+        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+        self._caller_context = get_caller_context()
+        self._init_processes()
+
+    @property
+    def hosts(self):
+        return self._hosts
+
+    @hosts.setter
+    def hosts(self, v):
+        self._hosts = get_hosts_list(singleton_to_collection(v))
+
+    def _args(self):
+        return [ repr(self.hosts),
+                 repr(self.device),
+                 repr(self.speed) ] + Action._args(self) + RemoteSerial._kwargs(self)
+
+    def _kwargs(self):
+        kwargs = []
+        if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
+        return kwargs
+
+    def _init_processes(self):
+        self.processes = []
+        processlh = ActionNotificationProcessLH(self, len(self.hosts))
+        for (index, host) in enumerate(self.hosts):
+            p = SerialSsh(host,
+                          remote_substitute(self.device, self.hosts, index, self._caller_context),
+                          self.speed,
+                          connection_params = self.connection_params)
+            p.lifecycle_handlers.append(processlh)
+            self.processes.append(p)
+
+    def start(self):
+        retval = super(RemoteSerial, self).start()
+        if len(self.processes) == 0:
+            logger.debug("%s contains 0 processes -> immediately terminated", self)
+            self._notify_terminated()
+        else:
+            for process in self.processes:
+                process.start()
+        return retval
+
+    def kill(self):
+        retval = super(RemoteSerial, self).kill()
+        for process in self.processes:
+            if process.running:
+                process.kill()
+        return retval
+
+    def write(self, s):
+        for process in self.processes:
+            process.write(s)
 
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
