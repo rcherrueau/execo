@@ -166,16 +166,22 @@ class ExpectOutputHandler(ProcessOutputHandler):
     """Handler for monitoring stdout / stderr of a Process and being notified when some regex matches. It mimics/takes ideas from Don Libes expect, or python-pexpect.
 
     To use this `execo.process.ProcessOutputHandler`, instanciate one,
-    and add it to the stdout_handlers / stderr_handlers of one or more
-    processes.
+    call its expect method, and add it to the stdout_handlers /
+    stderr_handlers of one or more processes. It is also possible to
+    add it to a process output handler before calling expect.
     """
 
-    def __init__(self,
-                 regexes,
-                 callback = None,
-                 condition = None,
-                 backtrack_size = 2000,
-                 start_from_current = False):
+    def __init__(self):
+        super(ExpectOutputHandler, self).__init__()
+        self.lock = threading.RLock()
+        self.last_pos = {}
+
+    def expect(self,
+               regexes,
+               callback = None,
+               condition = None,
+               backtrack_size = 2000,
+               start_from_current = False):
         """:param regexes: a regex or list of regexes. May be given as string
           or as compiled regexes.
 
@@ -211,16 +217,15 @@ class ExpectOutputHandler(ProcessOutputHandler):
           first time, the regex matching is started from the beginning
           of the stream.
         """
-        super(ExpectOutputHandler, self).__init__()
-        self.regexes = singleton_to_collection(regexes)
-        for i, r in enumerate(self.regexes):
-            if not isinstance(r, type(re.compile(''))):
-                self.regexes[i] = re.compile(r)
-        self.callback = callback
-        self.condition = condition
-        self.backtrack_size = backtrack_size
-        self.start_from_current = start_from_current
-        self.last_pos = {}
+        with self.lock:
+            self.regexes = singleton_to_collection(regexes)
+            for i, r in enumerate(self.regexes):
+                if not isinstance(r, type(re.compile(''))):
+                    self.regexes[i] = re.compile(r)
+            self.callback = callback
+            self.condition = condition
+            self.backtrack_size = backtrack_size
+            self.start_from_current = start_from_current
 
     def read(self, process, stream, string, eof, error):
         """When there is a match, the match position in the process stream
@@ -229,27 +234,33 @@ class ExpectOutputHandler(ProcessOutputHandler):
         """
         k = (process, stream)
         stream = [ process.stdout, process.stderr ][stream - 1]
-        if not k in self.last_pos:
-            if self.start_from_current:
-                self.last_pos[k] = len(stream) - len(string)
-            else:
-                self.last_pos[k] = 0
-        elif self.backtrack_size != None:
-            self.last_pos[k] = max(self.last_pos[k], len(stream) - len(string) - self.backtrack_size)
-        for re_index, r in enumerate(self.regexes):
-            mo = r.search(stream, self.last_pos[k])
+        with self.lock:
+            if not k in self.last_pos:
+                if self.start_from_current:
+                    self.last_pos[k] = len(stream) - len(string)
+                else:
+                    self.last_pos[k] = 0
+            elif self.backtrack_size != None:
+                self.last_pos[k] = max(self.last_pos[k], len(stream) - len(string) - self.backtrack_size)
+            for re_index, r in enumerate(self.regexes):
+                mo = r.search(stream, self.last_pos[k])
+                if mo != None:
+                    self.last_pos[k] = mo.end()
+                    break
+            if mo == None: re_index = None
+            if eof or error:
+                del self.last_pos[k]
             if mo != None:
-                self.last_pos[k] = mo.end()
-                break
-        if mo == None: re_index = None
-        if eof or error:
-            del self.last_pos[k]
-        if mo != None or eof or error:
-            if self.condition != None:
-                with self.condition:
-                    self.condition.notify_all()
-            if self.callback:
-                self.callback(process, stream, re_index, mo)
+                if stream == STDOUT:
+                    process.stdout_handlers.remove(self)
+                if stream == STDERR:
+                    process.stderr_handlers.remove(self)
+            if mo != None or eof or error:
+                if self.condition != None:
+                    with self.condition:
+                        self.condition.notify_all()
+                if self.callback:
+                    self.callback(process, stream, re_index, mo)
 
 class ProcessBase(object):
 
@@ -371,6 +382,8 @@ class ProcessBase(object):
         self.stdout_ioerror = False
         self.stderr_ioerror = False
         self._out_files = dict()
+        self._thread_local_storage = threading.local()
+        self._thread_local_storage.expect_handler = None
 
     def _common_reset(self):
         # all methods _common_reset() of this class hierarchy contain
@@ -397,6 +410,7 @@ class ProcessBase(object):
         self.stderr = ""
         self.stdout_ioerror = False
         self.stderr_ioerror = False
+        self._thread_local_storage.expect_handler = None
 
     def _args(self):
         # to be implemented in all subclasses. Must return a list with
@@ -613,32 +627,18 @@ class ProcessBase(object):
         self.kill()
         return False
 
-    def expect(self, regexes, callback = None, condition = None, timeout = None, stream_mask = STDOUT, backtrack_size = 2000, start_from_current = False):
+    def expect(self, regexes, timeout = None, stream_mask = STDOUT, backtrack_size = 2000, start_from_current = False):
         """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect.
 
-        It is a convenient/easier frontend for
+        It is an easier-to-use frontend for
         `execo.process.ExpectOutputHandler`.
 
-        If no callback nor condition is passed, it defaults to waiting
-        for a regex to match, then returns (regex index, match
-        object), or (None, None) if timeout reached or if eof reached
-        or stream in error, without any match.
+        It waits for a regex to match, then returns tuple (regex
+        index, match object), or (None, None) if timeout reached, or
+        if eof reached, or stream in error, without any match.
 
         :param regexes: a regex or list of regexes. May be given as string
           or as compiled regexes.
-
-        :param callback: a callback function to call when there is a
-          match. The callback will take the following parameters:
-          process (the process instance for which there was a match),
-          stream (the stream index STDOUT / STDERR for which there was
-          a match), re_index (the index in the list of regex of the
-          regex which matched), mo (the match object). If no match was
-          found and eof was reached, or stream is in error, re_index
-          and mo are set to None.
-
-        :param condition: a Threading.Condition wich will be notified
-          when there is a match (but in this case, you don't get the
-          process, stream, match object of the match)
 
         :param timeout: wait timeout after which it returns (None,
           None) if no match was found.
@@ -664,27 +664,28 @@ class ProcessBase(object):
           False: when a process is monitored by this handler for the
           first time, the regex matching is started from the beginning
           of the stream.
+
         """
-        needwait = False
-        if callback == None and condition == None:
-            cond = threading.Condition()
-            re_index_and_match_object = []
-            def internal_callback(process, stream, re_index, match_object):
-                re_index_and_match_object.append(re_index)
-                re_index_and_match_object.append(match_object)
-                with cond:
-                    cond.notify_all()
-            callback = internal_callback
-            needwait = True
-        handler = ExpectOutputHandler(regexes, callback, condition, backtrack_size, start_from_current)
-        if stream_mask & STDOUT:
-            self.stdout_handlers.append(handler)
-        if stream_mask & STDERR:
-            self.stderr_handlers.append(handler)
-        if needwait == True:
+        cond = threading.Condition()
+        re_index_and_match_object = []
+        def internal_callback(process, stream, re_index, match_object):
+            re_index_and_match_object.append(re_index)
+            re_index_and_match_object.append(match_object)
             with cond:
-                cond.wait(get_seconds(timeout))
-            return (re_index_and_match_object[0], re_index_and_match_object[1])
+                cond.notify_all()
+        if self._thread_local_storage.expect_handler == None:
+            self._thread_local_storage.expect_handler = ExpectOutputHandler()
+        self._thread_local_storage.expect_handler.expect(regexes,
+                                                         callback = internal_callback,
+                                                         backtrack_size = backtrack_size,
+                                                         start_from_current = start_from_current)
+        if stream_mask & STDOUT:
+            self.stdout_handlers.append(self._thread_local_storage.expect_handler)
+        if stream_mask & STDERR:
+            self.stderr_handlers.append(self._thread_local_storage.expect_handler)
+        with cond:
+            cond.wait(get_seconds(timeout))
+        return (re_index_and_match_object[0], re_index_and_match_object[1])
 
 def _get_childs(pid):
     childs = []
