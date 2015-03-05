@@ -157,7 +157,7 @@ class Action(object):
     def _notify_terminated(self):
         with Action._wait_multiple_actions_condition:
             logger.debug(style.emph("got termination notification for:") + " %s", self)
-            for handler in self.lifecycle_handlers:
+            for handler in list(self.lifecycle_handlers):
                 try:
                     handler.end(self)
                 except Exception, e:
@@ -178,7 +178,7 @@ class Action(object):
             raise ValueError, "Actions may be started only once"
         self.started = True
         logger.debug(style.emph("start:") + " %s", self)
-        for handler in self.lifecycle_handlers:
+        for handler in list(self.lifecycle_handlers):
             try:
                 handler.start(self)
             except Exception, e:
@@ -224,7 +224,7 @@ class Action(object):
         if self.started and not self.ended:
             self.kill()
             self.wait()
-        for handler in self.lifecycle_handlers:
+        for handler in list(self.lifecycle_handlers):
             try:
                 handler.reset(self)
             except Exception, e:

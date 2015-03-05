@@ -474,7 +474,7 @@ class ProcessBase(object):
             self.stdout += string
         if error == True:
             self.stdout_ioerror = True
-        for handler in self.stdout_handlers:
+        for handler in list(self.stdout_handlers):
             try:
                 handle_process_output(self, STDOUT, handler, string, eof, error)
             except Exception, e:
@@ -495,7 +495,7 @@ class ProcessBase(object):
             self.stderr += string
         if error == True:
             self.stderr_ioerror = True
-        for handler in self.stderr_handlers:
+        for handler in list(self.stderr_handlers):
             try:
                 handle_process_output(self, STDERR, handler, string, eof, error)
             except Exception, e:
@@ -568,7 +568,7 @@ class ProcessBase(object):
         if self.started and not self.ended:
             self.kill()
             self.wait()
-        for handler in self.lifecycle_handlers:
+        for handler in list(self.lifecycle_handlers):
             try:
                 handler.reset(self)
             except Exception, e:
@@ -870,7 +870,7 @@ class Process(ProcessBase):
                 self.end_date = time.time()
                 self.ended_condition.notify_all()
             self.ended_event.set()
-        for handler in self.lifecycle_handlers:
+        for handler in list(self.lifecycle_handlers):
             try:
                 handler.start(self)
             except Exception, e:
@@ -878,7 +878,7 @@ class Process(ProcessBase):
                         handler, self, format_exc()))
         if self.error:
             self._log_terminated()
-            for handler in self.lifecycle_handlers:
+            for handler in list(self.lifecycle_handlers):
                 try:
                     handler.end(self)
                 except Exception, e:
@@ -1016,7 +1016,7 @@ class Process(ProcessBase):
             self.ended_condition.notify_all()
         self.ended_event.set()
         self._log_terminated()
-        for handler in self.lifecycle_handlers:
+        for handler in list(self.lifecycle_handlers):
             try:
                 handler.end(self)
             except Exception, e:
@@ -1155,7 +1155,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self.started_condition.notify_all()
         self.started_event.set()
         logger.debug(style.emph("start:") + " %s" % (str(self),))
-        for handler in self.lifecycle_handlers:
+        for handler in list(self.lifecycle_handlers):
             try:
                 handler.start(self)
             except Exception, e:
@@ -1195,7 +1195,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
             self.ended_condition.notify_all()
         self.ended_event.set()
         self._log_terminated()
-        for handler in self.lifecycle_handlers:
+        for handler in list(self.lifecycle_handlers):
             try:
                 handler.end(self)
             except Exception, e:
