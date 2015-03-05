@@ -65,6 +65,13 @@ TaktukProcess
    :members:
    :show-inheritance:
 
+SerialSsh
+---------
+.. inheritance-diagram:: execo.process.SerialSsh
+.. autoclass:: execo.process.SerialSsh
+   :members:
+   :show-inheritance:
+
 ProcessLifecycleHandler
 -----------------------
 .. autoclass:: execo.process.ProcessLifecycleHandler
@@ -143,6 +150,13 @@ TaktukRemote
 ------------
 .. inheritance-diagram:: execo.action.TaktukRemote
 .. autoclass:: execo.action.TaktukRemote
+   :members:
+   :show-inheritance:
+
+RemoteSerial
+------------
+.. inheritance-diagram:: execo.action.RemoteSerial
+.. autoclass:: execo.action.RemoteSerial
    :members:
    :show-inheritance:
 
