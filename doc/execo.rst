@@ -84,6 +84,12 @@ ProcessOutputHandler
    :members:
    :show-inheritance:
 
+ExpectOutputHandler
+-------------------
+.. autoclass:: execo.process.ExpectOutputHandler
+   :members:
+   :show-inheritance:
+
 Action class hierarchy
 ======================
 

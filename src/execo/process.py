@@ -24,7 +24,7 @@ from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, name_from_cmdline, intr_cond_wait, get_port, intr_event_wait
+from utils import compact_output, name_from_cmdline, intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
 from traceback import format_exc
 from report import Report
 import errno, os, re, shlex, signal, subprocess
@@ -160,6 +160,96 @@ class _debugio_output_handler(ProcessOutputHandler):
                        + repr(string))
 
 _debugio_handler = _debugio_output_handler()
+
+class ExpectOutputHandler(ProcessOutputHandler):
+
+    """Handler for monitoring stdout / stderr of a Process and being notified when some regex matches. It mimics/takes ideas from Don Libes expect, or python-pexpect.
+
+    To use this `execo.process.ProcessOutputHandler`, instanciate one,
+    and add it to the stdout_handlers / stderr_handlers of one or more
+    processes.
+    """
+
+    def __init__(self,
+                 regexes,
+                 callback = None,
+                 condition = None,
+                 backtrack_size = 2000,
+                 start_from_current = False):
+        """:param regexes: a regex or list of regexes. May be given as string
+          or as compiled regexes.
+
+        :param callback: a callback function to call when there is a
+          match. The callback will take the following parameters:
+          process (the process instance for which there was a match),
+          stream (the stream index STDOUT / STDERR for which there was
+          a match), re_index (the index in the list of regex of the
+          regex which matched), mo (the match object). If no match was
+          found and eof was reached, or stream is in error, re_index
+          and mo are set to None.
+
+        :param condition: a Threading.Condition wich will be notified
+          when there is a match (but in this case, you don't get the
+          process, stream, match object of the match)
+
+        :param backtrack_size: Each time some data is received, this
+          ouput handler needs to perform the regex search not only on
+          the incoming data, but also on the previously received data,
+          or at least on the last n bytes of the previously received
+          data, because the regex may match on a boundary between what
+          was received in a previous read and what is received in the
+          incoming read. These n bytes are the backtrack_size. (for
+          special cases: if backtrack_size == None, the regex search
+          is always done on the whole received data, but beware, this
+          is probably not what you want)
+
+        :param start_from_current: boolean. If True: when a process is
+          monitored by this handler for the first time, the regex
+          matching is started from the position in the stream at the
+          time that this output hander starts receiving data. If
+          False: when a process is monitored by this handler for the
+          first time, the regex matching is started from the beginning
+          of the stream.
+        """
+        super(ExpectOutputHandler, self).__init__()
+        self.regexes = singleton_to_collection(regexes)
+        for i, r in enumerate(self.regexes):
+            if not isinstance(r, type(re.compile(''))):
+                self.regexes[i] = re.compile(r)
+        self.callback = callback
+        self.condition = condition
+        self.backtrack_size = backtrack_size
+        self.start_from_current = start_from_current
+        self.last_pos = {}
+
+    def read(self, process, stream, string, eof, error):
+        """When there is a match, the match position in the process stream
+        becomes the new position from which subsequent searches on the
+        same process / stream.
+        """
+        k = (process, stream)
+        stream = [ process.stdout, process.stderr ][stream - 1]
+        if not k in self.last_pos:
+            if self.start_from_current:
+                self.last_pos[k] = len(stream) - len(string)
+            else:
+                self.last_pos[k] = 0
+        elif self.backtrack_size != None:
+            self.last_pos[k] = max(self.last_pos[k], len(stream) - len(string) - self.backtrack_size)
+        for re_index, r in enumerate(self.regexes):
+            mo = r.search(stream, self.last_pos[k])
+            if mo != None:
+                self.last_pos[k] = mo.end()
+                break
+        if mo == None: re_index = None
+        if eof or error:
+            del self.last_pos[k]
+        if mo != None or eof or error:
+            if self.condition != None:
+                with self.condition:
+                    self.condition.notify_all()
+            if self.callback:
+                self.callback(process, stream, re_index, mo)
 
 class ProcessBase(object):
 
@@ -522,6 +612,79 @@ class ProcessBase(object):
         """Context manager leave function: kills the process"""
         self.kill()
         return False
+
+    def expect(self, regexes, callback = None, condition = None, timeout = None, stream_mask = STDOUT, backtrack_size = 2000, start_from_current = False):
+        """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect.
+
+        It is a convenient/easier frontend for
+        `execo.process.ExpectOutputHandler`.
+
+        If no callback nor condition is passed, it defaults to waiting
+        for a regex to match, then returns (regex index, match
+        object), or (None, None) if timeout reached or if eof reached
+        or stream in error, without any match.
+
+        :param regexes: a regex or list of regexes. May be given as string
+          or as compiled regexes.
+
+        :param callback: a callback function to call when there is a
+          match. The callback will take the following parameters:
+          process (the process instance for which there was a match),
+          stream (the stream index STDOUT / STDERR for which there was
+          a match), re_index (the index in the list of regex of the
+          regex which matched), mo (the match object). If no match was
+          found and eof was reached, or stream is in error, re_index
+          and mo are set to None.
+
+        :param condition: a Threading.Condition wich will be notified
+          when there is a match (but in this case, you don't get the
+          process, stream, match object of the match)
+
+        :param timeout: wait timeout after which it returns (None,
+          None) if no match was found.
+
+        :param stream_mask: logical OR of the stream(s) to monitor for
+          this process (STDOUT, STDERR, or STDOUT | STDERR)
+
+        :param backtrack_size: Each time some data is received, this
+          ouput handler needs to perform the regex search not only on
+          the incoming data, but also on the previously received data,
+          or at least on the last n bytes of the previously received
+          data, because the regex may match on a boundary between what
+          was received in a previous read and what is received in the
+          incoming read. These n bytes are the backtrack_size. (for
+          special cases: if backtrack_size == None, the regex search
+          is always done on the whole received data, but beware, this
+          is probably not what you want)
+
+        :param start_from_current: boolean. If True: when a process is
+          monitored by this handler for the first time, the regex
+          matching is started from the position in the stream at the
+          time that this output hander starts receiving data. If
+          False: when a process is monitored by this handler for the
+          first time, the regex matching is started from the beginning
+          of the stream.
+        """
+        needwait = False
+        if callback == None and condition == None:
+            cond = threading.Condition()
+            re_index_and_match_object = []
+            def internal_callback(process, stream, re_index, match_object):
+                re_index_and_match_object.append(re_index)
+                re_index_and_match_object.append(match_object)
+                with cond:
+                    cond.notify_all()
+            callback = internal_callback
+            needwait = True
+        handler = ExpectOutputHandler(regexes, callback, condition, backtrack_size, start_from_current)
+        if stream_mask & STDOUT:
+            self.stdout_handlers.append(handler)
+        if stream_mask & STDERR:
+            self.stderr_handlers.append(handler)
+        if needwait == True:
+            with cond:
+                cond.wait(get_seconds(timeout))
+            return (re_index_and_match_object[0], re_index_and_match_object[1])
 
 def _get_childs(pid):
     childs = []
