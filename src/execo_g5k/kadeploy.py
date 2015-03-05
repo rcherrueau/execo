@@ -115,7 +115,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
     def action_reset(self):
         self._current_section = self._SECTION_NONE
 
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         if (_ksoh_deployed_nodes_header_re1.search(string) != None
             or _ksoh_deployed_nodes_header_re2.search(string) != None):
             self._current_section = self._SECTION_DEPLOYED_NODES
@@ -179,7 +179,7 @@ class FrontendPrefixWrapper(ProcessOutputHandler):
         super(FrontendPrefixWrapper, self).__init__()
         self.handler = handler
 
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         handle_process_output(process,
                               self.handler,
                               process.frontend + ": " + string,

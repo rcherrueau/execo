@@ -519,7 +519,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
             logger.critical("line received = %s", string.rstrip('\n'))
             return s
 
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         # my taktuk output protocol:
         #  stream    format                                                    header normal?
         #  output    "A $position # $line"                                     65     YES

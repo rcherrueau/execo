@@ -30,6 +30,11 @@ from report import Report
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes
 
+STDOUT = 1
+"""Identifier for the stdout stream"""
+STDERR = 2
+"""Identifier for the stderr stream"""
+
 class ProcessLifecycleHandler(object):
 
     """Abstract handler for `execo.process.ProcessBase` lifecycle."""
@@ -63,10 +68,13 @@ class ProcessOutputHandler(object):
         """ProcessOutputHandler constructor. Call it in inherited classes."""
         self._buffer = {}
 
-    def read(self, process, string, eof, error):
+    def read(self, process, stream, string, eof, error):
         """Handle string read from a `execo.process.ProcessBase`'s stream.
 
         :param process: the ProcessBase which outputs the string
+
+        :param stream: the index of the process' stream which
+          gets data (STDOUT / STDERR)
 
         :param string: the string read
 
@@ -75,24 +83,28 @@ class ProcessOutputHandler(object):
         :param error: (boolean) true if there was an error on the
           stream
         """
-        if not process in self._buffer:
-            self._buffer[process] = ""
-        self._buffer[process] += string
+        k = (process, stream)
+        if not k in self._buffer:
+            self._buffer[k] = ""
+        self._buffer[k] += string
         while True:
-            (line, sep, remaining) = self._buffer[process].partition('\n')
+            (line, sep, remaining) = self._buffer[k].partition('\n')
             if sep != '':
-                self.read_line(process, line + sep, False, False)
-                self._buffer[process] = remaining
+                self.read_line(process, stream, line + sep, False, False)
+                self._buffer[k] = remaining
             else:
                 break
         if eof or error:
-            self.read_line(process, self._buffer[process], eof, error)
-            del self._buffer[process]
+            self.read_line(process, stream, self._buffer[k], eof, error)
+            del self._buffer[k]
 
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         """Handle string read line by line from a `execo.process.ProcessBase`'s stream.
 
         :param process: the ProcessBase which outputs the line
+
+        :param stream: the index of the process' stream which
+          gets data (STDOUT / STDERR)
 
         :param string: the line read
 
@@ -103,10 +115,13 @@ class ProcessOutputHandler(object):
         """
         pass
 
-def handle_process_output(process, handler, string, eof, error):
+def handle_process_output(process, stream, handler, string, eof, error):
     """Handle the output of a process.
 
     :param process: the affected process
+
+    :param stream: the index of the process' stream which gets
+      data (STDOUT / STDERR)
 
     :param handler: instance of `execo.process.ProcessOutputHandler`,
       or existing file descriptor (positive integer), or existing file
@@ -123,32 +138,28 @@ def handle_process_output(process, handler, string, eof, error):
     if isinstance(handler, int):
         os.write(handler, string)
     elif isinstance(handler, ProcessOutputHandler):
-        handler.read(process, string, eof, error)
+        handler.read(process, stream, string, eof, error)
     elif hasattr(handler, "write"):
         handler.write(string)
     elif isinstance(handler, basestring):
-        if not process._out_files.get(handler):
-            process._out_files[handler] = open(handler, "w")
-        process._out_files[handler].write(string)
+        k = (handler, stream)
+        if not process._out_files.get(k):
+            process._out_files[k] = open(handler, "w")
+        process._out_files[k].write(string)
         if eof:
-            process._out_files[handler].close()
-            del process._out_files[handler]
+            process._out_files[k].close()
+            del process._out_files[k]
 
 class _debugio_output_handler(ProcessOutputHandler):
 
-    def __init__(self, prefix):
-        super(_debugio_output_handler, self).__init__()
-        self.prefix = prefix
-
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         logger.iodebug(style.emph(("pid %i " % (process.pid,) if hasattr(process, "pid") else "")
-                                  + self.prefix + ": "
+                                  + [ "stdout", "stderr"][stream-1]
                                   + ("(EOF) " if eof else "")
                                   + ("(ERROR) " if error else ""))
                        + repr(string))
 
-_debugio_stdout_handler = _debugio_output_handler("stdout")
-_debugio_stderr_handler = _debugio_output_handler("stderr")
+_debugio_handler = _debugio_output_handler()
 
 class ProcessBase(object):
 
@@ -368,14 +379,14 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        _debugio_stdout_handler.read(self, string, eof, error)
+        _debugio_handler.read(self, STDOUT, string, eof, error)
         if self.default_stdout_handler:
             self.stdout += string
         if error == True:
             self.stdout_ioerror = True
         for handler in self.stdout_handlers:
             try:
-                handle_process_output(self, handler, string, eof, error)
+                handle_process_output(self, STDOUT, handler, string, eof, error)
             except Exception, e:
                 logger.error("process stdout handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
@@ -389,14 +400,14 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        _debugio_stderr_handler.read(self, string, eof, error)
+        _debugio_handler.read(self, STDERR, string, eof, error)
         if self.default_stderr_handler:
             self.stderr += string
         if error == True:
             self.stderr_ioerror = True
         for handler in self.stderr_handlers:
             try:
-                handle_process_output(self, handler, string, eof, error)
+                handle_process_output(self, STDERR, handler, string, eof, error)
             except Exception, e:
                 logger.error("process stderr handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
@@ -1052,7 +1063,7 @@ class port_forwarder_stderr_handler(ProcessOutputHandler):
             local_port)
         self.pf_open_re = re.compile(regex)
 
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         if self.pf_open_re.match(string):
             process.forwarding.set()
 
