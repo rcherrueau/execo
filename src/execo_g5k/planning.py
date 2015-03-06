@@ -727,9 +727,9 @@ def _remove_excluded(planning, excluded_resources):
     """This function remove elements from planning"""
     # first removing the site
     for element in excluded_resources:
-        if element in get_g5k_sites():
+        if element in get_g5k_sites() and element in planning:
             del planning[element]
-
+    # then removing specific clusters
     for site_pl in planning.itervalues():
         for res in site_pl.keys():
             if res in excluded_resources:
