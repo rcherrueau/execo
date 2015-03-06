@@ -1304,8 +1304,8 @@ class PortForwarder(SshProcess):
                                             connection_params = pf_conn_parms)
         self.forwarding = threading.Event()
         """`threading.Event` which can be waited upon to be notified when the forwarding port is actually open"""
-        self.stderr_handlers.append(port_forwarder_stderr_handler(local_port,
-                                                                  bind_address))
+        self.stderr_handlers.append(port_forwarder_stderr_handler(self.local_port,
+                                                                  self.bind_address))
 
     def _common_reset(self):
         super(PortForwarder, self)._common_reset()
