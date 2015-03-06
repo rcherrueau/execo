@@ -246,6 +246,11 @@ class ExpectOutputHandler(ProcessOutputHandler):
                 mo = r.search(stream, self.last_pos[k])
                 if mo != None:
                     self.last_pos[k] = mo.end()
+                    logger.debug("ExpectOuputHandler: match found for %r in stream %s at position %s in %s" % (
+                        r.pattern,
+                        stream,
+                        mo.span(),
+                        process))
                     break
             if mo == None: re_index = None
             if eof or error:
