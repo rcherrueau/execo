@@ -169,6 +169,15 @@ class ExpectOutputHandler(ProcessOutputHandler):
     call its expect method, and add it to the stdout_handlers /
     stderr_handlers of one or more processes. It is also possible to
     add it to a process output handler before calling expect.
+
+    One instance of ExpectOutputHandler can handle stdout/stderr of
+    several processes. It tracks each process's stream search position
+    independently. when a process is monitored by this handler for the
+    first time, the regex matching is started from the position in the
+    stream at the time that this output hander starts receiving data
+    or from the beginning of the stream, depending on param
+    start_from_current. For subsequent matches, the search start
+    position in the stream is the end of the previous match.
     """
 
     def __init__(self):
@@ -642,6 +651,9 @@ class ProcessBase(object):
         index, match object), or (None, None) if timeout reached, or
         if eof reached, or stream in error, without any match.
 
+        It uses thread local storage such that concurrent expects in
+        parallel threads do not interfere which each other.
+
         :param regexes: a regex or list of regexes. May be given as string
           or as compiled regexes.
 
@@ -669,7 +681,6 @@ class ProcessBase(object):
           False: when a process is monitored by this handler for the
           first time, the regex matching is started from the beginning
           of the stream.
-
         """
         cond = threading.Condition()
         re_index_and_match_object = []
