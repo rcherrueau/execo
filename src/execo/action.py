@@ -18,7 +18,7 @@
 
 from execo.config import make_connection_params, configuration, SSH, TAKTUK, SCP, CHAINPUT
 from execo.host import Host
-from execo.process import get_process
+from execo.process import get_process, STDOUT, STDERR, ExpectOutputHandler
 from host import get_hosts_list, get_unique_hosts_list
 from log import style, logger
 from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
@@ -30,7 +30,7 @@ from utils import name_from_cmdline, intr_cond_wait, intr_event_wait, get_port, 
     singleton_to_collection
 from traceback import format_exc
 from substitutions import get_caller_context, remote_substitute
-from time_utils import get_seconds, format_date
+from time_utils import get_seconds, format_date, Timer
 import threading, time, pipes, tempfile, os, shutil, stat
 
 class ActionLifecycleHandler(object):
@@ -404,7 +404,13 @@ class Remote(Action):
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
+        self._thread_local_storage = threading.local()
+        self._thread_local_storage.expect_handler = None
         self._init_processes()
+
+    def _common_reset(self):
+        super(Remote, self)._common_reset()
+        self._thread_local_storage.expect_handler = None
 
     @property
     def hosts(self):
@@ -458,6 +464,80 @@ class Remote(Action):
         """
         for process in self.processes:
             process.write(s)
+
+    def expect(self, regexes, timeout = None, stream_mask = STDOUT, backtrack_size = 2000, start_from_current = False):
+        """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect, but in parallel on several processes.
+
+        It is an easier-to-use frontend for
+        `execo.process.ExpectOutputHandler`.
+
+        It waits for a regex to match on all processes. Then it
+        returns a list of tuples (process, stream, regex index, match
+        object). For processes / streams for which there was no match
+        before reaching the timeout or the stream is eof or erre, the
+        tuple is (process, stream, None, None). The returned list has
+        the same process sort order than self.processes.
+
+        It uses thread local storage such that concurrent expects in
+        parallel threads do not interfere which each other.
+
+        :param regexes: a regex or list of regexes. May be given as string
+          or as compiled regexes.
+
+        :param timeout: wait timeout after which it returns (None,
+          None) if no match was found.
+
+        :param stream_mask: logical OR of the stream(s) to monitor for
+          this process (STDOUT, STDERR, or STDOUT | STDERR)
+
+        :param backtrack_size: Each time some data is received, this
+          ouput handler needs to perform the regex search not only on
+          the incoming data, but also on the previously received data,
+          or at least on the last n bytes of the previously received
+          data, because the regex may match on a boundary between what
+          was received in a previous read and what is received in the
+          incoming read. These n bytes are the backtrack_size. (for
+          special cases: if backtrack_size == None, the regex search
+          is always done on the whole received data, but beware, this
+          is probably not what you want)
+
+        :param start_from_current: boolean. If True: when a process is
+          monitored by this handler for the first time, the regex
+          matching is started from the position in the stream at the
+          time that this output hander starts receiving data. If
+          False: when a process is monitored by this handler for the
+          first time, the regex matching is started from the beginning
+          of the stream.
+        """
+        countdown = Timer(timeout)
+        cond = threading.Condition()
+        num_found_and_list = [0, {}]
+        def internal_callback(process, stream, re_index, match_object):
+            num_found_and_list[0] +=1
+            num_found_and_list[1][(process, stream)] = (re_index, match_object)
+            with cond:
+                cond.notify_all()
+        if self._thread_local_storage.expect_handler == None:
+            self._thread_local_storage.expect_handler = ExpectOutputHandler()
+        self._thread_local_storage.expect_handler.expect(regexes,
+                                                         callback = internal_callback,
+                                                         backtrack_size = backtrack_size,
+                                                         start_from_current = start_from_current)
+        with cond:
+            for p in self.processes:
+                if stream_mask & STDOUT:
+                    p.stdout_handlers.append(self._thread_local_storage.expect_handler)
+                if stream_mask & STDERR:
+                    p.stderr_handlers.append(self._thread_local_storage.expect_handler)
+            while (countdown.remaining() == None or countdown.remaining() > 0) and num_found_and_list[0] < len(self.processes):
+                intr_cond_wait(cond,countdown.remaining())
+        retval = []
+        for p in self.processes:
+            if num_found_and_list[1].get((p, STDOUT)):
+                retval.append((p, STDOUT, num_found_and_list[1][(p, STDOUT)][0], num_found_and_list[1][(p, STDOUT)][1]))
+            if num_found_and_list[1].get((p, STDERR)):
+                retval.append((p, STDERR, num_found_and_list[1][(p, STDERR)][0], num_found_and_list[1][(p, STDERR)][1]))
+        return retval
 
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
 
