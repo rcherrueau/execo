@@ -679,11 +679,11 @@ class ProcessBase(object):
                                                          callback = internal_callback,
                                                          backtrack_size = backtrack_size,
                                                          start_from_current = start_from_current)
-        if stream_mask & STDOUT:
-            self.stdout_handlers.append(self._thread_local_storage.expect_handler)
-        if stream_mask & STDERR:
-            self.stderr_handlers.append(self._thread_local_storage.expect_handler)
         with cond:
+            if stream_mask & STDOUT:
+                self.stdout_handlers.append(self._thread_local_storage.expect_handler)
+            if stream_mask & STDERR:
+                self.stderr_handlers.append(self._thread_local_storage.expect_handler)
             cond.wait(get_seconds(timeout))
         return (re_index_and_match_object[0], re_index_and_match_object[1])
 
