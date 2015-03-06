@@ -242,17 +242,17 @@ class ExpectOutputHandler(ProcessOutputHandler):
         same process / stream.
         """
         k = (process, stream)
-        stream = [ process.stdout, process.stderr ][stream - 1]
+        streamdata = [ process.stdout, process.stderr ][stream - 1]
         with self.lock:
             if not k in self.last_pos:
                 if self.start_from_current:
-                    self.last_pos[k] = len(stream) - len(string)
+                    self.last_pos[k] = len(streamdata) - len(string)
                 else:
                     self.last_pos[k] = 0
             elif self.backtrack_size != None:
-                self.last_pos[k] = max(self.last_pos[k], len(stream) - len(string) - self.backtrack_size)
+                self.last_pos[k] = max(self.last_pos[k], len(streamdata) - len(string) - self.backtrack_size)
             for re_index, r in enumerate(self.regexes):
-                mo = r.search(stream, self.last_pos[k])
+                mo = r.search(streamdata, self.last_pos[k])
                 if mo != None:
                     self.last_pos[k] = mo.end()
                     logger.debug("ExpectOuputHandler: match found for %r in stream %s at position %s in %s" % (
