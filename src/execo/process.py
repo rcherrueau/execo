@@ -700,7 +700,7 @@ class ProcessBase(object):
                 self.stdout_handlers.append(self._thread_local_storage.expect_handler)
             if stream_mask & STDERR:
                 self.stderr_handlers.append(self._thread_local_storage.expect_handler)
-            cond.wait(get_seconds(timeout))
+            intr_cond_wait(cond, get_seconds(timeout))
         return (re_index_and_match_object[0], re_index_and_match_object[1])
 
 def _get_childs(pid):
@@ -1324,7 +1324,7 @@ class PortForwarder(SshProcess):
     def __enter__(self):
         """Context manager enter function: waits for the forwarding port to be ready"""
         self.start()
-        self.forwarding.wait()
+        intr_event_wait(self.forwarding)
         return self
 
 class SerialSsh(SshProcess):
