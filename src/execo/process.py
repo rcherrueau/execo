@@ -641,7 +641,7 @@ class ProcessBase(object):
         self.kill()
         return False
 
-    def expect(self, regexes, timeout = None, stream_mask = STDOUT, backtrack_size = 2000, start_from_current = False):
+    def expect(self, regexes, timeout = None, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
         """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect.
 
         It is an easier-to-use frontend for
@@ -660,8 +660,8 @@ class ProcessBase(object):
         :param timeout: wait timeout after which it returns (None,
           None) if no match was found.
 
-        :param stream_mask: logical OR of the stream(s) to monitor for
-          this process (STDOUT, STDERR, or STDOUT | STDERR)
+        :param stream: stream to monitor for this process, STDOUT or
+          STDERR.
 
         :param backtrack_size: Each time some data is received, this
           ouput handler needs to perform the regex search not only on
@@ -697,9 +697,9 @@ class ProcessBase(object):
                                                          backtrack_size = backtrack_size,
                                                          start_from_current = start_from_current)
         with cond:
-            if stream_mask & STDOUT:
+            if stream == STDOUT:
                 self.stdout_handlers.append(self._thread_local_storage.expect_handler)
-            if stream_mask & STDERR:
+            else:
                 self.stderr_handlers.append(self._thread_local_storage.expect_handler)
             while (countdown.remaining() == None or countdown.remaining() > 0) and re_index_and_match_object[0] == None:
                 non_retrying_intr_cond_wait(cond, countdown.remaining())
