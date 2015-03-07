@@ -24,7 +24,7 @@ from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
 from time_utils import format_unixts, get_seconds
-from utils import compact_output, name_from_cmdline, intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
+from utils import compact_output, name_from_cmdline, non_retrying_intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
 from traceback import format_exc
 from report import Report
 import errno, os, re, shlex, signal, subprocess
@@ -682,11 +682,12 @@ class ProcessBase(object):
           first time, the regex matching is started from the beginning
           of the stream.
         """
+        countdown = Timer(timeout)
         cond = threading.Condition()
-        re_index_and_match_object = []
+        re_index_and_match_object = [None, None]
         def internal_callback(process, stream, re_index, match_object):
-            re_index_and_match_object.append(re_index)
-            re_index_and_match_object.append(match_object)
+            re_index_and_match_object[0] = re_index
+            re_index_and_match_object[1] = match_object
             with cond:
                 cond.notify_all()
         if self._thread_local_storage.expect_handler == None:
@@ -700,7 +701,8 @@ class ProcessBase(object):
                 self.stdout_handlers.append(self._thread_local_storage.expect_handler)
             if stream_mask & STDERR:
                 self.stderr_handlers.append(self._thread_local_storage.expect_handler)
-            intr_cond_wait(cond, get_seconds(timeout))
+            while (countdown.remaining() == None or countdown.remaining() > 0) and re_index_and_match_object[0] == None:
+                non_retrying_intr_cond_wait(cond, countdown.remaining())
         return (re_index_and_match_object[0], re_index_and_match_object[1])
 
 def _get_childs(pid):
@@ -917,8 +919,8 @@ class Process(ProcessBase):
         """
         logger.debug(style.emph("kill with signal %s:" % sig) + " %s" % (str(self),))
         with self._lock:
-            if self.__start_pending:
-                intr_cond_wait(self.started_condition)
+            while self.__start_pending:
+                non_retrying_intr_cond_wait(self.started_condition)
         other_debug_logs=[]
         additionnal_processes_to_kill = []
         with self._lock:
@@ -1044,16 +1046,16 @@ class Process(ProcessBase):
         """Wait for the subprocess end."""
         logger.debug(style.emph("wait: ") + " %s" % (str(self),))
         with self._lock:
-            if self.__start_pending:
-                intr_cond_wait(self.started_condition)
-            elif not self.started:
+            while self.__start_pending:
+                non_retrying_intr_cond_wait(self.started_condition)
+            if not self.started:
                 raise ValueError, "Trying to wait a process which has not been started"
         timeout = get_seconds(timeout)
         if timeout != None:
             end = time.time() + timeout
         while self.ended != True and (timeout == None or timeout > 0):
             with the_conductor.lock:
-                intr_cond_wait(the_conductor.condition, timeout)
+                non_retrying_intr_cond_wait(the_conductor.condition, timeout)
             if timeout != None:
                 timeout = end - time.time()
         logger.debug(style.emph("wait finished:") + " %s" % (str(self),))
@@ -1075,8 +1077,8 @@ class Process(ProcessBase):
         """
         if self.__start_pending:
             with self._lock:
-                if self.__start_pending:
-                    intr_cond_wait(self.started_condition)
+                while self.__start_pending:
+                    non_retrying_intr_cond_wait(self.started_condition)
         logger.iodebug("write to fd %s: %r" % (self.stdin_fd, s))
         os.write(self.stdin_fd, s)
 

@@ -26,7 +26,7 @@ from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
 from report import Report
 from ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import name_from_cmdline, intr_cond_wait, intr_event_wait, get_port, \
+from utils import name_from_cmdline, non_retrying_intr_cond_wait, intr_event_wait, get_port, \
     singleton_to_collection
 from traceback import format_exc
 from substitutions import get_caller_context, remote_substitute
@@ -303,7 +303,7 @@ def wait_any_actions(actions, timeout = None):
     with Action._wait_multiple_actions_condition:
         finished = [action for action in actions if action.ended]
         while len(finished) == 0 and (timeout == None or timeout > 0):
-            intr_cond_wait(Action._wait_multiple_actions_condition, get_seconds(timeout))
+            non_retrying_intr_cond_wait(Action._wait_multiple_actions_condition, get_seconds(timeout))
             finished = [action for action in actions if action.ended]
             if timeout != None:
                 timeout = end - time.time()
@@ -325,7 +325,7 @@ def wait_all_actions(actions, timeout = None):
     with Action._wait_multiple_actions_condition:
         finished = [action for action in actions if action.ended]
         while len(finished) != len(actions) and (timeout == None or timeout > 0):
-            intr_cond_wait(Action._wait_multiple_actions_condition, get_seconds(timeout))
+            non_retrying_intr_cond_wait(Action._wait_multiple_actions_condition, get_seconds(timeout))
             finished = [action for action in actions if action.ended]
             if timeout != None:
                 timeout = end - time.time()
@@ -530,7 +530,7 @@ class Remote(Action):
                 if stream_mask & STDERR:
                     p.stderr_handlers.append(self._thread_local_storage.expect_handler)
             while (countdown.remaining() == None or countdown.remaining() > 0) and num_found_and_list[0] < len(self.processes):
-                intr_cond_wait(cond,countdown.remaining())
+                non_retrying_intr_cond_wait(cond, countdown.remaining())
         retval = []
         for p in self.processes:
             if num_found_and_list[1].get((p, STDOUT)):

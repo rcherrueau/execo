@@ -66,7 +66,7 @@ def intr_event_wait(event, timeout = None):
             return eventflag
         current = time.time()
 
-def intr_cond_wait(cond, timeout = None):
+def non_retrying_intr_cond_wait(cond, timeout = None):
     """``threading.condition.wait`` wrapper
 
     For use in main thread. Periodically wakes up to allow main thread
