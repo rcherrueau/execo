@@ -512,7 +512,8 @@ class Remote(Action):
         """
         countdown = Timer(timeout)
         cond = threading.Condition()
-        num_found_and_list = [0, {p: (None, None) for p in self.processes}]
+        num_found_and_list = [0, {}]
+        for p in self.processes: num_found_and_list[1][p] = (None, None)
         def internal_callback(process, stream, re_index, match_object):
             num_found_and_list[0] +=1
             num_found_and_list[1][process] = (re_index, match_object)
