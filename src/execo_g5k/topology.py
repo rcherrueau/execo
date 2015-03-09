@@ -32,10 +32,9 @@ from execo.log import style
 from oar import format_date
 from itertools import groupby
 from operator import itemgetter
-from api_cache import get_api_data
 from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
     get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
-    get_site_clusters
+    get_site_clusters, get_api_data
 import networkx as nx
 
 try:

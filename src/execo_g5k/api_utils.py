@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-"""Functions for wrapping the grid5000 REST API. The functions which
-query the reference api cache their results for the life of the
-module.
+"""Functions for wrapping the grid5000 REST API. This module also
+manage a cache of the Grid'5000 Reference API (hosts and network
+equipments) (Data are stored in $HOME/.execo/g5k_api_cache/' under
+pickle format)
 
 All queries to the Grid5000 REST API are done with or without
 credentials, depending on key ``api_username`` of
@@ -30,25 +31,33 @@ keyring python module allows to access the system keyring services
 like gnome-keyring or kwallet. If a password needs to be changed, do
 it from the keyring GUI).
 
-This module is now thread-safe.
+This module is thread-safe.
+
 """
 
+from execo import logger
 from execo_g5k.config import g5k_configuration
 import execo
 import httplib2
 import json, re, itertools
 import threading
+from os import makedirs, environ
+from cPickle import load, dump
+
+_cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
+_network = None
+_hosts = None
 
 _lock = threading.RLock()
 
 _g5k_api = None
 """Internal singleton instance of the g5k api rest resource."""
-_g5k = None
-"""cache of g5k structure.
+# _g5k = None
+# """cache of g5k structure.
 
-a dict whose keys are sites, whose values are dict whose keys are
-clusters, whose values are hosts.
-"""
+# a dict whose keys are sites, whose values are dict whose keys are
+# clusters, whose values are hosts.
+# """
 
 __api_passwords = dict()
 # private dictionnary keyed by username, storing cached passwords
@@ -182,6 +191,124 @@ class APIConnection(object):
             raise APIGetException(uri, response, content)
         return response, content
 
+def get_resource_attributes(path):
+    """Get generic resource (path on g5k api) attributes as a dict"""
+    (_, content) = _get_g5k_api().get(path)
+    attributes = json.loads(content)
+    return attributes
+
+def _get_g5k_sites_uncached():
+    return [site['uid'] for site in get_resource_attributes('/sites')['items']]
+
+def _get_site_clusters_uncached(site):
+    return [cluster['uid'] for cluster in get_resource_attributes('/sites/' + site + '/clusters')['items']]
+
+def get_api_data(cache_dir=_cache_dir):
+    """Return two dicts containing the data from network,
+    and hosts """
+    global _network
+    global _hosts
+
+    if not _network or not _hosts:
+        if _is_cache_old(cache_dir):
+            network, hosts = _write_api_cache(cache_dir)
+        else:
+            network, hosts = _read_api_cache(cache_dir)
+        _network, _hosts = network, hosts
+    else:
+        logger.detail('Data already loaded in memory')
+        network, hosts = _network, _hosts
+
+    return network, hosts
+
+
+def _get_api_commit():
+    """Retrieve the latest api commit"""
+    return get_resource_attributes('')['version']
+
+
+def _is_cache_old(cache_dir=_cache_dir):
+    """Try to read the api_commit stored in the cache_dir and compare
+    it with latest commit, return True if remote commit is different
+    from cache commit"""
+    cache_is_old = False
+    try:
+        f = open(cache_dir + 'api_commit')
+        local_commit = f.readline()
+        f.close()
+        if local_commit != _get_api_commit():
+            logger.info('Cache is outdated, will retrieve the latest commit')
+            cache_is_old = True
+        else:
+            logger.detail('Already at the latest commit')
+    except:
+        pass
+        logger.detail('No commit version found')
+        cache_is_old = True
+
+    return cache_is_old
+
+
+def _write_api_cache(cache_dir=_cache_dir):
+    """Retrieve data from the Grid'5000 API and write it into
+    the cache directory"""
+    try:
+        makedirs(cache_dir)
+        logger.detail('No cache found, directory created')
+    except:
+        logger.detail('Cache directory is present')
+        pass
+
+    network, hosts = {}, {}
+    logger.info('Retrieving data from API...')
+    network['backbone'] = get_resource_attributes('/network_equipments')['items']
+
+    for site in sorted(_get_g5k_sites_uncached()):
+        logger.detail(site)
+        hosts[site] = {}
+        for cluster in _get_site_clusters_uncached(site):
+            logger.detail('* ' + cluster)
+            hosts[site][cluster] = {}
+            for host in get_resource_attributes('sites/' + site + '/clusters/'
+                                                + cluster + '/nodes')['items']:
+                hosts[site][cluster][host['uid']] = host
+        network[site] = {}
+        for equip in get_resource_attributes('sites/' + site + '/network_equipments')['items']:
+            network[site][equip['uid']] = equip
+
+    logger.detail('Writing data to cache ...')
+    f = open(cache_dir + 'network', 'w')
+    dump(network, f)
+    f.close()
+
+    f = open(cache_dir + 'hosts', 'w')
+    dump(hosts, f)
+    f.close()
+
+    f = open(cache_dir + 'api_commit', 'w')
+    f.write(_get_api_commit())
+    f.close()
+
+    return network, hosts
+
+
+def _read_api_cache(cache_dir=_cache_dir):
+    """Read the picke files from cache_dir and return two dicts
+    - network = the network_equipements of all sites and backbone
+    - hosts = the hosts of all sites
+    """
+    logger.detail('Reading data from cache ...')
+    f_network = open(cache_dir + 'network')
+    network = load(f_network)
+    f_network.close()
+
+    f_hosts = open(cache_dir + 'hosts')
+    hosts = load(f_hosts)
+    f_hosts.close()
+
+    return network, hosts
+
+
 def _get_g5k_api():
     """Get a singleton instance of a g5k api rest resource."""
     with _lock:
@@ -192,58 +319,20 @@ def _get_g5k_api():
 
 def get_g5k_sites():
     """Get the list of Grid5000 sites. Returns an iterable."""
-    with _lock:
-        global _g5k #IGNORE:W0603
-        if not _g5k:
-            (_, content) = _get_g5k_api().get('/sites')
-            sites = json.loads(content)
-            _g5k = dict()
-            for site in [site['uid'] for site in sites['items']]:
-                _g5k[site] = None
-        return _g5k.keys()
+    return get_api_data()[1].keys()
 
 def get_site_clusters(site):
     """Get the list of clusters from a site. Returns an iterable."""
-    with _lock:
-        get_g5k_sites()
-        if not _g5k.has_key(site):
-            raise ValueError, "unknown g5k site %s" % (site,)
-        if not _g5k[site]:
-            (_, content) = _get_g5k_api().get('/sites/'
-                             + site
-                             + '/clusters')
-            clusters = json.loads(content)
-            _g5k[site] = dict()
-            for cluster in [cluster['uid'] for cluster in clusters['items']]:
-                _g5k[site][cluster] = None
-        return _g5k[site].keys()
+    if not site in get_g5k_sites():
+        raise ValueError, "unknown g5k site %s" % (site,)
+    return get_api_data()[1][site].keys()
 
 def get_cluster_hosts(cluster):
     """Get the list of hosts from a cluster. Returns an iterable."""
-    with _lock:
-        _get_all_site_clusters()
-        for site in _g5k.keys():
-            if cluster in _g5k[site]:
-                if not _g5k[site][cluster]:
-                    (_, content) = _get_g5k_api().get('/sites/' + site
-                                     + '/clusters/' + cluster
-                                     + '/nodes')
-                    hosts = json.loads(content)
-                    _g5k[site][cluster] = ["%s.%s.grid5000.fr" % (host['uid'], site) for host in hosts['items']]
-                return list(_g5k[site][cluster])
-        raise ValueError, "unknown g5k cluster %s" % (cluster,)
-
-def _get_all_site_clusters():
-    """Trigger the querying of the list of clusters from all sites."""
     for site in get_g5k_sites():
-        get_site_clusters(site)
-
-def _get_all_clusters_hosts():
-    """Trigger the querying of the list of hosts from all clusters from all sites."""
-    _get_all_site_clusters()
-    for site in get_g5k_sites():
-        for cluster in get_site_clusters(site):
-            get_cluster_hosts(cluster)
+        if cluster in get_site_clusters(site):
+            return get_api_data()[1][site][cluster].keys()
+    raise ValueError, "unknown g5k cluster %s" % (cluster,)
 
 def get_g5k_clusters():
     """Get the list of all g5k clusters. Returns an iterable."""
@@ -261,7 +350,6 @@ def get_g5k_hosts():
 
 def get_cluster_site(cluster):
     """Get the site of a cluster."""
-    _get_all_site_clusters()
     for site in get_g5k_sites():
         if cluster in get_site_clusters(site):
             return site
@@ -316,12 +404,6 @@ def group_hosts(hosts):
             grouped_hosts[site][cluster] = list(cluster_hosts)
     return grouped_hosts
 
-def get_resource_attributes(path):
-    """Get generic resource (path on g5k api) attributes as a dict"""
-    (_, content) = _get_g5k_api().get(path)
-    attributes = json.loads(content)
-    return attributes
-
 def get_host_attributes(host):
     """Get the attributes of a host (as known to the g5k api) as a dict"""
     if isinstance(host, execo.Host):
@@ -330,20 +412,17 @@ def get_host_attributes(host):
     host_shortname, _, _ = host.partition(".")
     cluster = get_host_cluster(host)
     site = get_host_site(host)
-    return get_resource_attributes('/sites/' + site
-                                      + '/clusters/' + cluster
-                                      + '/nodes/' + host_shortname)
+    return get_api_data()[1][site][cluster][host_shortname]
 
 def get_cluster_attributes(cluster):
     """Get the attributes of a cluster (as known to the g5k api) as a dict"""
     site = get_cluster_site(cluster)
     return get_resource_attributes('/sites/' + site
-                                      + '/clusters/' + cluster)
+                                   + '/clusters/' + cluster)
 
 def get_site_attributes(site):
     """Get the attributes of a site (as known to the g5k api) as a dict"""
     return get_resource_attributes('/sites/' + site)
-
 
 def get_g5k_measures(host, metric, startstamp, endstamp, resolution=5):
     """ Return a dict with the api values"""
