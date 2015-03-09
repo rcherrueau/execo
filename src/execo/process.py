@@ -192,7 +192,9 @@ class ExpectOutputHandler(ProcessOutputHandler):
                backtrack_size = 2000,
                start_from_current = False):
         """:param regexes: a regex or list of regexes. May be given as string
-          or as compiled regexes.
+          or as compiled regexes (If given as compiled regexes, do not
+          forget flags, most likely re.MULTILINE. regex passed as
+          string are compiled with re.MULTILINE)
 
         :param callback: a callback function to call when there is a
           match. The callback will take the following parameters:
@@ -230,7 +232,7 @@ class ExpectOutputHandler(ProcessOutputHandler):
             self.regexes = singleton_to_collection(regexes)
             for i, r in enumerate(self.regexes):
                 if not isinstance(r, type(re.compile(''))):
-                    self.regexes[i] = re.compile(r)
+                    self.regexes[i] = re.compile(r, re.MULTILINE)
             self.callback = callback
             self.condition = condition
             self.backtrack_size = backtrack_size
