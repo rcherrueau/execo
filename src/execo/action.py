@@ -1722,7 +1722,7 @@ class ChainPut(SequentialActions):
             self.actions = []
         super(ChainPut, self)._init_actions()
 
-class RemoteSerial(Action):
+class RemoteSerial(Remote):
 
     """Open a serial port on several hosts in parallel through ``ssh`` or a similar remote connection tool.
 
@@ -1746,7 +1746,7 @@ class RemoteSerial(Action):
           override those in default_connection_params for connection.
 
         """
-        super(RemoteSerial, self).__init__()
+        super(Remote, self).__init__()
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
@@ -1760,15 +1760,9 @@ class RemoteSerial(Action):
         """The speed of the serial port (for example: 115200)"""
         self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context()
+        self._thread_local_storage = threading.local()
+        self._thread_local_storage.expect_handler = None
         self._init_processes()
-
-    @property
-    def hosts(self):
-        return self._hosts
-
-    @hosts.setter
-    def hosts(self, v):
-        self._hosts = get_hosts_list(singleton_to_collection(v))
 
     def _args(self):
         return [ repr(self.hosts),
@@ -1790,27 +1784,6 @@ class RemoteSerial(Action):
                           connection_params = self.connection_params)
             p.lifecycle_handlers.append(processlh)
             self.processes.append(p)
-
-    def start(self):
-        retval = super(RemoteSerial, self).start()
-        if len(self.processes) == 0:
-            logger.debug("%s contains 0 processes -> immediately terminated", self)
-            self._notify_terminated()
-        else:
-            for process in self.processes:
-                process.start()
-        return retval
-
-    def kill(self):
-        retval = super(RemoteSerial, self).kill()
-        for process in self.processes:
-            if process.running:
-                process.kill()
-        return retval
-
-    def write(self, s):
-        for process in self.processes:
-            process.write(s)
 
 class ActionFactory:
     """Instanciate multiple remote process execution and file copies using configurable connector tools: ``ssh``, ``scp``, ``taktuk``"""
