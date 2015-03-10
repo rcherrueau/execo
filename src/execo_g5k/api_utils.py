@@ -253,16 +253,41 @@ def __get_cluster_attrs(site, cluster):
 
 def __get_host_attrs(site, cluster):
     logger.detail(cluster + " hosts")
-    threading.currentThread().hosts_data = {}
+    threading.currentThread().host_data = {}
     for host in get_resource_attributes('sites/' + site + '/clusters/'
                                         + cluster + '/nodes')['items']:
-        threading.currentThread().hosts_data[host['uid']] = host
+        threading.currentThread().host_data[host['uid']] = host
 
 def __get_site_network(site):
     logger.detail(site + " network")
     threading.currentThread().network_data = {}
     for equip in get_resource_attributes('sites/' + site + '/network_equipments')['items']:
         threading.currentThread().network_data[equip['uid']] = equip
+
+def __get_site(site):
+    logger.detail(site)
+    site_attrs_th = threading.Thread(target = __get_site_attrs, args = (site,))
+    site_attrs_th.start()
+    site_network_th = threading.Thread(target = __get_site_network, args = (site,))
+    site_network_th.start()
+    cluster_attrs_th = {}
+    host_attrs_th = {}
+    for cluster in _get_site_clusters_uncached(site):
+        t = threading.Thread(target = __get_cluster_attrs, args = (site, cluster))
+        t.start()
+        cluster_attrs_th[cluster] = t
+        t = threading.Thread(target = __get_host_attrs, args = (site, cluster))
+        t.start()
+        host_attrs_th[cluster] = t
+    for t in [ site_attrs_th, site_network_th ] + cluster_attrs_th.values() + host_attrs_th.values():
+        t.join()
+    threading.currentThread().site_data = site_attrs_th.site_data
+    threading.currentThread().network_data = site_network_th.network_data
+    threading.currentThread().cluster_data = {}
+    threading.currentThread().host_data = {}
+    for cluster in cluster_attrs_th:
+        threading.currentThread().cluster_data[cluster] = cluster_attrs_th[cluster].cluster_data
+        threading.currentThread().host_data[cluster] = host_attrs_th[cluster].host_data
 
 def _write_api_cache(cache_dir=_cache_dir):
     """Retrieve data from the Grid'5000 API and write it into
@@ -279,29 +304,13 @@ def _write_api_cache(cache_dir=_cache_dir):
     backbone_th = threading.Thread(target = __get_backbone)
     backbone_th.start()
 
-    site_attrs_th = {}
-    cluster_attrs_th = {}
-    host_attrs_th = {}
-    site_network_th = {}
+    site_th = {}
     for site in sorted(_get_g5k_sites_uncached()):
-        t = threading.Thread(target = __get_site_attrs, args = (site,))
+        t = threading.Thread(target = __get_site, args = (site,))
         t.start()
-        site_attrs_th[site] = t
-        host_attrs_th[site] = {}
-        for cluster in _get_site_clusters_uncached(site):
-            t = threading.Thread(target = __get_cluster_attrs, args = (site, cluster))
-            t.start()
-            cluster_attrs_th[cluster] = t
-            t = threading.Thread(target = __get_host_attrs, args = (site, cluster))
-            t.start()
-            host_attrs_th[site][cluster] = t
-        t = threading.Thread(target = __get_site_network, args = (site,))
-        t.start()
-        site_network_th[site] = t
+        site_th[site] = t
 
-    threads_to_join = [ backbone_th ] + site_attrs_th.values() + cluster_attrs_th.values() + site_network_th.values()
-    for site in host_attrs_th: threads_to_join.extend(host_attrs_th[site].values())
-    for t in threads_to_join:
+    for t in [ backbone_th ] + site_th.values():
         t.join()
 
     data = {'network': {},
@@ -310,18 +319,15 @@ def _write_api_cache(cache_dir=_cache_dir):
             'hosts':  {},
             'hierarchy': {}}
     data['network']['backbone'] = backbone_th.backbone_data
-    for site in site_network_th:
-        data['network'][site] = site_network_th[site].network_data
-    for site in site_attrs_th:
-        data['sites'][site] = site_attrs_th[site].site_data
-    for cluster in cluster_attrs_th:
-        data['clusters'][cluster] = cluster_attrs_th[cluster].cluster_data
-    for site in host_attrs_th:
+    for site in site_th:
+        data['network'][site] = site_th[site].network_data
+        data['sites'][site] = site_th[site].site_data
         data['hierarchy'][site] = {}
-        for cluster in host_attrs_th[site]:
+        for cluster in site_th[site].cluster_data:
+            data['clusters'][cluster] = site_th[site].cluster_data[cluster]
             data['hierarchy'][site][cluster] = []
-            for host in host_attrs_th[site][cluster].hosts_data:
-                data['hosts'][host] = host_attrs_th[site][cluster].hosts_data[host]
+            for host in site_th[site].host_data[cluster]:
+                data['hosts'][host] = site_th[site].host_data[cluster][host]
                 data['hierarchy'][site][cluster].append(host)
 
     logger.detail('Writing data to cache ...')
