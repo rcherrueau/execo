@@ -216,11 +216,6 @@ def get_api_data(cache_dir=_cache_dir):
                 _data = _read_api_cache(cache_dir)
     return _data
 
-def _get_api_commit():
-    """Retrieve the latest api commit"""
-    return get_resource_attributes('')['version']
-
-
 def _is_cache_old(cache_dir=_cache_dir):
     """Try to read the api_commit stored in the cache_dir and compare
     it with latest commit, return True if remote commit is different
@@ -230,7 +225,7 @@ def _is_cache_old(cache_dir=_cache_dir):
         f = open(cache_dir + 'api_commit')
         local_commit = f.readline()
         f.close()
-        if local_commit != _get_api_commit():
+        if local_commit != get_resource_attributes('')['version']:
             logger.info('Cache is outdated, will retrieve the latest commit')
             cache_is_old = True
         else:
@@ -242,6 +237,33 @@ def _is_cache_old(cache_dir=_cache_dir):
     return cache_is_old
 
 
+def __get_backbone():
+    logger.detail("backbone network")
+    threading.currentThread().backbone_data = get_resource_attributes('/network_equipments')['items']
+
+def __get_site_attrs(site):
+    logger.detail(site + " attrs")
+    threading.currentThread().site_data = get_resource_attributes('sites/' + site)
+
+def __get_cluster_attrs(site, cluster):
+    logger.detail(cluster + " attrs")
+    threading.currentThread().cluster_data = get_resource_attributes('sites/' + site
+                                                                     + '/clusters/'
+                                                                     + cluster)
+
+def __get_host_attrs(site, cluster):
+    logger.detail(cluster + " hosts")
+    threading.currentThread().hosts_data = {}
+    for host in get_resource_attributes('sites/' + site + '/clusters/'
+                                        + cluster + '/nodes')['items']:
+        threading.currentThread().hosts_data[host['uid']] = host
+
+def __get_site_network(site):
+    logger.detail(site + " network")
+    threading.currentThread().network_data = {}
+    for equip in get_resource_attributes('sites/' + site + '/network_equipments')['items']:
+        threading.currentThread().network_data[equip['uid']] = equip
+
 def _write_api_cache(cache_dir=_cache_dir):
     """Retrieve data from the Grid'5000 API and write it into
     the cache directory"""
@@ -252,31 +274,55 @@ def _write_api_cache(cache_dir=_cache_dir):
         logger.detail('Cache directory is present')
         pass
 
+    logger.info('Retrieving data from API...')
+
+    backbone_th = threading.Thread(target = __get_backbone)
+    backbone_th.start()
+
+    site_attrs_th = {}
+    cluster_attrs_th = {}
+    host_attrs_th = {}
+    site_network_th = {}
+    for site in sorted(_get_g5k_sites_uncached()):
+        t = threading.Thread(target = __get_site_attrs, args = (site,))
+        t.start()
+        site_attrs_th[site] = t
+        host_attrs_th[site] = {}
+        for cluster in _get_site_clusters_uncached(site):
+            t = threading.Thread(target = __get_cluster_attrs, args = (site, cluster))
+            t.start()
+            cluster_attrs_th[cluster] = t
+            t = threading.Thread(target = __get_host_attrs, args = (site, cluster))
+            t.start()
+            host_attrs_th[site][cluster] = t
+        t = threading.Thread(target = __get_site_network, args = (site,))
+        t.start()
+        site_network_th[site] = t
+
+    threads_to_join = [ backbone_th ] + site_attrs_th.values() + cluster_attrs_th.values() + site_network_th.values()
+    for site in host_attrs_th: threads_to_join.extend(host_attrs_th[site].values())
+    for t in threads_to_join:
+        t.join()
+
     data = {'network': {},
             'sites': {},
             'clusters': {},
             'hosts':  {},
             'hierarchy': {}}
-    logger.info('Retrieving data from API...')
-    data['network']['backbone'] = get_resource_attributes('/network_equipments')['items']
-
-    for site in sorted(_get_g5k_sites_uncached()):
-        logger.detail(site)
-        data['sites'][site] = get_resource_attributes('sites/' + site)
+    data['network']['backbone'] = backbone_th.backbone_data
+    for site in site_network_th:
+        data['network'][site] = site_network_th[site].network_data
+    for site in site_attrs_th:
+        data['sites'][site] = site_attrs_th[site].site_data
+    for cluster in cluster_attrs_th:
+        data['clusters'][cluster] = cluster_attrs_th[cluster].cluster_data
+    for site in host_attrs_th:
         data['hierarchy'][site] = {}
-        for cluster in _get_site_clusters_uncached(site):
-            logger.detail('* ' + cluster)
-            data['clusters'][cluster] = get_resource_attributes('sites/' + site
-                                                              + '/clusters/'
-                                                              + cluster)
+        for cluster in host_attrs_th[site]:
             data['hierarchy'][site][cluster] = []
-            for host in get_resource_attributes('sites/' + site + '/clusters/'
-                                                + cluster + '/nodes')['items']:
-                data['hosts'][host['uid']] = host
-                data['hierarchy'][site][cluster].append(host['uid'])
-        data['network'][site] = {}
-        for equip in get_resource_attributes('sites/' + site + '/network_equipments')['items']:
-            data['network'][site][equip['uid']] = equip
+            for host in host_attrs_th[site][cluster].hosts_data:
+                data['hosts'][host] = host_attrs_th[site][cluster].hosts_data[host]
+                data['hierarchy'][site][cluster].append(host)
 
     logger.detail('Writing data to cache ...')
     for e, d in data.iteritems():
@@ -285,7 +331,7 @@ def _write_api_cache(cache_dir=_cache_dir):
         f.close()
 
     f = open(cache_dir + 'api_commit', 'w')
-    f.write(_get_api_commit())
+    f.write(data['network']['backbone'][0]['version'])
     f.close()
 
     return data
