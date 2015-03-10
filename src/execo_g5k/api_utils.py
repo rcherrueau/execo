@@ -353,25 +353,28 @@ def get_host_cluster(host):
 
     Works both with a bare hostname or a fqdn.
     """
-    host_shortname = host_shortname(host)
-    for site in get_g5k_sites():
-        for cluster in get_site_clusters(site):
-            if host_shortname in get_cluster_hosts(cluster):
-                return cluster
-
-    return None
+    if isinstance(host, execo.Host):
+        host = host.address
+    host = canonical_host_name(host)
+    m = __g5k_host_group_regex.match(host)
+    if m: return m.group(1)
+    else: return None
 
 def get_host_site(host):
     """Get the site of a host.
 
     Works both with a bare hostname or a fqdn.
     """
-    host_shortname = get_host_shortname(host)
-    for site in get_g5k_sites():
-        for cluster in get_site_clusters(site):
-            if host_shortname in get_cluster_hosts(cluster):
-                return site
-    return None
+    if isinstance(host, execo.Host):
+        host = host.address
+    host = canonical_host_name(host)
+    m = __g5k_host_group_regex.match(host)
+    if m:
+        if m.group(3):
+            return m.group(3)
+        else:
+            return get_cluster_site(m.group(1))
+    else: return None
 
 def group_hosts(hosts):
     """Given a sequence of hosts, group them in a dict by sites and clusters"""
