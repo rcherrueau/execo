@@ -45,8 +45,7 @@ from os import makedirs, environ
 from cPickle import load, dump
 
 _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
-_network = None
-_hosts = None
+_data = None
 
 _lock = threading.RLock()
 
@@ -204,22 +203,17 @@ def _get_site_clusters_uncached(site):
     return [cluster['uid'] for cluster in get_resource_attributes('/sites/' + site + '/clusters')['items']]
 
 def get_api_data(cache_dir=_cache_dir):
-    """Return two dicts containing the data from network,
+    """Return a dict containing the data from network, sites, clusters
     and hosts """
-    global _network
-    global _hosts
+    global _data
 
-    if not _network or not _hosts:
+    if not _data:
         if _is_cache_old(cache_dir):
-            network, hosts = _write_api_cache(cache_dir)
+            _data = _write_api_cache(cache_dir)
         else:
-            network, hosts = _read_api_cache(cache_dir)
-        _network, _hosts = network, hosts
-    else:
-        logger.detail('Data already loaded in memory')
-        network, hosts = _network, _hosts
+            _data = _read_api_cache(cache_dir)
 
-    return network, hosts
+    return _data
 
 
 def _get_api_commit():
@@ -245,7 +239,6 @@ def _is_cache_old(cache_dir=_cache_dir):
         pass
         logger.detail('No commit version found')
         cache_is_old = True
-
     return cache_is_old
 
 
@@ -259,37 +252,43 @@ def _write_api_cache(cache_dir=_cache_dir):
         logger.detail('Cache directory is present')
         pass
 
-    network, hosts = {}, {}
+    data = {'network': {},
+            'sites': {},
+            'clusters': {},
+            'hosts':  {},
+            'hierarchy': {}}
     logger.info('Retrieving data from API...')
-    network['backbone'] = get_resource_attributes('/network_equipments')['items']
+    data['network']['backbone'] = get_resource_attributes('/network_equipments')['items']
 
     for site in sorted(_get_g5k_sites_uncached()):
         logger.detail(site)
-        hosts[site] = {}
+        data['sites'][site] = get_resource_attributes('sites/' + site)
+        data['hierarchy'][site] = {}
         for cluster in _get_site_clusters_uncached(site):
             logger.detail('* ' + cluster)
-            hosts[site][cluster] = {}
+            data['clusters'][cluster] = get_resource_attributes('sites/' + site
+                                                              + '/clusters/'
+                                                              + cluster)
+            data['hierarchy'][site][cluster] = []
             for host in get_resource_attributes('sites/' + site + '/clusters/'
                                                 + cluster + '/nodes')['items']:
-                hosts[site][cluster][host['uid']] = host
-        network[site] = {}
+                data['hosts'][host['uid']] = host
+                data['hierarchy'][site][cluster].append(host['uid'])
+        data['network'][site] = {}
         for equip in get_resource_attributes('sites/' + site + '/network_equipments')['items']:
-            network[site][equip['uid']] = equip
+            data['network'][site][equip['uid']] = equip
 
     logger.detail('Writing data to cache ...')
-    f = open(cache_dir + 'network', 'w')
-    dump(network, f)
-    f.close()
-
-    f = open(cache_dir + 'hosts', 'w')
-    dump(hosts, f)
-    f.close()
+    for e, d in data.iteritems():
+        f = open(cache_dir + e, 'w')
+        dump(d, f)
+        f.close()
 
     f = open(cache_dir + 'api_commit', 'w')
     f.write(_get_api_commit())
     f.close()
 
-    return network, hosts
+    return data
 
 
 def _read_api_cache(cache_dir=_cache_dir):
@@ -297,16 +296,14 @@ def _read_api_cache(cache_dir=_cache_dir):
     - network = the network_equipements of all sites and backbone
     - hosts = the hosts of all sites
     """
+    data = {}
     logger.detail('Reading data from cache ...')
-    f_network = open(cache_dir + 'network')
-    network = load(f_network)
-    f_network.close()
+    for e in ['network', 'sites', 'clusters', 'hosts', 'hierarchy']:
+        f = open(cache_dir + e)
+        data[e] = load(f)
+        f.close()
 
-    f_hosts = open(cache_dir + 'hosts')
-    hosts = load(f_hosts)
-    f_hosts.close()
-
-    return network, hosts
+    return data
 
 
 def _get_g5k_api():
@@ -319,34 +316,28 @@ def _get_g5k_api():
 
 def get_g5k_sites():
     """Get the list of Grid5000 sites. Returns an iterable."""
-    return get_api_data()[1].keys()
+    return get_api_data()['hierarchy'].keys()
 
 def get_site_clusters(site):
     """Get the list of clusters from a site. Returns an iterable."""
     if not site in get_g5k_sites():
         raise ValueError, "unknown g5k site %s" % (site,)
-    return get_api_data()[1][site].keys()
+    return get_api_data()['hierarchy'][site].keys()
 
 def get_cluster_hosts(cluster):
     """Get the list of hosts from a cluster. Returns an iterable."""
     for site in get_g5k_sites():
         if cluster in get_site_clusters(site):
-            return get_api_data()[1][site][cluster].keys()
+            return get_api_data()['hierarchy'][site][cluster]
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
 
 def get_g5k_clusters():
     """Get the list of all g5k clusters. Returns an iterable."""
-    clusters = []
-    for site in get_g5k_sites():
-        clusters.extend(get_site_clusters(site))
-    return clusters
+    return get_api_data()['clusters'].keys()
 
 def get_g5k_hosts():
     """Get the list of all g5k hosts. Returns an iterable."""
-    hosts = []
-    for cluster in get_g5k_clusters():
-        hosts.extend(get_cluster_hosts(cluster))
-    return hosts
+    return get_api_data()['hosts'].keys()
 
 def get_cluster_site(cluster):
     """Get the site of a cluster."""
@@ -362,28 +353,25 @@ def get_host_cluster(host):
 
     Works both with a bare hostname or a fqdn.
     """
-    if isinstance(host, execo.Host):
-        host = host.address
-    host = canonical_host_name(host)
-    m = __g5k_host_group_regex.match(host)
-    if m: return m.group(1)
-    else: return None
+    host_shortname = host_shortname(host)
+    for site in get_g5k_sites():
+        for cluster in get_site_clusters(site):
+            if host_shortname in get_cluster_hosts(cluster):
+                return cluster
+
+    return None
 
 def get_host_site(host):
     """Get the site of a host.
 
     Works both with a bare hostname or a fqdn.
     """
-    if isinstance(host, execo.Host):
-        host = host.address
-    host = canonical_host_name(host)
-    m = __g5k_host_group_regex.match(host)
-    if m:
-        if m.group(3):
-            return m.group(3)
-        else:
-            return get_cluster_site(m.group(1))
-    else: return None
+    host_shortname = get_host_shortname(host)
+    for site in get_g5k_sites():
+        for cluster in get_site_clusters(site):
+            if host_shortname in get_cluster_hosts(cluster):
+                return site
+    return None
 
 def group_hosts(hosts):
     """Given a sequence of hosts, group them in a dict by sites and clusters"""
@@ -406,30 +394,19 @@ def group_hosts(hosts):
 
 def get_host_attributes(host):
     """Get the attributes of a host (as known to the g5k api) as a dict"""
-    if isinstance(host, execo.Host):
-        host = host.address
-    host = canonical_host_name(host)
-    host_shortname, _, _ = host.partition(".")
-    cluster = get_host_cluster(host)
-    site = get_host_site(host)
-    return get_api_data()[1][site][cluster][host_shortname]
+    return get_api_data()['hosts'][get_host_shortname(host)]
 
 def get_cluster_attributes(cluster):
     """Get the attributes of a cluster (as known to the g5k api) as a dict"""
-    site = get_cluster_site(cluster)
-    return get_resource_attributes('/sites/' + site
-                                   + '/clusters/' + cluster)
+    return get_api_data()['clusters'][cluster]
 
 def get_site_attributes(site):
     """Get the attributes of a site (as known to the g5k api) as a dict"""
-    return get_resource_attributes('/sites/' + site)
+    return get_api_data()['sites'][site]
 
 def get_g5k_measures(host, metric, startstamp, endstamp, resolution=5):
     """ Return a dict with the api values"""
-    if isinstance(host, execo.Host):
-        host = host.address
-    host = canonical_host_name(host)
-    host_shortname, _, _ = host.partition(".")
+    host_shortname = get_host_shortname(host)
     site = get_host_site(host)
     return get_resource_attributes('/sites/' + site
                                    + '/metrics/' + metric
@@ -445,6 +422,14 @@ def __canonical_sub_func(matchobj):
     if matchobj.lastindex >= 3:
         n += matchobj.group(3)
     return n
+
+def get_host_shortname(host):
+    """Convert, if needed, the host name to its shortname"""
+    if isinstance(host, execo.Host):
+        host = host.address
+    host = canonical_host_name(host)
+    host_shortname, _, _ = host.partition(".")
+    return host_shortname
 
 def canonical_host_name(host):
     """Convert, if needed, the host name to its canonical form without kavlan part.

@@ -25,7 +25,7 @@ whereas edges has bandwidth and latency information.
 All information comes from the Grid'5000 reference API.
 """
 
-from pprint import pformat
+from pprint import pformat, pprint
 from time import time
 from execo import logger, Host
 from execo.log import style
@@ -34,7 +34,7 @@ from itertools import groupby
 from operator import itemgetter
 from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
     get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
-    get_site_clusters, get_api_data
+    get_site_clusters, get_api_data, get_g5k_hosts
 import networkx as nx
 
 try:
@@ -49,41 +49,165 @@ arbitrary_latency = 2.25E-3
 suffix = '.grid5000.fr'
 
 
-class g5k_graph(nx.Graph):
+class g5k_graph(nx.MultiGraph):
     """Main graph representing the topology of the Grid'5000 platform. All
     nodes elements are defined with their FQDN"""
 
-    def __init__(self, sites=None, with_linecards=False):
-        """Retrieve API data and initialize the Graph with api_commit
-        and date of generations
+    def __init__(self, elements=None):
+        """Create the :func:`~nx.MultiGraph` representing Grid'5000 network 
+        topology
 
-        :param sites: add the topology of the given site(s)
-         (can be a string or list of string)"""
+        :param sites: add the topology of the given site(s)"""
+        logger.debug('Initializing g5k_graph')
         super(g5k_graph, self).__init__()
-        # reading API data
-        self.network, self.hosts = get_api_data()
-        # initializing graph
-        self.graph['api_commit'] = self.network['backbone'][0]['version']
+        self.data = get_api_data()
+        self.graph['api_commit'] = self.data['network']['backbone'][0]['version']
         self.graph['date'] = format_date(time())
-        self.sites = []
-        if sites:
-            if isinstance(sites, str):
-                sites = [sites]
-            for site in sites:
-                self.add_site(site)
-        self.with_linecards = with_linecards
+
+        if elements:
+            for e in elements:
+                if e in get_g5k_sites():
+                    self.add_site(e, self.data['sites'][e])
+                if e in get_g5k_clusters():
+                    self.add_cluster(e, self.data['clusters'][e])
+                if e in get_g5k_hosts():
+                    self.add_host(e, self.data['hosts'][e])
+            self.add_backbone()
+
+    # add/update/rm elements, public methods
+    def add_host(self, host, data=None):
+        """ """
+
+        if data:
+            power = data['performance']['core_flops']
+            cores = data['architecture']['smt_size']
+        else:
+            power = 0
+            cores = 0
+        logger.debug('Adding %s', style.host(host))
+        if len(self.get_host_adapters(host)) > 0:
+            self.add_node(host, {'kind': 'node',
+                                 'power': power,
+                                 'cores': cores})
+            for eq in self.get_host_adapters(host):
+                self.add_equip(eq['switch'], get_host_site(host))
+#            edge_name = host + '_' + eq['device'] + '_' + eq['switch']
+#            if not self.has_edge(host, eq['switch'], key=edge_name):
+#                self.add_edge(host, eq['switch'], key=edge_name, 
+#                              mounted=eq['mounted'], bandwidth=eq['rate'],
+#                              device=eq['device'])
+#            if self.data['network'][get_host_site(host)][eq['switch']]['kind'] != 'router':
+#                self._switch_router_path(eq['switch'], get_host_site(host))
+
+    def rm_host(self, host):
+        """ """
+        logger.debug('Removing host %s', style.host(host))
+        self.remove_node(host)
+
+    def add_cluster(self, cluster, data=None):
+        """ """
+        for h in get_cluster_hosts(cluster):
+            self.add_host(h, self.data['hosts'][h])
+
+    def rm_cluster(self, cluster):
+        """ """
+        for h in get_cluster_hosts(cluster):
+            self.rm_host(h)
+
+    def add_site(self, site, data=None):
+        """ """
+        for c in get_site_clusters(site):
+            for h in get_cluster_hosts(c):
+                self.add_host(h, self.data['hosts'][h])
+
+    def rm_site(self, site):
+        """ """
+        for c in get_site_clusters(site):
+            for h in get_cluster_hosts(c):
+                self.remove_host(h)
+
+    def add_equip(self, equip, site):
+        """ """
+        if equip not in self.data['network'][site]:
+            logger.warning('Equipment %s not described in API')
+            return
+        data = self.data['network'][site][equip]
+        logger.debug('Adding equipment %s', equip)
+        self.add_node(equip, kind=data['kind'], 
+                      backplane=data['backplane_bps'])
+        lc_data = data['linecards']
+        if data['kind'] == 'router':
+            i_lc = 0
+            for lc in filter(lambda n: 'ports' in n, lc_data):
+                lc_node = equip + '_lc' + str(i_lc)
+                lc_has_element = False
+                for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
+                    kind = port['kind'] if 'kind' in port else lc['kind']
+                    bandwidth = lc['rate'] if 'rate' not in port else port['rate']
+                    if self.has_node(port['uid']):
+                        lc_has_element = True
+                        if kind == 'node':
+                            for e in self.get_host_adapters(port['uid']):
+                                if e['switch'] == equip:
+                                    key1 = lc_node + '_' + port['uid'] + '_' + e['device']
+                                    logger.debug('Adding link between %s and %s',
+                                                 lc_node, port['uid'])
+                                    self.add_edge(lc_node, port['uid'], key1,
+                                                  bandwidth=bandwidth)
+                                    key2 = equip + '_' + lc_node
+                                    logger.debug('Adding link between %s and %s',
+                                                 equip, lc_node)
+                                    self.add_edge(equip, lc_node, key2,
+                                                  bandwidth=0)
+                        if kind == 'switch':
+                            key1 = lc_node + '_' + port['uid']
+                            self.add_edge(lc_node, port['uid'], key1, bandwidth=bandwidth)
+                            key2 = equip + '_' + lc_node
+                            self.add_edge(equip, lc_node, key2,
+                                          bandwidth=0)
+                    if 'renater' in port['uid']:
+                        lc_has_element = True
+                        self.add_node(port['uid'], kind='renater')
+                        key1 = lc_node + ' ' + port['uid']
+                        self.add_edge(lc_node, port['uid'], key1,
+                                      bandwidth=bandwidth)
+                        key2 = equip + '_' + lc_node
+                        self.add_edge(equip, lc_node, key2,
+                                      bandwidth=bandwidth)
+                if lc_has_element:
+                    backplane = lc['backplane_bps'] if 'backplane_bps' \
+                        in lc else data['backplane_bps']
+                    self.add_node(lc_node, kind='linecard',
+                          backplane=backplane)
+                i_lc += 1
+        else:
+            # some switch have two linecards ?? pat, sgraphene1 => REPORT BUG
+            for lc in filter(lambda n: 'ports' in n, lc_data):
+                for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
+                    kind = port['kind'] if 'kind' in port else lc['kind']
+                    bandwidth = lc['rate'] if 'rate' not in port else port['rate']
+                    if self.has_node(port['uid']):
+                        if kind == 'node':
+                            for e in self.get_host_adapters(port['uid']):
+                                if e['switch'] == equip:
+                                    key = equip + '_' + port['uid'] + '_' + e['device']
+                                    self.add_edge(equip, port['uid'], key,
+                                              bandwidth=bandwidth)
+                    if kind == 'router':
+                        self.add_equip(port['uid'], site)
+
+    def rm_equip(self, equip):
+        """ """
+        logger.debug('Removing equip %s', style.host(equip))
+        self.remove_node(equip)
 
     def add_backbone(self):
-        """Add the Renater backbone"""
-        logger.info('Add/update %s network', style.emph('Renater'))
-        backbone = self.network['backbone']
-
-        # Adding all the elements of the backbone
+        """ """
+        logger.debug('Add %s network', style.emph('Renater'))
+        backbone = self.data['network']['backbone']
         for equip in backbone:
-            src = equip['uid'].replace('renater-', 'renater.') + suffix
-            if not self.has_node(src):
-                logger.detail('Adding ' + style.host(src))
-                self.add_node(src, kind='renater')
+            src = equip['uid']
+            self.add_node(src, kind='renater')
             for lc in equip['linecards']:
                 for port in lc['ports']:
                     if 'renater-' in port['uid']:
@@ -91,26 +215,23 @@ class g5k_graph(nx.Graph):
                         latency = port['latency'] if 'latency' in port \
                             else arbitrary_latency
                         kind = 'renater' if 'kind' not in port else port['kind']
-                        dst = port['uid'].replace('renater-', 'renater.') + \
-                            suffix
-                        logger.detail('* %s (%s, bw=%s, lat=%s)', dst, kind,
+                        dst = port['uid']
+                        logger.debug('* %s (%s, bw=%s, lat=%s)', dst, kind,
                                       bandwidth, latency)
-                        if not self.has_node(dst):
-                            self.add_node(dst, kind=kind)
+                        self.add_node(dst, kind=kind)
                         if not self.has_edge(src, dst):
                             self.add_edge(src, dst, bandwidth=bandwidth,
                                           latency=latency)
-
         # Removing unused one
-        if self.sites != get_g5k_sites():
+        if self.get_sites != get_g5k_sites():
             logger.detail('Removing unused Renater equipments')
             used_elements = []
-            for site in self.sites:
-                dests = self.sites[:]
+            for site in self.get_sites():
+                dests = self.get_sites()[:]
                 dests.remove(site)
                 for dest in dests:
-                    gw_src = 'gw-' + site + '.' + site + suffix
-                    gw_dst = 'gw-' + dest + '.' + dest + suffix
+                    gw_src = 'gw-' + site
+                    gw_dst = 'gw-' + dest
                     for element in filter(lambda el: 'renater' in el,
                                           nx.shortest_path(self, gw_src, gw_dst)):
                         if element not in used_elements:
@@ -121,323 +242,40 @@ class g5k_graph(nx.Graph):
                 if element not in used_elements:
                     self.remove_node(element)
 
-    def add_host(self, host):
-        """Add the host to the graph, and its link to the equipment"""
-        data = self._get_host_data(host)
-        logger.info('Adding %s', style.host(host))
-        site = get_host_site(data['uid'])
-        power = data['performance']['core_flops']
-        cores = data['architecture']['smt_size']
-        attr = {'kind': 'node', 'power': power, 'cores': cores}
-        host_name = data['uid'] + '.' + site + suffix
-        self._add_node(host_name, attr)
+    def rm_backbone(self):
+        """ """
+        self.remove_nodes_from(self.get_backbone())
 
-        if site not in self.sites:
-            self._add_site_router(site)
+    # get elements, public methods
+    def get_hosts(self):
+        """ """
+        return filter(lambda x: x[1]['kind'] == 'node', self.nodes(True))
 
-        # Finding the equipment
-        eq_uid = filter(lambda n: n['enabled'] and not n['management'] and
-                        n['mounted'] and n['interface'] == 'Ethernet',
-                        data['network_adapters'])[0]['switch']
-        if eq_uid is None:
-            logger.warning('Unable to find the equipment for %s, removing',
-                           style.host(host_name))
-            self.remove_node(host_name)
-            return
+    def get_clusters(self):
+        """ """
+        return list(set(map(lambda y: get_host_cluster(y[0]),
+                   filter(lambda x: x[1]['kind'] == 'node', self.nodes(True)))))
 
-        eq_data = self._get_equip_data(eq_uid, site)
-        eq_name = eq_uid + '.' + site + suffix
+    def get_sites(self):
+        """ """
+        return list(set(map(lambda y: get_host_site(y[0]),
+                   filter(lambda x: x[1]['kind'] == 'node', self.nodes(True)))))
 
-        # Adding the equipment
-        self._add_node(eq_name, {'kind': eq_data['kind'],
-                                 'backplane': eq_data['backplane_bps']})
+    def get_backbone(self):
+        return filter(lambda x: x[1]['kind'] == 'renater', self.nodes(True))
 
-        if eq_data['kind'] == 'switch':
-            # we need to find how the switch is connected to the router
-            path = self._switch_router_path(eq_uid, site)
-            for i in range(len(path) - 1):
-                eq1_data = self._get_equip_data(path[i + 1], site)
-                self._add_node(path[i + 1] + '.' + site + suffix,
-                               {'kind': eq1_data['kind'],
-                                'backplane': eq1_data['backplane_bps']})
-                attr = self._link_attr(eq_data['linecards'], path[i + 1])
-                self._add_edge(path[i] + '.' + site + suffix,
-                               path[i + 1] + '.' + site + suffix, attr)
-
-        # Adding the link between node and equipment
-        self._add_edge(host_name, eq_name,
-                       self._link_attr(eq_data['linecards'], data['uid']))
-
-    def remove_host(self, host):
-        """Remove an host from the graph """
-        if isinstance(host, Host):
-            host = host.address
-        logger.info('Removing %s', style.host(host))
-        if host in self.nodes():
-            self.remove_node(host)
-
-    def add_cluster(self, cluster):
-        """Add the cluster to the graph"""
-        logger.info('Adding cluster %s', style.host(cluster))
-        if cluster not in get_g5k_clusters():
-            logger.error('%s is not a valid Grid\'5000 cluster',
-                         style.emph(cluster))
-            return False
-        site = get_cluster_site(cluster)
-        if site not in self.sites:
-            self._add_site_router(site)
-
-        for host in get_cluster_hosts(cluster):
-            self.add_host(host)
-
-    def remove_cluster(self, cluster):
-        """Remove a cluster from the graph"""
-        logger.info('Removing cluster %s', style.host(cluster))
-        if cluster not in get_g5k_clusters():
-            logger.error('%s is not a valid Grid\'5000 cluster',
-                         style.emph(cluster))
-            return
-        for host in get_cluster_hosts(cluster):
-            self.remove_host(host)
-
-    def add_site(self, site):
-        """Add the site to the graph"""
-        logger.info('Adding site %s', style.host(site))
-        if site not in get_g5k_sites():
-            logger.error('%s is not a valid Grid\'5000 site', style.emph(site))
-            return
-        if site not in self.sites:
-            self._add_site_router(site)
-
-        for cluster in get_site_clusters(site):
-            self.add_cluster(cluster)
-
-    def remove_site(self, site):
-        """Remove the site from the graph"""
-        logger.info('Removing site %s', style.host(site))
-        if site not in get_g5k_sites():
-            logger.error('%s is not a valid Grid\'5000 site', style.emph(site))
-            return
-        for cluster in get_site_clusters(site):
-            self.remove_cluster(cluster)
-        self._remove_site_router(site)
-
-        self.sites.remove(site)
-
-    def _add_site_router(self, site):
-        """Add the site router and it's connection to Renater"""
-
-        data = filter(lambda n: n['kind'] == 'router',
-                      self.network[site].values())[0]
-
-        router_name = data['uid'] + '.' + site + suffix
-        renater_name = 'renater.' + site + suffix
-        self._add_node(router_name, {'kind': 'router',
-                                     'backplane': data['backplane_bps']})
-        self._add_node(renater_name, {'kind': 'renater'})
-        self._add_edge(router_name, renater_name,
-                       self._link_attr(data['linecards'], 'renater-' + site))
-        if site not in self.sites:
-            self.sites.append(site)
-        if len(self.sites) > 1:
-            self.add_backbone()
-
-    def _remove_site_router(self, site):
-        """Remove the site router"""
-        data = filter(lambda n: n['kind'] == 'router',
-                      self.network[site].values())[0]
-        router_name = data['uid'] + '.' + site + suffix
-        if router_name in self.nodes():
-            self.remove_node(router_name)
-
-    def get_hosts(self, site=None):
-        """Return the compute hosts from the graph.
-        :params site: if site is a valid g5k site, return only the hosts
-        of this site"""
-        if site in get_g5k_sites():
-            return sorted(filter(lambda x: site in x[0] and
-                                 x[1]['kind'] == 'router',
-                                 self.nodes_iter(data=True)))
-        else:
-            return sorted(filter(lambda x: x[1]['kind'] == 'router',
-                                 self.nodes_iter(data=True)))
-
-    def get_backbone_graph(self):
-        """Get the Renater backbone nodes and edges"""
-        return self._get_subgraph_elements(lambda x: 'renater' in x)
-
-    def get_site_graph(self, site=None):
-        """Retrieve the nodes and edges of a site"""
-        return self._get_subgraph_elements(lambda x: site in x)
-
-    def get_cluster_graph(self, cluster=None):
-        """Retrieve the nodes and edges of a cluster"""
-        return self._get_subgraph_elements(lambda x: cluster in x)
-
-    def get_routers(self):
-        """Retrieve the routers of a graph """
-        return sorted(filter(lambda x: x[1]['kind'] == 'router',
-                             self.nodes_iter(data=True)))
-
-    def get_host_switch(self, host):
-        """Return the switch of an host"""
-        if isinstance(host, Host):
-            host = host.address
-        for sw in nx.all_neighbors(self, canonical_host_name(host)):
-            return sw.split('.')[0]
-
-    def site_clusters(self, site):
-        """Compute the information of the clusters of a site"""
-        clusters = {}
-        for host in filter(lambda n: n[1]['kind'] == 'node' and site in n[0],
-                           self.nodes(True)):
-            hostname, suffix = host[0].split('.', 1)
-            cluster = hostname.split('-')[0]
-            if cluster not in clusters:
-                clusters[cluster] = {'equips': {},
-                                     'suffix': '.' + suffix,
-                                     'prefix': cluster + '-',
-                                     'core': host[1]['cores'],
-                                     'power': host[1]['power']}
-            for equip in nx.all_neighbors(self, host[0]):
-                if self.node[equip]['kind'] in ['switch', 'router']:
-                    clusters[cluster]['latency'] = self.edge[host[0]][equip]['latency']
-                    clusters[cluster]['bandwidth'] = self.edge[host[0]][equip]['bandwidth']
-                    if equip not in clusters[cluster]['equips']:
-                        clusters[cluster]['equips'][equip] = [host[0]]
-                    else:
-                        clusters[cluster]['equips'][equip].append(host[0])
-
-        for cluster, data in clusters.iteritems():
-
-            if len(data['equips']) == 1:
-                radical_list = map(lambda x: int(x.split('.')[0].split('-')[1]),
-                                   data['equips'].itervalues().next())
-                radical = str(min(radical_list)) + '-' + str(max(radical_list))
-                data['equips'][data['equips'].keys()[0]] = radical
-            else:
-                for equip, hosts in data['equips'].iteritems():
-                    if 'gw-' in equip:
-                        router = equip
-                    else:
-                        router = list(set(filter(lambda x: 'gw-' in x,
-                                                 nx.all_neighbors(self, equip))))[0]
-                        clusters[cluster]['bb_lat'] = self.edge[router][equip]['latency']
-                        clusters[cluster]['bb_bw'] = self.edge[router][equip]['bandwidth']
-                    radical_list = sorted(map(lambda x: int(x.split('.')[0].split('-')[1]),
-                                              hosts))
-                    radical = ''
-                    for k, g in groupby(enumerate(radical_list),
-                                        lambda (i, x): i - x):
-                        radical_range = map(itemgetter(1), g)
-                        if len(radical_range) > 1:
-                            radical += str(min(radical_range)) + '-' + \
-                                str(max(radical_range))
-                        else:
-                            radical += str(radical_range[0])
-                        radical += ','
-                    radical = radical[:-1]
-                    data['equips'][equip] = radical
-        return clusters
-
-    def _add_node(self, name, attr):
-        """A method that add a node with its attribute or update attributes
-        if the node is present"""
-        if not self.has_node(name):
-            logger.detail('Adding %s with %s', style.host(name), pformat(attr))
-            self.add_node(name, attr)
-        else:
-            logger.detail('Updating %s attributes with %s',
-                          style.host(name), pformat(attr))
-            for k, v in attr.iteritems():
-                nx.set_node_attributes(self, k, {name: v})
-
-    def _add_edge(self, src, dst, attr):
-        """A method that add an edge with its attribute or update attributes
-        if the edge is present"""
-        if not self.has_edge(src, dst):
-            logger.detail('Adding link between %s and %s with attributes %s',
-                          style.host(src), style.host(dst), pformat(attr))
-            self.add_edge(src, dst, attr)
-        else:
-            logger.detail('Updating %s<->%s attributes with %s',
-                          style.host(src), style.host(dst), pformat(attr))
-            for k, v in attr.iteritems():
-                nx.set_edge_attributes(self, k, {(src, dst): v})
-
-    def _switch_router_path(self, switch_uid, site):
-        """Find the several elements between a switch and a router"""
-        path = [switch_uid]
-        router = 'gw-' + site
-        lc_data = self._get_equip_data(switch_uid, site)['linecards']
-
-        if self._link_attr(lc_data, router)['latency'] is not None:
-            path.append(router)
-        else:
-            candidates = []
-            for lc in filter(lambda n: 'ports' in n, lc_data):
-                for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
-                    kind = port['kind'] if 'kind' in port else lc['kind']
-                    if kind == 'switch' and port['uid'] not in candidates:
-                        candidates.append(port['uid'])
-            paths = {}
-            for switch in candidates:
-                paths[switch] = self._switch_router_path(switch, site)
-            smallest = min(paths, key=lambda k: len(paths[k]))
-            path += paths[smallest]
-
-        return path
-
-    def _link_attr(self, lc_data, uid):
-        """Retrieve the bandwith and latency of a link to an element"""
-        bandwidth = 0
-        latency = None
-        for lc in filter(lambda n: 'ports' in n, lc_data):
-            for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
-                kind = port['kind'] if 'kind' in port else lc['kind']
-                if port['uid'] == uid:
-                    active_if = True
-                    if 'port' in port and kind == 'node':
-                        iface = filter(lambda a: a["device"] == port['port'],
-                                       self._get_host_data(uid)['network_adapters'])[0]
-                        if not iface['mounted']:
-                            active_if = False
-                    if active_if:
-                        bandwidth += lc['rate'] if 'rate' not in port \
-                            else port['rate']
-                        latency = port['latency'] if 'latency' in port \
-                            else arbitrary_latency
-
-        return {'bandwidth': bandwidth, 'latency': latency}
-
-    def _get_host_data(self, host):
-        """Return the attributes of a host"""
-        if isinstance(host, Host):
-            host = host.address
-        host = canonical_host_name(host)
-        if '.' not in host:
-            uid, cluster, site = host, get_host_cluster(host), \
-                get_host_site(host)
-        else:
-            uid, site, _, _ = host.split('.')
-            cluster = uid.split('-')[0]
-        if not cluster:
-            logger.error('Unable to find the cluster of %s', host)
-            return None
-        if not site:
-            logger.error('Unable to find the site of %s', host)
-            return None
-
-        return self.hosts[site][cluster][uid]
-
-    def _get_equip_data(self, uid, site):
-        """Return the attributes of a network equipments"""
-        return self.network[site][uid]
-
-    def _get_subgraph_elements(self, my_filter):
-        """Return the nodes and edges matching a filter on nodes"""
-        sgr = self.subgraph(filter(my_filter, self.nodes()))
-        return sgr
+    def get_host_adapters(self, host):
+        """ """
+        try:
+            if host in self.data['hosts']:
+                return filter(lambda n: not n['management'] and n['mountable']
+                              and n['switch'] and n['interface'] == 'Ethernet',
+                             filter(lambda m: 'switch' in m,
+                                    self.data['hosts'][host]['network_adapters']))
+        except:
+            logger.warning('Wrong description for host %s', style.host(host))
+            print self.data['hosts'][host]['network_adapters']
+            return []
 
 
 def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
@@ -512,7 +350,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                 {'nodes': {},
                  'font_size': base_size * 6,
                  'font_weight': 'normal',
-                 'str_func': lambda n: n.split('.')[1].title()},
+                 'str_func': lambda n: n.split('-')[1].title()},
                 'router':
                 {'nodes': {},
                  'font_size': base_size * 6,
@@ -613,8 +451,8 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                            edge_color=_edges_legend['default']['color'])
     # Adding the labels
     for node, data in gr.nodes_iter(data=True):
-        if 'nodes' not in _nodes_labels[data['kind']]:
-            _nodes_labels[data['kind']]['nodes'] = {}
+#        if 'nodes' not in _nodes_labels[data['kind']]:
+#            _nodes_labels[data['kind']]['nodes'] = {}
         if data['kind'] in _nodes_labels:
             _nodes_labels[data['kind']]['nodes'][node] = _nodes_labels[data['kind']]['str_func'](node) \
                 if 'str_func' in _nodes_labels[data['kind']] else _default_str_func(node)
