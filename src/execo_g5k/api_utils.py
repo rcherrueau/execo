@@ -45,12 +45,13 @@ from os import makedirs, environ
 from cPickle import load, dump
 
 _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
+_data_lock = threading.RLock()
 _data = None
 
-_lock = threading.RLock()
-
+_g5k_api_lock = threading.RLock()
 _g5k_api = None
 """Internal singleton instance of the g5k api rest resource."""
+
 # _g5k = None
 # """cache of g5k structure.
 
@@ -58,6 +59,7 @@ _g5k_api = None
 # clusters, whose values are hosts.
 # """
 
+_api_password_lock = threading.RLock()
 __api_passwords = dict()
 # private dictionnary keyed by username, storing cached passwords
 
@@ -79,7 +81,7 @@ def _get_api_password_check_func(username, password):
     return (response['status'] in ['200', '304'])
 
 def _get_api_password(username):
-    with _lock:
+    with _api_password_lock:
         if not __api_passwords.get(username):
             try:
                 import keyring
@@ -206,15 +208,13 @@ def get_api_data(cache_dir=_cache_dir):
     """Return a dict containing the data from network, sites, clusters
     and hosts """
     global _data
-
     if not _data:
-        if _is_cache_old(cache_dir):
-            _data = _write_api_cache(cache_dir)
-        else:
-            _data = _read_api_cache(cache_dir)
-
+        with _data_lock:
+            if _is_cache_old(cache_dir):
+                _data = _write_api_cache(cache_dir)
+            else:
+                _data = _read_api_cache(cache_dir)
     return _data
-
 
 def _get_api_commit():
     """Retrieve the latest api commit"""
@@ -308,7 +308,7 @@ def _read_api_cache(cache_dir=_cache_dir):
 
 def _get_g5k_api():
     """Get a singleton instance of a g5k api rest resource."""
-    with _lock:
+    with _g5k_api_lock:
         global _g5k_api #IGNORE:W0603
         if not _g5k_api:
             _g5k_api = APIConnection()
