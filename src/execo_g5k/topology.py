@@ -72,7 +72,8 @@ class g5k_graph(nx.MultiGraph):
                     self.add_cluster(e, self.data['clusters'][e])
                 if e in get_g5k_hosts():
                     self.add_host(e, self.data['hosts'][e])
-            self.add_backbone()
+            if len(self.get_sites()) > 1:
+                self.add_backbone()
 
     # add/update/rm elements, public methods
     def add_host(self, host, data=None):
