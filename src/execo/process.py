@@ -440,13 +440,13 @@ class ProcessBase(object):
         self.default_stderr_handler = default_stderr_handler
         """if True, a default handler sends stderr stream output to the member string self.stderr"""
         if lifecycle_handlers != None:
-            self.lifecycle_handlers = lifecycle_handlers
+            self.lifecycle_handlers = list(lifecycle_handlers)
             """List of instances of `execo.process.ProcessLifecycleHandler` for
             being notified of process lifecycle events."""
         else:
             self.lifecycle_handlers = list()
         if stdout_handlers != None:
-            self.stdout_handlers = stdout_handlers
+            self.stdout_handlers = list(stdout_handlers)
             """List which can contain instances of
             `execo.process.ProcessOutputHandler` for handling activity
             on process stdout, or existing file descriptors (positive
@@ -456,7 +456,7 @@ class ProcessBase(object):
         else:
             self.stdout_handlers = list()
         if stderr_handlers != None:
-            self.stderr_handlers = stderr_handlers
+            self.stderr_handlers = list(stderr_handlers)
             """List which can contain instances of
             `execo.process.ProcessOutputHandler` for handling activity
             on process stderr, or existing file descriptors (positive

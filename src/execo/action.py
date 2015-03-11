@@ -106,7 +106,7 @@ class Action(object):
         else:
             self.name = "%s 0x%08.8x" % (self.__class__.__name__, id(self))
         if lifecycle_handlers != None:
-            self.lifecycle_handlers = lifecycle_handlers
+            self.lifecycle_handlers = list(lifecycle_handlers)
             """List of instances of `execo.action.ActionLifecycleHandler` for
             being notified of action lifecycle events.
             """
