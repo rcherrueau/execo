@@ -92,13 +92,6 @@ class g5k_graph(nx.MultiGraph):
                                  'cores': cores})
             for eq in self.get_host_adapters(host):
                 self.add_equip(eq['switch'], get_host_site(host))
-#            edge_name = host + '_' + eq['device'] + '_' + eq['switch']
-#            if not self.has_edge(host, eq['switch'], key=edge_name):
-#                self.add_edge(host, eq['switch'], key=edge_name, 
-#                              mounted=eq['mounted'], bandwidth=eq['rate'],
-#                              device=eq['device'])
-#            if self.data['network'][get_host_site(host)][eq['switch']]['kind'] != 'router':
-#                self._switch_router_path(eq['switch'], get_host_site(host))
 
     def rm_host(self, host):
         """ """
@@ -134,22 +127,21 @@ class g5k_graph(nx.MultiGraph):
             return
         data = self.data['network'][site][equip]
         logger.debug('Adding equipment %s', equip)
-        self.add_node(equip, kind=data['kind'], 
+        self.add_node(equip, kind=data['kind'],
                       backplane=data['backplane_bps'])
         lc_data = data['linecards']
         if data['kind'] == 'router':
-            i_lc = 0
-            for lc in filter(lambda n: 'ports' in n, lc_data):
+            for i_lc, lc in enumerate(filter(lambda n: 'ports' in n, lc_data)):
                 lc_node = equip + '_lc' + str(i_lc)
                 lc_has_element = False
                 for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
                     kind = port['kind'] if 'kind' in port else lc['kind']
                     bandwidth = lc['rate'] if 'rate' not in port else port['rate']
                     if self.has_node(port['uid']):
-                        lc_has_element = True
                         if kind == 'node':
                             for e in self.get_host_adapters(port['uid']):
                                 if e['switch'] == equip:
+                                    lc_has_element = True
                                     key1 = lc_node + '_' + port['uid'] + '_' + e['device']
                                     logger.debug('Adding link between %s and %s',
                                                  lc_node, port['uid'])
@@ -161,6 +153,7 @@ class g5k_graph(nx.MultiGraph):
                                     self.add_edge(equip, lc_node, key2,
                                                   bandwidth=0)
                         if kind == 'switch':
+                            lc_has_element = True
                             key1 = lc_node + '_' + port['uid']
                             self.add_edge(lc_node, port['uid'], key1, bandwidth=bandwidth)
                             key2 = equip + '_' + lc_node
@@ -176,11 +169,11 @@ class g5k_graph(nx.MultiGraph):
                         self.add_edge(equip, lc_node, key2,
                                       bandwidth=bandwidth)
                 if lc_has_element:
+                    logger.debug('Adding linecard %s', lc_node)
                     backplane = lc['backplane_bps'] if 'backplane_bps' \
                         in lc else data['backplane_bps']
                     self.add_node(lc_node, kind='linecard',
                           backplane=backplane)
-                i_lc += 1
         else:
             # some switch have two linecards ?? pat, sgraphene1 => REPORT BUG
             for lc in filter(lambda n: 'ports' in n, lc_data):
@@ -229,7 +222,7 @@ class g5k_graph(nx.MultiGraph):
                                           latency=latency)
         # Removing unused one
         if self.get_sites != get_g5k_sites():
-            logger.detail('Removing unused Renater equipments')
+            logger.debug('Removing unused Renater equipments')
             used_elements = []
             for site in self.get_sites():
                 dests = self.get_sites()[:]
@@ -310,7 +303,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     _default_color = '#000000'
     _default_shape = 'o'
     _default_size = 100
-    _default_width = 1.0
+    _default_width = 0.8
     _default_font_size = 10
     _default_font_weight = 'normal'
 
@@ -322,16 +315,22 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
         return {'renater':
                 {'color': '#9CF7BC', 'shape': 'p', 'size': 200},
                 'router':
-                {'color': '#BFDFF2', 'shape': '8', 'size': 300},
+                {'color': '#BFDFF2', 'shape': '8', 'size': 300,
+                 'width': 0.5},
                 'switch':
-                {'color': '#F5C9CD', 'shape': 's', 'size': 100},
+                {'color': '#F5C9CD', 'shape': 's', 'size': 100,
+                 'width': 0.2},
                 'node':
-                {'color': '#F0F7BE', 'shape': 'o', 'size': 30},
+                {'color': '#F0F7BE', 'shape': 'o', 'size': 30,
+                 'width': 0.2},
                 'cluster':
-                {'color': '#F0F7BE', 'shape': 'd', 'size': 200},
+                {'color': '#F0F7BE', 'shape': 'd', 'size': 200,
+                 'width': _default_width},
                 'default':
                 {'color': _default_color, 'shape': _default_shape,
-                 'size': _default_size}
+                 'size': _default_size},
+                'linecard':
+                {'size': 10, 'shape': '^', 'color': 'w', 'width': 0.1},
                 }
 
     def _default_edges_legend():
@@ -359,28 +358,28 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                 'router':
                 {'nodes': {},
                  'font_size': base_size * 6,
-                 'font_weight': 'bold',
-                 'str_func': _default_str_func},
+                 'font_weight': 'bold'},
                 'switch':
                 {'nodes': {},
                  'font_size': base_size * 6,
-                 'font_weight': 'normal',
-                 'str_func': _default_str_func},
+                 'font_weight': 'normal'},
                 'cluster':
                 {'nodes': {},
                  'font_size': base_size * 5,
-                 'font_weight': 'normal',
-                 'str_func': _default_str_func},
+                 'font_weight': 'normal'},
                 'node':
                 {'nodes': {},
                  'font_size': base_size * 5,
-                 'font_weight': 'normal',
-                 'str_func': _default_str_func},
+                 'font_weight': 'normal'},
                 'default':
                 {'nodes': {},
                  'font_size': _default_font_size,
                  'font_weight': _default_font_weight,
-                 'str_func': _default_str_func}
+                 'str_func': _default_str_func},
+                'linecard':
+                {'nodes': {},
+                 'font_size': base_size * 4,
+                 'str_func': lambda n: n.split('_')[1]}
                 }
 
     # Setting legend and labels
@@ -395,10 +394,10 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
         _nodes_labels.update(nodes_labels)
 
     if not compact:
-        elements = ['renater', 'router', 'switch', 'node']
+        elements = ['renater', 'router', 'switch', 'node', 'linecard']
     else:
-        for site in gr.sites:
-            for cluster, data in gr.site_clusters(site).iteritems():
+        for site in gr.get_sites():
+            for cluster, data in gr.get_clusters().iteritems():
                 for equip, radicals in data['equips'].items():
                     gr.add_node(cluster + '\n' + radicals,
                                 {'kind': 'cluster'})
@@ -411,12 +410,12 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
 
         elements = ['renater', 'router', 'switch', 'cluster']
 
-    logger.detail('Legend and labels initialized')
+    logger.debug('Legend and labels initialized')
     # Initializing plot
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
 
-    logger.detail('Defining positions')
+    logger.debug('Defining positions')
     try:
         pos = nx.graphviz_layout(gr, prog=layout)
     except:
@@ -427,6 +426,8 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     for k in elements:
         nodes = [node[0] for node in gr.nodes_iter(data=True)
                  if 'kind' in node[1] and node[1]['kind'] == k]
+        if k not in _nodes_legend:
+            _nodes_legend[k] = _nodes_legend['default']
         nodes = nx.draw_networkx_nodes(gr, pos, nodelist=nodes,
                                        node_shape=_nodes_legend[k]['shape']
                                        if 'shape' in _nodes_legend[k] else
@@ -436,7 +437,10 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                                        _default_color,
                                        node_size=_nodes_legend[k]['size']
                                        if 'size' in _nodes_legend[k] else
-                                       _default_size)
+                                       _default_size,
+                                       linewidths=_nodes_legend[k]['width']
+                                       if 'width' in _nodes_legend[k] else
+                                       _default_width)
 
     # Adding the edges
     for bandwidth, params in _edges_legend.iteritems():
@@ -456,8 +460,8 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                            edge_color=_edges_legend['default']['color'])
     # Adding the labels
     for node, data in gr.nodes_iter(data=True):
-#        if 'nodes' not in _nodes_labels[data['kind']]:
-#            _nodes_labels[data['kind']]['nodes'] = {}
+        if 'nodes' not in _nodes_labels[data['kind']]:
+            _nodes_labels[data['kind']]['nodes'] = {}
         if data['kind'] in _nodes_labels:
             _nodes_labels[data['kind']]['nodes'][node] = _nodes_labels[data['kind']]['str_func'](node) \
                 if 'str_func' in _nodes_labels[data['kind']] else _default_str_func(node)
