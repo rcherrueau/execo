@@ -488,14 +488,6 @@ def __canonical_sub_func(matchobj):
         n += matchobj.group(3)
     return n
 
-def get_host_shortname(host):
-    """Convert, if needed, the host name to its shortname"""
-    if isinstance(host, execo.Host):
-        host = host.address
-    host = canonical_host_name(host)
-    host_shortname, _, _ = host.partition(".")
-    return host_shortname
-
 def canonical_host_name(host):
     """Convert, if needed, the host name to its canonical form without kavlan part.
 
@@ -509,3 +501,25 @@ def canonical_host_name(host):
         return h
     else:
         return h.address
+
+def get_host_shortname(host):
+    """Convert, if needed, the host name to its shortname"""
+    if isinstance(host, execo.Host):
+        host = host.address
+    host = canonical_host_name(host)
+    host_shortname, _, _ = host.partition(".")
+    return host_shortname
+
+__host_longname_regex = re.compile("^([^.]*)(\.([^.]+))?")
+
+def get_host_longname(host):
+    """Convert, if needed, the host name to a grid5000 fully qualified name"""
+    if isinstance(host, execo.Host):
+        host = host.address
+    mo = __host_longname_regex.match(host)
+    host_shortname = mo.group(1)
+    if mo.group(3):
+        host_site = mo.group(3)
+    else:
+        host_site = get_host_site(host_shortname)
+    return host_shortname + "." + host_site + ".grid5000.fr"
