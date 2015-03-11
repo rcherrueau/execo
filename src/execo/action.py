@@ -82,7 +82,14 @@ class Action(object):
 
     _wait_multiple_actions_condition = threading.Condition()
 
-    def __init__(self):
+    def __init__(self, lifecycle_handlers = None, name = None):
+        """:param lifecycle_handlers: List of instances of
+          `execo.action.ActionLifecycleHandler` for being notified of
+          action lifecycle events.
+
+        :param name: User-friendly name. A default is generated and
+          can be changed.
+        """
         self.started = False
         """whether this Action was started (boolean)"""
         self.ended = False
@@ -93,11 +100,18 @@ class Action(object):
         # """Factory which created this action, or None"""
         self.processes = []
         """Iterable of all `execo.process.ProcessBase`"""
-        self.name = "%s 0x%08.8x" % (self.__class__.__name__, id(self))
-        """User-friendly name. A default is generated and can be changed."""
-        self.lifecycle_handlers = list()
-        """List of instances of `execo.action.ActionLifecycleHandler` for being
-        notified of action lifecycle events."""
+        if name != None:
+            self.name = name
+            """User-friendly name. A default is generated and can be changed."""
+        else:
+            self.name = "%s 0x%08.8x" % (self.__class__.__name__, id(self))
+        if lifecycle_handlers != None:
+            self.lifecycle_handlers = lifecycle_handlers
+            """List of instances of `execo.action.ActionLifecycleHandler` for
+            being notified of action lifecycle events.
+            """
+        else:
+            self.lifecycle_handlers = list()
         self._end_event = threading.Event()
         self._end_event.clear()
 
@@ -380,9 +394,8 @@ class Remote(Action):
     One ssh process is launched for each connection.
     """
 
-    def __init__(self, cmd, hosts, connection_params = None):
-        """
-        :param cmd: the command to run remotely. Substitions
+    def __init__(self, cmd, hosts, connection_params = None, process_args = None, **kwargs):
+        """:param cmd: the command to run remotely. Substitions
           described in `execo.substitutions.remote_substitute` will be
           performed.
 
@@ -392,15 +405,24 @@ class Remote(Action):
         :param connection_params: a dict similar to
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
+
+        :param process_args: Dict of keyword arguments passed to
+          instanciated processes.
         """
-        super(Remote, self).__init__()
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
-        self.name = name_from_cmdline(self.cmd)
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": name_from_cmdline(self.cmd)})
+        super(Remote, self).__init__(**kwargs)
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
+        if process_args != None:
+            self.process_args = process_args
+            """Dict of keyword arguments passed to instanciated processes."""
+        else:
+            self.process_args = {}
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
@@ -427,6 +449,7 @@ class Remote(Action):
     def _kwargs(self):
         kwargs = []
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
+        if len(self.process_args) > 0: kwargs.append("process_args=%r" % (self.process_args,))
         return kwargs
 
     def _init_processes(self):
@@ -435,7 +458,8 @@ class Remote(Action):
         for (index, host) in enumerate(self.hosts):
             p = SshProcess(remote_substitute(self.cmd, self.hosts, index, self._caller_context),
                            host = host,
-                           connection_params = self.connection_params)
+                           connection_params = self.connection_params,
+                           **self.process_args)
             p.lifecycle_handlers.append(processlh)
             self.processes.append(p)
 
@@ -717,7 +741,7 @@ class TaktukRemote(Action):
       connection.
     """
 
-    def __init__(self, cmd, hosts, connection_params = None):
+    def __init__(self, cmd, hosts, connection_params = None, process_args = None, **kwargs):
         """
         :param cmd: the command to run remotely. substitions
           described in `execo.substitutions.remote_substitute` will be
@@ -730,14 +754,20 @@ class TaktukRemote(Action):
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
         """
-        super(TaktukRemote, self).__init__()
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
-        self.name = name_from_cmdline(self.cmd)
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": name_from_cmdline(self.cmd)})
+        super(TaktukRemote, self).__init__(**kwargs)
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
+        if process_args != None:
+            self.process_args = process_args
+            """Dict of keyword arguments passed to instanciated processes."""
+        else:
+            self.process_args = {}
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
         self._caller_context = get_caller_context(['get_remote'])
@@ -760,13 +790,15 @@ class TaktukRemote(Action):
     def _kwargs(self):
         kwargs = []
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
+        if len(self.process_args) > 0: kwargs.append("process_args=%r" % (self.process_args,))
         return kwargs
 
     def _gen_taktukprocesses(self):
         processlh = ActionNotificationProcessLH(self, len(self.hosts))
         for (index, host) in enumerate(self.hosts):
             p = TaktukProcess(remote_substitute(self.cmd, self.hosts, index, self._caller_context),
-                              host = host)
+                              host = host,
+                              **self.process_args)
             p.lifecycle_handlers.append(processlh)
             p._taktuk_remote = self
             self.processes.append(p)
@@ -887,7 +919,7 @@ class Put(Remote):
 
     """Copy local files to several remote host, with ``scp`` or a similar connection tool."""
 
-    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
+    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -904,9 +936,11 @@ class Put(Remote):
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
         """
-        super(Remote, self).__init__()
         self.hosts = hosts
         """Iterable of `execo.host.Host` onto which to copy the files."""
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
+        super(Remote, self).__init__(**kwargs)
         self.local_files = local_files
         """An iterable of string of file paths. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
@@ -917,7 +951,6 @@ class Put(Remote):
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context(['get_fileput'])
         self._init_processes()
 
@@ -948,7 +981,7 @@ class Get(Remote):
 
     """Copy remote files from several remote host to a local directory, with ``scp`` or a similar connection tool."""
 
-    def __init__(self, hosts, remote_files, local_location = ".", connection_params = None):
+    def __init__(self, hosts, remote_files, local_location = ".", connection_params = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` from which to get
           the files.
@@ -965,9 +998,11 @@ class Get(Remote):
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
         """
-        super(Remote, self).__init__()
         self.hosts = hosts
         """Iterable of `execo.host.Host` from which to get the files."""
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))})
+        super(Remote, self).__init__(**kwargs)
         self.remote_files = remote_files
         """Iterable of string of file paths. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
@@ -977,7 +1012,6 @@ class Get(Remote):
         self.connection_params = connection_params
         """Dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
         self._caller_context = get_caller_context(['get_fileget'])
         self._init_processes()
 
@@ -1081,7 +1115,7 @@ class TaktukPut(TaktukRemote):
 
     """Copy local files to several remote host, with ``taktuk``."""
 
-    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
+    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -1102,9 +1136,11 @@ class TaktukPut(TaktukRemote):
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
         """
-        super(TaktukRemote, self).__init__()
         self.hosts = hosts
         """Iterable of `execo.host.Host` onto which to copy the files."""
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
+        super(TaktukRemote, self).__init__(**kwargs)
         self.local_files = local_files
         """Iterable of string of file paths. substitions described in
         `execo.substitutions.remote_substitute` will not be performed,
@@ -1118,7 +1154,7 @@ class TaktukPut(TaktukRemote):
         self.connection_params = connection_params
         """Dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+        self.process_args = {}
         self._caller_context = get_caller_context(['get_fileput'])
         self._taktuk_stdout_output_handler = _TaktukPutOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
@@ -1138,7 +1174,8 @@ class TaktukPut(TaktukRemote):
         processlh = ActionNotificationProcessLH(self, len(self.hosts))
         for (index, host) in enumerate(self.hosts):
             process = TaktukProcess("",
-                                    host = host)
+                                    host = host,
+                                    **self.process_args)
             process.lifecycle_handlers.append(processlh)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
@@ -1231,7 +1268,7 @@ class TaktukGet(TaktukRemote):
 
     """Copy remote files from several remote host to a local directory, with ``taktuk``."""
 
-    def __init__(self, hosts, remote_files, local_location = ".", connection_params = None):
+    def __init__(self, hosts, remote_files, local_location = ".", connection_params = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` from which to get
           the files.
@@ -1252,9 +1289,11 @@ class TaktukGet(TaktukRemote):
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
         """
-        super(TaktukRemote, self).__init__()
         self.hosts = hosts
         """Iterable of `execo.host.Host` from which to get the files."""
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))})
+        super(TaktukRemote, self).__init__(**kwargs)
         self.remote_files = remote_files
         """Iterable of string of file paths. Substitions described in
         `execo.substitutions.remote_substitute` will not be performed, but
@@ -1268,7 +1307,7 @@ class TaktukGet(TaktukRemote):
         self.connection_params = connection_params
         """Dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.name = "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))
+        self.process_args = {}
         self._caller_context = get_caller_context(['get_fileget'])
         self._taktuk_stdout_output_handler = _TaktukGetOutputHandler(self)
         self._taktuk_stderr_output_handler = self._taktuk_stdout_output_handler
@@ -1288,7 +1327,8 @@ class TaktukGet(TaktukRemote):
         processlh = ActionNotificationProcessLH(self, len(self.hosts))
         for (index, host) in enumerate(self.hosts):
             process = TaktukProcess("",
-                                    host = host)
+                                    host = host,
+                                    **self.process_args)
             process.lifecycle_handlers.append(processlh)
             process._num_transfers_started = 0
             process._num_transfers_terminated = 0
@@ -1310,14 +1350,22 @@ class Local(Action):
 
     """Launch a command localy."""
 
-    def __init__(self, cmd):
+    def __init__(self, cmd, process_args = None, **kwargs):
+        """:param cmd: the command to run.
+
+        :param process_args: Dict of keyword arguments passed to
+          instanciated processes.
         """
-        :param cmd: the command to run.
-        """
-        super(Local, self).__init__()
         self.cmd = cmd
         """the command to run"""
-        self.name = name_from_cmdline(self.cmd)
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": name_from_cmdline(self.cmd)})
+        super(Local, self).__init__(**kwargs)
+        if process_args != None:
+            self.process_args = process_args
+            """Dict of keyword arguments passed to instanciated processes."""
+        else:
+            self.process_args = {}
         self._init_processes()
 
     def _args(self):
@@ -1328,7 +1376,7 @@ class Local(Action):
 
     def _init_processes(self):
         self.processes = []
-        p = Process(self.cmd)
+        p = Process(self.cmd, **self.process_args)
         processlh = ActionNotificationProcessLH(self, 1)
         p.lifecycle_handlers.append(processlh)
         self.processes.append(p)
@@ -1369,10 +1417,11 @@ class ParallelActions(Action):
     Will start, kill, wait, run every action in parallel.
     """
 
-    def __init__(self, actions):
-        super(ParallelActions, self).__init__()
+    def __init__(self, actions, **kwargs):
         self.actions = actions
-        self.name = "%s %i actions" % (self.__class__.__name__, len(self.actions))
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s %i actions" % (self.__class__.__name__, len(self.actions))})
+        super(ParallelActions, self).__init__(**kwargs)
         self.hide_subactions = False
         """Wether to hide sub actions in stats."""
         self._init_actions()
@@ -1460,10 +1509,11 @@ class SequentialActions(Action):
     Will start, kill, wait, run every Action sequentially.
     """
 
-    def __init__(self, actions):
-        super(SequentialActions, self).__init__()
+    def __init__(self, actions, **kwargs):
         self.actions = actions
-        self.name = "%s %i actions" % (self.__class__.__name__, len(self.actions))
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s %i actions" % (self.__class__.__name__, len(self.actions))})
+        super(SequentialActions, self).__init__(**kwargs)
         self.hide_subactions = False
         """Wether to hide sub actions in stats."""
         self._init_actions()
@@ -1612,7 +1662,7 @@ class ChainPut(SequentialActions):
     environment.
     """
 
-    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None):
+    def __init__(self, hosts, local_files, remote_location = ".", connection_params = None, **kwargs):
         """
         :param hosts: iterable of `execo.host.Host` onto which to copy
           the files.
@@ -1631,8 +1681,9 @@ class ChainPut(SequentialActions):
         self.local_files = local_files
         self.remote_location = remote_location
         self.connection_params = connection_params
-        super(ChainPut, self).__init__([])
-        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
+        super(ChainPut, self).__init__([], **kwargs)
         self.hide_subactions = True
 
     @property
@@ -1729,7 +1780,7 @@ class RemoteSerial(Remote):
     The serial port can be read (standard output) and written to (standard input).
     """
 
-    def __init__(self, hosts, device, speed, connection_params = None):
+    def __init__(self, hosts, device, speed, connection_params = None, process_args = None, **kwargs):
         """:param hosts: iterable of `execo.host.Host` to which to
           connect and open the serial device.
 
@@ -1746,19 +1797,25 @@ class RemoteSerial(Remote):
           override those in default_connection_params for connection.
 
         """
-        super(Remote, self).__init__()
+        self.hosts = hosts
+        """Iterable of `execo.host.Host` to which to connect and run the command."""
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
+        super(Remote, self).__init__(**kwargs)
         self.connection_params = connection_params
         """A dict similar to `execo.config.default_connection_params` whose values
         will override those in default_connection_params for connection."""
-        self.hosts = hosts
-        """Iterable of `execo.host.Host` to which to connect and run the command."""
         self.device = device
         """Path to the serial devices on the remote hosts. (for example:
         ``/dev/ttyUSB1``). Substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
         self.speed = speed
         """The speed of the serial port (for example: 115200)"""
-        self.name = "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))
+        if process_args != None:
+            self.process_args = process_args
+            """Dict of keyword arguments passed to instanciated processes."""
+        else:
+            self.process_args = {}
         self._caller_context = get_caller_context()
         self._thread_local_storage = threading.local()
         self._thread_local_storage.expect_handler = None
@@ -1781,7 +1838,8 @@ class RemoteSerial(Remote):
             p = SerialSsh(host,
                           remote_substitute(self.device, self.hosts, index, self._caller_context),
                           self.speed,
-                          connection_params = self.connection_params)
+                          connection_params = self.connection_params,
+                          **self.process_args)
             p.lifecycle_handlers.append(processlh)
             self.processes.append(p)
 

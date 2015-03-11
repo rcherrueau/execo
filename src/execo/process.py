@@ -302,9 +302,70 @@ class ProcessBase(object):
     automatically killed.
     """
 
-    def __init__(self, cmd):
-        """
-        :param cmd: string or tuple containing the command and args to run.
+    def __init__(self, cmd, timeout = None,
+                 ignore_exit_code = False, nolog_exit_code = False,
+                 ignore_timeout = False, nolog_timeout = False,
+                 ignore_error = False, nolog_error = False,
+                 default_stdout_handler = True,
+                 default_stderr_handler = True,
+                 lifecycle_handlers = None,
+                 stdout_handlers = None,
+                 stderr_handlers = None,
+                 name = None):
+        """:param cmd: string or tuple containing the command and args to run.
+
+        :param timeout: Timeout (in seconds, or None for no timeout)
+          after which the process will automatically be sent a
+          SIGTERM.
+
+        :param ignore_exit_code: Boolean. If True, a process with a
+          return code != 0 will still be considered ok.
+
+        :param nolog_exit_code: Boolean. If False, termination of a
+          process with a return code != 0 will cause a warning in
+          logs.
+
+        :param ignore_timeout: Boolean. If True, a process which
+          reaches its timeout will be sent a SIGTERM, but will still
+          be considered ok (but it will most probably have an exit
+          code != 0).
+
+        :param nolog_timeout: Boolean. If False, a process which
+          reaches its timeout and is sent a SIGTERM will cause a
+          warning in logs.
+
+        :param ignore_error: Boolean. If True, a process raising an OS
+          level error will still be considered ok.
+
+        :param nolog_error: Boolean. If False, a process raising an OS
+          level error will cause a warning in logs.
+
+        :param default_stdout_handler: If True, a default handler
+          sends stdout stream output to the member string self.stdout.
+
+        :param default_stderr_handler: if True, a default handler
+          sends stderr stream output to the member string self.stderr.
+
+        :param lifecycle_handlers: List of instances of
+          `execo.process.ProcessLifecycleHandler` for being notified
+          of process lifecycle events.
+
+        :param stdout_handlers: List which can contain instances of
+          `execo.process.ProcessOutputHandler` for handling activity
+          on process stdout, or existing file descriptors (positive
+          integer), or existing file objects, or filenames, to which
+          stdout will be sent. If a filename is given, it will be
+          opened in write mode, and closed on eof.
+
+        :param stderr_handlers: List which can contain instances of
+          `execo.process.ProcessOutputHandler` for handling activity
+          on process stderr, or existing file descriptors (positive
+          integer), or existing file objects, or filenames, to which
+          stderr will be sent. If a filename is given, it will be
+          opened in write mode, and closed on eof.
+
+        :param name: User-friendly name. A default is generated and
+          can be changed.
         """
         self._lock = threading.RLock()
         self.cmd = cmd
@@ -337,7 +398,7 @@ class ProcessBase(object):
         self.exit_code = None
         """Process exit code if available (if the process ended correctly from the
         operating system point of view), or None"""
-        self.timeout = None
+        self.timeout = timeout
         """timeout (in seconds, or None for no timeout) after which the process
         will automatically be sent a SIGTERM"""
         self.timeout_date = None
@@ -355,46 +416,60 @@ class ProcessBase(object):
         """Process stdout"""
         self.stderr = ""
         """Process stderr"""
-        self.ignore_exit_code = False
+        self.ignore_exit_code = ignore_exit_code
         """Boolean. If True, a process with a return code != 0 will still be
         considered ok"""
-        self.ignore_timeout = False
+        self.ignore_timeout = ignore_timeout
         """Boolean. If True, a process which reaches its timeout will be sent a
         SIGTERM, but will still be considered ok (but it will most
         probably have an exit code != 0)"""
-        self.ignore_error = False
+        self.ignore_error = ignore_error
         """Boolean. If True, a process raising an OS level error will still be
         considered ok"""
-        self.nolog_exit_code = False
+        self.nolog_exit_code = nolog_exit_code
         """Boolean. If False, termination of a process with a return code != 0 will
         cause a warning in logs"""
-        self.nolog_timeout = False
+        self.nolog_timeout = nolog_timeout
         """Boolean. If False, a process which reaches its timeout and is sent a
         SIGTERM will cause a warning in logs"""
-        self.nolog_error = False
+        self.nolog_error = nolog_error
         """Boolean. If False, a process raising an OS level error will cause a
         warning in logs"""
-        self.default_stdout_handler = True
+        self.default_stdout_handler = default_stdout_handler
         """if True, a default handler sends stdout stream output to the member string self.stdout"""
-        self.default_stderr_handler = True
+        self.default_stderr_handler = default_stderr_handler
         """if True, a default handler sends stderr stream output to the member string self.stderr"""
-        self.lifecycle_handlers = list()
-        """List of instances of `execo.process.ProcessLifecycleHandler` for being
-        notified of process lifecycle events."""
-        self.stdout_handlers = list()
-        """List which can contain instances of `execo.process.ProcessOutputHandler`
-        for handling activity on process stdout, or existing file
-        descriptors (positive integer), or existing file objects, or
-        filenames, to which stdout will be sent. If a filename is given,
-        it will be opened in write mode, and closed on eof"""
-        self.stderr_handlers = list()
-        """List which can contain instances of `execo.process.ProcessOutputHandler`
-        for handling activity on process stderr, or existing file
-        descriptors (positive integer), or existing file objects, or
-        filenames, to which stderr will be sent. If a filename is given,
-        it will be opened in write mode, and closed on eof"""
-        self.name = name_from_cmdline(self.cmd)
-        """User-friendly name. A default is generated and can be changed."""
+        if lifecycle_handlers != None:
+            self.lifecycle_handlers = lifecycle_handlers
+            """List of instances of `execo.process.ProcessLifecycleHandler` for
+            being notified of process lifecycle events."""
+        else:
+            self.lifecycle_handlers = list()
+        if stdout_handlers != None:
+            self.stdout_handlers = stdout_handlers
+            """List which can contain instances of
+            `execo.process.ProcessOutputHandler` for handling activity
+            on process stdout, or existing file descriptors (positive
+            integer), or existing file objects, or filenames, to which
+            stdout will be sent. If a filename is given, it will be
+            opened in write mode, and closed on eof."""
+        else:
+            self.stdout_handlers = list()
+        if stderr_handlers != None:
+            self.stderr_handlers = stderr_handlers
+            """List which can contain instances of
+            `execo.process.ProcessOutputHandler` for handling activity
+            on process stderr, or existing file descriptors (positive
+            integer), or existing file objects, or filenames, to which
+            stderr will be sent. If a filename is given, it will be
+            opened in write mode, and closed on eof."""
+        else:
+            self.stderr_handlers = list()
+        if name != None:
+            self.name = name
+            """User-friendly name. A default is generated and can be changed."""
+        else:
+            self.name = name_from_cmdline(self.cmd)
         self.stdout_ioerror = False
         self.stderr_ioerror = False
         self._out_files = dict()
@@ -440,7 +515,18 @@ class ProcessBase(object):
         # all keyword arguments to the constructor. This list will be
         # used to build the list returned by _args() of this class or
         # child classes.
-        return []
+        kwargs = []
+        if self.timeout: kwargs.append("timeout=%r" % (self.timeout,))
+        if self.ignore_exit_code != False: kwargs.append("ignore_exit_code=%r" % (self.ignore_exit_code,))
+        if self.nolog_exit_code != False: kwargs.append("nolog_exit_code=%r" % (self.nolog_exit_code,))
+        if self.ignore_timeout != False: kwargs.append("ignore_timeout=%r" % (self.ignore_timeout,))
+        if self.nolog_timeout != False: kwargs.append("nolog_timeout=%r" % (self.nolog_timeout,))
+        if self.ignore_error != False: kwargs.append("ignore_error=%r" % (self.ignore_error,))
+        if self.nolog_error != False: kwargs.append("nolog_error=%r" % (self.nolog_error,))
+        if self.default_stdout_handler != True: kwargs.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
+        if self.default_stderr_handler != True: kwargs.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
+        # not for lifecycle_handlers, stdout_handlers, stderr_handler, name, would be too verbose
+        return kwargs
 
     def _infos(self):
         # to be implemented in all subclasses. Must return a list with
@@ -757,19 +843,33 @@ class Process(ProcessBase):
     True
     """
 
-    def __init__(self, cmd):
+    def __init__(self, cmd, shell = False,
+                 pty = False, kill_subprocesses = None,
+                 **kwargs):
+        """:param cmd: string or tuple containing the command and args to run.
+
+        :param shell: Whether or not to use a shell to run the
+          cmd. See ``subprocess.Popen``.
+
+        :param pty: If True, open a pseudo tty and connect process's
+          stdin and stdout to it (stderr is still connected as a
+          pipe). Make process a session leader. If lacking permissions
+          to send signals to the process, try to simulate sending
+          control characters to its pty.
+
+        :param kill_subprocesses: If True, signals are also sent to
+          subprocesses. If None, automatically decide based on shell =
+          True/False.
         """
-        :param cmd: string or tuple containing the command and args to run.
-        """
-        super(Process, self).__init__(cmd)
-        self.shell = False
+        super(Process, self).__init__(cmd, **kwargs)
+        self.shell = shell
         """Whether or not to use a shell to run the cmd. See ``subprocess.Popen``"""
-        self.pty = False
+        self.pty = pty
         """If True, open a pseudo tty and connect process's stdin and stdout to it
         (stderr is still connected as a pipe). Make process a session
         leader. If lacking permissions to send signals to the process,
         try to simulate sending control characters to its pty."""
-        self.kill_subprocesses = None
+        self.kill_subprocesses = kill_subprocesses
         """If True, signals are also sent to subprocesses. If None, automatically
         decide based on shell = True/False."""
         self.process = None
@@ -820,7 +920,11 @@ class Process(ProcessBase):
         return ProcessBase._args(self) + Process._kwargs(self)
 
     def _kwargs(self):
-        return []
+        kwargs = []
+        if self.shell != False: kwargs.append("shell=%r" % (self.shell,))
+        if self.pty != False: kwargs.append("pty=%r" % (self.pty,))
+        if self.kill_subprocesses != None: kwargs.append("kill_subprocesses=%r" % (self.kill_subprocesses,))
+        return kwargs
 
     def _infos(self):
         infos = []
@@ -1095,8 +1199,10 @@ class SshProcess(Process):
     ``execo.config.default_connection_params``.
     """
 
-    def __init__(self, cmd, host, connection_params = None):
-        """:param host: `execo.host.Host` to connect to
+    def __init__(self, cmd, host, connection_params = None, **kwargs):
+        """:param cmd: string containing the command and args to run.
+
+        :param host: `execo.host.Host` to connect to
 
         :param connection_params: connection parameters
         """
@@ -1114,16 +1220,17 @@ class SshProcess(Process):
             real_cmd += cmd
         else:
             real_cmd += (cmd,)
-        super(SshProcess, self).__init__(real_cmd)
-        self.host = host
-        self.pty = make_connection_params(connection_params).get('pty')
+        kwargs.update({"pty": make_connection_params(connection_params).get('pty')})
         """For ssh processes, pty is initialized by the connection params. This
         allows setting default pty behaviors in connection_params shared
         by various remote processes (this was motivated by allowing
         `execo_g5k.config.default_oarsh_oarcp_params` to set pty to
         True, because oarsh/oarcp are run sudo which forbids to send
         signals)."""
-        self.name = name_from_cmdline(self.remote_cmd)
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": name_from_cmdline(self.remote_cmd)})
+        super(SshProcess, self).__init__(real_cmd, **kwargs)
+        self.host = host
 
     def _args(self):
         return [ style.command(repr(self.remote_cmd)),
@@ -1148,11 +1255,12 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     r"""Dummy process similar to `execo.process.SshProcess`."""
 
-    def __init__(self, cmd, host):
-        super(TaktukProcess, self).__init__(cmd)
-        self.host = Host(host)
+    def __init__(self, cmd, host, **kwargs):
         self.remote_cmd = cmd
-        self.name = name_from_cmdline(self.remote_cmd)
+        if not kwargs.has_key("name"):
+            kwargs.update({"name": name_from_cmdline(self.remote_cmd)})
+        super(TaktukProcess, self).__init__(cmd, **kwargs)
+        self.host = Host(host)
 
     def _args(self):
         return [ style.command(repr(self.remote_cmd)),
@@ -1259,7 +1367,8 @@ class PortForwarder(SshProcess):
                  remote_port,
                  local_port = None,
                  bind_address = None,
-                 connection_params = None):
+                 connection_params = None,
+                 **kwargs):
         """Create an ssh port forwarder process (ssh -L).
 
         This port forwarding process opens a listening socket on
@@ -1305,7 +1414,8 @@ class PortForwarder(SshProcess):
                 ))
         super(PortForwarder, self).__init__("sleep 31536000",
                                             host,
-                                            connection_params = pf_conn_parms)
+                                            connection_params = pf_conn_parms,
+                                            **kwargs)
         self.forwarding = threading.Event()
         """`threading.Event` which can be waited upon to be notified when the forwarding port is actually open"""
         self.stderr_handlers.append(port_forwarder_stderr_handler(self.local_port,
@@ -1337,7 +1447,8 @@ class SerialSsh(SshProcess):
                  host,
                  device,
                  speed,
-                 connection_params = None):
+                 connection_params = None,
+                 **kwargs):
         """Create a connection to a serial port through ssh.
 
         :param host: remote side of the ssh connection
@@ -1352,7 +1463,8 @@ class SerialSsh(SshProcess):
         self.speed = speed
         super(SerialSsh, self).__init__("stty -F %s %s rows 0 columns 0 line 0 intr ^C quit ^\\\ erase ^? kill ^U eof ^D eol undef eol2 undef swtch undef start ^Q stop ^S susp ^Z rprnt ^R werase ^W lnext ^V flush ^O min 1 time 0 -parenb -parodd cs8 hupcl -cstopb cread clocal -crtscts -ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff -iuclc -ixany -imaxbel -iutf8 -opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0 -isig -icanon -iexten -echo echoe echok -echonl -noflsh -xcase -tostop -echoprt echoctl echoke ; cat %s & cat > %s" % (self.device, self.speed, self.device, self.device),
                                         host,
-                                        connection_params = connection_params)
+                                        connection_params = connection_params,
+                                        **kwargs)
 
     def _args(self):
         return [ repr(self.host),
