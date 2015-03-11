@@ -434,6 +434,13 @@ def get_host_site(host):
             return get_cluster_site(m.group(1))
     else: return None 
 
+def get_network_equipments_site(equip):
+    """Return the site of a network_equipment"""
+    for site in get_g5k_sites():
+        if equip in get_site_network_equipments(site):
+            return site 
+    return None
+
 def group_hosts(hosts):
     """Given a sequence of hosts, group them in a dict by sites and clusters"""
     grouped_hosts = {}
@@ -465,8 +472,9 @@ def get_site_attributes(site):
     """Get the attributes of a site (as known to the g5k api) as a dict"""
     return get_api_data()['sites'][site]
 
-def get_network_equipment_attributes(equip, site):
+def get_network_equipments_attributes(equip):
     """Get the attributes of a network equipment of a site as a dict"""
+    site = get_network_equipments_site(equip)
     return get_api_data()['network'][site][equip]
 
 def get_g5k_measures(host, metric, startstamp, endstamp, resolution=5):
