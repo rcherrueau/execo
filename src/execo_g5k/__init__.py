@@ -55,6 +55,6 @@ except:
     pass # no mysqldb
 
 try:
-    from topology import backbone_graph, site_graph
+    from topology import g5k_graph, treemap
 except:
     pass # no networkx

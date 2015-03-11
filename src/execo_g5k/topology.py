@@ -34,7 +34,7 @@ from itertools import groupby
 from operator import itemgetter
 from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
     get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
-    get_site_clusters, get_api_data, get_g5k_hosts
+    get_site_clusters, get_api_data, get_g5k_hosts, get_network_equipments_attributes
 import networkx as nx
 
 try:
@@ -77,7 +77,11 @@ class g5k_graph(nx.MultiGraph):
 
     # add/update/rm elements, public methods
     def add_host(self, host, data=None):
-        """ """
+        """Add a host in the graph
+
+        :param host: a string corresponding to the node name
+
+        :param data: a dict containing the Grid'5000 host attributes"""
 
         if data:
             power = data['performance']['core_flops']
@@ -85,43 +89,53 @@ class g5k_graph(nx.MultiGraph):
         else:
             power = 0
             cores = 0
-        logger.debug('Adding %s', style.host(host))
+
         if len(self.get_host_adapters(host)) > 0:
+            logger.debug('Adding %s', style.host(host))
             self.add_node(host, {'kind': 'node',
                                  'power': power,
                                  'cores': cores})
             for eq in self.get_host_adapters(host):
                 self.add_equip(eq['switch'], get_host_site(host))
+        else:
+            logger.warning('Node %s has no valid network connection',
+                           host)
 
     def rm_host(self, host):
-        """ """
+        """Remove the host from the graph"""
         logger.debug('Removing host %s', style.host(host))
         self.remove_node(host)
+        for eq in self.get_host_adapters(host):
+            if not self._equip_has_nodes(eq['switch']):
+                logger.debug('Removing equip %s', eq['switch'])
+                self.rm_equip(eq['switch'])
 
     def add_cluster(self, cluster, data=None):
-        """ """
+        """Add the cluster to the graph"""
         for h in get_cluster_hosts(cluster):
             self.add_host(h, self.data['hosts'][h])
 
     def rm_cluster(self, cluster):
-        """ """
+        """Remove the cluster from the graph"""
         for h in get_cluster_hosts(cluster):
-            self.rm_host(h)
+            if self.has_node(h):
+                self.rm_host(h)
 
     def add_site(self, site, data=None):
-        """ """
+        """Add a site to the graph"""
         for c in get_site_clusters(site):
             for h in get_cluster_hosts(c):
                 self.add_host(h, self.data['hosts'][h])
 
     def rm_site(self, site):
-        """ """
+        """Remove the site from the graph"""
         for c in get_site_clusters(site):
-            for h in get_cluster_hosts(c):
-                self.remove_host(h)
+            self.rm_cluster(c)
+        if 'gw-' + site in self.nodes():
+            self.rm_equip('gw-' + site)
 
     def add_equip(self, equip, site):
-        """ """
+        """Add a network equipment """
         if equip not in self.data['network'][site]:
             logger.warning('Equipment %s not described in API')
             return
@@ -195,12 +209,16 @@ class g5k_graph(nx.MultiGraph):
                         self.add_equip(port['uid'], site)
 
     def rm_equip(self, equip):
-        """ """
+        """Remove an equipment from the node"""
         logger.debug('Removing equip %s', style.host(equip))
         self.remove_node(equip)
+        if get_network_equipments_attributes(equip)['kind'] == 'router':
+            lc_nodes = filter(lambda x: equip in x, self.nodes())
+            logger.debug('Removing router linecard %s', ' '.join(lc_nodes))
+            self.remove_nodes_from(lc_nodes)
 
     def add_backbone(self):
-        """ """
+        """Add the nodes corresponding to Renater equipments"""
         logger.debug('Add %s network', style.emph('Renater'))
         backbone = self.data['network']['backbone']
         for equip in backbone:
@@ -241,29 +259,30 @@ class g5k_graph(nx.MultiGraph):
                     self.remove_node(element)
 
     def rm_backbone(self):
-        """ """
+        """Remove all elements from the backbone"""
         self.remove_nodes_from(self.get_backbone())
 
     # get elements, public methods
     def get_hosts(self):
-        """ """
+        """Return the list of nodes corresponding to hosts"""
         return filter(lambda x: x[1]['kind'] == 'node', self.nodes(True))
 
     def get_clusters(self):
-        """ """
+        """Return the list of clusters"""
         return list(set(map(lambda y: get_host_cluster(y[0]),
                    filter(lambda x: x[1]['kind'] == 'node', self.nodes(True)))))
 
     def get_sites(self):
-        """ """
+        """Return the list of sites"""
         return list(set(map(lambda y: get_host_site(y[0]),
                    filter(lambda x: x[1]['kind'] == 'node', self.nodes(True)))))
 
     def get_backbone(self):
+        """Return """
         return filter(lambda x: x[1]['kind'] == 'renater', self.nodes(True))
 
     def get_host_adapters(self, host):
-        """ """
+        """Return the mountable network interfaces from a host"""
         try:
             if host in self.data['hosts']:
                 return filter(lambda n: not n['management'] and n['mountable']
@@ -274,6 +293,18 @@ class g5k_graph(nx.MultiGraph):
             logger.warning('Wrong description for host %s', style.host(host))
             print self.data['hosts'][host]['network_adapters']
             return []
+
+    def _equip_has_nodes(self, equip):
+        """ """
+        data = get_network_equipments_attributes(equip)
+        if data['kind'] == 'router':
+            return True
+        for lc in filter(lambda n: 'ports' in n, data['linecards']):
+            for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
+                kind = port['kind'] if 'kind' in port else lc['kind']
+                if kind == 'node' and self.has_node(port['uid']):
+                    return True
+        return False
 
 
 def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
