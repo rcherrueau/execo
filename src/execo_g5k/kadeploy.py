@@ -181,6 +181,7 @@ class FrontendPrefixWrapper(ProcessOutputHandler):
 
     def read_line(self, process, stream, string, eof, error):
         handle_process_output(process,
+                              stream,
                               self.handler,
                               process.frontend + ": " + string,
                               eof, error)
