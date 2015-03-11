@@ -34,7 +34,7 @@ from itertools import groupby
 from operator import itemgetter
 from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
     get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
-    get_site_clusters, get_api_data, get_g5k_hosts, get_network_equipments_attributes
+    get_site_clusters, get_api_data, get_g5k_hosts, get_network_equipment_attributes
 import networkx as nx
 
 try:
@@ -212,7 +212,7 @@ class g5k_graph(nx.MultiGraph):
         """Remove an equipment from the node"""
         logger.debug('Removing equip %s', style.host(equip))
         self.remove_node(equip)
-        if get_network_equipments_attributes(equip)['kind'] == 'router':
+        if get_network_equipment_attributes(equip)['kind'] == 'router':
             lc_nodes = filter(lambda x: equip in x, self.nodes())
             logger.debug('Removing router linecard %s', ' '.join(lc_nodes))
             self.remove_nodes_from(lc_nodes)
@@ -296,7 +296,7 @@ class g5k_graph(nx.MultiGraph):
 
     def _equip_has_nodes(self, equip):
         """ """
-        data = get_network_equipments_attributes(equip)
+        data = get_network_equipment_attributes(equip)
         if data['kind'] == 'router':
             return True
         for lc in filter(lambda n: 'ports' in n, data['linecards']):
@@ -366,7 +366,8 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
 
     def _default_edges_legend():
         """Defines the width and color of the edges based on bandwidth"""
-        return {1000000000: {'width': 0.2, 'color': '#666666'},
+        return {100000000: {'width': 0.2, 'color': '#666666'},
+                1000000000: {'width': 0.4, 'color': '#666666'},
                 3000000000: {'width': 0.6, 'color': '#333333'},
                 10000000000: {'width': 1.0, 'color': '#111111'},
                 20000000000: {'width': 2.0, 'color': '#111111'},
