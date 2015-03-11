@@ -376,11 +376,11 @@ def get_site_clusters(site):
         raise ValueError, "unknown g5k site %s" % (site,)
     return get_api_data()['hierarchy'][site].keys()
 
-def get_site_network(site):
+def get_site_network_equipments(site):
     """Get the list of network elements from a site. Returns an iterable."""
     if not site in get_g5k_sites():
-        raise ValueError, "unknown g5k cluster %s" % (site,)
-    return get_api_data()['network'][site]
+        raise ValueError, "unknown g5k site %s" % (site,)
+    return get_api_data()['network'][site].keys()
 
 def get_cluster_hosts(cluster):
     """Get the list of hosts from a cluster. Returns an iterable."""
@@ -432,7 +432,7 @@ def get_host_site(host):
             return m.group(3)
         else:
             return get_cluster_site(m.group(1))
-    else: return None
+    else: return None 
 
 def group_hosts(hosts):
     """Given a sequence of hosts, group them in a dict by sites and clusters"""
@@ -464,6 +464,10 @@ def get_cluster_attributes(cluster):
 def get_site_attributes(site):
     """Get the attributes of a site (as known to the g5k api) as a dict"""
     return get_api_data()['sites'][site]
+
+def get_network_equipments_attributes(equip, site):
+    """Get the attributes of a network equipment of a site as a dict"""
+    return get_api_data()['network'][site][equip]
 
 def get_g5k_measures(host, metric, startstamp, endstamp, resolution=5):
     """ Return a dict with the api values"""
