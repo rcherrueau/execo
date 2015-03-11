@@ -189,7 +189,7 @@ class g5k_graph(nx.MultiGraph):
                     self.add_node(lc_node, kind='linecard',
                           backplane=backplane)
         else:
-            # some switch have two linecards ?? pat, sgraphene1 => REPORT BUG
+            # some switch have two linecards ?? pat, sgraphene1 => REPORT BUG
             for lc in filter(lambda n: 'ports' in n, lc_data):
                 for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
                     kind = port['kind'] if 'kind' in port else lc['kind']
