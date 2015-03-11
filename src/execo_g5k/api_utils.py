@@ -376,6 +376,12 @@ def get_site_clusters(site):
         raise ValueError, "unknown g5k site %s" % (site,)
     return get_api_data()['hierarchy'][site].keys()
 
+def get_site_network(site):
+    """Get the list of network elements from a site. Returns an iterable."""
+    if not site in get_g5k_sites():
+        raise ValueError, "unknown g5k cluster %s" % (site,)
+    return get_api_data()['network'][site]
+
 def get_cluster_hosts(cluster):
     """Get the list of hosts from a cluster. Returns an iterable."""
     for site in get_g5k_sites():

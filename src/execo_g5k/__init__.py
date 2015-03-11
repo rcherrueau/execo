@@ -43,7 +43,7 @@ from api_utils import get_g5k_sites, get_site_clusters, \
     get_cluster_site, APIConnection, APIGetException, get_host_site, \
     get_host_cluster, group_hosts, get_resource_attributes, \
     get_host_attributes, get_cluster_attributes, \
-    get_site_attributes, canonical_host_name
+    get_site_attributes, get_site_network, canonical_host_name
 
 from charter import g5k_charter_time, get_next_charter_period
 
