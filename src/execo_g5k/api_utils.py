@@ -465,7 +465,7 @@ def get_site_attributes(site):
     """Get the attributes of a site (as known to the g5k api) as a dict"""
     return get_api_data()['sites'][site]
 
-def get_network_equipments_attributes(equip, site):
+def get_network_equipment_attributes(equip, site):
     """Get the attributes of a network equipment of a site as a dict"""
     return get_api_data()['network'][site][equip]
 
