@@ -194,6 +194,10 @@ class g5k_graph(nx.MultiGraph):
                                     key = equip + '_' + port['uid'] + '_' + e['device']
                                     self.add_edge(equip, port['uid'], key,
                                               bandwidth=bandwidth)
+                        if kind == 'switch':
+                            key = equip + '_' + port['uid']
+                            self.add_edge(equip, port['uid'], key,
+                                              bandwidth=bandwidth)
                     if kind == 'router':
                         self.add_equip(port['uid'], site)
 
