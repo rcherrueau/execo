@@ -627,7 +627,7 @@ class ProcessBase(object):
 
     def dump(self):
         with self._lock:
-            return " %s\n" % (str(self),)+ style.emph("stdout:") + "\n%s\n" % (compact_output(self.stdout),) + style.emph("stderr:") + "\n%s" % (compact_output(self.stderr),)
+            return "%s\n" % (str(self),)+ style.emph("stdout:") + "\n%s\n" % (compact_output(self.stdout),) + style.emph("stderr:") + "\n%s" % (compact_output(self.stderr),)
 
     @property
     def running(self):
@@ -724,7 +724,7 @@ class ProcessBase(object):
         This method will log process termination as needed.
         """
         with self._lock:
-            s = style.emph("terminated:") + self.dump()
+            s = style.emph("terminated:") + " " + self.dump()
             warn = ((self.error and not self.nolog_error)
                     or (self.timeouted and not self.nolog_timeout)
                     or (self.exit_code != 0 and not self.nolog_exit_code))
@@ -799,7 +799,7 @@ class ProcessBase(object):
 
     def _notify_expect_fail(self):
         self.expect_fail = True
-        s = style.emph("expect fail:") + self.dump()
+        s = style.emph("expect fail:") + " " + self.dump()
         if self.nolog_expect_fail:
             logger.debug(s)
         else:
