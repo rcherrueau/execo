@@ -34,7 +34,8 @@ from itertools import groupby
 from operator import itemgetter
 from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
     get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
-    get_site_clusters, get_api_data, get_g5k_hosts, get_network_equipment_attributes
+    get_site_clusters, get_api_data, get_g5k_hosts, \
+    get_network_equipment_attributes, get_host_shortname
 import networkx as nx
 
 try:
@@ -66,6 +67,8 @@ class g5k_graph(nx.MultiGraph):
 
         if elements:
             for e in elements:
+                if isinstance(e, Host):
+                    e = get_host_shortname(e.address)
                 if e in get_g5k_sites():
                     self.add_site(e, self.data['sites'][e])
                 if e in get_g5k_clusters():
@@ -82,7 +85,8 @@ class g5k_graph(nx.MultiGraph):
         :param host: a string corresponding to the node name
 
         :param data: a dict containing the Grid'5000 host attributes"""
-
+        if isinstance(host, Host):
+            _host = get_host_shortname(host.address)
         if data:
             power = data['performance']['core_flops']
             cores = data['architecture']['smt_size']
@@ -90,16 +94,16 @@ class g5k_graph(nx.MultiGraph):
             power = 0
             cores = 0
 
-        if len(self.get_host_adapters(host)) > 0:
-            logger.debug('Adding %s', style.host(host))
-            self.add_node(host, {'kind': 'node',
+        if len(self.get_host_adapters(_host)) > 0:
+            logger.debug('Adding %s', style.host(_host))
+            self.add_node(_host, {'kind': 'node',
                                  'power': power,
                                  'cores': cores})
-            for eq in self.get_host_adapters(host):
-                self.add_equip(eq['switch'], get_host_site(host))
+            for eq in self.get_host_adapters(_host):
+                self.add_equip(eq['switch'], get_host_site(_host))
         else:
             logger.warning('Node %s has no valid network connection',
-                           host)
+                           _host)
 
     def rm_host(self, host):
         """Remove the host from the graph"""
@@ -331,6 +335,8 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     matplotlib backend before to import execo_g5k.topology module.
     """
 
+    base_size = 2
+
     _default_color = '#000000'
     _default_shape = 'o'
     _default_size = 100
@@ -377,7 +383,6 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
 
     def _default_nodes_labels(compact=False):
         """Defines the font labels"""
-        base_size = 2 if compact else 1
 
         def _default_str_func(n):
             return n.split('.')[0]
