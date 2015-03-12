@@ -23,7 +23,7 @@ from execo.host import Host
 from log import style, logger
 from pty import openpty
 from ssh_utils import get_ssh_command, get_rewritten_host_address
-from time_utils import format_unixts, get_seconds
+from time_utils import format_unixts, get_seconds, Timer
 from utils import compact_output, name_from_cmdline, non_retrying_intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
 from traceback import format_exc
 from report import Report
@@ -306,6 +306,7 @@ class ProcessBase(object):
                  ignore_exit_code = False, nolog_exit_code = False,
                  ignore_timeout = False, nolog_timeout = False,
                  ignore_error = False, nolog_error = False,
+                 ignore_expect_fail = False, nolog_expect_fail = False,
                  default_stdout_handler = True,
                  default_stderr_handler = True,
                  lifecycle_handlers = None,
@@ -339,6 +340,15 @@ class ProcessBase(object):
 
         :param nolog_error: Boolean. If False, a process raising an OS
           level error will cause a warning in logs.
+
+        :param ignore_expect_fail: Boolean. If True, on a failure to
+          find an expect match (reach expect timeout of eof or stream
+          error before finding a match) the process will still be
+          considered ok.
+
+        :param nolog_expect_fail: Boolean. If False, a failure to find
+          an expect match (reach expect timeout of eof or stream error
+          before finding a match) will cause a warning in logs.
 
         :param default_stdout_handler: If True, a default handler
           sends stdout stream output to the member string self.stdout.
@@ -412,6 +422,9 @@ class ProcessBase(object):
         timeout), execo will wait some time (constant set in execo
         source) and if after this timeout the process is still running,
         it will be killed forcibly with a SIGKILL."""
+        self.expect_fail = False
+        """Whether an expect invocation failed to match (reach expect timeout,
+        or stream eof or error before finding any match)."""
         self.stdout = ""
         """Process stdout"""
         self.stderr = ""
@@ -426,6 +439,10 @@ class ProcessBase(object):
         self.ignore_error = ignore_error
         """Boolean. If True, a process raising an OS level error will still be
         considered ok"""
+        self.ignore_expect_fail = ignore_expect_fail
+        """Boolean. If True, on a failure to find an expect match (reach
+        expect timeout of eof or stream error before finding a match)
+        the process will still be considered ok."""
         self.nolog_exit_code = nolog_exit_code
         """Boolean. If False, termination of a process with a return code != 0 will
         cause a warning in logs"""
@@ -435,6 +452,10 @@ class ProcessBase(object):
         self.nolog_error = nolog_error
         """Boolean. If False, a process raising an OS level error will cause a
         warning in logs"""
+        self.nolog_expect_fail = nolog_expect_fail
+        """Boolean. If False, a failure to find an expect match (reach expect
+        timeout of eof or stream error before finding a match) will
+        cause a warning in logs."""
         self.default_stdout_handler = default_stdout_handler
         """if True, a default handler sends stdout stream output to the member string self.stdout"""
         self.default_stderr_handler = default_stderr_handler
@@ -497,6 +518,7 @@ class ProcessBase(object):
         self.timeout_date = None
         self.timeouted = False
         self.forced_kill = False
+        self.expect_fail = False
         self.stdout = ""
         self.stderr = ""
         self.stdout_ioerror = False
@@ -523,6 +545,8 @@ class ProcessBase(object):
         if self.nolog_timeout != False: kwargs.append("nolog_timeout=%r" % (self.nolog_timeout,))
         if self.ignore_error != False: kwargs.append("ignore_error=%r" % (self.ignore_error,))
         if self.nolog_error != False: kwargs.append("nolog_error=%r" % (self.nolog_error,))
+        if self.ignore_expect_fail != False: kwargs.append("ignore_expect_fail=%r" % (self.ignore_expect_fail,))
+        if self.nolog_expect_fail != False: kwargs.append("nolog_expect_fail=%r" % (self.nolog_expect_fail,))
         if self.default_stdout_handler != True: kwargs.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
         if self.default_stderr_handler != True: kwargs.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
         # not for lifecycle_handlers, stdout_handlers, stderr_handler, name, would be too verbose
@@ -540,6 +564,8 @@ class ProcessBase(object):
         if self.nolog_exit_code != False: infos.append("nolog_exit_code=%r" % (self.nolog_exit_code,))
         if self.nolog_timeout != False: infos.append("nolog_timeout=%r" % (self.nolog_timeout,))
         if self.nolog_error != False: infos.append("nolog_error=%r" % (self.nolog_error,))
+        if self.ignore_expect_fail != False: infos.append("ignore_expect_fail=%r" % (self.ignore_expect_fail,))
+        if self.nolog_expect_fail != False: infos.append("nolog_expect_fail=%r" % (self.nolog_expect_fail,))
         if self.default_stdout_handler != True: infos.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
         if self.default_stderr_handler != True: infos.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
         if self.forced_kill: infos.append("forced_kill=%s" % (self.forced_kill,))
@@ -552,6 +578,7 @@ class ProcessBase(object):
             "error=%s" % (self.error,),
             "error_reason=%s" % (self.error_reason,),
             "timeouted=%s" % (self.timeouted,),
+            "expect_fail=%s" % (self.expect_fail,),
             "exit_code=%s" % (self.exit_code,),
             "ok=%s" % (self.ok,) ])
         return infos
@@ -624,6 +651,9 @@ class ProcessBase(object):
 
         A process is ok, if:
 
+        - did not failed on an expect invocation (or was instructed to
+          ignore it)
+
         - it is not yet started or not yet ended
 
         - it started and ended and:
@@ -636,6 +666,7 @@ class ProcessBase(object):
             code)
         """
         with self._lock:
+            if self.expect_fail and (not self.ignore_expect_fail): return False
             if not self.started: return True
             if self.started and not self.ended: return True
             return ((not self.error or self.ignore_error)
@@ -710,6 +741,7 @@ class ProcessBase(object):
             if self.error: stats['num_errors'] += 1
             if self.timeouted: stats['num_timeouts'] += 1
             if self.forced_kill: stats['num_forced_kills'] += 1
+            if self.expect_fail: stats['num_expect_fail'] += 1
             if (self.started
                 and self.ended
                 and self.exit_code != 0):
@@ -791,6 +823,13 @@ class ProcessBase(object):
                 self.stderr_handlers.append(self._thread_local_storage.expect_handler)
             while (countdown.remaining() == None or countdown.remaining() > 0) and re_index_and_match_object[0] == None:
                 non_retrying_intr_cond_wait(cond, countdown.remaining())
+        if re_index_and_match_object[0] == None:
+            self.expect_fail = True
+            s = style.emph("expect fail:") + self.dump()
+            if self.nolog_expect_fail:
+                logger.debug(s)
+            else:
+                logger.warning(s)
         return (re_index_and_match_object[0], re_index_and_match_object[1])
 
 def _get_childs(pid):

@@ -73,6 +73,7 @@ class Report(object):
             'num_timeouts': 0,
             'num_forced_kills': 0,
             'num_non_zero_exit_codes': 0,
+            'num_expect_fail': 0,
             'num_ok': 0,
             'num_finished_ok': 0,
             'sub_stats': [],
@@ -101,6 +102,7 @@ class Report(object):
                     'num_timeouts',
                     'num_forced_kills',
                     'num_non_zero_exit_codes',
+                    'num_expect_fail',
                     'num_ok',
                     'num_finished_ok'
                     ]:
@@ -139,6 +141,11 @@ class Report(object):
 
         - ``num_non_zero_exit_codes``: number of processes that ran
           correctly but whose return code was != 0.
+
+        - ``num_expect_fail``: number of processes on which there was
+          an expect failure, i.e. the expect search did not find a
+          match before reaching the expect timeout or the stream
+          eof/error.
 
         - ``num_ok``: number of processes which:
 
@@ -188,11 +195,11 @@ class Report(object):
         """
         output = ""
         if wide:
-            output += "Name                                    start               end                 length         started   ended     errors    timeouts  f.killed  badretval ok        total     \n"
-            output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+            output += "Name                                    start               end                 length         startd ended  error  timout fkilld expfld ret!=0 ok     total  \n"
+            output += "--------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
         else:
             output += "Name                                    start               end                \n"
-            output += "  length       started ended   error   timeout fkilled ret!=0  ok      total   \n"
+            output += "  length        startd ended  error  timout fkilld expfld ret!=0 ok     total  \n"
             output += "-------------------------------------------------------------------------------\n"
         def format_line(stats, indent):
             result = ""
@@ -203,7 +210,7 @@ class Report(object):
             else:
                 length = ""
             if wide:
-                tmpline = "%-39.39s %-19.19s %-19.19s %-15.15s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s%-10.10s\n" % (
+                tmpline = "%-39.39s %-19.19s %-19.19s %-15.15s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s\n" % (
                     indented_name,
                     format_date(stats['start_date']),
                     format_date(stats['end_date']),
@@ -213,6 +220,7 @@ class Report(object):
                     stats['num_errors'],
                     stats['num_timeouts'],
                     stats['num_forced_kills'],
+                    stats['num_expect_fail'],
                     stats['num_non_zero_exit_codes'],
                     stats['num_ok'],
                     stats['num_processes'])
@@ -221,18 +229,19 @@ class Report(object):
                     indented_name,
                     format_date(stats['start_date']),
                     format_date(stats['end_date']),)
-                tmpline += "  %-13.13s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s%-8.8s\n" % (
+                tmpline += " %-15.15s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s\n" % (
                     length,
                     stats['num_started'],
                     stats['num_ended'],
                     stats['num_errors'],
                     stats['num_timeouts'],
                     stats['num_forced_kills'],
+                    stats['num_expect_fail'],
                     stats['num_non_zero_exit_codes'],
                     stats['num_ok'],
                     stats['num_processes'],)
             if stats['num_ok'] < stats['num_processes']:
-                if stats['num_ok'] == stats['num_ended']:
+                if stats['num_ok'] == stats['num_ended'] and stats['num_expect_fail'] == 0:
                     tmpline = style.report_warn(tmpline)
                 else:
                     tmpline = style.report_error(tmpline)
@@ -252,7 +261,7 @@ class Report(object):
                 key = lambda stats: stats.get('start_date') or sys.maxint):
                 output += recurse_stats(sub_stats, 0)
             if wide:
-                output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+                output += "--------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
             else:
                 output += "-------------------------------------------------------------------------------\n"
 
