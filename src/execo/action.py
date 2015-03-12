@@ -1071,7 +1071,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
             else:
                 process._set_terminated(exit_code = 0)
 
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         try:
             if len(string) > 0:
                 header = ord(string[0])
@@ -1223,7 +1223,7 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
             else:
                 process._set_terminated(exit_code = 0)
 
-    def read_line(self, process, string, eof, error):
+    def read_line(self, process, stream, string, eof, error):
         try:
             if len(string) > 0:
                 header = ord(string[0])
