@@ -771,6 +771,14 @@ class ProcessBase(object):
         self.kill()
         return False
 
+    def _notify_expect_fail(self):
+        self.expect_fail = True
+        s = style.emph("expect fail:") + self.dump()
+        if self.nolog_expect_fail:
+            logger.debug(s)
+        else:
+            logger.warning(s)
+
     def expect(self, regexes, timeout = False, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
         """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect.
 
@@ -836,12 +844,7 @@ class ProcessBase(object):
             while (countdown.remaining() == None or countdown.remaining() > 0) and re_index_and_match_object[0] == None:
                 non_retrying_intr_cond_wait(cond, countdown.remaining())
         if re_index_and_match_object[0] == None:
-            self.expect_fail = True
-            s = style.emph("expect fail:") + self.dump()
-            if self.nolog_expect_fail:
-                logger.debug(s)
-            else:
-                logger.warning(s)
+            self._notify_expect_fail()
         return (re_index_and_match_object[0], re_index_and_match_object[1])
 
 def _get_childs(pid):
