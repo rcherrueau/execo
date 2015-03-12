@@ -394,7 +394,7 @@ class Remote(Action):
     One ssh process is launched for each connection.
     """
 
-    def __init__(self, cmd, hosts, connection_params = None, process_args = None, **kwargs):
+    def __init__(self, cmd, hosts, connection_params = None, process_args = None, default_expect_timeout = None, **kwargs):
         """:param cmd: the command to run remotely. Substitions
           described in `execo.substitutions.remote_substitute` will be
           performed.
@@ -408,6 +408,10 @@ class Remote(Action):
 
         :param process_args: Dict of keyword arguments passed to
           instanciated processes.
+
+        :param default_expect_timeout: The default timeout for expect
+          invocations when no explicit timeout is given. Defaults to
+          None, meaning no timeout.
         """
         self.cmd = cmd
         """The command to run remotely. substitions described in
@@ -425,6 +429,9 @@ class Remote(Action):
             self.process_args = {}
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
+        self.default_expect_timeout = default_expect_timeout
+        """The default timeout for expect invocations when no explicit timeout
+        is given. Defaults to None, meaning no timeout."""
         self._caller_context = get_caller_context(['get_remote'])
         self._thread_local_storage = threading.local()
         self._thread_local_storage.expect_handler = None
@@ -450,7 +457,15 @@ class Remote(Action):
         kwargs = []
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         if len(self.process_args) > 0: kwargs.append("process_args=%r" % (self.process_args,))
+        if self.default_expect_timeout != None: kwargs.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
         return kwargs
+
+    def _infos(self):
+        infos = []
+        if self.connection_params: infos.append("connection_params=%r" % (self.connection_params,))
+        if len(self.process_args) > 0: infos.append("process_args=%r" % (self.process_args,))
+        if self.default_expect_timeout != None: infos.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
+        return infos
 
     def _init_processes(self):
         self.processes = []
@@ -489,7 +504,7 @@ class Remote(Action):
         for process in self.processes:
             process.write(s)
 
-    def expect(self, regexes, timeout = None, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
+    def expect(self, regexes, timeout = False, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
         """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect, but in parallel on several processes.
 
         It is an easier-to-use frontend for
@@ -509,7 +524,8 @@ class Remote(Action):
           or as compiled regexes.
 
         :param timeout: wait timeout after which it returns (None,
-          None) if no match was found.
+          None) if no match was found. If False (the default): use the
+          default expect timeout. If None: no timeout.
 
         :param stream: stream to monitor for this process, STDOUT or
           STDERR.
@@ -534,6 +550,7 @@ class Remote(Action):
           of the stream.
 
         """
+        if timeout == False: timeout = self.default_expect_timeout
         countdown = Timer(timeout)
         cond = threading.Condition()
         num_found_and_list = [0, {}]
@@ -1780,7 +1797,7 @@ class RemoteSerial(Remote):
     The serial port can be read (standard output) and written to (standard input).
     """
 
-    def __init__(self, hosts, device, speed, connection_params = None, process_args = None, **kwargs):
+    def __init__(self, hosts, device, speed, connection_params = None, process_args = None, default_expect_timeout = None, **kwargs):
         """:param hosts: iterable of `execo.host.Host` to which to
           connect and open the serial device.
 
@@ -1796,6 +1813,12 @@ class RemoteSerial(Remote):
           `execo.config.default_connection_params` whose values will
           override those in default_connection_params for connection.
 
+        :param process_args: Dict of keyword arguments passed to
+          instanciated processes.
+
+        :param default_expect_timeout: The default timeout for expect
+          invocations when no explicit timeout is given. Defaults to
+          None, meaning no timeout.
         """
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
@@ -1816,6 +1839,9 @@ class RemoteSerial(Remote):
             """Dict of keyword arguments passed to instanciated processes."""
         else:
             self.process_args = {}
+        self.default_expect_timeout = default_expect_timeout
+        """The default timeout for expect invocations when no explicit timeout
+        is given. Defaults to None, meaning no timeout."""
         self._caller_context = get_caller_context()
         self._thread_local_storage = threading.local()
         self._thread_local_storage.expect_handler = None

@@ -307,6 +307,7 @@ class ProcessBase(object):
                  ignore_timeout = False, nolog_timeout = False,
                  ignore_error = False, nolog_error = False,
                  ignore_expect_fail = False, nolog_expect_fail = False,
+                 default_expect_timeout = None,
                  default_stdout_handler = True,
                  default_stderr_handler = True,
                  lifecycle_handlers = None,
@@ -349,6 +350,10 @@ class ProcessBase(object):
         :param nolog_expect_fail: Boolean. If False, a failure to find
           an expect match (reach expect timeout of eof or stream error
           before finding a match) will cause a warning in logs.
+
+        :param default_expect_timeout: The default timeout for expect
+          invocations when no explicit timeout is given. Defaults to
+          None, meaning no timeout.
 
         :param default_stdout_handler: If True, a default handler
           sends stdout stream output to the member string self.stdout.
@@ -456,6 +461,9 @@ class ProcessBase(object):
         """Boolean. If False, a failure to find an expect match (reach expect
         timeout of eof or stream error before finding a match) will
         cause a warning in logs."""
+        self.default_expect_timeout = default_expect_timeout
+        """The default timeout for expect invocations when no explicit timeout
+        is given. Defaults to None, meaning no timeout."""
         self.default_stdout_handler = default_stdout_handler
         """if True, a default handler sends stdout stream output to the member string self.stdout"""
         self.default_stderr_handler = default_stderr_handler
@@ -547,6 +555,7 @@ class ProcessBase(object):
         if self.nolog_error != False: kwargs.append("nolog_error=%r" % (self.nolog_error,))
         if self.ignore_expect_fail != False: kwargs.append("ignore_expect_fail=%r" % (self.ignore_expect_fail,))
         if self.nolog_expect_fail != False: kwargs.append("nolog_expect_fail=%r" % (self.nolog_expect_fail,))
+        if self.default_expect_timeout != None: kwargs.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
         if self.default_stdout_handler != True: kwargs.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
         if self.default_stderr_handler != True: kwargs.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
         # not for lifecycle_handlers, stdout_handlers, stderr_handler, name, would be too verbose
@@ -566,6 +575,7 @@ class ProcessBase(object):
         if self.nolog_error != False: infos.append("nolog_error=%r" % (self.nolog_error,))
         if self.ignore_expect_fail != False: infos.append("ignore_expect_fail=%r" % (self.ignore_expect_fail,))
         if self.nolog_expect_fail != False: infos.append("nolog_expect_fail=%r" % (self.nolog_expect_fail,))
+        if self.default_expect_timeout != None: infos.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
         if self.default_stdout_handler != True: infos.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
         if self.default_stderr_handler != True: infos.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
         if self.forced_kill: infos.append("forced_kill=%s" % (self.forced_kill,))
@@ -761,7 +771,7 @@ class ProcessBase(object):
         self.kill()
         return False
 
-    def expect(self, regexes, timeout = None, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
+    def expect(self, regexes, timeout = False, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
         """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect.
 
         It is an easier-to-use frontend for
@@ -778,7 +788,8 @@ class ProcessBase(object):
           or as compiled regexes.
 
         :param timeout: wait timeout after which it returns (None,
-          None) if no match was found.
+          None) if no match was found. If False (the default): use the
+          default expect timeout. If None: no timeout.
 
         :param stream: stream to monitor for this process, STDOUT or
           STDERR.
@@ -802,6 +813,7 @@ class ProcessBase(object):
           first time, the regex matching is started from the beginning
           of the stream.
         """
+        if timeout == False: timeout = self.default_expect_timeout
         countdown = Timer(timeout)
         cond = threading.Condition()
         re_index_and_match_object = [None, None]
