@@ -74,6 +74,7 @@ class Report(object):
             'num_forced_kills': 0,
             'num_non_zero_exit_codes': 0,
             'num_expect_fail': 0,
+            'num_write_error': 0,
             'num_ok': 0,
             'num_finished_ok': 0,
             'sub_stats': [],
@@ -103,6 +104,7 @@ class Report(object):
                     'num_forced_kills',
                     'num_non_zero_exit_codes',
                     'num_expect_fail',
+                    'num_write_error',
                     'num_ok',
                     'num_finished_ok'
                     ]:
@@ -147,6 +149,9 @@ class Report(object):
           match before reaching the expect timeout or the stream
           eof/error.
 
+        - ``num_write_error``: number of processes on which there was
+          a write error.
+
         - ``num_ok``: number of processes which:
 
           - did not started
@@ -168,7 +173,7 @@ class Report(object):
 
     def __str__(self):
         stats = self.stats()
-        return "<Report(<%i entries>, name=%r, start_date=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_non_zero_exit_codes=%r, num_ok=%r, num_finished_ok=%r)>" % (
+        return "<Report(<%i entries>, name=%r, start_date=%r, end_date=%r, num_processes=%r, num_started=%r, num_ended=%r, num_timeouts=%r, num_errors=%r, num_forced_kills=%r, num_expect_fail=%r, num_write_error=%r, num_non_zero_exit_codes=%r, num_ok=%r, num_finished_ok=%r)>" % (
             len(stats['sub_stats']),
             stats['name'],
             format_date(stats['start_date']),
@@ -179,6 +184,8 @@ class Report(object):
             stats['num_timeouts'],
             stats['num_errors'],
             stats['num_forced_kills'],
+            stats['num_expect_fail'],
+            stats['num_write_error'],
             stats['num_non_zero_exit_codes'],
             stats['num_ok'],
             stats['num_finished_ok'])
@@ -195,11 +202,11 @@ class Report(object):
         """
         output = ""
         if wide:
-            output += "Name                                    start               end                 length         startd ended  error  timout fkilld expfld ret!=0 ok     total  \n"
-            output += "--------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+            output += "Name                            start               end                 length         startd ended  error  timout fkilld expfld wrterr ret!=0 ok     total  \n"
+            output += "-------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
         else:
-            output += "Name                                    start               end                \n"
-            output += "  length        startd ended  error  timout fkilld expfld ret!=0 ok     total  \n"
+            output += "Name                            start               end                 total  \n"
+            output += " length         startd ended  error  timout fkilld expfld wrterr ret!=0 ok     \n"
             output += "-------------------------------------------------------------------------------\n"
         def format_line(stats, indent):
             result = ""
@@ -210,7 +217,7 @@ class Report(object):
             else:
                 length = ""
             if wide:
-                tmpline = "%-39.39s %-19.19s %-19.19s %-15.15s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s\n" % (
+                tmpline = "%-31.31s %-19.19s %-19.19s %-15.15s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s\n" % (
                     indented_name,
                     format_date(stats['start_date']),
                     format_date(stats['end_date']),
@@ -221,14 +228,16 @@ class Report(object):
                     stats['num_timeouts'],
                     stats['num_forced_kills'],
                     stats['num_expect_fail'],
+                    stats['num_write_error'],
                     stats['num_non_zero_exit_codes'],
                     stats['num_ok'],
                     stats['num_processes'])
             else:
-                tmpline = "%-39.39s %-19.19s %-19.19s\n" % (
+                tmpline = "%-31.31s %-19.19s %-19.19s %-7.7s\n" % (
                     indented_name,
                     format_date(stats['start_date']),
-                    format_date(stats['end_date']),)
+                    format_date(stats['end_date']),
+                    stats['num_processes'],)
                 tmpline += " %-15.15s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s%-7.7s\n" % (
                     length,
                     stats['num_started'],
@@ -237,11 +246,11 @@ class Report(object):
                     stats['num_timeouts'],
                     stats['num_forced_kills'],
                     stats['num_expect_fail'],
+                    stats['num_write_error'],
                     stats['num_non_zero_exit_codes'],
-                    stats['num_ok'],
-                    stats['num_processes'],)
+                    stats['num_ok'],)
             if stats['num_ok'] < stats['num_processes']:
-                if stats['num_ok'] == stats['num_ended'] and stats['num_expect_fail'] == 0:
+                if stats['num_ok'] == stats['num_ended'] and (stats['num_expect_fail'] == 0 and stats['num_write_error'] == 0):
                     tmpline = style.report_warn(tmpline)
                 else:
                     tmpline = style.report_error(tmpline)
