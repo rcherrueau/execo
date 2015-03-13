@@ -82,13 +82,17 @@ class Action(object):
 
     _wait_multiple_actions_condition = threading.Condition()
 
-    def __init__(self, lifecycle_handlers = None, name = None):
+    def __init__(self, lifecycle_handlers = None, name = None, default_expect_timeout = None):
         """:param lifecycle_handlers: List of instances of
           `execo.action.ActionLifecycleHandler` for being notified of
           action lifecycle events.
 
         :param name: User-friendly name. A default is generated and
           can be changed.
+
+        :param default_expect_timeout: The default timeout for expect
+          invocations when no explicit timeout is given. Defaults to
+          None, meaning no timeout.
         """
         self.started = False
         """whether this Action was started (boolean)"""
@@ -105,6 +109,9 @@ class Action(object):
             """User-friendly name. A default is generated and can be changed."""
         else:
             self.name = "%s 0x%08.8x" % (self.__class__.__name__, id(self))
+        self.default_expect_timeout = default_expect_timeout
+        """The default timeout for expect invocations when no explicit timeout
+        is given. Defaults to None, meaning no timeout."""
         if lifecycle_handlers != None:
             self.lifecycle_handlers = list(lifecycle_handlers)
             """List of instances of `execo.action.ActionLifecycleHandler` for
@@ -114,6 +121,8 @@ class Action(object):
             self.lifecycle_handlers = list()
         self._end_event = threading.Event()
         self._end_event.clear()
+        self._thread_local_storage = threading.local()
+        self._thread_local_storage.expect_handler = None
 
     def _common_reset(self):
         # all methods _common_reset() of this class hierarchy contain
@@ -123,6 +132,7 @@ class Action(object):
         self.started = False
         self.ended = False
         self._end_event.clear()
+        self._thread_local_storage.expect_handler = None
         self._init_processes()
 
     def _args(self):
@@ -137,28 +147,32 @@ class Action(object):
         # all keyword arguments to the constructor. This list will be
         # used to build the list returned by _args() of this class or
         # child classes.
-        return []
+        kwargs = []
+        if self.default_expect_timeout != None: kwargs.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
+        return kwargs
 
     def _infos(self):
         # to be implemented in all subclasses. Must return a list with
         # all relevant infos other than those returned by _args(), for
         # use in __str__ methods.
         stats = self.stats()
-        return [ "name=%s" % (self.name,),
-                 "started=%r" % (self.started,),
-                 "start_date=%r" % (format_date(stats['start_date']),),
-                 "ended=%r" % (self.ended,),
-                 "end_date=%r" % (format_date(stats['end_date']),),
-                 "num_processes=%r" % (stats['num_processes'],),
-                 "num_started=%r" % (stats['num_started'],),
-                 "num_ended=%r" % (stats['num_ended'],),
-                 "num_timeouts=%r" % (stats['num_timeouts'],),
-                 "num_errors=%r" % (stats['num_errors'],),
-                 "num_forced_kills=%r" % (stats['num_forced_kills'],),
-                 "num_non_zero_exit_codes=%r" % (stats['num_non_zero_exit_codes'],),
-                 "num_ok=%r" % (stats['num_ok'],),
-                 "num_finished_ok=%r" % (stats['num_finished_ok'],),
-                 "ok=%r" % (self.ok,) ]
+        infos = [ "name=%s" % (self.name,),
+                  "started=%r" % (self.started,),
+                  "start_date=%r" % (format_date(stats['start_date']),),
+                  "ended=%r" % (self.ended,),
+                  "end_date=%r" % (format_date(stats['end_date']),),
+                  "num_processes=%r" % (stats['num_processes'],),
+                  "num_started=%r" % (stats['num_started'],),
+                  "num_ended=%r" % (stats['num_ended'],),
+                  "num_timeouts=%r" % (stats['num_timeouts'],),
+                  "num_errors=%r" % (stats['num_errors'],),
+                  "num_forced_kills=%r" % (stats['num_forced_kills'],),
+                  "num_non_zero_exit_codes=%r" % (stats['num_non_zero_exit_codes'],),
+                  "num_ok=%r" % (stats['num_ok'],),
+                  "num_finished_ok=%r" % (stats['num_finished_ok'],),
+                  "ok=%r" % (self.ok,) ]
+        if self.default_expect_timeout != None: infos.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
+        return infos
 
     def __repr__(self):
         # implemented once for all subclasses
@@ -301,6 +315,83 @@ class Action(object):
         self.kill()
         return False
 
+    def expect(self, regexes, timeout = False, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
+        """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect, but in parallel on several processes.
+
+        It is an easier-to-use frontend for
+        `execo.process.ExpectOutputHandler`.
+
+        It waits for a regex to match on all processes. Then it
+        returns a list of tuples (process, regex index, match
+        object). For processes / streams for which there was no match
+        before reaching the timeout or the stream is eof or error, the
+        tuple is (process, None, None). The returned list has the same
+        process sort order than self.processes.
+
+        It uses thread local storage such that concurrent expects in
+        parallel threads do not interfere which each other.
+
+        :param regexes: a regex or list of regexes. May be given as string
+          or as compiled regexes.
+
+        :param timeout: wait timeout after which it returns (None,
+          None) if no match was found. If False (the default): use the
+          default expect timeout. If None: no timeout.
+
+        :param stream: stream to monitor for this process, STDOUT or
+          STDERR.
+
+        :param backtrack_size: Each time some data is received, this
+          ouput handler needs to perform the regex search not only on
+          the incoming data, but also on the previously received data,
+          or at least on the last n bytes of the previously received
+          data, because the regex may match on a boundary between what
+          was received in a previous read and what is received in the
+          incoming read. These n bytes are the backtrack_size. (for
+          special cases: if backtrack_size == None, the regex search
+          is always done on the whole received data, but beware, this
+          is probably not what you want)
+
+        :param start_from_current: boolean. If True: when a process is
+          monitored by this handler for the first time, the regex
+          matching is started from the position in the stream at the
+          time that this output hander starts receiving data. If
+          False: when a process is monitored by this handler for the
+          first time, the regex matching is started from the beginning
+          of the stream.
+
+        """
+        if timeout == False: timeout = self.default_expect_timeout
+        countdown = Timer(timeout)
+        cond = threading.Condition()
+        num_found_and_list = [0, {}]
+        for p in self.processes: num_found_and_list[1][p] = (None, None)
+        def internal_callback(process, stream, re_index, match_object):
+            num_found_and_list[0] +=1
+            num_found_and_list[1][process] = (re_index, match_object)
+            with cond:
+                cond.notify_all()
+        if self._thread_local_storage.expect_handler == None:
+            self._thread_local_storage.expect_handler = ExpectOutputHandler()
+        self._thread_local_storage.expect_handler.expect(regexes,
+                                                         callback = internal_callback,
+                                                         backtrack_size = backtrack_size,
+                                                         start_from_current = start_from_current)
+        with cond:
+            for p in self.processes:
+                if stream == STDOUT:
+                    p.stdout_handlers.append(self._thread_local_storage.expect_handler)
+                else:
+                    p.stderr_handlers.append(self._thread_local_storage.expect_handler)
+            while (countdown.remaining() == None or countdown.remaining() > 0) and num_found_and_list[0] < len(self.processes):
+                non_retrying_intr_cond_wait(cond, countdown.remaining())
+        retval = []
+        for p in self.processes:
+            if num_found_and_list[1][p][0] == None:
+                p._notify_expect_fail()
+            retval.append((p, num_found_and_list[1][p][0], num_found_and_list[1][p][1]))
+        return retval
+
 def wait_any_actions(actions, timeout = None):
     """Wait for any of the actions given to terminate.
 
@@ -394,7 +485,7 @@ class Remote(Action):
     One ssh process is launched for each connection.
     """
 
-    def __init__(self, cmd, hosts, connection_params = None, process_args = None, default_expect_timeout = None, **kwargs):
+    def __init__(self, cmd, hosts, connection_params = None, process_args = None, **kwargs):
         """:param cmd: the command to run remotely. Substitions
           described in `execo.substitutions.remote_substitute` will be
           performed.
@@ -408,10 +499,6 @@ class Remote(Action):
 
         :param process_args: Dict of keyword arguments passed to
           instanciated processes.
-
-        :param default_expect_timeout: The default timeout for expect
-          invocations when no explicit timeout is given. Defaults to
-          None, meaning no timeout.
         """
         self.cmd = cmd
         """The command to run remotely. substitions described in
@@ -429,17 +516,8 @@ class Remote(Action):
             self.process_args = {}
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
-        self.default_expect_timeout = default_expect_timeout
-        """The default timeout for expect invocations when no explicit timeout
-        is given. Defaults to None, meaning no timeout."""
         self._caller_context = get_caller_context(['get_remote'])
-        self._thread_local_storage = threading.local()
-        self._thread_local_storage.expect_handler = None
         self._init_processes()
-
-    def _common_reset(self):
-        super(Remote, self)._common_reset()
-        self._thread_local_storage.expect_handler = None
 
     @property
     def hosts(self):
@@ -457,14 +535,12 @@ class Remote(Action):
         kwargs = []
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         if len(self.process_args) > 0: kwargs.append("process_args=%r" % (self.process_args,))
-        if self.default_expect_timeout != None: kwargs.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
         return kwargs
 
     def _infos(self):
         infos = []
         if self.connection_params: infos.append("connection_params=%r" % (self.connection_params,))
         if len(self.process_args) > 0: infos.append("process_args=%r" % (self.process_args,))
-        if self.default_expect_timeout != None: infos.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
         return infos
 
     def _init_processes(self):
@@ -503,83 +579,6 @@ class Remote(Action):
         """
         for process in self.processes:
             process.write(s)
-
-    def expect(self, regexes, timeout = False, stream = STDOUT, backtrack_size = 2000, start_from_current = False):
-        """searches the process output stream(s) for some regex. It mimics/takes ideas from Don Libes expect, or python-pexpect, but in parallel on several processes.
-
-        It is an easier-to-use frontend for
-        `execo.process.ExpectOutputHandler`.
-
-        It waits for a regex to match on all processes. Then it
-        returns a list of tuples (process, regex index, match
-        object). For processes / streams for which there was no match
-        before reaching the timeout or the stream is eof or error, the
-        tuple is (process, None, None). The returned list has the same
-        process sort order than self.processes.
-
-        It uses thread local storage such that concurrent expects in
-        parallel threads do not interfere which each other.
-
-        :param regexes: a regex or list of regexes. May be given as string
-          or as compiled regexes.
-
-        :param timeout: wait timeout after which it returns (None,
-          None) if no match was found. If False (the default): use the
-          default expect timeout. If None: no timeout.
-
-        :param stream: stream to monitor for this process, STDOUT or
-          STDERR.
-
-        :param backtrack_size: Each time some data is received, this
-          ouput handler needs to perform the regex search not only on
-          the incoming data, but also on the previously received data,
-          or at least on the last n bytes of the previously received
-          data, because the regex may match on a boundary between what
-          was received in a previous read and what is received in the
-          incoming read. These n bytes are the backtrack_size. (for
-          special cases: if backtrack_size == None, the regex search
-          is always done on the whole received data, but beware, this
-          is probably not what you want)
-
-        :param start_from_current: boolean. If True: when a process is
-          monitored by this handler for the first time, the regex
-          matching is started from the position in the stream at the
-          time that this output hander starts receiving data. If
-          False: when a process is monitored by this handler for the
-          first time, the regex matching is started from the beginning
-          of the stream.
-
-        """
-        if timeout == False: timeout = self.default_expect_timeout
-        countdown = Timer(timeout)
-        cond = threading.Condition()
-        num_found_and_list = [0, {}]
-        for p in self.processes: num_found_and_list[1][p] = (None, None)
-        def internal_callback(process, stream, re_index, match_object):
-            num_found_and_list[0] +=1
-            num_found_and_list[1][process] = (re_index, match_object)
-            with cond:
-                cond.notify_all()
-        if self._thread_local_storage.expect_handler == None:
-            self._thread_local_storage.expect_handler = ExpectOutputHandler()
-        self._thread_local_storage.expect_handler.expect(regexes,
-                                                         callback = internal_callback,
-                                                         backtrack_size = backtrack_size,
-                                                         start_from_current = start_from_current)
-        with cond:
-            for p in self.processes:
-                if stream == STDOUT:
-                    p.stdout_handlers.append(self._thread_local_storage.expect_handler)
-                else:
-                    p.stderr_handlers.append(self._thread_local_storage.expect_handler)
-            while (countdown.remaining() == None or countdown.remaining() > 0) and num_found_and_list[0] < len(self.processes):
-                non_retrying_intr_cond_wait(cond, countdown.remaining())
-        retval = []
-        for p in self.processes:
-            if num_found_and_list[1][p][0] == None:
-                p._notify_expect_fail()
-            retval.append((p, num_found_and_list[1][p][0], num_found_and_list[1][p][1]))
-        return retval
 
 class _TaktukRemoteOutputHandler(ProcessOutputHandler):
 
@@ -1799,7 +1798,7 @@ class RemoteSerial(Remote):
     The serial port can be read (standard output) and written to (standard input).
     """
 
-    def __init__(self, hosts, device, speed, connection_params = None, process_args = None, default_expect_timeout = None, **kwargs):
+    def __init__(self, hosts, device, speed, connection_params = None, process_args = None, **kwargs):
         """:param hosts: iterable of `execo.host.Host` to which to
           connect and open the serial device.
 
@@ -1817,10 +1816,6 @@ class RemoteSerial(Remote):
 
         :param process_args: Dict of keyword arguments passed to
           instanciated processes.
-
-        :param default_expect_timeout: The default timeout for expect
-          invocations when no explicit timeout is given. Defaults to
-          None, meaning no timeout.
         """
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
@@ -1841,12 +1836,7 @@ class RemoteSerial(Remote):
             """Dict of keyword arguments passed to instanciated processes."""
         else:
             self.process_args = {}
-        self.default_expect_timeout = default_expect_timeout
-        """The default timeout for expect invocations when no explicit timeout
-        is given. Defaults to None, meaning no timeout."""
         self._caller_context = get_caller_context()
-        self._thread_local_storage = threading.local()
-        self._thread_local_storage.expect_handler = None
         self._init_processes()
 
     def _args(self):
