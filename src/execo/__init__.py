@@ -29,7 +29,7 @@ from time_utils import sleep, Timer, format_date, format_duration, \
 from host import Host
 from process import Process, SshProcess, get_process, \
      ProcessLifecycleHandler, ProcessOutputHandler, \
-     PortForwarder, SerialSsh, STDOUT, STDERR, \
+     PortForwarder, Serial, SerialSsh, STDOUT, STDERR, \
      ExpectOutputHandler
 from action import Action, wait_any_actions, wait_all_actions, \
   Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet, Local, \

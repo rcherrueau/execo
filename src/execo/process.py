@@ -1533,6 +1533,26 @@ class PortForwarder(SshProcess):
         intr_event_wait(self.forwarding)
         return self
 
+class Serial(Process):
+
+    def __init__(self,
+                 device,
+                 speed,
+                 **kwargs):
+        """Create a connection to a serial port.
+
+        :param device: the serial device
+
+        :param speed: serial port speed
+        """
+        self.device = device
+        self.speed = speed
+        super(Serial, self).__init__("stty -F %s %s rows 0 columns 0 line 0 intr ^C quit ^\\\ erase ^? kill ^U eof ^D eol undef eol2 undef swtch undef start ^Q stop ^S susp ^Z rprnt ^R werase ^W lnext ^V flush ^O min 1 time 0 -parenb -parodd cs8 hupcl -cstopb cread clocal -crtscts -ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr -icrnl -ixon -ixoff -iuclc -ixany -imaxbel -iutf8 -opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0 -isig -icanon -iexten -echo echoe echok -echonl -noflsh -xcase -tostop -echoprt echoctl echoke ; cat %s & cat > %s" % (self.device, self.speed, self.device, self.device), **kwargs)
+
+    def _args(self):
+        return [ repr(self.device),
+                 repr(self.speed) ] + self._kwargs()
+
 class SerialSsh(SshProcess):
 
     def __init__(self,
