@@ -43,8 +43,7 @@ try:
 except:
     logger.warning('Matplotlib not found, no plot can be generated')
     pass
-from xml.dom import minidom
-from xml.etree.ElementTree import Element, SubElement, tostring
+
 
 arbitrary_latency = 2.25E-3
 suffix = '.grid5000.fr'
@@ -87,6 +86,8 @@ class g5k_graph(nx.MultiGraph):
         :param data: a dict containing the Grid'5000 host attributes"""
         if isinstance(host, Host):
             _host = get_host_shortname(host.address)
+        else:
+            _host = host
         if data:
             power = data['performance']['core_flops']
             cores = data['architecture']['smt_size']
