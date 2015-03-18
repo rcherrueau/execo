@@ -310,7 +310,7 @@ class Kadeployer(Remote):
         return kwargs
 
     def _infos(self):
-        return Remote._infos(self) + [ "total/deployed/undeployed = %i/%i/%i" % (
+        return super(Remote, self)._infos(self) + [ "total/deployed/undeployed = %i/%i/%i" % (
                 len(self._unique_hosts), len(self.deployed_hosts), len(self.undeployed_hosts),) ]
 
     @property
