@@ -207,7 +207,7 @@ class Engine(object):
         experiment should be located.
         """
 
-    def start(self):
+    def start(self, args = _engineargs):
         """Start the engine.
 
         Properly initialize the experiment Engine instance, then call
@@ -215,7 +215,7 @@ class Engine(object):
         the overridden run() method of the requested experiment
         Engine.
         """
-        (self.options, self.args) = self.options_parser.parse_args(args = _engineargs)
+        (self.options, self.args) = self.options_parser.parse_args(args = args)
         # _engineargs hack: to make running an engine from ipython
         # more convenient: if ipython is run from command line as
         #
