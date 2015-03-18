@@ -265,15 +265,28 @@ class g5k_graph(nx.MultiGraph):
         self.remove_nodes_from(self.get_backbone())
 
     # get elements, public methods
-    def get_hosts(self):
+    def get_hosts(self, cluster=None, site=None):
         """Return the list of nodes corresponding to hosts"""
-        return filter(lambda x: x[1]['kind'] == 'node', self.nodes(True))
+        if cluster:
+            return filter(lambda x: cluster in x[0] and
+                          x[1]['kind'] == 'node', self.nodes(True))
+        elif site:
+            return filter(lambda x: site == get_host_site(x[0]) and
+                          x[1]['kind'] == 'node', self.nodes(True))
+        else:
+            return filter(lambda x: x[1]['kind'] == 'node', self.nodes(True))
 
-    def get_clusters(self):
+    def get_clusters(self, site=None):
         """Return the list of clusters"""
-        return list(set(map(lambda y: get_host_cluster(y[0]),
-                            filter(lambda x: x[1]['kind'] == 'node',
-                                   self.nodes(True)))))
+        if site:
+            return list(set(map(lambda y: get_host_cluster(y[0]),
+                                filter(lambda x: get_host_site(x[0]) and
+                                       x[1]['kind'] == 'node',
+                                       self.nodes(True)))))
+        else:
+            return list(set(map(lambda y: get_host_cluster(y[0]),
+                                filter(lambda x: x[1]['kind'] == 'node',
+                                       self.nodes(True)))))
 
     def get_site_router(self, site):
         """Return the node corresponding to the router of a site"""
