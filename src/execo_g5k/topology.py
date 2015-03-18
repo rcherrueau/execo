@@ -25,15 +25,12 @@ whereas edges has bandwidth and latency information.
 All information comes from the Grid'5000 reference API.
 """
 
-from pprint import pformat, pprint
 from time import time
 from execo import logger, Host
 from execo.log import style
 from oar import format_date
-from itertools import groupby
-from operator import itemgetter
-from api_utils import get_g5k_sites, get_host_site, canonical_host_name, \
-    get_host_cluster, get_cluster_site, get_g5k_clusters, get_cluster_hosts, \
+from api_utils import get_g5k_sites, get_host_site, \
+    get_host_cluster, get_g5k_clusters, get_cluster_hosts, \
     get_site_clusters, get_api_data, get_g5k_hosts, \
     get_network_equipment_attributes, get_host_shortname
 import networkx as nx
@@ -275,7 +272,13 @@ class g5k_graph(nx.MultiGraph):
     def get_clusters(self):
         """Return the list of clusters"""
         return list(set(map(lambda y: get_host_cluster(y[0]),
-                   filter(lambda x: x[1]['kind'] == 'node', self.nodes(True)))))
+                            filter(lambda x: x[1]['kind'] == 'node',
+                                   self.nodes(True)))))
+
+    def get_site_router(self, site):
+        """Return the node corresponding to the router of a site"""
+        return filter(lambda x: x[1]['kind'] == 'router' and site in x[0],
+                      self.nodes(True))[0]
 
     def get_sites(self):
         """Return the list of sites"""
