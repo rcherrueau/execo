@@ -797,9 +797,15 @@ class ProcessBase(object):
         self.kill()
         return False
 
-    def _notify_expect_fail(self):
+    def _notify_expect_fail(self, regexes):
         self.expect_fail = True
-        s = style.emph("expect fail:") + " " + self.dump()
+        regexes_dump = []
+        for r in singleton_to_collection(regexes):
+            if isinstance(r, type(re.compile(''))):
+                regexes_dump.append(r.pattern)
+            else:
+                regexes_dump.append(str(r))
+        s = style.emph("expect fail:") + " expected: " + str(regexes_dump) + " on: " + self.dump()
         if self.nolog_expect_fail:
             logger.debug(s)
         else:
@@ -870,7 +876,7 @@ class ProcessBase(object):
             while (countdown.remaining() == None or countdown.remaining() > 0) and re_index_and_match_object[0] == None:
                 non_retrying_intr_cond_wait(cond, countdown.remaining())
         if re_index_and_match_object[0] == None:
-            self._notify_expect_fail()
+            self._notify_expect_fail(regexes)
         return (re_index_and_match_object[0], re_index_and_match_object[1])
 
 def _get_childs(pid):

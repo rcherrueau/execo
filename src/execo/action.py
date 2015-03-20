@@ -388,7 +388,7 @@ class Action(object):
         retval = []
         for p in self.processes:
             if num_found_and_list[1][p][0] == None:
-                p._notify_expect_fail()
+                p._notify_expect_fail(regexes)
             retval.append((p, num_found_and_list[1][p][0], num_found_and_list[1][p][1]))
         return retval
 
