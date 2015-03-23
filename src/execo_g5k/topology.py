@@ -155,6 +155,7 @@ class g5k_graph(nx.MultiGraph):
                     bandwidth = lc['rate'] if 'rate' not in port else port['rate']
                     if self.has_node(port['uid']):
                         if kind == 'node':
+
                             for e in self.get_host_adapters(port['uid']):
                                 if e['switch'] == equip:
                                     lc_has_element = True
@@ -162,28 +163,31 @@ class g5k_graph(nx.MultiGraph):
                                     logger.debug('Adding link between %s and %s',
                                                  lc_node, port['uid'])
                                     self.add_edge(lc_node, port['uid'], key1,
-                                                  bandwidth=bandwidth)
+                                                  bandwidth=bandwidth,
+                                                  active=e['mounted'])
+
                                     key2 = equip + '_' + lc_node
                                     logger.debug('Adding link between %s and %s',
                                                  equip, lc_node)
                                     self.add_edge(equip, lc_node, key2,
-                                                  bandwidth=0)
+                                                  bandwidth=0, active=True)
                         if kind == 'switch':
                             lc_has_element = True
                             key1 = lc_node + '_' + port['uid']
-                            self.add_edge(lc_node, port['uid'], key1, bandwidth=bandwidth)
+                            self.add_edge(lc_node, port['uid'], key1,
+                                          bandwidth=bandwidth, active=True)
                             key2 = equip + '_' + lc_node
                             self.add_edge(equip, lc_node, key2,
-                                          bandwidth=0)
+                                          bandwidth=0, active=True)
                     if 'renater' in port['uid']:
                         lc_has_element = True
                         self.add_node(port['uid'], kind='renater')
                         key1 = lc_node + ' ' + port['uid']
                         self.add_edge(lc_node, port['uid'], key1,
-                                      bandwidth=bandwidth)
+                                      bandwidth=bandwidth, active=True)
                         key2 = equip + '_' + lc_node
                         self.add_edge(equip, lc_node, key2,
-                                      bandwidth=bandwidth)
+                                      bandwidth=bandwidth, active=True)
                 if lc_has_element:
                     logger.debug('Adding linecard %s', lc_node)
                     backplane = lc['backplane_bps'] if 'backplane_bps' \
@@ -202,11 +206,12 @@ class g5k_graph(nx.MultiGraph):
                                 if e['switch'] == equip:
                                     key = equip + '_' + port['uid'] + '_' + e['device']
                                     self.add_edge(equip, port['uid'], key,
-                                              bandwidth=bandwidth)
+                                              bandwidth=bandwidth,
+                                                  active=e['mounted'])
                         if kind == 'switch':
                             key = equip + '_' + port['uid']
                             self.add_edge(equip, port['uid'], key,
-                                              bandwidth=bandwidth)
+                                              bandwidth=bandwidth, active=True)
                     if kind == 'router':
                         self.add_equip(port['uid'], site)
 
@@ -239,7 +244,7 @@ class g5k_graph(nx.MultiGraph):
                         self.add_node(dst, kind=kind)
                         if not self.has_edge(src, dst):
                             self.add_edge(src, dst, bandwidth=bandwidth,
-                                          latency=latency)
+                                          latency=latency, active=True)
         # Removing unused one
         if self.get_sites != get_g5k_sites():
             logger.debug('Removing unused Renater equipments')
@@ -406,24 +411,24 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
 
         return {'renater':
                 {'nodes': {},
-                 'font_size': base_size * 6,
+                 'font_size': base_size * 4,
                  'font_weight': 'normal',
                  'str_func': lambda n: n.split('-')[1].title()},
                 'router':
                 {'nodes': {},
-                 'font_size': base_size * 6,
+                 'font_size': base_size * 4,
                  'font_weight': 'bold'},
                 'switch':
                 {'nodes': {},
-                 'font_size': base_size * 6,
+                 'font_size': base_size * 4,
                  'font_weight': 'normal'},
                 'cluster':
                 {'nodes': {},
-                 'font_size': base_size * 5,
+                 'font_size': base_size * 4,
                  'font_weight': 'normal'},
                 'node':
                 {'nodes': {},
-                 'font_size': base_size * 5,
+                 'font_size': base_size * 3,
                  'font_weight': 'normal'},
                 'default':
                 {'nodes': {},
@@ -432,7 +437,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                  'str_func': _default_str_func},
                 'linecard':
                 {'nodes': {},
-                 'font_size': base_size * 4,
+                 'font_size': base_size * 3,
                  'str_func': lambda n: n.split('_')[1]}
                 }
 
