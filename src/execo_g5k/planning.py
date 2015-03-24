@@ -48,6 +48,25 @@ except:
     _retrieve_method = 'API'
 
 
+def get_slots(elements=['grid5000'], walltime="1:00:00", kavlan=False, subnet=False,
+            out_of_chart=False, starttime=None, endtime=None, blacklisted=None):
+    # Computing the planning of the ressources wanted
+    logger.info('Compiling planning')
+    planning = get_planning(elements=elements,
+                            vlan=kavlan,
+                            subnet=subnet,
+                            storage=False,
+                            out_of_chart=out_of_chart,
+                            starttime=starttime,
+                            endtime=endtime)
+    # Determing the slots for the given walltime, i.e. finding the
+    # slice of time with constant resources, and excluding some elements
+    logger.info('Calculating slots of %s ', walltime)
+    slots = compute_slots(planning, walltime, excluded_elements=blacklisted)
+
+    return slots
+
+
 def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
             out_of_chart=False, starttime=None, endtime=None):
     """Retrieve the planning of the elements (site, cluster) and others resources.
@@ -892,7 +911,6 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 
     :param outfile: specify the output file"""
 
-
     if colors is None:
         colors = _set_colors()
 
@@ -902,8 +920,6 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
     slots = planning.itervalues().next().itervalues().next().itervalues().next()['busy'] +\
         planning.itervalues().next().itervalues().next().itervalues().next()['free']
 
-#    pprint(slots)
-
     for slot in slots:
         if slot[0] < startstamp:
             startstamp = slot[0]
@@ -912,11 +928,6 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 
     n_col = 2 if n_sites > 1 else 1
     n_row = int(ceil(float(n_sites) / float(n_col)))
-#    if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=3)):
-#        x_major_locator = MD.HourLocator(byhour = [9, 19])
-#    elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
-#        x_major_locator = MD.HourLocator(byhour = [9])
-#    else:
     x_major_locator = MD.AutoDateLocator()
     xfmt = MD.DateFormatter('%d %b, %H:%M ')
 
@@ -974,7 +985,7 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         PLT.savefig (outfile, dpi=300)
 
 
-def draw_slots(slots, colors = None, show = False, save = True, outfile = None):
+def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
     """Draw the number of nodes available for the clusters (requires Matplotlib >= 1.2.0)
 
     :param slots: a list of slot, as returned by ``compute_slots``
