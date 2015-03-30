@@ -58,6 +58,44 @@ detailed documentation in :ref:`execo-configuration`, :ref:`Grid5000
 Configuration <execo_g5k-configuration>` and
 :ref:`execo_g5k-perfect_configuration`.
 
+execo generalities
+==================
+
+One of the execo paradigms is that concurrent remote operations will
+necessarily fail (especially when their number increases). Such
+conditions in execo are handled as metadata associated with the
+process or actions objects, so the programming flow does not need to
+continuously check for return codes or catch exceptions.
+
+Thus, when, for example, several remote processes are run and some of
+them fail, there is no error nor interruption of the program. The
+failed processes record the error (there are actually two kinds of
+errors: the process returning a value != 0, or an operating system
+error, for situations where the process executable was not
+found). When a program tries to write to the stdin of several
+processes, if some writes fail (because of an invalid stdin file
+descriptor, for example), same thing: this is recorded and the program
+keeps executing.
+
+The default behavior on every kind of error, is to log the error, but
+some process flags can instruct execo to not log such errors (in cases
+where we, programmer, do "know" that the error is "normal").
+
+Process and Action instances have an ``ok`` meta-flag which summarizes
+their various state flags. There are also some process flags which can
+instruct particular processes or actions to ignore some flags when
+computing if the process is ``ok``. For example, we can run a
+particular executable whose return value is always different from 0,
+though this is not an error condition. We can instruct the process to
+ignore this when computing its ``ok`` meta-flag.
+
+As many process and action methods do not need to return a status,
+instead *method chaining* is widely used in execo: most process or
+actions methods return the object itself (*self*). For example,
+``process.run()`` is the equivalent of (and can be written as)
+``process.start().wait()``. Method chaining can provide a more fluent
+syntax in some situations.
+
 execo
 =====
 
@@ -115,8 +153,7 @@ process property ``shell`` to True if a full shell environment
 is needed (e.g. to expand environment variables or to use pipes). To
 find all files in /tmp belonging to me::
 
- process = Process("find /tmp -user $USERNAME")
- process.shell = True
+ process = Process("find /tmp -user $USERNAME", shell = True)
  process.run()
 
 Here a warning log was probably displayed, because if you are not
@@ -140,22 +177,50 @@ sender, then wait for *process_B* termination, then kill
 *process_A*::
 
  from execo import *
- process_A = SshProcess("nc -l -p 6543", "<host1>")
- process_B = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>")
- process_A.start()
- sleep(1)
- process_B.run()
- process_A.wait()
- print process_A.stdout
-
-We sleep for 1 second after starting the servers to make sure that
-they are ready to receive incoming connections.
+ with SshProcess("nc -l -p 6543", "<host1>").start() as receiver:
+   sleep(1)
+   sender = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>").run()
+ receiver.wait()
+ print receiver.stdout
 
 This example shows the asynchronous control of processes: while a
 process is running (the netcat receiver), the code can do something
 else (run the netcat sender), and later get back control of the first
 process, waiting for it (it could also kill it).
 
+The process class hierarchy provides python context managers, so at
+the end of a block of code starting with ``with <process> as ...``,
+the process will automatically be killed. Note that as with many
+things in execo, this kill is asynchronous, so when the program gets
+out the with block, the kill signal is issued, but the process may not
+be properly killed yet when executing the next instruction. So if you
+need to be sure that the process has finished, you need to wait for
+it, hence the line ``receiver.wait()``, to make sure that every output
+of the receiver process has been caught before printing its stdout.
+
+This example also illustrates *method chaining*: the sender process is
+instanciated, and run() is called on it, but the result can be
+affected to the sender variable since run() returns the object itself.
+
+In this example, We sleep for 1 second after starting the servers to
+make sure that they are ready to receive incoming connections (without
+this sleep, it may work, perhaps most of the time, because netcat is
+fast, but we can't be sure). A better way to make sure the server is
+ready is to scan its verbose output (we add option ``-v`` to netcat
+receiver)::
+
+ from execo import *
+ with SshProcess("nc -vl -p 6543", "<host1>").start() as receiver:
+   receiver.expect("^listening on")
+   sender = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>").run()
+ receiver.wait()
+ print receiver.stdout
+
+Of course, this kind of code only works if you are sure that the
+version of netcat which is installed on ``<host1>`` is the one you
+expect, which outputs the string ``listening on ...`` on its standard
+output when in verbose mode and when its socket is listening.
+ 
 Actions
 -------
 
@@ -202,9 +267,9 @@ generate traffic in both directions::
  targets = list(reversed(hosts))
  servers = Remote("nc -l -p 6543 > /dev/null", hosts)
  clients = Remote("dd if=/dev/zero bs=50000 count=125 | nc -q 0 {{targets}} 6543", hosts)
- servers.start()
- sleep(1)
- clients.run()
+ with servers.start():
+   sleep(1)
+   clients.run()
  servers.wait()
  print Report([ servers, clients ]).to_string()
  for s in servers.processes + clients.processes:

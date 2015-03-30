@@ -58,15 +58,13 @@ class g5k_tcp_congestion(Engine):
                         comb = sweeper.get_next()
                         destination = SshProcess("iperf -s", nodes[0],
                                                  connection_params = {"user": "root"})
-                        destination.ignore_exit_code = destination.nolog_exit_code = True
                         sources = SshProcess("iperf -c %s -P %i -Z %s" % (nodes[0].address,
                                                                           comb["num_flows"],
                                                                           comb["tcp_congestion_control"]),
                                              nodes[1], connection_params = {"user": "root"})
-                        destination.start()
-                        sleep(2)
-                        sources.run()
-                        destination.kill()
+                        with destination.start():
+                            sleep(2)
+                            sources.run()
                         if comb["num_flows"] > 1:
                             pattern = "^\[SUM\].*\s(\d+(\.\d+)?) (\w?)bits/sec"
                         else:

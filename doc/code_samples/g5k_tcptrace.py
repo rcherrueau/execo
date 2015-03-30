@@ -30,7 +30,6 @@ if len(deployed) >= 2:
     capture = Remote(
         "tcpdump -i {{capture_if}} -w /tmp/tmp.pcap host {{dests}} and tcp port 6543",
         sources, conn_params)
-    for p in capture.processes: p.ignore_exit_code = p.nolog_exit_code = True
     tcptrace = Remote("tcptrace -Grlo1 /tmp/tmp.pcap", sources, conn_params)
     for p in tcptrace.processes: p.stdout_handlers.append("%s.tcptrace.out" % (p.host.address,))
 
