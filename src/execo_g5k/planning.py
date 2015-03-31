@@ -215,7 +215,7 @@ def compute_slots(planning, walltime, excluded_elements=None):
                             free_vlans_global.append(site)
                 free_elements['kavlan'] = free_vlans_global
                 ## MISSING OTHER RESOURCES COMPUTATION
-
+        logger.debug(log)
         slots.append([limit, limit + walltime, free_elements])
 
     slots.sort()
@@ -284,7 +284,7 @@ def find_free_slot(slots, resources_wanted):
     for cluster, n_nodes in resources_wanted.iteritems():
         if cluster in get_g5k_clusters():
             site = get_cluster_site(cluster)
-            if resources_wanted.has_key(site):
+            if site in resources_wanted:
                 real_wanted[site] += n_nodes
 
     for slot in slots:
@@ -298,7 +298,7 @@ def find_free_slot(slots, resources_wanted):
                     vlan_free = False
         slot_ok = True
         for element, n_nodes in slot[2].iteritems():
-            if real_wanted.has_key(element) and real_wanted[element] > n_nodes \
+            if element in real_wanted and real_wanted[element] > n_nodes \
                 and real_wanted != 'kavlan':
                 slot_ok = False
 
@@ -308,6 +308,18 @@ def find_free_slot(slots, resources_wanted):
             return slot
 
     return None, None, None
+
+
+def find_coorm_slot(slots, resources_wanted):
+    """ """
+    print resources_wanted
+    print len(slots)
+    for slot in slots:
+        slot_cpu = 0
+#        for cluster in filter(lambda x: x in get_g5k_clusters(), slot[2])
+#            slot_cpu += slots[2][cluster] * get_host_attributes(cluster + '-1')['architecture']['smt_size'] 
+#        sum(map())
+    exit()
 
 
 def show_resources(resources, msg='Resources'):
@@ -915,8 +927,9 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         colors = _set_colors()
 
     n_sites = len(planning.keys())
-    startstamp = int(10**20)
+    startstamp = int(10 ** 20)
     endstamp = 0
+
     slots = planning.itervalues().next().itervalues().next().itervalues().next()['busy'] +\
         planning.itervalues().next().itervalues().next().itervalues().next()['free']
 
@@ -925,6 +938,11 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
             startstamp = slot[0]
         if slot[1] > endstamp:
             endstamp = slot[1]
+
+    if outfile is None:
+        outfile = 'gantt_' + "_".join([site for site in planning]) \
+            + '_' + format_date(startstamp)
+    logger.info('Saving Gantt chart to %s', style.emph(outfile))
 
     n_col = 2 if n_sites > 1 else 1
     n_row = int(ceil(float(n_sites) / float(n_col)))
@@ -936,14 +954,14 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 
     i_site = 1
     for site, clusters in planning.iteritems():
-        ax = fig.add_subplot(n_row, n_col, i_site, title = site.title())
+        ax = fig.add_subplot(n_row, n_col, i_site, title=site.title())
         ax.title.set_fontsize(18)
         ax.xaxis_date()
         ax.set_xlim(unixts_to_datetime(startstamp), unixts_to_datetime(endstamp))
         ax.xaxis.set_major_formatter(xfmt)
-        ax.xaxis.set_major_locator(x_major_locator )
-        ax.xaxis.grid( color = 'black', linestyle = 'dashed' )
-        PLT.xticks(rotation = 15)
+        ax.xaxis.set_major_locator(x_major_locator)
+        ax.xaxis.grid(color='black', linestyle='dashed')
+        PLT.xticks(rotation=15)
         ax.set_ylim(0, 1)
         ax.get_yaxis().set_ticks([])
         ax.yaxis.label.set_fontsize(16)
@@ -951,11 +969,11 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         for hosts in clusters.itervalues():
             n_hosts += len(hosts)
         pos = 0.0
-        inc=1./n_hosts
+        inc = 1. / n_hosts
 
         ylabel = ''
         for cluster, hosts in clusters.iteritems():
-            ylabel += cluster+' '
+            ylabel += cluster + ' '
             i_host = 0
             for key in sorted(hosts.keys(), key = lambda name: (name.split('.',1)[0].split('-')[0],
                                         int( name.split('.',1)[0].split('-')[1] ))):
@@ -979,8 +997,6 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
     if show:
         PLT.show()
     if save:
-        if outfile is None:
-            outfile = 'gantt_'+"_".join( [site for site in planning.keys()])+'_'+format_date(startstamp)
         logger.debug('Saving file %s ...', outfile)
         PLT.savefig (outfile, dpi=300)
 
@@ -1000,6 +1016,10 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
 
     startstamp = slots[0][0]
     endstamp = slots[-1][1]
+    if outfile is None:
+        outfile = 'slots_' + format_date(startstamp)
+
+    logger.info('Saving slots diagram to %s', style.emph(outfile))
 
     if colors is None:
         colors = _set_colors()
@@ -1007,9 +1027,9 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
     xfmt = MD.DateFormatter('%d %b, %H:%M ')
 
     if endstamp - startstamp <= timedelta_to_seconds(timedelta(days=7)):
-        x_major_locator = MD.HourLocator(byhour = [9, 19])
+        x_major_locator = MD.HourLocator(byhour=[9, 19])
     elif endstamp - startstamp <= timedelta_to_seconds(timedelta(days=17)):
-        x_major_locator = MD.HourLocator(byhour = [9])
+        x_major_locator = MD.HourLocator(byhour=[9])
     else:
         x_major_locator = MD.AutoDateLocator()
 
@@ -1080,8 +1100,6 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
     if show:
         PLT.show()
     if save:
-        if outfile is None:
-            outfile = 'slots_'+format_date(startstamp)
         logger.debug('Saving file %s ...', outfile)
         PLT.savefig (outfile, dpi=300)
 
