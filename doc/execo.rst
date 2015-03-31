@@ -65,10 +65,24 @@ TaktukProcess
    :members:
    :show-inheritance:
 
+Serial
+------
+.. inheritance-diagram:: execo.process.Serial
+.. autoclass:: execo.process.Serial
+   :members:
+   :show-inheritance:
+
 SerialSsh
 ---------
 .. inheritance-diagram:: execo.process.SerialSsh
 .. autoclass:: execo.process.SerialSsh
+   :members:
+   :show-inheritance:
+
+PortForwarder
+-------------
+.. inheritance-diagram:: execo.process.PortForwarder
+.. autoclass:: execo.process.PortForwarder
    :members:
    :show-inheritance:
 
@@ -369,11 +383,6 @@ get_hosts_set
 memoize
 -------
 .. autofunction:: execo.utils.memoize
-
-PortForwarder
--------------
-.. autoclass:: execo.process.PortForwarder
-   :members:
 
 get_port
 --------

@@ -133,6 +133,11 @@ Processes
   - ConnectionParams: connection parameters, ssh options, ssh path,
     keyfile, port, user, etc.
 
+- `execo.process.Serial` and `execo.process.SerialSsh`: local or
+  remote (over ssh) connection to a serial port.
+
+- `execo.process.PortForwarder`: port forwarder process
+
 Process examples
 ................
 
@@ -198,9 +203,15 @@ need to be sure that the process has finished, you need to wait for
 it, hence the line ``receiver.wait()``, to make sure that every output
 of the receiver process has been caught before printing its stdout.
 
-This example also illustrates *method chaining*: the sender process is
-instanciated, and run() is called on it, but the result can be
-affected to the sender variable since run() returns the object itself.
+This example also illustrates *method chaining*:
+
+- the ``start()`` method can be immediately called on the instanciated
+  sender process within the ``with`` statment, because
+  ``process.start()`` return the process itself.
+
+- the sender process is instanciated, ``run()`` is called on it, and
+  the result can be affected to the sender variable because run()
+  returns the object itself.
 
 In this example, We sleep for 1 second after starting the servers to
 make sure that they are ready to receive incoming connections (without
@@ -220,7 +231,27 @@ Of course, this kind of code only works if you are sure that the
 version of netcat which is installed on ``<host1>`` is the one you
 expect, which outputs the string ``listening on ...`` on its standard
 output when in verbose mode and when its socket is listening.
- 
+
+Interaction with processes: writing to a process stdin, expecting from a process stdout, on a remote serial port over ssh
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+This example shows automation of an interactive login on a serial
+console connected via an usb serial adapter to a remote host. It makes
+use of the ``write`` method of processes, which allows printing to
+processes, and of the ``expect`` method of processes, which scans and
+waits process output for regular expressions::
+
+ from execo import *
+ prompt = '^~ #\s*$'
+ with SerialSsh("<host>", "/dev/ttyUSB1", 115200).start() as serial:
+   print >> serial
+   serial.expect('^\w login:\s*$')
+   print >> serial, "<login>"
+   serial.expect('^Password:\s*$')
+   print >> serial, "<password>"
+   serial.expect(prompt)
+   print >> serial, "<command>"
+
 Actions
 -------
 
@@ -256,6 +287,9 @@ Actions
 - `execo.action.ChainPut`: efficient broadcast (copy) of big files to
   high number of hosts
 
+- `execo.action.RemoteSerial`: A set of parallel connections to remote
+  serial ports over ssh.
+
 Remote example
 ..............
 
@@ -290,6 +324,30 @@ patterns are automatically substituted:
   ``<expression>[index % len(<expression>)]``. In short, it is a
   mapping between the sequence of command lines run on the hosts and
   the sequence ``<expression>``. See :ref:`execo-substitutions`.
+
+Interaction with remotes: writing processes stdin, expecting from stdout, on several remote serial port over ssh
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+This example shows the automation of an
+interactive login on several serial consoles connected to usb serial
+adapters on a set of remote host. It makes use of the ``write`` method of
+actions, which allows printing to actions, and of the ``expect``
+method of actions, which scans and waits process output for regular
+expressions::
+
+ from execo import *
+ prompt = '^~ #\s*$'
+ with RemoteSerial(<list_of_hosts>, "/dev/ttyUSB1", 115200).start() as serial_ports:
+   print >> serial_ports
+   serial_ports.expect('^\w login:\s*$')
+   print >> serial_ports, "<login>"
+   serial_ports.expect('^Password:\s*$')
+   print >> serial_ports, "<password>"
+   serial_ports.expect(prompt)
+   print >> serial_ports, "<command>"
+
+It is almost identical to the remote serial process example, except
+that it handles several remote serial ports in parallel.
 
 execo_g5k
 =========
