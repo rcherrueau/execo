@@ -180,66 +180,48 @@ Grid5000 API utilities
 
 .. automodule:: execo_g5k.api_utils
 
-get_g5k_sites
--------------
-.. autofunction:: get_g5k_sites
-
-get_site_clusters
------------------
-.. autofunction:: get_site_clusters
-
-get_cluster_hosts
------------------
-.. autofunction:: get_cluster_hosts
-
-get_g5k_clusters
-----------------
-.. autofunction:: get_g5k_clusters
-
-get_g5k_hosts
--------------
-.. autofunction:: get_g5k_hosts
-
-get_cluster_site
-----------------
-.. autofunction:: get_cluster_site
-
-get_host_cluster
-----------------
-.. autofunction:: get_host_cluster
-
-get_host_site
--------------
-.. autofunction:: get_host_site
-
-group_hosts
------------
-.. autofunction:: group_hosts
-
-get_resource_attributes
------------------------
-.. autofunction:: get_resource_attributes
-
-get_host_attributes
--------------------
-.. autofunction:: get_host_attributes
-
-get_cluster_attributes
-----------------------
-.. autofunction:: get_cluster_attributes
-
-get_site_attributes
--------------------
-.. autofunction:: get_site_attributes
-
-canonical_host_name
--------------------
-.. autofunction:: canonical_host_name
 
 APIConnection
 -------------
 .. autoclass:: APIConnection
    :members:
+
+
+Sites
+-----
+.. autofunction:: get_g5k_sites
+.. autofunction:: get_site_attributes
+.. autofunction:: get_site_clusters
+.. autofunction:: get_site_hosts
+.. autofunction:: get_site_network_equipments
+
+Clusters
+--------
+.. autofunction:: get_g5k_clusters
+.. autofunction:: get_cluster_attributes
+.. autofunction:: get_cluster_hosts
+.. autofunction:: get_cluster_site
+.. autofunction:: get_cluster_network_equipments
+
+Hosts
+-----
+.. autofunction:: get_g5k_hosts
+.. autofunction:: get_host_attributes
+.. autofunction:: get_host_site
+.. autofunction:: get_host_cluster
+.. autofunction:: get_host_network_equipments
+
+Network equipments
+------------------
+.. autofunction:: get_network_equipment_attributes
+.. autofunction:: get_network_equipment_site
+
+Other
+-----
+.. autofunction:: get_resource_attributes
+.. autofunction:: group_hosts
+.. autofunction:: canonical_host_name
+
 
 Planning utilities
 ==================
