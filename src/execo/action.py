@@ -982,6 +982,11 @@ class Put(Remote):
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
+    def _infos(self):
+        infos = []
+        if self.connection_params: infos.append("connection_params=%r" % (self.connection_params,))
+        return infos
+
     def _init_processes(self):
         self.processes = []
         if len(self.local_files) > 0:
@@ -1042,6 +1047,11 @@ class Get(Remote):
         kwargs.append("local_location=%r" % (self.local_location,))
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
+
+    def _infos(self):
+        infos = []
+        if self.connection_params: infos.append("connection_params=%r" % (self.connection_params,))
+        return infos
 
     def _init_processes(self):
         self.processes = []
