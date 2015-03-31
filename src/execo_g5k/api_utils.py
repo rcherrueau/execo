@@ -376,6 +376,15 @@ def get_site_clusters(site):
         raise ValueError, "unknown g5k site %s" % (site,)
     return get_api_data()['hierarchy'][site].keys()
 
+def get_site_hosts(site):
+    """Get the list of hosts from a site. Returns an iterable"""
+    if not site in get_g5k_sites():
+        raise ValueError, "unknown g5k site %s" % (site,)
+    hosts = []
+    for cluster in get_site_clusters(site):
+        hosts += get_cluster_hosts(cluster)
+    return hosts
+
 def get_site_network_equipments(site):
     """Get the list of network elements from a site. Returns an iterable."""
     if not site in get_g5k_sites():
@@ -387,6 +396,13 @@ def get_cluster_hosts(cluster):
     for site in get_g5k_sites():
         if cluster in get_site_clusters(site):
             return get_api_data()['hierarchy'][site][cluster]
+    raise ValueError, "unknown g5k cluster %s" % (cluster,)
+
+def get_cluster_network_equipments(cluster):
+    """Get the list of the network equipments used by a cluster"""
+    if cluster in get_g5k_clusters():
+        return list(set([e for h in get_cluster_hosts(cluster)
+                    for e in get_host_network_equipments(h)]))
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
 
 def get_g5k_clusters():
@@ -433,6 +449,15 @@ def get_host_site(host):
         else:
             return get_cluster_site(m.group(1))
     else: return None 
+
+def get_host_network_equipments(host):
+    """"""
+    if host in get_g5k_hosts():
+        return list(set(map(lambda x: x['switch'],
+                   filter(lambda n: 'switch' in n and not n['management'] and n['mountable']
+                          and n['switch'] and n['interface'] == 'Ethernet',
+                          get_host_attributes(host)['network_adapters']))))
+    raise ValueError, "unknown g5k host %s" % (host,)
 
 def get_network_equipment_site(equip):
     """Return the site of a network_equipment"""
