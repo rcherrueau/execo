@@ -65,6 +65,7 @@ class g5k_graph(nx.MultiGraph):
             for e in elements:
                 if isinstance(e, Host):
                     e = get_host_shortname(e.address)
+                e = e.split('.')[0]
                 if e in get_g5k_sites():
                     self.add_site(e, self.data['sites'][e])
                 if e in get_g5k_clusters():
