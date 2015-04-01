@@ -17,19 +17,21 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 """Module provides functions to help you to plan your experiment on Grid'5000.
 """
+
 from pprint import pformat
 from time import time
 from datetime import timedelta
 from math import ceil, floor
 from itertools import cycle
-from execo import logger
+from copy import deepcopy
+from execo import logger, Host
 from execo.log import style
 from execo_g5k import OarSubmission
 from execo.time_utils import timedelta_to_seconds, get_seconds, \
     unixts_to_datetime, get_unixts, format_date
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
     get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site, \
-    get_host_attributes
+    get_host_attributes, get_g5k_hosts, get_host_shortname, get_host_longname
 from threading import Thread, currentThread
 from charter import g5k_charter_time, get_next_charter_period
 from execo_g5k.utils import G5kAutoPortForwarder
@@ -47,6 +49,14 @@ try:
     _retrieve_method = 'MySQL'
 except:
     _retrieve_method = 'API'
+
+#resources = {'lyon': {'nodes': 0,
+#                      'kavlan': False,
+#                      'orion': {'nodes': 0,
+#                                'orion-1': True}}}
+#
+#def define_resources(elements):
+#    """ """
 
 
 def get_slots(elements=['grid5000'], walltime="1:00:00", kavlan=False, subnet=False,
@@ -97,9 +107,12 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     if 'grid5000' in elements:
         sites = get_g5k_sites()
     else:
-        sites = list(set([site for site in elements if site in get_g5k_sites()]+\
-                    [get_cluster_site(cluster) for cluster in elements
-                     if cluster in get_g5k_clusters()]))
+        sites = list(set([site for site in elements
+                          if site in get_g5k_sites()] + 
+                         [get_cluster_site(cluster) for cluster in elements
+                          if cluster in get_g5k_clusters()] +
+                         [get_host_site(host) for host in elements
+                          if host in get_g5k_hosts()]))
     if len(sites) == 0:
         logger.error('Wrong elements given, must be one of the following values \n %s \n%s', elements)
         return None
@@ -133,7 +146,23 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
                 _trunc_el_planning(el_planning['busy'], starttime, endtime)
                 _fill_el_planning_free(el_planning, starttime, endtime)
 
-    return planning
+    # cleaning
+    real_planning = deepcopy(planning)
+    for site, site_pl in planning.iteritems():
+        for cl, cl_pl in site_pl.iteritems():
+            keep_cluster = False
+            for h in cl_pl:
+                if not (get_host_site(h) in elements or
+                        get_host_cluster(h) in elements or
+                        get_host_shortname(h) in elements or
+                        h in elements):
+                    del real_planning[site][cl][h]
+                else:
+                    keep_cluster = True
+            if not keep_cluster:
+                del real_planning[site][cl]
+
+    return real_planning
 
 
 def compute_slots(planning, walltime, excluded_elements=None):
@@ -289,7 +318,7 @@ def find_max_slot(slots, resources_wanted):
             elif isinstance(slot[2]['kavlan'], list):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False
-        res_nodes = sum( [ nodes for element, nodes in slot[2].iteritems()
+        res_nodes = sum([nodes for element, nodes in slot[2].iteritems()
                         if element in resources_wanted and element != 'kavlan'])
         if res_nodes > max_nodes and vlan_free:
             max_nodes = res_nodes
@@ -348,6 +377,46 @@ def find_coorm_slot(slots, resources_wanted):
                 slot_ok = False
         if slot_ok:
             return start, stop, res
+
+
+def get_hosts_jobs(hosts, walltime, out_of_chart=False):
+    """Find the first slot when the hosts are available and return a
+     list of jobs_specs
+
+    :param hosts: list of hosts
+
+    :param walltime: duration of reservation
+    """
+    hosts = map(lambda x: x.address if isinstance(x, Host) else x, hosts)
+    planning = get_planning(elements=hosts, out_of_chart=out_of_chart)
+    limits = _slots_limits(planning)
+    walltime = get_seconds(walltime)
+    for limit in limits:
+        all_host_free = True
+        for site_planning in planning.itervalues():
+            for cluster, cluster_planning in site_planning.iteritems():
+                if cluster in get_g5k_clusters():
+                    for host_planning in cluster_planning.itervalues():
+                        host_free = False
+                        for free_slot in host_planning['free']:
+                            if free_slot[0] <= limit and free_slot[1] >= limit + walltime:
+                                host_free = True
+                        if not host_free:
+                            all_host_free = False
+        if all_host_free:
+            startdate = limit
+            break
+
+    jobs_specs = []
+    for site in planning.keys():
+        site_hosts = map(get_host_longname,
+                         filter(lambda h: get_host_site(h) == site,
+                                hosts))
+        sub_res = "{host in ('" + "','".join(site_hosts) + "')}/nodes=" + str(len(site_hosts))
+        jobs_specs.append((OarSubmission(resources=sub_res,
+                                         reservation_date=startdate), site))
+
+    return jobs_specs
 
 
 def show_resources(resources, msg='Resources'):
@@ -446,7 +515,7 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
         host_blacklist = False
         str_hosts = ''
         if site in blacklisted_hosts and len(blacklisted_hosts[site]) > 0:
-            str_hosts = ''.join(["host not in ('" + host + "') and "
+            str_hosts = ''.join(["host not in ('" + get_host_longname(host) + "') and "
                                 for host in blacklisted_hosts[site]])
             host_blacklist = True
 
