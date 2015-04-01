@@ -28,7 +28,8 @@ from execo_g5k import OarSubmission
 from execo.time_utils import timedelta_to_seconds, get_seconds, \
     unixts_to_datetime, get_unixts, format_date
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
-    get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site
+    get_site_clusters, get_resource_attributes, get_host_cluster, get_host_site, \
+    get_host_attributes
 from threading import Thread, currentThread
 from charter import g5k_charter_time, get_next_charter_period
 from execo_g5k.utils import G5kAutoPortForwarder
@@ -222,6 +223,30 @@ def compute_slots(planning, walltime, excluded_elements=None):
     return slots
 
 
+def compute_coorm_slots(planning, excluded_elements=None):
+    """ """
+    slots = []
+    limits = _slots_limits(planning)
+    for start in limits:
+        stop = 10 ** 25
+        free_cores = {'grid5000': 0}
+        for site, site_planning in planning.iteritems():
+            free_cores[site] = 0
+            for cluster, cluster_planning in site_planning.iteritems():
+                free_cores[cluster] = 0
+                if cluster in get_g5k_clusters():
+                    for host, host_planning in cluster_planning.iteritems():
+                        for free_slot in host_planning['free']:
+                            if free_slot[0] <= start and free_slot[0] < stop:
+                                free_cores[cluster] += get_host_attributes(host)['architecture']['smt_size']
+                                free_cores[site] += get_host_attributes(host)['architecture']['smt_size']
+                                free_cores['grid5000'] += get_host_attributes(host)['architecture']['smt_size']
+                                if free_slot[1] < stop:
+                                    stop = free_slot[1]
+        slots.append((start, stop, free_cores))
+    return slots
+
+
 def find_first_slot(slots, resources_wanted):
     """ Return the first slot (a tuple start date, end date, resources) where some resources are available
 
@@ -313,13 +338,16 @@ def find_free_slot(slots, resources_wanted):
 def find_coorm_slot(slots, resources_wanted):
     """ """
     print resources_wanted
-    print len(slots)
-    for slot in slots:
-        slot_cpu = 0
-#        for cluster in filter(lambda x: x in get_g5k_clusters(), slot[2])
-#            slot_cpu += slots[2][cluster] * get_host_attributes(cluster + '-1')['architecture']['smt_size'] 
-#        sum(map())
-    exit()
+
+    for start, stop, res in slots:
+        print format_date(start), format_date(stop), res
+        slot_ok = True
+        for element, cpu in resources_wanted.iteritems():
+            print element, cpu
+            if res[element] < cpu * (stop - start) / 3600:
+                slot_ok = False
+        if slot_ok:
+            return start, stop, res
 
 
 def show_resources(resources, msg='Resources'):
@@ -1040,13 +1068,13 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
     i_slot = 0
     for slot in slots:
         slot_limits.append(slot[0])
-        if i_slot+1 < len(slots):
-            slot_limits.append(slots[i_slot+1][0])
+        if i_slot + 1 < len(slots):
+            slot_limits.append(slots[i_slot + 1][0])
             i_slot += 1
 
         for element, n_nodes in slot[2].iteritems():
             if element in get_g5k_clusters():
-                if not max_nodes.has_key(element):
+                if not element in max_nodes:
                     max_nodes[element] = []
                 max_nodes[element].append(n_nodes)
                 max_nodes[element].append(n_nodes)
@@ -1056,9 +1084,7 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
                 if n_nodes > total_nodes:
                     total_nodes = n_nodes
 
-
     slot_limits.append(endstamp)
-
     slot_limits.sort()
 
     dates = [unixts_to_datetime(ts) for ts in slot_limits]
