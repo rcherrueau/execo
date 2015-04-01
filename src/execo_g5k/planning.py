@@ -112,7 +112,8 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
                          [get_cluster_site(cluster) for cluster in elements
                           if cluster in get_g5k_clusters()] +
                          [get_host_site(host) for host in elements
-                          if host in get_g5k_hosts()]))
+                          if host in get_g5k_hosts()
+                          or get_host_shortname(host) in get_g5k_hosts()]))
     if len(sites) == 0:
         logger.error('Wrong elements given, must be one of the following values \n %s \n%s', elements)
         return None
