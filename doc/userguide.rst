@@ -222,7 +222,7 @@ receiver)::
 
  from execo import *
  with SshProcess("nc -vl -p 6543", "<host1>").start() as receiver:
-   receiver.expect("^listening on")
+   receiver.expect("^[Ll]istening on")
    sender = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>").run()
  receiver.wait()
  print receiver.stdout
