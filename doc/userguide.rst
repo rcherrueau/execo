@@ -183,7 +183,7 @@ sender, then wait for *process_B* termination, then kill
 
  from execo import *
  with SshProcess("nc -l -p 6543", "<host1>").start() as receiver:
-   sleep(1)
+   receiver.expect("^[Ll]istening on", timeout=10)
    sender = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>").run()
  receiver.wait()
  print receiver.stdout
