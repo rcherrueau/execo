@@ -26,7 +26,7 @@ from itertools import cycle
 from copy import deepcopy
 from execo import logger, Host
 from execo.log import style
-from execo_g5k import OarSubmission
+from execo_g5k import OarSubmission, get_current_oar_jobs, get_oar_job_info
 from execo.time_utils import timedelta_to_seconds, get_seconds, \
     unixts_to_datetime, get_unixts, format_date
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
@@ -58,9 +58,20 @@ except:
 #def define_resources(elements):
 #    """ """
 
+def get_job_by_name(job_name, sites=get_g5k_sites()):
+    """ """
+    running_jobs = get_current_oar_jobs(sites)
+    for job in running_jobs:
+        info = get_oar_job_info(job[0], job[1])
+        if info['name'] == job_name:
+            logger.info('Job %s found on site %s!', style.emph(job[0]),
+                        style.host(job[1]))
+            return job
+    return None, None
+
 
 def get_slots(elements=['grid5000'], walltime="1:00:00", kavlan=False, subnet=False,
-            out_of_chart=False, starttime=None, endtime=None, blacklisted=None):
+              out_of_chart=False, starttime=None, endtime=None, blacklisted=None):
     # Computing the planning of the ressources wanted
     logger.info('Compiling planning')
     planning = get_planning(elements=elements,
@@ -389,6 +400,7 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
     :param walltime: duration of reservation
     """
     hosts = map(lambda x: x.address if isinstance(x, Host) else x, hosts)
+
     planning = get_planning(elements=hosts, out_of_chart=out_of_chart)
     limits = _slots_limits(planning)
     walltime = get_seconds(walltime)
@@ -466,14 +478,14 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
     sites = []
     real_resources = resources.copy()
     for resource in resources.iterkeys():
-        if resource in get_g5k_sites() and not resource in sites:
+        if resource in get_g5k_sites() and resource not in sites:
             sites.append(resource)
         if resource in get_g5k_clusters():
             if resource not in excluded_elements:
                 site = get_cluster_site(resource)
-                if not site in sites:
+                if site not in sites:
                     sites.append(site)
-                if not site in real_resources:
+                if site not in real_resources:
                     real_resources[site] = 0
 
     # Checking if we need a Kavlan, a KaVLAN global or none
@@ -499,8 +511,7 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
 
     for site in sites:
         sub_resources = ''
-
-        #Adding a KaVLAN if needed
+        # Adding a KaVLAN if needed
         if get_kavlan:
             if not 'global' in kavlan:
                 sub_resources = "{type='" + kavlan + "'}/vlan=1+"
@@ -837,7 +848,7 @@ def _get_site_planning_MySQL(site, site_planning):
 
 def _get_planning_MySQL(planning):
     """Retrieve the planning using the oar2 database"""
-    broken_sites =  []
+    broken_sites = []
     threads = {}
     for site in planning.iterkeys():
         t = Thread(target = _get_site_planning_MySQL, args = (site, planning[site]))
