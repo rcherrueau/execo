@@ -58,8 +58,10 @@ except:
 #def define_resources(elements):
 #    """ """
 
-def get_job_by_name(job_name, sites=get_g5k_sites()):
+def get_job_by_name(job_name, sites=None):
     """ """
+    if not sites:
+        sites = get_g5k_sites()
     running_jobs = get_current_oar_jobs(sites)
     for job in running_jobs:
         info = get_oar_job_info(job[0], job[1])
