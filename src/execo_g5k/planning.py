@@ -26,7 +26,8 @@ from itertools import cycle
 from copy import deepcopy
 from execo import logger, Host
 from execo.log import style
-from execo_g5k import OarSubmission, get_current_oar_jobs, get_oar_job_info
+from execo_g5k import OarSubmission, get_current_oar_jobs, get_oar_job_info, \
+    get_current_oargrid_jobs, get_oargrid_job_oar_jobs
 from execo.time_utils import timedelta_to_seconds, get_seconds, \
     unixts_to_datetime, get_unixts, format_date
 from execo_g5k.api_utils import get_g5k_sites, get_g5k_clusters, get_cluster_site, \
@@ -60,13 +61,22 @@ except:
 
 def get_job_by_name(job_name, sites=None):
     """ """
+    logger.info('Looking for a job named %s', style.emph(job_name))
     if not sites:
         sites = get_g5k_sites()
+    oargrid_jobs = get_current_oargrid_jobs()
+    if len(oargrid_jobs) > 0:
+        for g_job in oargrid_jobs:
+            for job in get_oargrid_job_oar_jobs(g_job):
+                info = get_oar_job_info(job[0], job[1])
+                if info['name'] == job_name:
+                    logger.info('Oargridjob %s found !', style.emph(g_job))
+                    return g_job, None
     running_jobs = get_current_oar_jobs(sites)
     for job in running_jobs:
         info = get_oar_job_info(job[0], job[1])
         if info['name'] == job_name:
-            logger.info('Job %s found on site %s!', style.emph(job[0]),
+            logger.info('Job %s found on site %s !', style.emph(job[0]),
                         style.host(job[1]))
             return job
     return None, None
