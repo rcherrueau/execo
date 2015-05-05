@@ -429,6 +429,8 @@ class ProcessBase(object):
         self.timeouted = False
         """Whether the process has reached its timeout, or None if we don't know yet
         (process still running, timeout not reached)."""
+        self.killed = False
+        """Whether the process was killed."""
         self.forced_kill = False
         """Whether the process was killed forcibly. When a process is killed with
         SIGTERM (either manually or automatically, due to reaching a
@@ -541,6 +543,7 @@ class ProcessBase(object):
         self.exit_code = None
         self.timeout_date = None
         self.timeouted = False
+        self.killed = False
         self.forced_kill = False
         self.expect_fail = False
         self.write_error = False
@@ -606,6 +609,7 @@ class ProcessBase(object):
             "start_date=%s" % (format_unixts(self.start_date),),
             "ended=%s" % (self.ended,),
             "end_date=%s" % (format_unixts(self.end_date),),
+            "killed=%s" % (self.killed,),
             "error=%s" % (self.error,),
             "error_reason=%s" % (self.error_reason,),
             "timeouted=%s" % (self.timeouted,),
@@ -706,7 +710,7 @@ class ProcessBase(object):
             if self.started and not self.ended: return True
             return ((not self.error or self.ignore_error)
                     and (not self.timeouted or self.ignore_timeout)
-                    and (self.exit_code == 0 or self.ignore_exit_code))
+                    and (self.exit_code == 0 or self.ignore_exit_code or self.killed))
 
     @property
     def finished_ok(self):
@@ -727,7 +731,7 @@ class ProcessBase(object):
             s = style.emph("terminated:") + " " + self.dump()
             warn = ((self.error and not self.nolog_error)
                     or (self.timeouted and not self.nolog_timeout)
-                    or (self.exit_code != 0 and not self.nolog_exit_code))
+                    or (self.exit_code != 0 and not (self.nolog_exit_code or self.killed)))
         # actual logging outside the lock to avoid deadlock between process lock and logging lock
         if warn:
             logger.warning(s)
@@ -1096,7 +1100,7 @@ class Process(ProcessBase):
                     logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
-    def kill(self, sig = signal.SIGTERM, ignore_exit_code = True, nolog_exit_code = True, auto_sigterm_timeout = True):
+    def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
 
         :param sig: the signal to send
@@ -1106,8 +1110,8 @@ class Process(ProcessBase):
           when it has received a SIGTERM, and automatically send
           SIGKILL if the subprocess is not yet terminated
 
-        By default, sending signals to processes automatically ignores
-        and disable logs of exit code != 0.
+        Sending signals to processes automatically ignores and disable
+        logs of exit code != 0.
         """
         logger.debug(style.emph("kill with signal %s:" % sig) + " %s" % (str(self),))
         with self._lock:
@@ -1117,8 +1121,7 @@ class Process(ProcessBase):
         additionnal_processes_to_kill = []
         with self._lock:
             if self.pid != None and not self.ended:
-                if ignore_exit_code: self.ignore_exit_code = True
-                if nolog_exit_code: self.nolog_exit_code = True
+                self.killed = True
                 if sig == signal.SIGTERM:
                     self._already_got_sigterm = True
                     if auto_sigterm_timeout == True:
