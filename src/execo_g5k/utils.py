@@ -18,12 +18,16 @@
 
 from execo.action import ActionFactory
 from execo.config import SSH, SCP, make_connection_params
+from execo.log import style
 from execo.host import Host
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
 from execo_g5k.api_utils import get_resource_attributes
 from execo.process import PortForwarder
 import re
 import socket
+import copy
+import argparse
+import time
 
 frontend_factory = ActionFactory(remote_tool = SSH,
                                  fileput_tool = SCP,
@@ -153,3 +157,130 @@ def get_ipv4_range(network, mask_size):
               (ip & 0xff00) >> 8,
               ip & 0xff)
              for ip in xrange(ip_start, ip_end + 1)]
+
+
+def hosts_list(hosts, separator=' ', with_site=False):
+    """Return a formatted string from a list of hosts"""
+    tmp_hosts = copy.deepcopy(sorted(hosts))
+    for i, host in enumerate(tmp_hosts):
+        if isinstance(host, Host):
+            tmp_hosts[i] = host.address
+
+    if with_site:
+        return separator.join([style.host(host.split('.')[0] + '.'
+                                          + host.split('.')[1])
+                               for host in sorted(tmp_hosts)])
+    else:
+        return separator.join([style.host(host.split('.')[0])
+                           for host in sorted(tmp_hosts)])
+
+
+class g5k_args_parser(argparse.ArgumentParser):
+    """ """
+    def __init__(self, *args, **kwargs):
+        """ """
+        super(g5k_args_parser, self).__init__()
+        if not 'formatter_class' in kwargs:
+            self.formatter_class = argparse.ArgumentDefaultsHelpFormatter
+        for opt in ['loglevel', 'job', 'walltime', 'site', 'cluster',
+                    'subnet', 'kavlan', 'deploy', 'outdir']:
+            if opt in kwargs:
+                getattr(self, opt)(kwargs[opt])
+
+    def job(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        opt = group.add_argument('-j', '--job',
+                                 default=default,
+                                 help='use the hosts from a oargrid_job, a '
+                                 'site:oar_job or from a job name')
+        return opt
+
+    def walltime(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        if not default:
+            default = "1:00:00"
+        opt = group.add_argument('-w', '--walltime',
+                                 default=default,
+                                 help='duration of the experiment')
+        return opt
+
+    def site(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        opt = group.add_argument("-s", "--site",
+                                 default=default,
+                                 help="Site used for the experiment")
+        return opt
+
+    def cluster(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        opt = group.add_argument("-c", "--cluster",
+                                 default=default,
+                                 help="Cluster used for the experiment")
+        return opt
+
+    def loglevel(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        opt = group.add_mutually_exclusive_group()
+        opt.add_argument("-v", "--verbose",
+                   action="store_true",
+                   help='print debug messages')
+        opt.add_argument("-q", "--quiet",
+                   action="store_true",
+                   help='print only warning and error messages')
+        return opt
+
+    def subnet(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        opt = group.add_argument("-n", "--subnet",
+                                 default=default,
+                                 help="Add a subnet option")
+        return opt
+
+    def kavlan(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        opt = group.add_argument("-k", "--kavlan",
+                                 action="store_true",
+                                 default=default,
+                                help="Ask for a KaVLAN")
+        return opt
+
+    def deploy(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        opt = group.add_mutually_exclusive_group()
+        opt.add_argument('--forcedeploy',
+                         action="store_true",
+                         help='force the deployment of the hosts')
+        opt.add_argument('--nodeploy',
+                         action="store_true",
+                         help='consider that hosts are already deployed and ' +
+                         'configured')
+        return opt
+
+    def outdir(self, default=False, group=None):
+        """ """
+        if not group:
+            group = self
+        if not default or isinstance(default, bool):
+            default = self.prog + "_" + time.strftime("%Y%m%d_%H%M%S_%z")
+
+        opt = group.add_argument("-o", "--outdir",
+                                 default=default,
+                                 help='where to store the vm5k log files' +
+                                 "\ndefault=%(default)s")
+        return opt
