@@ -916,7 +916,11 @@ class TaktukRemote(Action):
     def kill(self):
         retval = super(TaktukRemote, self).kill()
         if self._taktuk:
-            self._taktuk.kill()
+            for process in self.processes:
+                if process.running:
+                    process.killed = True
+            os.write(self._taktuk.stdin_fd, "broadcast kill\n\n")
+            os.write(self._taktuk.stdin_fd, "quit\n\n")
         return retval
 
     def wait(self, timeout = None):
