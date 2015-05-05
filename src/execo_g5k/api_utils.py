@@ -452,11 +452,12 @@ def get_host_site(host):
 
 def get_host_network_equipments(host):
     """"""
-    if host in get_g5k_hosts():
+    _host = get_host_shortname(host)
+    if _host in get_g5k_hosts():
         return list(set(map(lambda x: x['switch'],
                    filter(lambda n: 'switch' in n and not n['management'] and n['mountable']
                           and n['switch'] and n['interface'] == 'Ethernet',
-                          get_host_attributes(host)['network_adapters']))))
+                          get_host_attributes(_host)['network_adapters']))))
     raise ValueError, "unknown g5k host %s" % (host,)
 
 def get_network_equipment_site(equip):
