@@ -62,6 +62,8 @@ class g5k_graph(nx.MultiGraph):
         self.graph['date'] = format_date(time())
 
         if elements:
+            if isinstance(elements, str):
+                elements = [elements]
             for e in elements:
                 if isinstance(e, Host):
                     e = get_host_shortname(e.address)
@@ -293,6 +295,27 @@ class g5k_graph(nx.MultiGraph):
             return list(set(map(lambda y: get_host_cluster(y[0]),
                                 filter(lambda x: x[1]['kind'] == 'node',
                                        self.nodes(True)))))
+
+    def get_host_neighbours(self, host):
+        """Return the compute nodes that are connected to the same switch,
+        router or linecard"""
+
+        switch = self.get_host_adapters(host)[0]['switch']
+        return filter(lambda x: x != host, self.get_equip_hosts(switch))
+
+    def get_equip_hosts(self, equip):
+        """Return the nodes which are connected to the equipment"""
+        hosts = []
+        if self.node[equip]['kind'] == 'router':
+            lcs = self.neighbors(equip)
+        else:
+            lcs = ['equip']
+        for lc in lcs:
+            for n in self.neighbors(lc):
+                if self.node[n]['kind'] == 'node':
+                    hosts.append(n)
+
+        return hosts
 
     def get_site_router(self, site):
         """Return the node corresponding to the router of a site"""
