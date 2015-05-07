@@ -919,8 +919,8 @@ class TaktukRemote(Action):
             for process in self.processes:
                 if process.running:
                     process.killed = True
-            os.write(self._taktuk.stdin_fd, "broadcast kill\n\n")
-            os.write(self._taktuk.stdin_fd, "quit\n\n")
+            self._taktuk.write("broadcast kill\n\n")
+            self._taktuk.write("quit\n\n")
         return retval
 
     def wait(self, timeout = None):
@@ -931,8 +931,7 @@ class TaktukRemote(Action):
 
     def _notify_terminated(self):
         try:
-            os.write(self._taktuk.stdin_fd, "quit\n\n")
-            self._taktuk.kill()
+            self._taktuk.write("quit\n\n")
         except:
             pass
         super(TaktukRemote, self)._notify_terminated()
