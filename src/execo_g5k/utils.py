@@ -276,8 +276,6 @@ class g5k_args_parser(argparse.ArgumentParser):
         """ """
         if not group:
             group = self
-        if not default or isinstance(default, bool):
-            default = self.prog + "_" + time.strftime("%Y%m%d_%H%M%S_%z")
 
         opt = group.add_argument("-o", "--outdir",
                                  default=default,
