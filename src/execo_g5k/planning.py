@@ -61,7 +61,7 @@ except:
 
 def get_job_by_name(job_name, sites=None):
     """ """
-    logger.info('Looking for a job named %s', style.emph(job_name))
+    logger.detail('Looking for a job named %s', style.emph(job_name))
     if not sites:
         sites = get_g5k_sites()
     oargrid_jobs = get_current_oargrid_jobs()
