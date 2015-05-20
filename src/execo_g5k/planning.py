@@ -173,7 +173,7 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     # cleaning
     real_planning = deepcopy(planning)
     for site, site_pl in planning.iteritems():
-        for cl, cl_pl in site_pl.iteritems():
+        for cl, cl_pl in filter(lambda x: x == 'vlans', site_pl.iteritems()):
             keep_cluster = False
             for h in cl_pl:
                 if not (get_host_site(h) in elements or
