@@ -128,7 +128,7 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     if not endtime: endtime = int(starttime + timedelta_to_seconds(timedelta(weeks = 4, minutes = 1)))
     endtime = get_unixts(endtime)
     if 'grid5000' in elements:
-        sites = get_g5k_sites()
+        elements = sites = get_g5k_sites()
     else:
         sites = list(set([site for site in elements
                           if site in get_g5k_sites()] + 
@@ -770,7 +770,6 @@ def _get_site_planning_MySQL(site, site_planning):
 
                 # Change the group_concat_max_len to retrive long hosts lists
                 db.query('SET SESSION group_concat_max_len=102400')
-
 # CHUNKS IS NOT FINISHED BUT WE KEEP THE REQUEST FOR LATER
 #                db.query("""SELECT *
 #                    FROM information_schema.COLUMNS
@@ -832,24 +831,24 @@ def _get_site_planning_MySQL(site, site_planning):
                             if host != '':
                                 cluster = host.split('-')[0]
                                 if cluster in site_planning:
-                                    if site_planning[cluster].has_key(host):
-                                        site_planning[cluster][host]['busy'].append( (int(job['start_time']), \
+                                    if host in site_planning[cluster]:
+                                        site_planning[cluster][host]['busy'].append((int(job['start_time']), \
                                                                                           int(job['stop_time'])))
-                    if site_planning.has_key('vlans') and job['vlan'] is not None:
+                    if 'vlans' in site_planning and job['vlan'] is not None:
                         ##HACK TO FIX BUGS IN LILLE, SOPHIA, RENNES OAR2 DATABASE
                         try:
                             vlan = int(job['vlan'])
                             # We are only interested in routed vlan
                             if vlan > 3:
                                 site_planning['vlans']['kavlan-'+job['vlan']]['busy'].append( (int(job['start_time']),\
-                                                                                            int(job['stop_time'])) )
+                                                                                               int(job['stop_time'])) )
                         except:
                             pass
 
-                    if site_planning.has_key('subnets') and job['subnets'] is not None:
+                    if 'subnets' in site_planning and job['subnets'] is not None:
                         for subnet in job['subnets'].split(','):
-                            site_planning['subnets'][subnet]['busy'].append( (int(job['start_time']), \
-                                                                                   int(job['stop_time'])))
+                            site_planning['subnets'][subnet]['busy'].append((int(job['start_time']), \
+                                                                             int(job['stop_time'])))
                     # MISSING STORAGE
             finally:
                 db.close()
