@@ -98,10 +98,11 @@ class g5k_graph(nx.MultiGraph):
         if len(self.get_host_adapters(_host)) > 0:
             logger.debug('Adding %s', style.host(_host))
             self.add_node(_host, {'kind': 'node',
-                                 'power': power,
-                                 'cores': cores})
+                                  'power': power,
+                                  'cores': cores})
             for eq in self.get_host_adapters(_host):
-                self.add_equip(eq['switch'], get_host_site(_host))
+                if eq['mounted']:
+                    self.add_equip(eq['switch'], get_host_site(_host))
         else:
             logger.warning('Node %s has no valid network connection',
                            _host)
@@ -150,6 +151,7 @@ class g5k_graph(nx.MultiGraph):
                       backplane=data['backplane_bps'])
         lc_data = data['linecards']
         if data['kind'] == 'router':
+            router_bw = data['backplane_bps']
             for i_lc, lc in enumerate(filter(lambda n: 'ports' in n, lc_data)):
                 lc_node = equip + '_lc' + str(i_lc)
                 lc_has_element = False
@@ -158,7 +160,6 @@ class g5k_graph(nx.MultiGraph):
                     bandwidth = lc['rate'] if 'rate' not in port else port['rate']
                     if self.has_node(port['uid']):
                         if kind == 'node':
-
                             for e in self.get_host_adapters(port['uid']):
                                 if e['switch'] == equip:
                                     lc_has_element = True
@@ -173,7 +174,7 @@ class g5k_graph(nx.MultiGraph):
                                     logger.debug('Adding link between %s and %s',
                                                  equip, lc_node)
                                     self.add_edge(equip, lc_node, key2,
-                                                  bandwidth=0, active=True)
+                                                  bandwidth=router_bw, active=True)
                         if kind == 'switch':
                             lc_has_element = True
                             key1 = lc_node + '_' + port['uid']
@@ -181,7 +182,7 @@ class g5k_graph(nx.MultiGraph):
                                           bandwidth=bandwidth, active=True)
                             key2 = equip + '_' + lc_node
                             self.add_edge(equip, lc_node, key2,
-                                          bandwidth=0, active=True)
+                                          bandwidth=router_bw, active=True)
                     if 'renater' in port['uid']:
                         lc_has_element = True
                         self.add_node(port['uid'], kind='renater')
@@ -190,13 +191,13 @@ class g5k_graph(nx.MultiGraph):
                                       bandwidth=bandwidth, active=True)
                         key2 = equip + '_' + lc_node
                         self.add_edge(equip, lc_node, key2,
-                                      bandwidth=bandwidth, active=True)
+                                      bandwidth=router_bw, active=True)
                 if lc_has_element:
                     logger.debug('Adding linecard %s', lc_node)
                     backplane = lc['backplane_bps'] if 'backplane_bps' \
                         in lc else data['backplane_bps']
                     self.add_node(lc_node, kind='linecard',
-                          backplane=backplane)
+                                  backplane=backplane)
         else:
             # some switch have two linecards ?? pat, sgraphene1 => REPORT BUG
             for lc in filter(lambda n: 'ports' in n, lc_data):
@@ -502,8 +503,9 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     try:
         pos = nx.graphviz_layout(gr, prog=layout)
     except:
-        logger.warning('No graphviz installed, using spring layout that' +
-                       ' does not scale well ...')
+        logger.warning('Error in generating graphviz layout, will use ' +
+                       'spring layout that does not scale well ...')
+        raise
         pos = nx.spring_layout(gr, iterations=100)
     # Adding the nodes
     for k in elements:
@@ -564,6 +566,6 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     title = 'Created by execo_g5k.topology \n%s\nAPI commit %s' % \
         (gr.graph['date'], gr.graph['api_commit'])
     plt.text(0.1, 0, title, transform=ax.transAxes)
-
+    
     return fig
 
