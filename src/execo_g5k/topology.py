@@ -137,8 +137,8 @@ class g5k_graph(nx.MultiGraph):
         """Remove the site from the graph"""
         for c in get_site_clusters(site):
             self.rm_cluster(c)
-        if 'gw-' + site in self.nodes():
-            self.rm_equip('gw-' + site)
+        if self.get_site_router(site) in self.nodes():
+            self.rm_equip(self.get_site_router(site))
 
     def add_equip(self, equip, site):
         """Add a network equipment """
@@ -257,8 +257,8 @@ class g5k_graph(nx.MultiGraph):
                 dests = self.get_sites()[:]
                 dests.remove(site)
                 for dest in dests:
-                    gw_src = 'gw-' + site
-                    gw_dst = 'gw-' + dest
+                    gw_src = self.get_site_router(site)
+                    gw_dst = self.get_site_router(dest)
                     for element in filter(lambda el: 'renater' in el,
                                           nx.shortest_path(self, gw_src, gw_dst)):
                         if element not in used_elements:
