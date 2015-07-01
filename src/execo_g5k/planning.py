@@ -178,7 +178,6 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
                 continue
             keep_cluster = False
             for h in cl_pl:
-                print h
                 if not (get_host_site(h) in elements or
                         get_host_cluster(h) in elements or
                         get_host_shortname(h) in elements or
@@ -393,7 +392,7 @@ def find_free_slot(slots, resources_wanted):
 
 def find_coorm_slot(slots, resources_wanted):
     """ """
-    print resources_wanted
+#    print resources_wanted
 
     for start, stop, res in slots:
         print format_date(start), format_date(stop), res
@@ -450,7 +449,7 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
 def show_resources(resources, msg='Resources'):
     """Print the resources in a fancy way"""
     total_hosts = 0
-    log = style.log_header(msg)+'\n'
+    log = style.log_header(msg) + '\n'
 
     for site in get_g5k_sites():
         site_added = False
