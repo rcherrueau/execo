@@ -21,13 +21,15 @@ from execo.config import SSH, SCP, make_connection_params
 from execo.log import style
 from execo.host import Host
 from execo_g5k.config import g5k_configuration, default_frontend_connection_params
-from execo_g5k.api_utils import get_resource_attributes
+from execo_g5k.api_utils import get_resource_attributes, get_host_cluster,\
+    get_host_attributes, get_host_shortname
 from execo.process import PortForwarder
 import re
 import socket
 import copy
 import argparse
 import time
+from random import randint
 
 frontend_factory = ActionFactory(remote_tool = SSH,
                                  fileput_tool = SCP,
@@ -141,10 +143,12 @@ def get_kavlan_ip_mac(kavlan, site):
            [ip for ip in get_ipv4_range(tuple([int(part)
                 for part in network.split('.')]), int(mask_size))
            if ip[3] not in [0, 254, 255] and ip[2] >= min_2]]
-    return ips
+    macs = get_mac_addresses(len(ips))
+
+    return zip(ips, macs)
 
 def get_ipv4_range(network, mask_size):
-    """Get the ipv4 range from a network and a mask_size"""
+    """Generate the ipv4 range from a network and a mask_size"""
     net = (network[0] << 24
             | network[1] << 16
             | network[2] << 8
@@ -158,15 +162,29 @@ def get_ipv4_range(network, mask_size):
               ip & 0xff)
              for ip in xrange(ip_start, ip_end + 1)]
 
+def get_mac_addresses(n):
+    """Generate unique MAC addresses"""
+    def _random_mac():
+        return ':'.join(map(lambda x: "%02x" % x, [0x00, 0x020, 0x4e,
+                                                  randint(0x00, 0xff),
+                                                  randint(0x00, 0xff),
+                                                  randint(0x00, 0xff)]))
+    macs = []
+    for i in range(n):
+        mac = _random_mac()
+        while mac in macs:
+            mac = _random_mac()
+        macs.append(mac)
+    return macs
 
-def hosts_list(hosts, separator=' ', with_site=False):
+def hosts_list(hosts, separator=' ', site=False):
     """Return a formatted string from a list of hosts"""
     tmp_hosts = copy.deepcopy(sorted(hosts))
     for i, host in enumerate(tmp_hosts):
         if isinstance(host, Host):
             tmp_hosts[i] = host.address
 
-    if with_site:
+    if site:
         return separator.join([style.host(host.split('.')[0] + '.'
                                           + host.split('.')[1])
                                for host in sorted(tmp_hosts)])
@@ -174,111 +192,33 @@ def hosts_list(hosts, separator=' ', with_site=False):
         return separator.join([style.host(host.split('.')[0])
                            for host in sorted(tmp_hosts)])
 
+def get_fastest_host(hosts):
+    """ Use the G5K api to have the fastest node"""
 
-class g5k_args_parser(argparse.ArgumentParser):
-    """ """
-    def __init__(self, *args, **kwargs):
-        """ """
-        super(g5k_args_parser, self).__init__()
-        if not 'formatter_class' in kwargs:
-            self.formatter_class = argparse.ArgumentDefaultsHelpFormatter
-        for opt in ['loglevel', 'job', 'walltime', 'site', 'cluster',
-                    'subnet', 'kavlan', 'deploy', 'outdir']:
-            if opt in kwargs:
-                getattr(self, opt)(kwargs[opt])
+    hosts_attr = {'TOTAL': {'CPU': 0, 'RAM': 0}}
+    cluster_attr = {}
+    for host in hosts:
+        if isinstance(host, Host):
+            host = host.address
+        cluster = get_host_cluster(host)
+        if cluster not in cluster_attr:
+            attr = get_host_attributes(host)
+            cluster_attr[cluster] = {
+                 'CPU': attr['architecture']['smt_size'],
+                 'RAM': int(attr['main_memory']['ram_size'] / 10 ** 6),
+                 'flops': attr['performance']['node_flops']}
+        hosts_attr[host] = cluster_attr[cluster]
+        hosts_attr['TOTAL']['CPU'] += attr['architecture']['smt_size']
+        hosts_attr['TOTAL']['RAM'] += int(attr['main_memory']['ram_size'] \
+                                          / 10 ** 6)
 
-    def job(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        opt = group.add_argument('-j', '--job',
-                                 default=default,
-                                 help='use the hosts from a oargrid_job, a '
-                                 'site:oar_job or from a job name')
-        return opt
+    max_flops = -1
+    for host in hosts:
+        if isinstance(host, Host):
+            host = host.address
+        flops = hosts_attr[host]['flops']
+        if flops > max_flops:
+            max_flops = flops
+            fastest_host = host
 
-    def walltime(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        if not default:
-            default = "1:00:00"
-        opt = group.add_argument('-w', '--walltime',
-                                 default=default,
-                                 help='duration of the experiment')
-        return opt
-
-    def site(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        opt = group.add_argument("-s", "--site",
-                                 default=default,
-                                 help="Site used for the experiment")
-        return opt
-
-    def cluster(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        opt = group.add_argument("-c", "--cluster",
-                                 default=default,
-                                 help="Cluster used for the experiment")
-        return opt
-
-    def loglevel(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        opt = group.add_mutually_exclusive_group()
-        opt.add_argument("-v", "--verbose",
-                   action="store_true",
-                   help='print debug messages')
-        opt.add_argument("-q", "--quiet",
-                   action="store_true",
-                   help='print only warning and error messages')
-        return opt
-
-    def subnet(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        opt = group.add_argument("-n", "--subnet",
-                                 default=default,
-                                 help="Add a subnet option")
-        return opt
-
-    def kavlan(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        opt = group.add_argument("-k", "--kavlan",
-                                 action="store_true",
-                                 default=default,
-                                help="Ask for a KaVLAN")
-        return opt
-
-    def deploy(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-        opt = group.add_mutually_exclusive_group()
-        opt.add_argument('--forcedeploy',
-                         action="store_true",
-                         help='force the deployment of the hosts')
-        opt.add_argument('--nodeploy',
-                         action="store_true",
-                         help='consider that hosts are already deployed and ' +
-                         'configured')
-        return opt
-
-    def outdir(self, default=False, group=None):
-        """ """
-        if not group:
-            group = self
-
-        opt = group.add_argument("-o", "--outdir",
-                                 default=default,
-                                 help='where to store the vm5k log files' +
-                                 "\ndefault=%(default)s")
-        return opt
+    return fastest_host
