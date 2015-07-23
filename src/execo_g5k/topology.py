@@ -51,7 +51,7 @@ class g5k_graph(nx.MultiGraph):
     nodes elements are defined with their FQDN"""
 
     def __init__(self, elements=None):
-        """Create the :func:`~nx.MultiGraph` representing Grid'5000 network 
+        """Create the :func:`~nx.MultiGraph` representing Grid'5000 network
         topology
 
         :param sites: add the topology of the given site(s)"""
@@ -257,8 +257,8 @@ class g5k_graph(nx.MultiGraph):
                 dests = self.get_sites()[:]
                 dests.remove(site)
                 for dest in dests:
-                    gw_src = self.get_site_router(site)
-                    gw_dst = self.get_site_router(dest)
+                    gw_src = self.get_site_router(site)[0]
+                    gw_dst = self.get_site_router(dest)[0]
                     for element in filter(lambda el: 'renater' in el,
                                           nx.shortest_path(self, gw_src, gw_dst)):
                         if element not in used_elements:
