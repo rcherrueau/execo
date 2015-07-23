@@ -16,6 +16,7 @@ logger.info('Retrieving hosts used for jobs %s',
 hosts = [get_host_shortname(h) for job_id, site in jobs
          for h in get_oar_job_nodes(job_id, site)]
 logger.info(hosts_list(hosts))
+
 logger.info('Creating topological graph')
 g = g5k_graph(elements=hosts)
 
@@ -26,7 +27,6 @@ logger.info('Communication between %s and %s go through '
             style.host(hosts[i]),
             style.host(hosts[j]),
             ' -> '.join(path))
-
 
 logger.info('Active links between nodes %s and %s are: \n%s',
             style.host(path[0]),

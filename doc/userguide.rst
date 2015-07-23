@@ -380,20 +380,26 @@ API to use Grid5000 services:
 
 - Grid5000 API:
 
-  - list hosts, clusters, sites
+  - list hosts, clusters, sites and network equipments
 
-  - get the cluster of a host, the site of a cluster
+  - get the cluster of a host, the site of a cluster, the network equipments of a 
+  	site, a cluster or a host 
 
-  - get API attributes from hosts, clusters, sites
+  - get API attributes from hosts, clusters, sites, network equipments
 
   - all of this in a secure way: even when used from outside Grid5000,
     there is no need to put Grid5000 API password in clear in scripts,
     password can be stored in the desktop environment keyring if
     available.
+    
+  - a local disk is created in $HOME/.execo/g5k_api_cache
 
 - planning: advanced interaction with oar scheduler: allows getting
   the full planning of resources on grid5000, as well as finding time
   slots where resources are available.
+  
+- topology: use grid5000 Network API to generate a networkx graph of the platform,
+  with simple graphical export.
 
 To use execo on grid5000, you need to install it inside grid5000, for
 example on a frontend. execo dependencies are installed on grid5000
@@ -592,6 +598,31 @@ are deployed, thanks to `execo_g5k.deploy.deploy` which runs a test
 command on each deployed node to check if the node is already
 deployed. This test command can be user customized or disabled, but
 the default should work in most situations.
+
+
+Playing with grid5000 network topology
+--------------------------------------
+
+
+
+Topology module offers a easy-to-user instance of a `networkx.Multigraph`_ which
+nodes are hosts, switchs, routers or renater POP and edges are
+network links. Every elements has some attributes gathered from the 
+grid5000 API, like flops or bandwidth. The following example shows how to use 
+`execo_g5k.topology` to create the topological graph of an experiment and to
+obtain a simple graphical representation using graphviz.
+
+.. literalinclude:: code_samples/g5k_xp_graph.py
+   :language: python
+
+It generates ``g5k_xp_graph.png``:
+
+.. image:: code_samples/g5k_xp_graph.png
+
+.. _a link: http://example.com/
+.. _networkx.Multigraph: http://networkx.github.io/documentation/networkx-1.9.1/reference/classes.multigraph.html?highlight=multigraph
+
+
 
 Using `execo_engine` for experiment development
 -----------------------------------------------
