@@ -51,13 +51,6 @@ try:
 except:
     _retrieve_method = 'API'
 
-#resources = {'lyon': {'nodes': 0,
-#                      'kavlan': False,
-#                      'orion': {'nodes': 0,
-#                                'orion-1': True}}}
-#
-#def define_resources(elements):
-#    """ """
 
 def get_job_by_name(job_name, sites=None):
     """ """
@@ -93,6 +86,7 @@ def get_slots(elements=['grid5000'], walltime="1:00:00", kavlan=False, subnet=Fa
                             out_of_chart=out_of_chart,
                             starttime=starttime,
                             endtime=endtime)
+    logger.debug(pformat(planning.keys()))
     # Determing the slots for the given walltime, i.e. finding the
     # slice of time with constant resources, and excluding some elements
     logger.info('Calculating slots of %s ', walltime)
