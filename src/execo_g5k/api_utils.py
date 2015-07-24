@@ -41,8 +41,9 @@ import execo
 import httplib2
 import json, re, itertools
 import threading
-from os import makedirs, environ
+from os import makedirs, environ, path
 from cPickle import load, dump
+from httplib2 import ServerNotFoundError
 
 _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
 _data_lock = threading.RLock()
@@ -206,35 +207,41 @@ def _get_site_clusters_uncached(site):
 
 def get_api_data(cache_dir=_cache_dir):
     """Return a dict containing the data from network, sites, clusters
-    and hosts """
+    and hosts."""
     global _data
     if not _data:
         with _data_lock:
-            if _is_cache_old(cache_dir):
+            if _is_cache_old_and_reachable(cache_dir):
                 _data = _write_api_cache(cache_dir)
             else:
                 _data = _read_api_cache(cache_dir)
     return _data
 
-def _is_cache_old(cache_dir=_cache_dir):
+def _is_cache_old_and_reachable(cache_dir=_cache_dir):
     """Try to read the api_commit stored in the cache_dir and compare
     it with latest commit, return True if remote commit is different
     from cache commit"""
-    cache_is_old = False
+    cache_is_old_and_reachable = False
     try:
+        logger.detail('Reading local commit')
         f = open(cache_dir + 'api_commit')
         local_commit = f.readline()
         f.close()
         if local_commit != get_resource_attributes('')['version']:
             logger.info('Cache is outdated, will retrieve the latest commit')
-            cache_is_old = True
+            cache_is_old_and_reachable = True
         else:
             logger.detail('Already at the latest commit')
+    except ServerNotFoundError:
+        logger.warning('Unable to reach the g5k api and to check commit, '
+                       'using last cached API version')
+        cache_is_old_and_reachable = False
     except:
         pass
         logger.detail('No commit version found')
-        cache_is_old = True
-    return cache_is_old
+        cache_is_old_and_reachable = True
+
+    return cache_is_old_and_reachable
 
 
 def __get_backbone():
@@ -292,12 +299,11 @@ def __get_site(site):
 def _write_api_cache(cache_dir=_cache_dir):
     """Retrieve data from the Grid'5000 API and write it into
     the cache directory"""
-    try:
+    if not path.exists(cache_dir):
         makedirs(cache_dir)
         logger.detail('No cache found, directory created')
-    except:
+    else:
         logger.detail('Cache directory is present')
-        pass
 
     logger.info('Retrieving data from API...')
 
