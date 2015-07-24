@@ -2,7 +2,6 @@
 from execo_g5k.topology import g5k_graph, treemap
 from execo.log import logger, style
 from execo_g5k.oar import get_oar_job_nodes
-from pprint import pprint, pformat
 from execo_g5k.utils import hosts_list
 from networkx.algorithms.shortest_paths.generic import shortest_path
 from execo_g5k.api_utils import get_host_shortname
@@ -31,8 +30,8 @@ logger.info('Communication between %s and %s go through '
 logger.info('Active links between nodes %s and %s are: \n%s',
             style.host(path[0]),
             style.host(path[1]),
-            pformat({k: v for k, v in g.edge[path[0]][path[1]].iteritems()
-                     if v['active']}))
+            {k: v for k, v in g.edge[path[0]][path[1]].iteritems()
+                     if v['active']})
 
 logger.info('Generating graphical representation')
 plt = treemap(g)

@@ -603,9 +603,7 @@ the default should work in most situations.
 Playing with grid5000 network topology
 --------------------------------------
 
-
-
-Topology module offers a easy-to-user instance of a `networkx.Multigraph`_ which
+Topology module offers an easy-to-use instance of a `networkx.Multigraph`_ whose
 nodes are hosts, switchs, routers or renater POP and edges are
 network links. Every elements has some attributes gathered from the 
 grid5000 API, like flops or bandwidth. The following example shows how to use 
