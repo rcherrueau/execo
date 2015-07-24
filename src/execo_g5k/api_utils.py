@@ -16,7 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-"""Functions for wrapping the grid5000 REST API. This module also
+"""Execo_g5k provides easy-to-use functions to interacts with the
+Grid5000 API.  All static parts of the API is stored locally, in
+$HOME/.execo/g5k_api_cache, which version is checked on the first call
+to a method. Beware that if API is not reachable at runtime, the local
+cache will be used.
+
+Functions for wrapping the grid5000 REST API. This module also
 manage a cache of the Grid'5000 Reference API (hosts and network
 equipments) (Data are stored in $HOME/.execo/g5k_api_cache/' under
 pickle format)
