@@ -49,7 +49,6 @@ import json, re, itertools
 import threading
 from os import makedirs, environ, path
 from cPickle import load, dump
-from httplib2 import ServerNotFoundError
 
 _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
 _data_lock = threading.RLock()
@@ -227,28 +226,24 @@ def _is_cache_old_and_reachable(cache_dir=_cache_dir):
     """Try to read the api_commit stored in the cache_dir and compare
     it with latest commit, return True if remote commit is different
     from cache commit"""
-    cache_is_old_and_reachable = False
     try:
-        logger.detail('Reading local commit')
         f = open(cache_dir + 'api_commit')
-        local_commit = f.readline()
-        f.close()
-        if local_commit != get_resource_attributes('')['version']:
-            logger.info('Cache is outdated, will retrieve the latest commit')
-            cache_is_old_and_reachable = True
-        else:
-            logger.detail('Already at the latest commit')
-    except ServerNotFoundError:
-        logger.warning('Unable to reach the g5k api and to check commit, '
-                       'using last cached API version')
-        cache_is_old_and_reachable = False
     except:
-        pass
         logger.detail('No commit version found')
-        cache_is_old_and_reachable = True
-
-    return cache_is_old_and_reachable
-
+        return True
+    local_commit = f.readline()
+    f.close()
+    try:
+        api_commit = get_resource_attributes('')['version']
+    except:
+        logger.warning('Unable to check API, reverting to cache')
+        return False
+    if local_commit != get_resource_attributes('')['version']:
+        logger.info('Cache is outdated, will retrieve the latest commit')
+        return True
+    else:
+        logger.detail('Already at the latest commit')
+        return False
 
 def __get_backbone():
     logger.detail("backbone network")
