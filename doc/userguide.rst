@@ -18,9 +18,9 @@ with packages managed by your distribution package manager.
 
 - Install from a release tar.gz package::
 
-   $ wget http://execo.gforge.inria.fr/downloads/execo-2.4.3.tar.gz
-   $ tar xzf execo-2.4.3.tar.gz
-   $ cd execo-2.4.3/
+   $ wget http://execo.gforge.inria.fr/downloads/execo-2.5.tar.gz
+   $ tar xzf execo-2.5.tar.gz
+   $ cd execo-2.5/
    $ python setup.py install --user
 
 - Or install from source repository if you want the very latest
@@ -45,7 +45,7 @@ with packages managed by your distribution package manager.
 
 - Or install from debian package::
 
-   $ dpkg -i python-execo_2.4.3_all.deb
+   $ dpkg -i python-execo_2.5_all.deb
 
 Configuration
 =============

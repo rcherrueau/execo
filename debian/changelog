@@ -1,3 +1,29 @@
+python-execo (2.5) unstable; urgency=low
+
+  * new upstream release:
+
+    - User-friendly way to write to processes stdin. Processes and Remotes can be used as file-like objects. Additionally, process stdin is not anymore closed by default.
+
+    - Automatic ignoring of process errors when explicitly killing them
+
+    - Add processes and actions context managers
+
+    - Add special processes and actions for communicating with local or remote (through ssh) serial ports
+
+    - Add expect-like syntax to processes and actions (for easy scripting of interactive local/remote/serial sessions)
+
+    - The return of the revenge of the infamous keyword arguments
+
+    - On-disk caching of most of the g5k api, for fast api requests
+
+    - Add multigraph support to g5k topology
+
+    - Add handling of g5k network equipments in api_utils
+
+    - Internal taktuk interface bugfixes
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Wed, 02 Sep 2015 10:10:00 +0200
+
 python-execo (2.4.3) unstable; urgency=low
 
   * new upstream bugfix release: again fix pip packaging
