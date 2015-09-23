@@ -124,9 +124,11 @@ def get_kavlan_network(kavlan, site):
     """Retrieve the network parameters for a given kavlan from the API"""
     network, mask_size = None, None
     equips = get_resource_attributes('/sites/' + site + '/network_equipments/')
+
     for equip in equips['items']:
-        if 'vlans' in equip and len(equip['vlans']) > 2:
+        if 'vlans' in equip and equip['kind'] == "router":
             all_vlans = equip['vlans']
+            break
     for info in all_vlans.itervalues():
         if type(info) == type({}) and 'name' in info \
             and info['name'] == 'kavlan-' + str(kavlan):
