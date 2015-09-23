@@ -34,10 +34,10 @@ g5k_configuration = {
     'api_username': None,
     'api_additional_args': [],
     'oar_job_key_file': None,
-    'oar_mysql_ro_db': 'oar2',
-    'oar_mysql_ro_user': 'oarreader',
-    'oar_mysql_ro_password': 'read',
-    'oar_mysql_ro_port': 3306,
+    'oar_pgsql_ro_db': 'oar2',
+    'oar_pgsql_ro_user': 'oarreader',
+    'oar_pgsql_ro_password': 'read',
+    'oar_pgsql_ro_port': 5432,
     }
 # _ENDOF_ g5k_configuration
 """Global Grid5000 configuration parameters.
