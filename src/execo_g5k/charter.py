@@ -17,19 +17,20 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 import datetime, os, time, threading
-from execo.time_utils import get_unixts, datetime_to_unixts, sleep, format_unixts, format_seconds
+from execo.time_utils import get_unixts, datetime_to_unixts, \
+    format_unixts, format_seconds
 from execo.utils import memoize
 from traceback import format_exc
-from execo_g5k.api_utils import get_host_attributes, get_cluster_hosts, get_site_clusters
+from execo_g5k.api_utils import get_site_clusters
 from execo_g5k.config import g5k_configuration
 from execo_g5k.utils import G5kAutoPortForwarder
 from execo_g5k.oar import format_oar_date
 from execo.log import logger
 
 try:
-    import MySQLdb
+    import psycopg2
 except:
-    MySQLdb = None
+    psycopg2 = None
 
 _fixed_french_holidays = [
     (1, 1),   # new year
@@ -175,17 +176,18 @@ def get_next_charter_period(start, end):
 def _job_intersect_charter_period(job):
     return (get_next_charter_period(job['start_time'], job['stop_time']) != (None, None))
 
-if MySQLdb:
+if psycopg2:
 
-    def _cluster_num_available_cores(db, cluster):
+    def _cluster_num_available_cores(conn, cluster):
         q = "SELECT COUNT(*) AS num_available_cores FROM resources WHERE cluster = '%s' AND state != 'Dead' AND type='default'" % (cluster,)
-        db.query(q)
-        r = db.store_result()
-        data = r.fetch_row(maxrows = 0, how = 1)
+
+        cur = conn.cursor()
+        cur.execute(q)
+        data = cur.fetchall()
         logger.trace("num available cores %s = %s" % (cluster, data[0]["num_available_cores"]))
         return data[0]["num_available_cores"]
 
-    def _get_jobs(db, cluster, user, start, end):
+    def _get_jobs(conn, cluster, user, start, end):
         q = """(
                  SELECT J.job_id, J.job_user AS user, J.state, JT.type,
                    J.job_type, R.cluster,
@@ -236,31 +238,32 @@ if MySQLdb:
                        "start": start,
                        "end": end,
                        "cluster": cluster}
+        print q
         db.query(q)
         r = db.store_result()
         return [data for data in r.fetch_row(maxrows = 0, how = 1)]
 
     def __site_charter_remaining(site, day, user = None):
         with G5kAutoPortForwarder(site,
-                                  'mysql.' + site + '.grid5000.fr',
-                                  g5k_configuration['oar_mysql_ro_port']) as (host, port):
+                                  'oardb.' + site + '.grid5000.fr',
+                                  g5k_configuration['oar_pgsql_ro_port']) as (host, port):
             start, end = get_oar_day_start_end(day)
             if not user:
                 user = g5k_configuration.get('api_username')
                 if not user:
                     user = os.environ['LOGNAME']
             try:
-                db = MySQLdb.connect(host = host, port = port,
-                                     user = g5k_configuration['oar_mysql_ro_user'],
-                                     passwd = g5k_configuration['oar_mysql_ro_password'],
-                                     db = g5k_configuration['oar_mysql_ro_db'])
+                conn = psycopg2.connect(host = host, port = port,
+                                     user = g5k_configuration['oar_pgsql_ro_user'],
+                                     passwd = g5k_configuration['oar_pgsql_ro_password'],
+                                     db = g5k_configuration['oar_pgsql_ro_db'])
                 try:
                     logger.trace("getting jobs for user %s on %s for %s" % (user, site, day))
                     OOC_total_site_used = 0
                     OOC_site_quota = 0
                     for cluster in get_site_clusters(site):
                         total_cluster_used = 0
-                        for j in _get_jobs(db, cluster, user, start, end):
+                        for j in _get_jobs(conn, cluster, user, start, end):
                             logger.trace("%s:%s - job: start %s, end %s, walltime %s, %s" % (
                                     site, cluster, format_unixts(j['start_time']),
                                     format_unixts(j['stop_time']), format_seconds(j['walltime']), j))
@@ -270,7 +273,7 @@ if MySQLdb:
                                         site, cluster, j['job_id'], cluster_used,))
                                 total_cluster_used += cluster_used
                         #cluster_quota = cluster_num_cores(cluster) * 3600 * 2
-                        cluster_quota = _cluster_num_available_cores(db, cluster) * 3600 * 2
+                        cluster_quota = _cluster_num_available_cores(conn, cluster) * 3600 * 2
                         logger.trace("%s:%s total cluster used = %i (%s), cluster quota = %i (%s)" % (
                                 site, cluster,
                                 total_cluster_used, format_seconds(total_cluster_used),
@@ -288,6 +291,7 @@ if MySQLdb:
             except Exception, e:
                 logger.warn("error connecting to oar database / getting planning from " + site)
                 logger.detail("exception:\n" + format_exc())
+                
 
     def g5k_charter_remaining(sites, day, user = None):
         """Returns the amount of time remaining per cluster for submitting jobs, according to the grid5000 charter.
