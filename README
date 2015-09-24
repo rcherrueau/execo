@@ -92,7 +92,7 @@ execo installation absolutely requires ``python`` (>=
   password in the desktop environment keyring (allowing asking it only
   once).
 
-- ``python-mysqldb`` for optimized interface to Grid5000 OAR planning.
+- ``python-psycopg2`` for optimized interface to Grid5000 OAR planning.
 
 - ``sphinx-doc``, ``graphviz`` for building the documentation (usually
   not needed for regular users).
