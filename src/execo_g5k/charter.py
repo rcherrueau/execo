@@ -180,12 +180,11 @@ if psycopg2:
 
     def _cluster_num_available_cores(conn, cluster):
         q = "SELECT COUNT(*) AS num_available_cores FROM resources WHERE cluster = '%s' AND state != 'Dead' AND type='default'" % (cluster,)
-
         cur = conn.cursor()
         cur.execute(q)
-        data = cur.fetchall()
-        logger.trace("num available cores %s = %s" % (cluster, data[0]["num_available_cores"]))
-        return data[0]["num_available_cores"]
+        data = cur.fetchone()
+        logger.trace("num available cores %s = %s" % (cluster, data[0]))
+        return data[0]
 
     def _get_jobs(conn, cluster, user, start, end):
         q = """(
@@ -212,7 +211,7 @@ if psycopg2:
                    ( JT.type IS NULL OR JT.type NOT IN ('besteffort', 'nfs', 'iscsi') ) AND
                    ( ( GJPV.start_time >= %(start)i AND GJPV.start_time < %(end)i ) OR
                      ( stop_time >= %(start)i AND stop_time < %(end)i ) )
-                 GROUP BY J.job_id
+                 GROUP BY J.job_id, JT.type, R.cluster, walltime, GJPV.start_time, stop_time
                ) UNION (
                  SELECT J.job_id, J.job_user AS user, J.state, JT.type,
                    J.job_type, R.cluster,
@@ -233,15 +232,14 @@ if psycopg2:
                    ( JT.type IS NULL OR JT.type NOT IN ('besteffort', 'nfs', 'iscsi') ) AND
                    ( ( J.start_time >= %(start)i AND J.start_time < %(end)i ) OR
                      ( J.stop_time >= %(start)i AND J.stop_time < %(end)i ) )
-                 GROUP BY J.job_id
+                 GROUP BY J.job_id, JT.type, R.cluster, walltime, start_time, stop_time
                )""" % {"user": user,
                        "start": start,
                        "end": end,
                        "cluster": cluster}
-        print q
-        db.query(q)
-        r = db.store_result()
-        return [data for data in r.fetch_row(maxrows = 0, how = 1)]
+        cur = conn.cursor()
+        cur.execute(q)
+        return [data for data in cur.fetchall()]
 
     def __site_charter_remaining(site, day, user = None):
         with G5kAutoPortForwarder(site,
@@ -254,9 +252,9 @@ if psycopg2:
                     user = os.environ['LOGNAME']
             try:
                 conn = psycopg2.connect(host = host, port = port,
-                                     user = g5k_configuration['oar_pgsql_ro_user'],
-                                     passwd = g5k_configuration['oar_pgsql_ro_password'],
-                                     db = g5k_configuration['oar_pgsql_ro_db'])
+                                        user = g5k_configuration['oar_pgsql_ro_user'],
+                                        password = g5k_configuration['oar_pgsql_ro_password'],
+                                        database = g5k_configuration['oar_pgsql_ro_db'])
                 try:
                     logger.trace("getting jobs for user %s on %s for %s" % (user, site, day))
                     OOC_total_site_used = 0
@@ -265,12 +263,12 @@ if psycopg2:
                         total_cluster_used = 0
                         for j in _get_jobs(conn, cluster, user, start, end):
                             logger.trace("%s:%s - job: start %s, end %s, walltime %s, %s" % (
-                                    site, cluster, format_unixts(j['start_time']),
-                                    format_unixts(j['stop_time']), format_seconds(j['walltime']), j))
+                                    site, cluster, format_unixts(j[7]),
+                                    format_unixts(j[8]), format_seconds(j[6]), j))
                             if _job_intersect_charter_period(j):
-                                cluster_used = (j["nb_resources_scheduled"] + j["nb_resources_actual"]) * j["walltime"]
+                                cluster_used = (j[9] + j[10]) * j[6]
                                 logger.trace("%s:%s job %i intersects charter -> uses %is of cluster quota" % (
-                                        site, cluster, j['job_id'], cluster_used,))
+                                        site, cluster, j[0], cluster_used,))
                                 total_cluster_used += cluster_used
                         #cluster_quota = cluster_num_cores(cluster) * 3600 * 2
                         cluster_quota = _cluster_num_available_cores(conn, cluster) * 3600 * 2
@@ -287,7 +285,7 @@ if psycopg2:
                             int(float(OOC_total_site_used) / float(OOC_site_quota) * 100.0),
                             OOC_site_quota, format_seconds(OOC_site_quota)))
                 finally:
-                    db.close()
+                    conn.close()
             except Exception, e:
                 logger.warn("error connecting to oar database / getting planning from " + site)
                 logger.detail("exception:\n" + format_exc())

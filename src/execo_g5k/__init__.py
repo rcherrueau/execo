@@ -52,7 +52,7 @@ from charter import g5k_charter_time, get_next_charter_period
 try:
     from charter import g5k_charter_remaining
 except:
-    pass # no mysqldb
+    pass # no psycopg2
 
 try:
     from topology import g5k_graph, treemap
