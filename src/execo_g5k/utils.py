@@ -136,7 +136,7 @@ def get_kavlan_network(kavlan, site):
     return network, mask_size
 
 def get_kavlan_ip_mac(kavlan, site):
-    """Retrieve the network parameters for a given kavlan from the API"""
+    """Retrieve the list of usable (ip, mac address) for a given kavlan from the API"""
     network, mask_size = get_kavlan_network(kavlan, site)
     min_2 = (kavlan - 4) * 64 + 2 if kavlan < 8 \
             else (kavlan - 8) * 64 + 2 if kavlan < 10 \
