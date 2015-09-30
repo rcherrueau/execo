@@ -1,3 +1,13 @@
+python-execo (2.5.1) unstable; urgency=low
+
+  * new upstream release:
+
+    - update execo_g5k to postgresql (due to g5k migration from mysql to postgres)
+
+    - execo_engine.ParamSweeper: add batched versions of combinations API
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Wed, 30 Sep 2015 13:29:00 +0200
+
 python-execo (2.5) unstable; urgency=low
 
   * new upstream release:
