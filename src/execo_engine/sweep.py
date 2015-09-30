@@ -455,8 +455,7 @@ class ParamSweeper(object):
                         return None
                     self.__remaining.discard(combination)
                     self.__inprogress.add(combination)
-                    if combination in self.__sweeps:
-                        self.__filtered_inprogress.add(combination)
+                    self.__filtered_inprogress.add(combination)
                     inprogress_file.truncate(0)
                     pickle.dump(self.__inprogress, inprogress_file)
             logger.trace("%s new combination: %s", self.__name, combination)
