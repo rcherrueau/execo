@@ -462,18 +462,18 @@ class ParamSweeper(object):
             logger.trace(self)
             return combination
 
-    def get_next_batch(self, filtr = None, num_combs):
+    def get_next_batch(self, num_combs, filtr = None):
         """Return the next elements which are *todo*.
-
-        :param filtr: a filter function. If not None, this filter
-          takes the iterable of remaining elements and returns a
-          filtered iterable. It can be used to filter out some
-          combinations and / or control the order of iteration.
 
         :param num_combs: how much combinations to get. An array of
           combinations is returned. The size of the array is <=
           num_combs and is limited by the number of available
           remaining combinations
+
+        :param filtr: a filter function. If not None, this filter
+          takes the iterable of remaining elements and returns a
+          filtered iterable. It can be used to filter out some
+          combinations and / or control the order of iteration.
         """
         combinations = []
         with self.__lock:
