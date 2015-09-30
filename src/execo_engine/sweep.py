@@ -462,6 +462,45 @@ class ParamSweeper(object):
             logger.trace(self)
             return combination
 
+    def get_next_batch(self, filtr = None, num_combs):
+        """Return the next elements which are *todo*.
+
+        :param filtr: a filter function. If not None, this filter
+          takes the iterable of remaining elements and returns a
+          filtered iterable. It can be used to filter out some
+          combinations and / or control the order of iteration.
+
+        :param num_combs: how much combinations to get. An array of
+          combinations is returned. The size of the array is <=
+          num_combs and is limited by the number of available
+          remaining combinations
+        """
+        combinations = []
+        with self.__lock:
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    remaining = self.__remaining
+                    if filtr:
+                        remaining = filtr(remaining)
+                    try:
+                        for i in remaining:
+                            if num_combs <= 0:
+                                break
+                            combinations.append(i)
+                            num_combs -= 1
+                    except StopIteration:
+                        logger.trace("%s no new combination", self.__name)
+                        logger.trace(self)
+                    self.__remaining.difference_update(combinations)
+                    self.__inprogress.update(combinations)
+                    self.__filtered_inprogress.update(combinations)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
+            logger.trace("%s new combinations: %s", self.__name, combinations)
+            logger.trace(self)
+            return combinations
+
     def done(self, combination):
         """mark the given element *done*"""
         with self.__lock:
@@ -481,6 +520,27 @@ class ParamSweeper(object):
             logger.trace("%s combination done: %s", self.__name, combination)
             logger.trace(self)
 
+    def done_batch(self, combinations):
+        """mark the given element(s) *done*"""
+        with self.__lock:
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    self.__remaining.difference_update(combinations)
+                    self.__inprogress.difference_update(combinations)
+                    self.__filtered_inprogress.difference_update(combinations)
+                    self.__done.update(combinations)
+                    filtered_combinations = set(combinations)
+                    filtered_combinations.intersection_update(self.__sweeps)
+                    self.__filtered_done.update(filtered_combinations)
+                    done_file.seek(0, os.SEEK_END)
+                    for combination in combinations:
+                        pickle.dump(combination, done_file)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
+            logger.trace("%s combinations done: %s", self.__name, combinations)
+            logger.trace(self)
+
     def skip(self, combination):
         """mark the given element *skipped*"""
         with self.__lock:
@@ -497,6 +557,23 @@ class ParamSweeper(object):
             logger.trace("%s combination skipped: %s", self.__name, combination)
             logger.trace(self)
 
+    def skip_batch(self, combinations):
+        """mark the given element(s) *skipped*"""
+        with self.__lock:
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    self.__skipped.update(combinations)
+                    filtered_combinations = set(combinations)
+                    filtered_combinations.intersection_update(self.__sweeps)
+                    self.__filtered_skipped.update(filtered_combinations)
+                    self.__inprogress.difference_update(combinations)
+                    self.__filtered_inprogress.difference_update(combinations)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
+            logger.trace("%s combinations skipped: %s", self.__name, combinations)
+            logger.trace(self)
+
     def cancel(self, combination):
         """cancel processing of the given combination, but don't mark it as skipped, it comes back in the *todo* queue."""
         with self.__lock:
@@ -510,6 +587,22 @@ class ParamSweeper(object):
                     inprogress_file.truncate(0)
                     pickle.dump(self.__inprogress, inprogress_file)
             logger.trace("%s combination cancelled: %s", self.__name, combination)
+            logger.trace(self)
+
+    def cancel_batch(self, combinations):
+        """cancel processing of the given combination(s), but don't mark it/them as skipped, they comes back in the *todo* queue."""
+        with self.__lock:
+            with _openlock(os.path.join(self.__persistence_dir, "done")) as done_file:
+                with _openlock(os.path.join(self.__persistence_dir, "inprogress")) as inprogress_file:
+                    self.__nolock_update(done_file, inprogress_file)
+                    filtered_combinations = set(combinations)
+                    filtered_combinations.intersection_update(self.__sweeps)
+                    self.__remaining.update(filtered_combinations)
+                    self.__inprogress.difference_update(combinations)
+                    self.__filtered_inprogress.difference_update(combinations)
+                    inprogress_file.truncate(0)
+                    pickle.dump(self.__inprogress, inprogress_file)
+            logger.trace("%s combinations cancelled: %s", self.__name, combinations)
             logger.trace(self)
 
     def reset(self, reset_inprogress = False):
