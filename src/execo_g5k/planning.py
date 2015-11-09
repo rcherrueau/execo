@@ -100,7 +100,8 @@ def get_slots(elements=['grid5000'], walltime="1:00:00", kavlan=False, subnet=Fa
 
 
 def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
-            out_of_chart=False, starttime=None, endtime=None):
+                 out_of_chart=False, starttime=None, endtime=None,
+                 ignore_besteffort = True):
     """Retrieve the planning of the elements (site, cluster) and others resources.
     Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.``
 
@@ -117,6 +118,8 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     :param starttime: start of time period for which to compute the planning, defaults to now + 1 minute
 
     :param endtime: end of time period for which to compute the planning, defaults to 4 weeks from now
+
+    :param ignore_besteffort: True by default, to consider the resources with besteffort jobs as available
 
     Return a dict whose keys are sites, whose values are dict whose keys
     are cluster, subnets, kavlan or storage,
@@ -155,9 +158,9 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
             planning[site].update({'storage': {}})
 
     if _retrieve_method == 'API':
-        _get_planning_API(planning)
+        _get_planning_API(planning, ignore_besteffort)
     elif _retrieve_method == 'PostgreSQL':
-        _get_planning_PGSQL(planning)
+        _get_planning_PGSQL(planning, ignore_besteffort)
 
     if out_of_chart:
         _add_charter_to_planning(planning, starttime, endtime)
@@ -685,7 +688,7 @@ def _get_job_link_attr_API(p):
         currentThread().broken = True
         currentThread().ex = e
 
-def _get_site_planning_API(site, site_planning):
+def _get_site_planning_API(site, site_planning, ignore_besteffort):
     try:
         alive_nodes = set([str(node['network_address'])
                            for node in get_resource_attributes('/sites/'+site+'/internal/oarapi/resources/details.json?limit=2^30')['items']
@@ -704,7 +707,7 @@ def _get_site_planning_API(site, site_planning):
 
         site_jobs = get_resource_attributes('/sites/'+site+'/jobs?limit=1073741824&state=waiting,launching,running')['items']
         jobs_links = [ link['href'] for job in site_jobs for link in job['links'] \
-                      if link['rel'] == 'self' and job['queue'] != 'besteffort' ]
+                      if link['rel'] == 'self' and (ignore_besteffort == False or job['queue'] != 'besteffort') ]
         threads = []
         for link in jobs_links:
             t = Thread(target = _get_job_link_attr_API, args = ('/'+str(link).split('/', 2)[2], ))
@@ -745,12 +748,12 @@ def _get_site_planning_API(site, site_planning):
         logger.detail("exception:\n" + format_exc())
         currentThread().broken = True
 
-def _get_planning_API(planning):
+def _get_planning_API(planning, ignore_besteffort):
     """Retrieve the planning using the 3.0 Grid'5000 API """
     broken_sites = []
     threads = {}
     for site in planning.iterkeys():
-        t = Thread(target = _get_site_planning_API, args = (site, planning[site]))
+        t = Thread(target = _get_site_planning_API, args = (site, planning[site], ignore_besteffort))
         threads[site] = t
         t.broken = False
         t.start()
@@ -762,7 +765,7 @@ def _get_planning_API(planning):
     for site in broken_sites:
         del planning[site]
 
-def _get_site_planning_PGSQL(site, site_planning):
+def _get_site_planning_PGSQL(site, site_planning, ignore_besteffort):
     try:
         with G5kAutoPortForwarder(site,
                                   'oardb.' + site + '.grid5000.fr',
@@ -795,7 +798,7 @@ def _get_site_planning_PGSQL(site, site_planning):
                         site_planning['subnets'][data[3]] = {'busy': [],
                                                              'free': []}
 
-                sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time,
+                sql = ("""SELECT J.job_id, J.state, GJP.start_time AS start_time,
                 GJP.start_time+MJD.moldable_walltime,
                 array_agg(DISTINCT R.network_address) AS hosts,
                 array_agg(DISTINCT R.vlan) AS vlan,
@@ -810,9 +813,10 @@ def _get_site_planning_PGSQL(site, site_planning):
                 LEFT JOIN resources R
                     ON AR.resource_id=R.resource_id
                 WHERE ( J.state='Launching' OR J.state='Running' OR J.state='Waiting')
-                    AND queue_name<>'besteffort'
-                GROUP BY J.job_id, GJP.start_time, MJD.moldable_walltime
-                ORDER BY J.start_time"""
+                """ +
+                (""" AND queue_name<>'besteffort'""" if ignore_besteffort else """""") +
+                """GROUP BY J.job_id, GJP.start_time, MJD.moldable_walltime
+                ORDER BY J.start_time""")
 
 #                    CONVERT(SUBSTRING_INDEX(SUBSTRING_INDEX(R.network_address,'.',1),'-',-1), SIGNED)"""
                 cur.execute(sql)
@@ -844,12 +848,12 @@ def _get_site_planning_PGSQL(site, site_planning):
         logger.detail("exception:\n" + format_exc())
         currentThread().broken = True
 
-def _get_planning_PGSQL(planning):
+def _get_planning_PGSQL(planning, ignore_besteffort):
     """Retrieve the planning using the oar2 database"""
     broken_sites = []
     threads = {}
     for site in planning.iterkeys():
-        t = Thread(target = _get_site_planning_PGSQL, args = (site, planning[site]))
+        t = Thread(target = _get_site_planning_PGSQL, args = (site, planning[site], ignore_besteffort))
         threads[site] = t
         t.broken = False
         t.start()
