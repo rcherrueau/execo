@@ -58,12 +58,13 @@ def intr_event_wait(event, timeout = None):
         if timeout == None:
             remaining = None
         else:
-            remaining = min(timeout - (current - start), 0)
+            remaining = timeout - (current - start)
+            if remaining <= 0:
+                return event.is_set()
         t = checked_min(configuration['intr_period'], remaining)
-        event.wait(float(t) if t else None)
-        eventflag = event.is_set()
-        if eventflag or t == remaining:
-            return eventflag
+        event.wait(float(t) if t != None else None)
+        if event.is_set():
+            return True
         current = time.time()
 
 def non_retrying_intr_cond_wait(cond, timeout = None):
