@@ -218,11 +218,12 @@ def compute_slots(planning, walltime, excluded_elements=None):
     # Checking if we need to compile vlans planning
     kavlan = False
     kavlan_global = False
-    if 'vlans' in (planning.itervalues().next().keys()):
-        if len(planning.keys()) > 1:
-            kavlan_global = True
-        else:
-            kavlan = True
+    if len(planning) > 0:
+        if 'vlans' in (planning.itervalues().next().keys()):
+            if len(planning.keys()) > 1:
+                kavlan_global = True
+            else:
+                kavlan = True
 
     for limit in limits:
         log = ''
