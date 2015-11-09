@@ -112,9 +112,11 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
 
     :param storage: a boolean to ask for sorage computation
 
-    :param weeks: the number of weeks in the future for the end of the planning
-
     :param out_of_chart: if True, consider that days outside weekends are busy
+
+    :param starttime: start of time period for which to compute the planning, defaults to now + 1 minute
+
+    :param endtime: end of time period for which to compute the planning, defaults to 4 weeks from now
 
     Return a dict whose keys are sites, whose values are dict whose keys
     are cluster, subnets, kavlan or storage,
