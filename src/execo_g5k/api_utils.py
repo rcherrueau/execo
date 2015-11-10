@@ -43,6 +43,7 @@ This module is thread-safe.
 
 from execo import logger
 from execo_g5k.config import g5k_configuration
+from execo.utils import singleton_to_collection
 import execo
 import httplib2
 import json, re, itertools
@@ -57,13 +58,6 @@ _data = None
 _g5k_api_lock = threading.RLock()
 _g5k_api = None
 """Internal singleton instance of the g5k api rest resource."""
-
-# _g5k = None
-# """cache of g5k structure.
-
-# a dict whose keys are sites, whose values are dict whose keys are
-# clusters, whose values are hosts.
-# """
 
 _api_password_lock = threading.RLock()
 __api_passwords = dict()
@@ -373,22 +367,65 @@ def _get_g5k_api():
             _g5k_api = APIConnection()
         return _g5k_api
 
+def filter_clusters(clusters, queues = "default"):
+    """Filter a list of clusters on their queue(s).
+
+    Given a list of clusters, return the list filtered, keeping only
+    clusters that have at least one oar queue matching one in the
+    list of filter queues passed in parameters.
+
+    :param clusters: list of clusters
+
+    :param queues: a queue name or a list of queues. clusters will be
+      kept in the returned filtered list only if at least one of their
+      queues matches one queue of this parameter. If queues = None or
+      False, no filtering at all is done. By default, keeps clusters
+      in queue "default".
+    """
+
+    if queues == None or queues == False:
+        return clusters
+    queues = singleton_to_collection(queues)
+    filtered_clusters = []
+    for cluster in clusters:
+        cluster_queues = get_cluster_attributes(cluster).get("queues")
+        if not cluster_queues:
+            cluster_queues = [ "admin", "default", "besteffort" ]
+        for q in queues:
+            if q in cluster_queues:
+                filtered_clusters.append(cluster)
+                break
+    return filtered_clusters
+
 def get_g5k_sites():
+
     """Get the list of Grid5000 sites. Returns an iterable."""
     return get_api_data()['hierarchy'].keys()
 
-def get_site_clusters(site):
-    """Get the list of clusters from a site. Returns an iterable."""
+def get_site_clusters(site, queues = "default"):
+    """Get the list of clusters from a site. Returns an iterable.
+
+    :param site: site name
+
+    :param queues: queues filter, see
+      `execo_g5k.api_utils.filter_clusters`
+    """
     if not site in get_g5k_sites():
         raise ValueError, "unknown g5k site %s" % (site,)
-    return get_api_data()['hierarchy'][site].keys()
+    return filter_clusters(get_api_data()['hierarchy'][site].keys(), queues)
 
-def get_site_hosts(site):
-    """Get the list of hosts from a site. Returns an iterable"""
+def get_site_hosts(site, queues = "default"):
+    """Get the list of hosts from a site. Returns an iterable.
+
+    :param site: site name
+
+    :param queues: queues filter, see
+      `execo_g5k.api_utils.filter_clusters`
+    """
     if not site in get_g5k_sites():
         raise ValueError, "unknown g5k site %s" % (site,)
     hosts = []
-    for cluster in get_site_clusters(site):
+    for cluster in get_site_clusters(site, queues):
         hosts += get_cluster_hosts(cluster)
     return hosts
 
@@ -401,29 +438,40 @@ def get_site_network_equipments(site):
 def get_cluster_hosts(cluster):
     """Get the list of hosts from a cluster. Returns an iterable."""
     for site in get_g5k_sites():
-        if cluster in get_site_clusters(site):
+        if cluster in get_site_clusters(site, queues = None):
             return get_api_data()['hierarchy'][site][cluster]
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
 
 def get_cluster_network_equipments(cluster):
     """Get the list of the network equipments used by a cluster"""
     if cluster in get_g5k_clusters():
-        return list(set([e for h in get_cluster_hosts(cluster)
+        return list(set([e for h in get_cluster_hosts(cluster, queues = None)
                     for e in get_host_network_equipments(h)]))
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
 
-def get_g5k_clusters():
-    """Get the list of all g5k clusters. Returns an iterable."""
-    return get_api_data()['clusters'].keys()
+def get_g5k_clusters(queues = "default"):
+    """Get the list of all g5k clusters. Returns an iterable.
 
-def get_g5k_hosts():
-    """Get the list of all g5k hosts. Returns an iterable."""
-    return get_api_data()['hosts'].keys()
+    :param queues: queues filter, see
+      `execo_g5k.api_utils.filter_clusters`
+    """
+    return filter_clusters(get_api_data()['clusters'].keys(), queues)
+
+def get_g5k_hosts(queues = "default"):
+    """Get the list of all g5k hosts. Returns an iterable.
+
+    :param queues: queues filter, see
+      `execo_g5k.api_utils.filter_clusters`
+    """
+    hosts = []
+    for cluster in get_g5k_clusters(queues):
+        hosts.extend(get_cluster_hosts(cluster))
+    return hosts
 
 def get_cluster_site(cluster):
     """Get the site of a cluster."""
     for site in get_g5k_sites():
-        if cluster in get_site_clusters(site):
+        if cluster in get_site_clusters(site, queues = None):
             return site
     raise ValueError, "unknown g5k cluster %s" % (cluster,)
 

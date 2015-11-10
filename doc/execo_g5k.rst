@@ -221,6 +221,7 @@ Other
 .. autofunction:: get_resource_attributes
 .. autofunction:: group_hosts
 .. autofunction:: canonical_host_name
+.. autofunction:: filter_clusters
 
 
 Planning utilities
