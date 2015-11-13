@@ -159,6 +159,7 @@ def make_default_connection_params():
         'chainput_host_retry': 5,
         'chainput_chain_retry': 10,
         'chainput_try_delay': 1,
+        'forwarding_timeout': 25,
         'pty': False,
         'host_rewrite_func': None
         }
@@ -209,6 +210,9 @@ default_connection_params = make_default_connection_params()
 
 - ``chainput_try_delay``: delay in seconds between TCP client to
   server connection attempts.
+
+- ``forwarding_timeout``: max time to wait for a forwarding
+  port to be available
 
 - ``pty``: boolean. Wether to allocate or not a pty for
   ssh/scp.

@@ -27,6 +27,7 @@ from time_utils import format_unixts, get_seconds, Timer
 from utils import compact_output, name_from_cmdline, non_retrying_intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
 from traceback import format_exc
 from report import Report
+from exception import ProcessesFailed
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes
 
@@ -1492,7 +1493,8 @@ class PortForwarder(SshProcess):
           listening socket. If None (the default), it uses 127.0.0.1, so
           the socket is only available to localhost.
 
-        :param connection_params: connection params for connecting to host
+        :param connection_params: connection params for connecting to
+          host
         """
         self.bind_address = bind_address
         if not self.bind_address:
@@ -1539,7 +1541,10 @@ class PortForwarder(SshProcess):
     def __enter__(self):
         """Context manager enter function: waits for the forwarding port to be ready"""
         self.start()
-        intr_event_wait(self.forwarding)
+        forwarding = intr_event_wait(self.forwarding, self.connection_params['forwarding_timeout'])
+        if (not forwarding) or (not self.ok):
+            self.kill()
+            raise ProcessesFailed, [ self ]
         return self
 
 class Serial(Process):

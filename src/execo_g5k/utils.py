@@ -111,8 +111,7 @@ class G5kAutoPortForwarder():
                 self.__host,
                 self.__port,
                 connection_params=make_connection_params(default_frontend_connection_params))
-            self.__port_forwarder.start()
-            self.__port_forwarder.forwarding.wait()
+            self.__port_forwarder.__enter__()
             return "127.0.0.1", self.__port_forwarder.local_port
 
     def __exit__(self, t, v, traceback):
