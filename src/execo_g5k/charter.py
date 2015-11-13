@@ -242,15 +242,15 @@ if psycopg2:
         return [data for data in cur.fetchall()]
 
     def __site_charter_remaining(site, day, user = None):
-        with G5kAutoPortForwarder(site,
-                                  'oardb.' + site + '.grid5000.fr',
-                                  g5k_configuration['oar_pgsql_ro_port']) as (host, port):
-            start, end = get_oar_day_start_end(day)
-            if not user:
-                user = g5k_configuration.get('api_username')
+        try:
+            with G5kAutoPortForwarder(site,
+                                      'oardb.' + site + '.grid5000.fr',
+                                      g5k_configuration['oar_pgsql_ro_port']) as (host, port):
+                start, end = get_oar_day_start_end(day)
                 if not user:
-                    user = os.environ['LOGNAME']
-            try:
+                    user = g5k_configuration.get('api_username')
+                    if not user:
+                        user = os.environ['LOGNAME']
                 conn = psycopg2.connect(host = host, port = port,
                                         user = g5k_configuration['oar_pgsql_ro_user'],
                                         password = g5k_configuration['oar_pgsql_ro_password'],
@@ -286,9 +286,9 @@ if psycopg2:
                             OOC_site_quota, format_seconds(OOC_site_quota)))
                 finally:
                     conn.close()
-            except Exception, e:
-                logger.warn("error connecting to oar database / getting planning from " + site)
-                logger.detail("exception:\n" + format_exc())
+        except Exception, e:
+            logger.warn("error connecting to oar database / getting planning from " + site)
+            logger.detail("exception:\n" + format_exc())
                 
 
     def g5k_charter_remaining(sites, day, user = None):

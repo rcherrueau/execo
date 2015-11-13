@@ -759,10 +759,10 @@ def _get_planning_API(planning):
         del planning[site]
 
 def _get_site_planning_PGSQL(site, site_planning):
-    with G5kAutoPortForwarder(site,
-                              'oardb.' + site + '.grid5000.fr',
-                              g5k_configuration['oar_pgsql_ro_port']) as (host, port):
-        try:
+    try:
+        with G5kAutoPortForwarder(site,
+                                  'oardb.' + site + '.grid5000.fr',
+                                  g5k_configuration['oar_pgsql_ro_port']) as (host, port):
             conn = psycopg2.connect(host=host, port=port,
                                  user=g5k_configuration['oar_pgsql_ro_user'],
                                  password=g5k_configuration['oar_pgsql_ro_password'],
@@ -836,10 +836,10 @@ def _get_site_planning_PGSQL(site, site_planning):
                                                                              int(job[3])))
             finally:
                 conn.close()
-        except Exception, e:
-            logger.warn('error connecting to oar database / getting planning from ' + site)
-            logger.detail("exception:\n" + format_exc())
-            currentThread().broken = True
+    except Exception, e:
+        logger.warn('error connecting to oar database / getting planning from ' + site)
+        logger.detail("exception:\n" + format_exc())
+        currentThread().broken = True
 
 def _get_planning_PGSQL(planning):
     """Retrieve the planning using the oar2 database"""
