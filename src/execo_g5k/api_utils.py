@@ -371,8 +371,11 @@ def filter_clusters(clusters, queues = "default"):
     """Filter a list of clusters on their queue(s).
 
     Given a list of clusters, return the list filtered, keeping only
-    clusters that have at least one oar queue matching one in the
-    list of filter queues passed in parameters.
+    clusters that have at least one oar queue matching one in the list
+    of filter queues passed in parameters. The cluster queues are
+    taken from the queues attributes in the grid5000 API. If this
+    attribute is missing, the cluster is considered to be in queues
+    ["admin", "default", "besteffort"]
 
     :param clusters: list of clusters
 
