@@ -688,7 +688,9 @@ def _get_site_planning_API(site, site_planning):
                            if node['type'] == 'default' and node['state'] != 'Dead' and node['maintenance'] != 'YES'])
 
         for host in alive_nodes:
-            site_planning[get_host_cluster(str(host))].update({host: {'busy': [], 'free': []}})
+            host_cluster = get_host_cluster(str(host))
+            if site_planning.has_key(host_cluster):
+                site_planning[host_cluster].update({host: {'busy': [], 'free': []}})
         if site_planning.has_key('vlans'):
             site_planning['vlans'] = {}
             for vlan in _get_vlans_API(site):
