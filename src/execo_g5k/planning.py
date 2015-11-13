@@ -683,8 +683,9 @@ def _get_job_link_attr_API(p):
 
 def _get_site_planning_API(site, site_planning):
     try:
-        alive_nodes = [ node for node, status in \
-          get_resource_attributes('/sites/'+site+'/status')['nodes'].iteritems() if status['hard'] != 'dead' ]
+        alive_nodes = set([node['network_address']
+                           for node in get_resource_attributes('/sites/'+site+'/internal/oarapi/resources/details.json?limit=2^30')['items']
+                           if node['type'] == 'default' and node['state'] != 'Dead' and node['maintenance'] != 'YES'])
 
         for host in alive_nodes:
             site_planning[get_host_cluster(str(host))].update({host: {'busy': [], 'free': []}})
@@ -771,10 +772,9 @@ def _get_site_planning_PGSQL(site, site_planning):
             try:
                 cur = conn.cursor()
                 # Retrieving alive resources
-                sql = """SELECT DISTINCT R.type, R.network_address, R.vlan,
-                    R.subnet_address, null
+                sql = """SELECT DISTINCT R.type, R.network_address, R.vlan, R.subnet_address
                     FROM resources R
-                    WHERE state <> 'Dead';"""
+                    WHERE state <> 'Dead' AND R.maintenance <> 'YES';"""
 
                 cur.execute(sql)
 
