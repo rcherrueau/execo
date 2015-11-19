@@ -698,7 +698,7 @@ def _get_site_planning_API(site, site_planning):
         # STORAGE AND SUBNETS MISSING
         # Retrieving jobs
 
-        site_jobs = get_resource_attributes('/sites/'+site+'/jobs?state=waiting,launching,running')['items']
+        site_jobs = get_resource_attributes('/sites/'+site+'/jobs?limit=1073741824&state=waiting,launching,running')['items']
         jobs_links = [ link['href'] for job in site_jobs for link in job['links'] \
                       if link['rel'] == 'self' and job['queue'] != 'besteffort' ]
         threads = []
