@@ -1033,11 +1033,20 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         colors = _set_colors()
 
     n_sites = len(planning.keys())
-    startstamp = int(10 ** 20)
-    endstamp = 0
+    startstamp = None
+    endstamp = None
 
-    slots = planning.itervalues().next().itervalues().next().itervalues().next()['busy'] +\
-        planning.itervalues().next().itervalues().next().itervalues().next()['free']
+    for clusters_hosts in planning.itervalues():
+        for hosts_kinds in clusters_hosts.itervalues():
+            for kinds_slots in hosts_kinds.itervalues():
+                for slots in kinds_slots.itervalues():
+                    for slot in slots:
+                        if startstamp == None or slot[0] < startstamp:
+                            startstamp = slot[0]
+                        if endstamp == None or slot[1] > endstamp:
+                            endstamp = slot[1]
+            if startstamp and endstamp: break
+        if startstamp and endstamp: break
 
     for slot in slots:
         if slot[0] < startstamp:
@@ -1060,6 +1069,10 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
 
     i_site = 1
     for site, clusters in planning.iteritems():
+        n_hosts = 0
+        for hosts in clusters.itervalues():
+            n_hosts += len(hosts)
+        if n_hosts == 0: continue
         ax = fig.add_subplot(n_row, n_col, i_site, title=site.title())
         ax.title.set_fontsize(18)
         ax.xaxis_date()
@@ -1071,9 +1084,6 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         ax.set_ylim(0, 1)
         ax.get_yaxis().set_ticks([])
         ax.yaxis.label.set_fontsize(16)
-        n_hosts = 0
-        for hosts in clusters.itervalues():
-            n_hosts += len(hosts)
         pos = 0.0
         inc = 1. / n_hosts
 
