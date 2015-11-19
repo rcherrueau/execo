@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from config import configuration, FDEBUG, IODEBUG, TRACE, DETAIL
-import logging, sys, functools
+import logging, sys, functools, os
 
 _ansi_styles = {
     'default'    : '\033[m',
@@ -73,40 +73,82 @@ class Styler:
 style = Styler()
 
 logging.addLevelName(FDEBUG, 'FDEBUG')
-def fdebug(self, message, *args, **kwargs):
-    self.log(FDEBUG, message, *args, **kwargs)
-logging.Logger.fdebug = fdebug
 logging.addLevelName(IODEBUG, 'IODEBUG')
-def iodebug(self, message, *args, **kwargs):
-    self.log(IODEBUG, message, *args, **kwargs)
-logging.Logger.iodebug = iodebug
 logging.addLevelName(TRACE, 'TRACE')
-def trace(self, message, *args, **kwargs):
-    self.log(TRACE, message, *args, **kwargs)
-logging.Logger.trace = trace
 logging.addLevelName(DETAIL, 'DETAIL')
-def detail(self, message, *args, **kwargs):
-    self.log(DETAIL, message, *args, **kwargs)
-logging.Logger.detail = detail
+
+# copied from logging, modified to handle cases for custom log levels
+if hasattr(sys, 'frozen'): #support for py2exe
+    _srcfile = "execo%slog%s" % (os.sep, __file__[-4:])
+elif __file__[-4:].lower() in ['.pyc', '.pyo']:
+    _srcfile = __file__[:-4] + '.py'
+else:
+    _srcfile = __file__
+_srcfile = os.path.normcase(_srcfile)
+
+class _Logger(logging.getLoggerClass()):
+
+    def fdebug(self, message, *args, **kwargs):
+        self.log(FDEBUG, message, *args, **kwargs)
+
+    def iodebug(self, message, *args, **kwargs):
+        self.log(IODEBUG, message, *args, **kwargs)
+
+    def trace(self, message, *args, **kwargs):
+        self.log(TRACE, message, *args, **kwargs)
+
+    def detail(self, message, *args, **kwargs):
+        self.log(DETAIL, message, *args, **kwargs)
+
+    # copied from logging, modified to handle cases for custom log levels
+    def findCaller(self):
+        """
+        Find the stack frame of the caller so that we can note the source
+        file name, line number and function name.
+        """
+        f = logging.currentframe()
+        #On some versions of IronPython, currentframe() returns None if
+        #IronPython isn't run with -X:Frames.
+        if f is not None:
+            f = f.f_back
+        rv = "(unknown file)", 0, "(unknown function)"
+        while hasattr(f, "f_code"):
+            co = f.f_code
+            filename = os.path.normcase(co.co_filename)
+            if filename == _srcfile or filename == logging._srcfile:
+                f = f.f_back
+                continue
+            rv = (co.co_filename, f.f_lineno, co.co_name)
+            break
+        return rv
+
 
 # logger is the execo logging object
+__default_logger = logging.getLoggerClass()
+logging.setLoggerClass(_Logger)
 logger = logging.getLogger("execo")
 """The execo logger."""
+logging.setLoggerClass(__default_logger)
 logger_handler = logging.StreamHandler(sys.stdout)
+
 
 class MyFormatter(logging.Formatter):
     def format(self, record):
         if logger.getEffectiveLevel() < logging.DEBUG:
             self._fmt = ( style.log_header("%(asctime)s ")
                           + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
-                          + "%(levelname)s" + _ansi_styles['default']
-                          + style.log_header(" %(threadName)s:")
-                          + " %(message)s" )
+                          + "%(levelname)s " + _ansi_styles['default'] + style.log_header("%(threadName)s - %(funcName)s:")
+                          + _ansi_styles['default'] + " %(message)s" )
+        elif logger.getEffectiveLevel() == logging.DEBUG:
+            self._fmt = ( style.log_header("%(asctime)s ")
+                          + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
+                          + "%(levelname)s " + _ansi_styles['default'] + style.log_header("%(funcName)s:")
+                          + _ansi_styles['default'] + " %(message)s" )
         else:
             self._fmt = ( style.log_header("%(asctime)s ")
                           + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
-                          + "%(levelname)s:" + _ansi_styles['default']
-                          + " %(message)s" )
+                          + "%(levelname)s:"
+                          + _ansi_styles['default'] + " %(message)s" )
         return logging.Formatter.format(self, record)
 
 logger_handler.setFormatter(MyFormatter())
