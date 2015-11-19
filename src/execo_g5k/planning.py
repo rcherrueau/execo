@@ -124,9 +124,9 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     vlan number or chunk id planning respectively.
     """
     if not starttime: starttime = int(time() + timedelta_to_seconds(timedelta(minutes = 1)))
-    starttime = get_unixts(starttime)
+    starttime = int(get_unixts(starttime))
     if not endtime: endtime = int(starttime + timedelta_to_seconds(timedelta(weeks = 4, minutes = 1)))
-    endtime = get_unixts(endtime)
+    endtime = int(get_unixts(endtime))
     if 'grid5000' in elements:
         sites = elements = get_g5k_sites()
     else:
@@ -661,6 +661,10 @@ def distribute_hosts(resources_available, resources_wanted,
     return resources
 
 
+def _fix_job(start_time, end_time):
+    return int(start_time), int(end_time) + 120
+
+
 def _get_vlans_API(site):
     """Retrieve the list of VLAN of a site from the 3.0 Grid'5000 API"""
     equips = get_resource_attributes('/sites/'+site+'/network_equipments/')
@@ -683,7 +687,7 @@ def _get_job_link_attr_API(p):
 
 def _get_site_planning_API(site, site_planning):
     try:
-        alive_nodes = set([node['network_address']
+        alive_nodes = set([str(node['network_address'])
                            for node in get_resource_attributes('/sites/'+site+'/internal/oarapi/resources/details.json?limit=2^30')['items']
                            if node['type'] == 'default' and node['state'] != 'Dead' and node['maintenance'] != 'YES'])
 
@@ -716,13 +720,10 @@ def _get_site_planning_API(site, site_planning):
             attr = t.attr
             try:
                 start_time = attr['started_at'] if attr['started_at'] != 0 else attr['scheduled_at']
-                # Add a delay as a node is never free at the end of the job
-                end_time = int((start_time + attr['walltime']+\
-                    timedelta_to_seconds(timedelta(minutes = 1, seconds = 5))))
-                start_time = max(start_time, int(time()))
+                end_time = start_time + attr['walltime']
             except:
-                pass
-
+                continue
+            start_time, end_time = _fix_job(start_time, end_time)
             nodes = attr['assigned_nodes']
             for node in nodes:
                 cluster = node.split('.',1)[0].split('-')[0]
@@ -795,7 +796,7 @@ def _get_site_planning_PGSQL(site, site_planning):
                                                              'free': []}
 
                 sql = """SELECT J.job_id, J.state, GJP.start_time AS start_time,
-                GJP.start_time+MJD.moldable_walltime+120 AS stop_time,
+                GJP.start_time+MJD.moldable_walltime,
                 array_agg(DISTINCT R.network_address) AS hosts,
                 array_agg(DISTINCT R.vlan) AS vlan,
                 array_agg(DISTINCT R.subnet_address) AS subnets
@@ -817,25 +818,25 @@ def _get_site_planning_PGSQL(site, site_planning):
                 cur.execute(sql)
 
                 for job in cur.fetchall():
+                    start_time = job[2]
+                    end_time = job[3]
+                    start_time, end_time = _fix_job(start_time, end_time)
                     if len(job[4]) > 0:
                         for host in job[4]:
                             if host != '':
                                 cluster = get_host_cluster(host)
                                 if cluster in site_planning:
                                     if host in site_planning[cluster]:
-                                        site_planning[cluster][host]['busy'].append((int(job[2]),
-                                                                                     int(job[3])))
+                                        site_planning[cluster][host]['busy'].append((start_time, end_time))
                     if job[5][0] and 'vlans' in site_planning:
                         for vlan in job[5]:
                             if isinstance(vlan, str) and int(vlan) > 3:
                                 # only routed vlan
-                                site_planning['vlans']['kavlan-' + vlan]['busy'].append((int(job[2]),\
-                                                                                         int(job[3])) )
+                                site_planning['vlans']['kavlan-' + vlan]['busy'].append((start_time, end_time))
 
                     if len(job[6]) > 0 and 'subnet' in site_planning:
                         for subnet in job[6]:
-                            site_planning['subnets'][subnet]['busy'].append((int(job[2]), \
-                                                                             int(job[3])))
+                            site_planning['subnets'][subnet]['busy'].append((start_time, end_time))
             finally:
                 conn.close()
     except Exception, e:
