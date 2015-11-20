@@ -123,12 +123,14 @@ class OarSubmission(object):
     members are:
 
     - resources: Set the requested resources for the job. Oar option
-      -l, without the walltime.
+      -l, without the walltime. Can be a single resource specification
+      or an iterable of resource specifications.
 
     - walltime: Job walltime. Walltime part of oar -l option.
 
     - job_type: Job type, oar option -t: deploy, besteffort, cosystem,
-      checkpoint, timesharing, allow_classic_ssh.
+      checkpoint, timesharing, allow_classic_ssh. Can be a single job
+      type or an iterable of job types.
 
     - sql_properties: constraints to properties for the job, oar
       option -p (use single quotes for literal strings).
