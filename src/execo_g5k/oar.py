@@ -25,7 +25,7 @@ from execo.time_utils import get_unixts, get_seconds, str_date_to_unixts, \
     str_duration_to_seconds, format_duration, format_date, Timer, sleep
 from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connection_params
-from execo.utils import checked_min
+from execo.utils import checked_min, singleton_to_collection
 from execo_g5k.utils import get_frontend_host
 import os, re, time
 
@@ -152,6 +152,7 @@ class OarSubmission(object):
       line.
 
     - command: run by oarsub (default: sleep a long time).
+
     """
 
     def __init__(self,
@@ -198,11 +199,7 @@ def get_oarsub_commandline(job_spec):
     if job_spec.additional_options != None:
         oarsub_cmdline += ' %s' % (job_spec.additional_options,)
     if job_spec.resources:
-        if hasattr(job_spec.resources, '__iter__'):
-            resources = job_spec.resources
-        else:
-            resources = (job_spec.resources,)
-        oarsub_cmdline += ' -l "' + "+".join(resources)
+        oarsub_cmdline += ' -l "' + '+'.join(singleton_to_collection(job_spec.resources))
         if job_spec.walltime != None:
             oarsub_cmdline += ',walltime=%s' % (format_oar_duration(job_spec.walltime),)
         oarsub_cmdline += '"'
@@ -214,11 +211,8 @@ def get_oarsub_commandline(job_spec):
     if key != None:
         oarsub_cmdline += ' -k -i %s' % (key,)
     if job_spec.job_type != None:
-        if hasattr(job_spec.job_type,"__iter__"):
-            for t in job_spec.job_type:
-                oarsub_cmdline += ' -t "%s"' % (t,)
-        else:
-            oarsub_cmdline += ' -t "%s"' % (job_spec.job_type,)
+        for t in singleton_to_collection(job_spec.job_type):
+            oarsub_cmdline += ' -t "%s"' % (t,)
     if job_spec.sql_properties != None:
         oarsub_cmdline += ' -p "%s"' % (job_spec.sql_properties,)
     if job_spec.queue != None:
