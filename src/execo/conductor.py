@@ -313,9 +313,7 @@ class _Conductor(object):
 
         Intended to be called from main thread.
 
-        Currently: only update the timeout. This is related to the way
-        the system for forcing SIGKILL on processes not killing
-        cleanly is implemented.
+        Currently: only update the force kill timeout.
         """
         self.__process_actions.put_nowait((self.__handle_update_process, (process,)))
         self.__wakeup()
@@ -365,17 +363,15 @@ class _Conductor(object):
 
     def __handle_update_process(self, process):
         # intended to be called from conductor thread
-        # Currently: only update the timeout. This is related to the
-        # way the system for forcing SIGKILL on processes not killing
-        # cleanly is implemented.
-        logger.fdebug("update timeouts of %s in %s", str(process), self)
+        # Currently: only update the force kill timeout.
+        logger.fdebug("update force kill timeout of %s in %s", str(process), self)
         if process not in self.__processes:
             return  # this will frequently occur if the process kills
                     # quickly because the process will already be
                     # killed and reaped before __handle_update_process
                     # is called
-        if process.timeout_date != None:
-            self.__timeline.append((process.timeout_date, process))
+        if process._force_kill_timeout_date != None:
+            self.__timeline.append((process._force_kill_timeout_date, process))
 
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
@@ -424,7 +420,7 @@ class _Conductor(object):
         return next_timeout
 
     def __check_timeouts(self):
-        """Iterate all registered `execo.process.Process` whose timeout is reached, kill them gently.
+        """Iterate all registered `execo.process.Process` whose timeout is reached, kill them.
 
         And remove them from the timeline.
         """
@@ -432,9 +428,13 @@ class _Conductor(object):
         remove_in_timeline = []
         for i in xrange(0, len(self.__timeline)):
             process = self.__timeline[i][1]
-            if now >= process.timeout_date:
-                logger.debug("timeout on %s", str(process))
-                process._timeout_kill()
+            if now >= process.timeout_date or now >= process._force_kill_timeout_date:
+                if now >= process._force_kill_timeout_date:
+                    logger.debug("force kill timeout on %s" % (str(process),))
+                    process._force_kill()
+                else:
+                    logger.debug("timeout on %s" % (str(process),))
+                    process._timeout_kill()
                 remove_in_timeline.append(i)
             else:
                 break

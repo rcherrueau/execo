@@ -966,7 +966,7 @@ class Process(ProcessBase):
         self.process = None
         self.pid = None
         """Subprocess's pid, if available (subprocess started) or None"""
-        self._already_got_sigterm = False
+        self._force_kill_timeout_date = None
         self._ptymaster = None
         self._ptyslave = None
         self.__start_pending = False
@@ -1000,7 +1000,7 @@ class Process(ProcessBase):
         super(Process, self)._common_reset()
         self.process = None
         self.pid = None
-        self._already_got_sigterm = False
+        self._force_kill_timeout_date = None
         self._ptymaster = None
         self._ptyslave = None
         self.stdout_fd = None
@@ -1101,15 +1101,19 @@ class Process(ProcessBase):
                     logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
-    def kill(self, sig = signal.SIGTERM, auto_sigterm_timeout = True):
+    def kill(self, sig = signal.SIGTERM, auto_force_kill_timeout = True):
         """Send a signal (default: SIGTERM) to the subprocess.
 
         :param sig: the signal to send
 
-        :param auto_sigterm_timeout: whether or not execo will check
-          that the subprocess has terminated after a preset timeout,
-          when it has received a SIGTERM, and automatically send
-          SIGKILL if the subprocess is not yet terminated
+        :param auto_force_kill_timeout: Sets whether or not execo will
+          check that the subprocess has terminated after beeing sent
+          SIGTERM/SIGINT, and automatically send SIGKILL if the
+          subprocess is not yet terminated. If None/False, will not
+          auto-send SIGKILL. If True, will auto-send SIGKILL after the
+          default timeout from
+          `execo.configuration['kill_timeout']`. Otherwise, the given
+          value is used as the timeout.
 
         Sending signals to processes automatically ignores and disable
         logs of exit code != 0.
@@ -1123,13 +1127,14 @@ class Process(ProcessBase):
         with self._lock:
             if self.pid != None and not self.ended:
                 self.killed = True
-                if sig == signal.SIGTERM:
-                    self._already_got_sigterm = True
-                    if auto_sigterm_timeout == True:
-                        self.timeout_date = time.time() + configuration.get('kill_timeout')
+                if sig == signal.SIGTERM or sig == signal.SIGINT:
+                    if auto_force_kill_timeout != None and auto_force_kill_timeout != False:
+                        if auto_force_kill_timeout == True:
+                            kill_timeout = configuration.get('kill_timeout')
+                        else:
+                            kill_timeout = get_seconds(auto_force_kill_timeout)
+                        self._force_kill_timeout_date = time.time() + kill_timeout
                         the_conductor.update_process(self)
-                if sig == signal.SIGKILL:
-                    self.forced_kill = True
                 if self._actual_kill_subprocesses():
                     additionnal_processes_to_kill = _get_childs(self.pid)
                 try:
@@ -1176,17 +1181,22 @@ class Process(ProcessBase):
 
         This method is intended to be used by the
         `execo.conductor._Conductor` thread.
-
-        If the subprocess already got a SIGTERM and is still there, it
-        is directly killed with SIGKILL.
         """
         with self._lock:
             if self.pid != None:
                 self.timeouted = True
-                if self._already_got_sigterm and self.timeout_date < time.time():
-                    self.kill(signal.SIGKILL)
-                else:
-                    self.kill()
+                self.kill()
+
+    def _force_kill(self):
+        """Send SIGKILL to the subprocess, due to the reaching of its force kill timeout.
+
+        This method is intended to be used by the
+        `execo.conductor._Conductor` thread.
+        """
+        with self._lock:
+            if self.pid != None:
+                self.forced_kill = True
+                self.kill(signal.SIGKILL)
 
     def _set_terminated(self, exit_code):
         """Update process state: set it to terminated.
