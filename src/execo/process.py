@@ -1143,11 +1143,8 @@ class Process(ProcessBase):
                     if e.errno == errno.EPERM:
                         if (self.pty
                             and (sig == signal.SIGTERM
-                                 or sig == signal.SIGHUP
                                  or sig == signal.SIGINT
-                                 or sig == signal.SIGKILL
-                                 or sig == signal.SIGPIPE
-                                 or sig == signal.SIGQUIT)):
+                                 or sig == signal.SIGKILL)):
                             # unable to send signal to process due to lack
                             # of permissions. If pty == True, then there
                             # is a pty, we can close its master side, it should
