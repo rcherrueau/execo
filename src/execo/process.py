@@ -1183,7 +1183,7 @@ class Process(ProcessBase):
         with self._lock:
             if self.pid != None:
                 self.timeouted = True
-                if self._already_got_sigterm and self.timeout_date >= time.time():
+                if self._already_got_sigterm and self.timeout_date < time.time():
                     self.kill(signal.SIGKILL)
                 else:
                     self.kill()
