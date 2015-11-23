@@ -22,7 +22,7 @@ from utils import compact_output
 from config import configuration
 import Queue, errno, fcntl, logging, os, select, \
   signal, sys, thread, threading, time, traceback, \
-  subprocess, resource
+  subprocess, resource, heapq
 
 # assuming import of this module is triggered from "the main" thread,
 # the following call is intended to workaround python issue #7980
@@ -181,6 +181,18 @@ def _set_fd_nonblocking(fileno):
     fcntl.fcntl(fileno, fcntl.F_SETFL, status_flags | os.O_NONBLOCK)
     return status_flags
 
+def remove_from_heapq(hq, pred):
+    # remove all objects satisfying predicate pred from heapq hq in O(log(n))
+    i = 0
+    while i<len(hq):
+        if pred(hq[i]):
+            hq[i] = hq[-1]
+            hq.pop()
+            if len(hq)>0:
+                heapq._siftup(hq, i)
+            continue
+        i += 1
+
 class _Conductor(object):
 
     """Manager of the subprocesses outputs and lifecycle.
@@ -238,7 +250,7 @@ class _Conductor(object):
                                 # launched by this `_Conductor`
                                 #
                                 # values: their `Process`
-        self.__timeline = [] # list of `Process` with a timeout date
+        self.__timeline = [] # heapq of `Process` with a timeout date
         self.__process_actions = Queue.Queue()
                                 # thread-safe FIFO used to send requests
                                 # from main thread and conductor thread:
@@ -354,7 +366,7 @@ class _Conductor(object):
                                    | POLLERR)
             self.__pids[process.pid] = process
             if process.timeout_date != None:
-                self.__timeline.append((process.timeout_date, process))
+                heapq.heappush(self.__timeline,(process.timeout_date, process))
             if self.__reaper_thread_running == False:
                 self.__reaper_thread_running = True
                 reaper_thread = threading.Thread(target = self.__reaper_thread_func, name = "Reaper")
@@ -371,7 +383,7 @@ class _Conductor(object):
                     # killed and reaped before __handle_update_process
                     # is called
         if process._force_kill_timeout_date != None:
-            self.__timeline.append((process._force_kill_timeout_date, process))
+            heapq.heappush(self.__timeline,(process._force_kill_timeout_date, process))
 
     def __handle_remove_process(self, process, exit_code = None):
         # intended to be called from conductor thread
@@ -379,7 +391,7 @@ class _Conductor(object):
         logger.fdebug("removing %s from %s", str(process), self)
         if process not in self.__processes:
             raise ValueError, "trying to remove a process which was not yet added to conductor"
-        self.__timeline = [ x for x in self.__timeline if x[1] != process ]
+        remove_from_heapq(self.__timeline, lambda e: e[1] == process)
         del self.__pids[process.pid]
         fileno_stdout = process.stdout_fd
         fileno_stderr = process.stderr_fd
@@ -414,9 +426,8 @@ class _Conductor(object):
     def __get_next_timeout(self):
         """Return the remaining time until the smallest timeout date of all registered `execo.process.Process`."""
         next_timeout = None
-        if len(self.__timeline) != 0:
-            self.__timeline.sort(key = lambda x: x[0])
-            next_timeout = (self.__timeline[0][0] - time.time())
+        if len(self.__timeline) > 0:
+            next_timeout = self.__timeline[0][0] - time.time()
         return next_timeout
 
     def __check_timeouts(self):
@@ -425,21 +436,14 @@ class _Conductor(object):
         And remove them from the timeline.
         """
         now = time.time()
-        remove_in_timeline = []
-        for i in xrange(0, len(self.__timeline)):
-            process = self.__timeline[i][1]
-            if now >= process.timeout_date or now >= process._force_kill_timeout_date:
-                if now >= process._force_kill_timeout_date:
-                    logger.debug("force kill timeout on %s" % (str(process),))
-                    process._force_kill()
-                else:
-                    logger.debug("timeout on %s" % (str(process),))
-                    process._timeout_kill()
-                remove_in_timeline.append(i)
-            else:
-                break
-        for j in reversed(remove_in_timeline):
-            del(self.__timeline[j])
+        while len(self.__timeline) > 0 and self.__timeline[0][0] <= now:
+            _, process = heapq.heappop(self.__timeline)
+            if now >= process._force_kill_timeout_date:
+                logger.debug("force kill timeout on %s" % (str(process),))
+                process._force_kill()
+            elif now >= process.timeout_date:
+                logger.debug("timeout on %s" % (str(process),))
+                process._timeout_kill()
 
     def __update_terminated_processes(self):
         """Ask operating system for all processes that have terminated, self remove them.
