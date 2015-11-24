@@ -188,7 +188,7 @@ def remove_from_heapq(hq, pred):
         if pred(hq[i]):
             hq[i] = hq[-1]
             hq.pop()
-            if len(hq)>0:
+            if i < len(hq):
                 heapq._siftup(hq, i)
             continue
         i += 1
