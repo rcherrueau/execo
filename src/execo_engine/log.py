@@ -18,4 +18,7 @@
 
 import logging
 import execo.log #IGNORE:W0611 #@PydevCodeAnalysisIgnore #@UnusedImport
+__default_logger = logging.getLoggerClass()
+logging.setLoggerClass(execo.log.Logger)
 logger = logging.getLogger("execo.engine")
+logging.setLoggerClass(__default_logger)

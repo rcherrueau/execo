@@ -86,7 +86,7 @@ else:
     _srcfile = __file__
 _srcfile = os.path.normcase(_srcfile)
 
-class _Logger(logging.getLoggerClass()):
+class Logger(logging.getLoggerClass()):
 
     def fdebug(self, message, *args, **kwargs):
         self.log(FDEBUG, message, *args, **kwargs)
@@ -125,7 +125,7 @@ class _Logger(logging.getLoggerClass()):
 
 # logger is the execo logging object
 __default_logger = logging.getLoggerClass()
-logging.setLoggerClass(_Logger)
+logging.setLoggerClass(Logger)
 logger = logging.getLogger("execo")
 """The execo logger."""
 logging.setLoggerClass(__default_logger)
