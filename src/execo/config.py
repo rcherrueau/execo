@@ -51,7 +51,7 @@ configuration = {
     'fileput_tool': SCP,
     'fileget_tool': SCP,
     'compact_output_threshold': 4096,
-    'kill_timeout': 5,
+    'kill_timeout': 60,
     'intr_period': 1,
     'port_range': (25500, 26700),
     'kill_childs_at_end': True,
