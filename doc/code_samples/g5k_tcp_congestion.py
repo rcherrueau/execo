@@ -48,7 +48,7 @@ class g5k_tcp_congestion(Engine):
                     nodes = get_oargrid_job_nodes(jobid)
                     if len(nodes) != 2: raise Exception("not enough nodes")
                     logger.info("deploy %i nodes" % (len(nodes),))
-                    deployed, undeployed = deploy(Deployment(nodes, env_name = "wheezy-x64-min"))
+                    deployed, undeployed = deploy(Deployment(nodes, env_name = "jessie-x64-min"))
                     logger.info("%i deployed, %i undeployed" % (len(deployed), len(undeployed)))
                     if len(deployed) != 2: raise Exception("not enough deployed nodes")
                     logger.info("prepare nodes")
