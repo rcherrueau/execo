@@ -53,6 +53,8 @@ try:
 except:
     _retrieve_method = 'API'
 
+_max_hosts = None
+
 
 def get_job_by_name(job_name, sites=None):
     """ """
@@ -461,7 +463,7 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
 
 def get_max_hosts(sites):
     """A """
-    _max_hosts = None
+
     if not sites:
         sites = get_g5k_sites()
     logger.info('Retrieving alive hosts')
