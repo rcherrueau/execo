@@ -53,8 +53,6 @@ try:
 except:
     _retrieve_method = 'API'
 
-_max_hosts = None
-
 
 def get_job_by_name(job_name, sites=None):
     """ """
