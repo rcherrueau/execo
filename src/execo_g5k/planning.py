@@ -409,17 +409,6 @@ def find_coorm_slot(slots, resources_wanted):
             return start, stop, res
 
 
-def _get_site_hosts_status(site):
-    """Retrieve the status of all the hosts of a site"""
-    try:
-        status = get_resource_attributes('/sites/' + site + '/status')['nodes']
-        hosts = {h: v['hard'] for h, v in status.iteritems()}
-        currentThread().hosts = hosts
-    except Exception, e:
-        currentThread().broken = True
-        currentThread().ex = e
-
-
 def get_hosts_jobs(hosts, walltime, out_of_chart=False):
     """Find the first slot when the hosts are available and return a
      list of jobs_specs
@@ -461,82 +450,28 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
     return jobs_specs
 
 
-def get_max_hosts(sites):
-    """A """
-
-    if not sites:
-        sites = get_g5k_sites()
-    logger.info('Retrieving alive hosts')
-    max_hosts = {'grid5000': 0}
-    threads = []
-    for s in sites:
-        t = Thread(target=_get_site_hosts_status, args= (s, ))
-        t.site = s
-        t.hosts = None
-        t.broken = False
-        t.ex = None
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
-        if t.broken:
-            raise t.ex
-        s = t.site
-        max_hosts[s] = 0
-        for h, status in t.hosts.iteritems():
-            if status != 'dead':
-                max_hosts['grid5000'] += 1
-                max_hosts[s] += 1
-                c = get_host_cluster(h)
-                if c not in max_hosts:
-                    max_hosts[c] = 0
-                max_hosts[c] += 1
-
-    return max_hosts
-
-def max_resources(sites=None):
-    """Compute the maximum number of resources available"""
-    global _max_hosts
-    if not _max_hosts:
-        _max_hosts = get_max_hosts(sites)
-    for s in sites:
-        if s not in _max_hosts:
-            _max_hosts = get_max_hosts(sites)
-    return _max_hosts
-
 def show_resources(resources, msg='Resources'):
-    """Print the resources in a fancy way
-
-    :param resources: the dict containing the resources
-
-    :param msg: the message that will be printed in the log
-    """
-
+    """Print the resources in a fancy way"""
     total_hosts = 0
     log = style.log_header(msg) + '\n'
-    sites = [r for r in resources if r in get_g5k_sites()]
-    maxh = max_resources(sites)
+
     for site in get_g5k_sites():
         site_added = False
         if site in resources.keys():
-            log += style.log_header(site).ljust(20) + ' ' + \
-                style.UP(str(resources[site]).rjust(3)) + '/' + str(maxh[site]).ljust(3) + ' '
+            log += style.log_header(site).ljust(20) + ' ' + str(resources[site]) + ' '
             site_added = True
         for cluster in get_site_clusters(site):
             if len(list(set(get_site_clusters(site)) & set(resources.keys()))) > 0 \
                     and not site_added:
-                log += style.log_header(site).ljust(20) + ' ' + \
-                    style.UP(str(resources[site]).rjust(3)) + '/' + str(maxh[site]).ljust(3) + ' '
+                log += style.log_header(site).ljust(20) + ' '
                 site_added = True
             if cluster in resources.keys():
-                log += style.emph(cluster) + ': ' + style.UP(str(resources[cluster])) + \
-                    '/' + str(maxh[cluster]) + ' '
+                log += style.emph(cluster) + ': ' + str(resources[cluster]) + ' '
                 total_hosts += resources[cluster]
         if site_added:
             log += '\n'
     if 'grid5000' in resources.keys():
-        log += style.log_header('Grid5000').ljust(20) + \
-            style.UP(str(resources['grid5000']).rjust(3)) + '/' + str(maxh['grid5000']).ljust(3)
+        log += style.log_header('Grid5000').ljust(20) + str(resources['grid5000'])
     elif total_hosts > 0:
         log += style.log_header('Total ').ljust(20) + str(total_hosts)
     logger.info(log)
