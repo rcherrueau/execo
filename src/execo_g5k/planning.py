@@ -281,6 +281,22 @@ def compute_slots(planning, walltime, excluded_elements=None):
     slots.sort(key=itemgetter(0))
     return slots
 
+def max_resources(planning):
+    """ """
+    resources = {"grid5000": 0}
+    for site, site_pl in planning.iteritems():
+        resources[site] = 0
+        for cl, cl_pl in site_pl.iteritems():
+            if cl in ['vlans']:
+                continue
+            resources[cl] = 0
+            keep_cluster = False
+            for h in cl_pl:
+                resources["grid5000"] += 1
+                resources[cl] += 1
+                resources[site] +=1
+    
+    return resources
 
 def compute_coorm_slots(planning, excluded_elements=None):
     """ """
@@ -448,28 +464,41 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
     return jobs_specs
 
 
-def show_resources(resources, msg='Resources'):
+def show_resources(resources, msg='Resources', max_resources=None):
     """Print the resources in a fancy way"""
+    if not max_resources:
+        max_resources = {}
     total_hosts = 0
     log = style.log_header(msg) + '\n'
 
     for site in get_g5k_sites():
         site_added = False
         if site in resources.keys():
-            log += style.log_header(site).ljust(20) + ' ' + str(resources[site]) + ' '
+            log += style.log_header(site).ljust(20) + ' ' + str(resources[site])
+            if site in max_resources:
+                log += '/' + str(max_resources[site])
+            log += ' '
             site_added = True
         for cluster in get_site_clusters(site):
             if len(list(set(get_site_clusters(site)) & set(resources.keys()))) > 0 \
                     and not site_added:
-                log += style.log_header(site).ljust(20) + ' '
+                log += style.log_header(site).ljust(20)
+                if site in max_resources:
+                    log += '/' + str(max_resources[site])
+                log += ' '
                 site_added = True
             if cluster in resources.keys():
-                log += style.emph(cluster) + ': ' + str(resources[cluster]) + ' '
+                log += style.emph(cluster) + ': ' + str(resources[cluster])
+                if cluster in max_resources:
+                    log += '/' + str(max_resources[cluster])
+                log += ' '
                 total_hosts += resources[cluster]
         if site_added:
             log += '\n'
     if 'grid5000' in resources.keys():
         log += style.log_header('Grid5000').ljust(20) + str(resources['grid5000'])
+        if "grid5000" in max_resources:
+            log += '/' + str(max_resources["grid5000"])
     elif total_hosts > 0:
         log += style.log_header('Total ').ljust(20) + str(total_hosts)
     logger.info(log)
