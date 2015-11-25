@@ -77,28 +77,6 @@ def get_job_by_name(job_name, sites=None):
     return None, None
 
 
-def get_slots(elements=['grid5000'], walltime="1:00:00", kavlan=False, subnet=False,
-              out_of_chart=False, starttime=None, endtime=None, blacklisted=None):
-    # Computing the planning of the ressources wanted
-    logger.info('Compiling planning')
-    planning = get_planning(elements=elements,
-                            vlan=kavlan,
-                            subnet=subnet,
-                            storage=False,
-                            out_of_chart=out_of_chart,
-                            starttime=starttime,
-                            endtime=endtime)
-    logger.debug(pformat(planning.keys()))
-
-    # Determing the slots for the given walltime, i.e. finding the
-    # slice of time with constant resources, and excluding some elements
-    logger.info('Calculating slots of %s ', walltime)
-
-    slots = compute_slots(planning, walltime, excluded_elements=blacklisted)
-
-    return slots
-
-
 def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
                  out_of_chart=False, starttime=None, endtime=None,
                  ignore_besteffort = True):
