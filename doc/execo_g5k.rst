@@ -234,7 +234,6 @@ Retrieve resources planning
 These functions allow to retrieve retrieve resources planning, compute the slots
 and find slots with specific properties.
 
-.. autofunction:: get_slots
 .. autofunction:: get_planning
 .. autofunction:: compute_slots
 .. autofunction:: find_first_slot
