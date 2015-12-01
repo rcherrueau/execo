@@ -1,3 +1,28 @@
+python-execo (2.5.2) unstable; urgency=low
+
+  * new upstream release:
+
+    - bugfixes in timeouts handling
+
+    - bugfixes and improvements in the auto force killing mechanism
+
+    - planning: resources in maintenance mode
+
+    - exact same behavior of api planning or postgresql planning
+
+    - planning fix corner cases bugs with empty sites (no resources)
+
+    - planning fix sites not responding handled correctly
+
+    - planning add besteffort option
+
+    - add filtering of g5k clusters on oar queues (allowing auto
+      selection of the relevant clusters by default)
+
+    - bugfixes in port forwarders (timeout handling)
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Tue, 1 Dec 2015 09:34:00 +0200
+
 python-execo (2.5.1) unstable; urgency=low
 
   * new upstream release:
