@@ -237,7 +237,7 @@ class g5k_graph(nx.MultiGraph):
             self.add_node(src, kind='renater')
             for lc in equip['linecards']:
                 for port in lc['ports']:
-                    if 'renater-' in port['uid']:
+                    if port.has_key('uid') and 'renater-' in port['uid']:
                         bandwidth = lc['rate'] if 'rate' not in port else port['rate']
                         latency = port['latency'] if 'latency' in port \
                             else arbitrary_latency
