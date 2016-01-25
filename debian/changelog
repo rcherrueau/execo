@@ -1,3 +1,13 @@
+python-execo (2.5.3) unstable; urgency=low
+
+  * new upstream release:
+
+    - execo_g5k.topology: fix crash with empty linecards
+
+    - execo_g5k.oarsub: fix oar command in corner cases
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Mon, 25 Jan 2016 15:31:00 +0200
+
 python-execo (2.5.2) unstable; urgency=low
 
   * new upstream release:

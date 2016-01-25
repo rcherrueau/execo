@@ -2,11 +2,11 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: execo
 Upstream-Contact: <matthieu.imbert@inria.fr>
 Source: http://execo.gforge.inria.fr
-Copyright: 2009-2015 INRIA Rhone-Alpes, Service Experimentation et Developpement
+Copyright: 2009-2016 INRIA Rhone-Alpes, Service Experimentation et Developpement
 License: GPL-3+
 
 Files: *
-Copyright: 2009-2015 INRIA Rhone-Alpes, Service Experimentation et Developpement
+Copyright: 2009-2016 INRIA Rhone-Alpes, Service Experimentation et Developpement
 License: GPL-3+
 
 License: GPL-3+
