@@ -143,7 +143,7 @@ class g5k_graph(nx.MultiGraph):
     def add_equip(self, equip, site):
         """Add a network equipment """
         if equip not in self.data['network'][site]:
-            logger.warning('Equipment %s not described in API')
+            logger.warning('Equipment %s not described in API' % (equip,))
             return
         data = self.data['network'][site][equip]
         logger.debug('Adding equipment %s', equip)
