@@ -83,7 +83,7 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     """Retrieve the planning of the elements (site, cluster) and others resources.
     Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.``
 
-    :param elements: a list of Grid'5000 elemenst (grid5000, site, cluster)
+    :param elements: a list of Grid'5000 elements ('grid5000', <site>, <cluster>)
 
     :param vlan: a boolean to ask for KaVLAN computation
 
@@ -119,7 +119,7 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
                           if host in get_g5k_hosts()
                           or get_host_shortname(host) in get_g5k_hosts()]))
     if len(sites) == 0:
-        logger.error('Wrong elements given, must be one of the following values \n %s \n%s', elements)
+        logger.error('Wrong elements given: %s' % (elements,))
         return None
     planning = {}
     for site in sites:
