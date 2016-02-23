@@ -79,7 +79,7 @@ def get_job_by_name(job_name, sites=None):
 
 def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
                  out_of_chart=False, starttime=None, endtime=None,
-                 ignore_besteffort = True):
+                 ignore_besteffort=True, queues='default'):
     """Retrieve the planning of the elements (site, cluster) and others resources.
     Element planning structure is ``{'busy': [(123456,123457), ... ], 'free': [(123457,123460), ... ]}.``
 
@@ -99,6 +99,8 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
 
     :param ignore_besteffort: True by default, to consider the resources with besteffort jobs as available
 
+    :param queues: list of oar queues for which to get the planning
+
     Return a dict whose keys are sites, whose values are dict whose keys
     are cluster, subnets, kavlan or storage,
     whose values are planning dicts, whose keys are hosts, subnet address range,
@@ -114,7 +116,7 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
         sites = list(set([site for site in elements
                           if site in get_g5k_sites()] + 
                          [get_cluster_site(cluster) for cluster in elements
-                          if cluster in get_g5k_clusters()] +
+                          if cluster in get_g5k_clusters(queues=queues)] +
                          [get_host_site(host) for host in elements
                           if host in get_g5k_hosts()
                           or get_host_shortname(host) in get_g5k_hosts()]))
@@ -124,7 +126,7 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     planning = {}
     for site in sites:
         planning[site] = {}
-        for cluster in get_site_clusters(site):
+        for cluster in get_site_clusters(site, queues=queues):
             planning[site][cluster] = {}
 
     for site in sites:
@@ -218,7 +220,7 @@ def compute_slots(planning, walltime, excluded_elements=None):
 
             for cluster, cluster_planning in site_planning.iteritems():
 
-                if cluster in get_g5k_clusters():
+                if cluster in get_g5k_clusters(queues=None):
                     free_elements[cluster] = 0
                     for host, host_planning in cluster_planning.iteritems():
                         host_free = False
@@ -287,7 +289,7 @@ def compute_coorm_slots(planning, excluded_elements=None):
             free_cores[site] = 0
             for cluster, cluster_planning in site_planning.iteritems():
                 free_cores[cluster] = 0
-                if cluster in get_g5k_clusters():
+                if cluster in get_g5k_clusters(queues=None):
                     for host, host_planning in cluster_planning.iteritems():
                         for free_slot in host_planning['free']:
                             if free_slot[0] <= start and free_slot[0] < stop:
@@ -360,7 +362,7 @@ def find_free_slot(slots, resources_wanted):
     # We need to add the clusters nodes to the total nodes of a site
     real_wanted = resources_wanted.copy()
     for cluster, n_nodes in resources_wanted.iteritems():
-        if cluster in get_g5k_clusters():
+        if cluster in get_g5k_clusters(queues=None):
             site = get_cluster_site(cluster)
             if site in resources_wanted:
                 real_wanted[site] += n_nodes
@@ -418,7 +420,7 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
         all_host_free = True
         for site_planning in planning.itervalues():
             for cluster, cluster_planning in site_planning.iteritems():
-                if cluster in get_g5k_clusters():
+                if cluster in get_g5k_clusters(queues=None):
                     for host_planning in cluster_planning.itervalues():
                         host_free = False
                         for free_slot in host_planning['free']:
@@ -442,7 +444,7 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
     return jobs_specs
 
 
-def show_resources(resources, msg='Resources', max_resources=None):
+def show_resources(resources, msg='Resources', max_resources=None, queues='default'):
     """Print the resources in a fancy way"""
     if not max_resources:
         max_resources = {}
@@ -457,7 +459,7 @@ def show_resources(resources, msg='Resources', max_resources=None):
                 log += '/' + str(max_resources[site])
             log += ' '
             site_added = True
-        for cluster in get_site_clusters(site):
+        for cluster in get_site_clusters(site, queues=queues):
             if len(list(set(get_site_clusters(site)) & set(resources.keys()))) > 0 \
                     and not site_added:
                 log += style.log_header(site).ljust(20)
@@ -503,7 +505,7 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
     for resource in resources.iterkeys():
         if resource in get_g5k_sites() and resource not in sites:
             sites.append(resource)
-        if resource in get_g5k_clusters():
+        if resource in get_g5k_clusters(queues=None):
             if resource not in excluded_elements:
                 site = get_cluster_site(resource)
                 if site not in sites:
@@ -525,7 +527,7 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
 
     blacklisted_hosts = {}
     for element in excluded_elements:
-        if element not in get_g5k_clusters() + get_g5k_sites():
+        if element not in get_g5k_clusters(queues=None) + get_g5k_sites():
             site = get_host_site(element)
             if not 'site' in blacklisted_hosts:
                 blacklisted_hosts[site] = [element]
@@ -558,7 +560,7 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
         str_clusters = str_hosts if host_blacklist else ''
         cl_blacklist = False
         clusters_nodes = 0
-        for cluster in get_site_clusters(site):
+        for cluster in get_site_clusters(site, queues=None):
             if cluster in resources and resources[cluster] > 0:
                 if str_hosts == '':
                     sub_resources += "{cluster='" + cluster + "'}"
@@ -609,7 +611,7 @@ def distribute_hosts(resources_available, resources_wanted,
     #Defining the cluster you want
     clusters_wanted = {}
     for element, n_nodes in resources_wanted.iteritems():
-        if element in get_g5k_clusters():
+        if element in get_g5k_clusters(queues=None):
             clusters_wanted[element] = n_nodes
     for cluster, n_nodes in clusters_wanted.iteritems():
         nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
@@ -618,7 +620,7 @@ def distribute_hosts(resources_available, resources_wanted,
 
     # Blacklisting clusters
     for element in excluded_elements:
-        if element in get_g5k_clusters() and element in resources_available:
+        if element in get_g5k_clusters(queues=None) and element in resources_available:
             resources_available['grid5000'] -= resources_available[element]
             resources_available[get_cluster_site(element)] -= resources_available[element]
             resources_available[element] = 0
@@ -1014,7 +1016,7 @@ def _set_colors():
     for site in sorted(get_g5k_sites()):
         colors[site] = rgb_colors[i_site]
         i_cluster = 0
-        for cluster in sorted(get_site_clusters(site)):
+        for cluster in sorted(get_site_clusters(site, queues=None)):
             min_index = colors[site].index(min(colors[site]))
             color = [0., 0., 0.]
             for i in range(3):
@@ -1173,7 +1175,7 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
             i_slot += 1
 
         for element, n_nodes in slot[2].iteritems():
-            if element in get_g5k_clusters():
+            if element in get_g5k_clusters(queues=None):
                 if not element in max_nodes:
                     max_nodes[element] = []
                 max_nodes[element].append(n_nodes)
