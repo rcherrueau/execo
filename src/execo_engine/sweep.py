@@ -205,11 +205,35 @@ class ParamSweeper(object):
     used with `execo_engine.engine.Engine` startup option ``-c``
     (continue experiment in a given directory).
 
+    `execo_engine.sweep.ParamSweeper.skip` is intended to be used when
+    you got a combination with
+    `execo_engine.sweep.ParamSweeper.get_next` but the processing of
+    this combination has failed and you don't want to retry it later
+    in the same run of your script.
+
+    But the skipped state is not written to disk, if you relaunch your
+    script later, the previously skipped combinations will again be
+    iterated over.
+
+    The intent is for situations where, for example, some combinations
+    cannot be processed because, for example, there are not enough
+    available resources to process them. You may then want to relaunch
+    your script later (after making sure more resources are available)
+    to process these skipped combinations.
+
+    If there are some combinations that you never want to retry, even
+    in subsequent runs of your script, then mark them as done with
+    `execo_engine.sweep.ParamSweeper.done`.
+
+    If there is a combination that you failed to process but you want
+    to retry it in the current run of your script, mark it as canceled
+    with `execo_engine.sweep.ParamSweeper.cancel`.
+
     State *inprogress* is stored on disk to avoid concurrent processes
     to get the same elements from different ParamSweeper instances (to
     avoid duplicating work). In some cases (for example if a process
     has crashed without marking an element *done* or *skipped* or
-    cancelling it), you may want to reset the *inprogress* state. This
+    canceling it), you may want to reset the *inprogress* state. This
     can be done by removing the file ``inprogress`` in the persistence
     directory (this can even be done while some ParamSweeper are
     instanciated and using it).
@@ -224,12 +248,13 @@ class ParamSweeper(object):
     a huge number of elements to iterate on (and accordingly, the list
     of done elements will grow huge too), and that the number of
     inprogress elements will stay reasonably low. The whole iterable
-    of elements is (optionnaly) written to disk only once, at
+    of elements is (optionally) written to disk only once, at
     ParamSweeper construction. The set of done elements can only grow
     and is incrementaly appended. The set of inprogress elements is
     fully read from and written to disk at each operation, thus this
     may become a bottleneck to ParamSweeper performance if the set of
     inprogress elements is big.
+
     """
 
     def __init__(self, persistence_dir, sweeps = None, save_sweeps = False, name = None):
