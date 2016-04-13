@@ -303,7 +303,7 @@ if psycopg2:
         :param day: a `datetime.date`
 
         :returns: a dict, keys are cluster names, value is remaining
-          time for each cluster (in seconds)
+          time for each cluster (in seconds * core)
         """
         remaining = {}
         threads = {}
