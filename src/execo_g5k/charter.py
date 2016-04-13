@@ -296,7 +296,7 @@ if psycopg2:
 
         Grid5000 usage charter:
         https://www.grid5000.fr/mediawiki/index.php/Grid5000:UserCharter
-        This function is only available if MySQLdb is available.
+        This function is only available if psycopg2 is available.
 
         :param sites: a list of grid5000 sites
 
