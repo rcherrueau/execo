@@ -174,7 +174,7 @@ def get_next_charter_period(start, end):
         return oar_datetime_to_unixts(charter_start), datetime_to_unixts(min(end, charter_end))
 
 def _job_intersect_charter_period(job):
-    return (get_next_charter_period(job['start_time'], job['stop_time']) != (None, None))
+    return (get_next_charter_period(job[7], job[8]) != (None, None))
 
 if psycopg2:
 
