@@ -51,7 +51,10 @@ import threading
 from os import makedirs, environ, path
 from cPickle import load, dump
 
-_cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
+if environ.has_key('HOME'):
+    _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
+else:
+    _cache_dir = None
 _data_lock = threading.RLock()
 _data = None
 
@@ -210,13 +213,17 @@ def get_api_data(cache_dir=_cache_dir):
     global _data
     if not _data:
         with _data_lock:
-            if _is_cache_old_and_reachable(cache_dir):
-                _data = _write_api_cache(cache_dir)
+            if cache_dir:
+                if _is_cache_old_and_reachable(cache_dir):
+                    _data = _get_api()
+                    _write_api_cache(cache_dir, _data)
+                else:
+                    _data = _read_api_cache(cache_dir)
             else:
-                _data = _read_api_cache(cache_dir)
+                _data = _get_api()
     return _data
 
-def _is_cache_old_and_reachable(cache_dir=_cache_dir):
+def _is_cache_old_and_reachable(cache_dir):
     """Try to read the api_commit stored in the cache_dir and compare
     it with latest commit, return True if remote commit is different
     from cache commit"""
@@ -291,15 +298,8 @@ def __get_site(site):
         threading.currentThread().cluster_data[cluster] = cluster_attrs_th[cluster].cluster_data
         threading.currentThread().host_data[cluster] = host_attrs_th[cluster].host_data
 
-def _write_api_cache(cache_dir=_cache_dir):
-    """Retrieve data from the Grid'5000 API and write it into
-    the cache directory"""
-    if not path.exists(cache_dir):
-        makedirs(cache_dir)
-        logger.detail('No cache found, directory created')
-    else:
-        logger.detail('Cache directory is present')
-
+def _get_api():
+    """Retrieve data from the Grid'5000 API"""
     logger.info('Retrieving data from API...')
 
     backbone_th = threading.Thread(target = __get_backbone)
@@ -331,20 +331,24 @@ def _write_api_cache(cache_dir=_cache_dir):
                 data['hosts'][host] = site_th[site].host_data[cluster][host]
                 data['hierarchy'][site][cluster].append(host)
 
-    logger.detail('Writing data to cache ...')
-    for e, d in data.iteritems():
-        f = open(cache_dir + e, 'w')
-        dump(d, f)
-        f.close()
-
-    f = open(cache_dir + 'api_commit', 'w')
-    f.write(data['network']['backbone'][0]['version'])
-    f.close()
-
     return data
 
+def _write_api_cache(cache_dir, data):
+    """write Grid'5000 API data into cache directory"""
+    if not path.exists(cache_dir):
+        makedirs(cache_dir)
+        logger.detail('No cache found, directory created')
+    else:
+        logger.detail('Cache directory is present')
 
-def _read_api_cache(cache_dir=_cache_dir):
+    logger.detail('Writing data to cache ...')
+    for e, d in data.iteritems():
+        with open(cache_dir + e, 'w') as f:
+            dump(d, f)
+    with open(cache_dir + 'api_commit', 'w') as f:
+        f.write(data['network']['backbone'][0]['version'])
+
+def _read_api_cache(cache_dir):
     """Read the picke files from cache_dir and return two dicts
     - network = the network_equipements of all sites and backbone
     - hosts = the hosts of all sites

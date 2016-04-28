@@ -119,8 +119,10 @@ def make_default_frontend_connection_params():
 default_frontend_connection_params = make_default_frontend_connection_params()
 """Default connection params when connecting to a Grid5000 frontend."""
 
-load_configuration(
-  get_user_config_filename(),
-  ((g5k_configuration, 'g5k_configuration'),
-   (default_frontend_connection_params, 'default_frontend_connection_params'),
-   (default_oarsh_oarcp_params, 'default_oarsh_oarcp_params')))
+__cf = get_user_config_filename()
+if __cf:
+    load_configuration(
+        __cf,
+        ((g5k_configuration, 'g5k_configuration'),
+         (default_frontend_connection_params, 'default_frontend_connection_params'),
+         (default_oarsh_oarcp_params, 'default_oarsh_oarcp_params')))

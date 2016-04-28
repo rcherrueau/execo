@@ -258,7 +258,9 @@ def get_user_config_filename():
         _user_conf_file = os.environ['HOME'] + '/.execo.conf.py'
     return _user_conf_file
 
-load_configuration(
-  get_user_config_filename(),
-  ((configuration, 'configuration'),
-   (default_connection_params, 'default_connection_params')))
+__cf = get_user_config_filename()
+if __cf:
+    load_configuration(
+        __cf,
+        ((configuration, 'configuration'),
+         (default_connection_params, 'default_connection_params')))
