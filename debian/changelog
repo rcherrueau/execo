@@ -1,3 +1,19 @@
+python-execo (2.5.4) unstable; urgency=low
+
+  * new upstream release:
+
+    - execo_g5k.topology: fix wrong log template causing crash, log messages, documentation
+
+    - execo_g5k.planning: handle oar queues in planning
+
+    - execo_g5k.charter: fix bad sql results indexing causing crash
+
+    - make execo / execo_g5k runnable with void environment (no $HOME)
+
+    - execo.process: important optimization: bypass heavy string processing of iodebug logger when possible
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Tue, 3 May 2016 17:00:00 +0200
+
 python-execo (2.5.3) unstable; urgency=low
 
   * new upstream release:
