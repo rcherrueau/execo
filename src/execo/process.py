@@ -17,7 +17,7 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from conductor import the_conductor
-from config import configuration
+from config import configuration, IODEBUG
 from execo.config import make_connection_params
 from execo.host import Host
 from log import style, logger
@@ -649,7 +649,8 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        _debugio_handler.read(self, STDOUT, string, eof, error)
+        if logger.getEffectiveLevel() <= IODEBUG:
+            _debugio_handler.read(self, STDOUT, string, eof, error)
         if self.default_stdout_handler:
             self.stdout += string
         if error == True:
@@ -670,7 +671,8 @@ class ProcessBase(object):
 
         :param error: True if error on stream
         """
-        _debugio_handler.read(self, STDERR, string, eof, error)
+        if logger.getEffectiveLevel() <= IODEBUG:
+            _debugio_handler.read(self, STDERR, string, eof, error)
         if self.default_stderr_handler:
             self.stderr += string
         if error == True:
