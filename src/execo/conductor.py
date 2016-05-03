@@ -311,6 +311,8 @@ class _Conductor(object):
         # detect this closing and self stop
         logger.debug("terminating I/O thread of %s", self)
         os.close(self.__wpipe)
+        self.__io_thread.join()
+        logger.debug("I/O thread of %s terminated", self)
 
     def start_process(self, process):
         """Register a new `execo.process.Process` to be started and handled by the conductor.
@@ -542,9 +544,16 @@ class _Conductor(object):
                     func(*args)
                 self.__update_terminated_processes()
                 self.condition.notifyAll()
+        logger.debug("conductor exiting I/O loop")
         self.__poller.unregister(self.__rpipe)
-        os.close(self.__rpipe)
-        os.close(self.__wpipe)
+        try:
+            os.close(self.__rpipe)
+        except:
+            pass
+        try:
+            os.close(self.__wpipe)
+        except:
+            pass
 
     def __reaper_thread_func(self):
         # run func for the reaper thread, whose role is to wait to be
