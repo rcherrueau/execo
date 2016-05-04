@@ -222,6 +222,7 @@ Other
 .. autofunction:: group_hosts
 .. autofunction:: canonical_host_name
 .. autofunction:: filter_clusters
+.. autofunction:: get_hosts_metric
 
 
 Planning utilities

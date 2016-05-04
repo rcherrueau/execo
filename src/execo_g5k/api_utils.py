@@ -619,3 +619,35 @@ def get_host_longname(host):
     else:
         host_site = get_host_site(host_shortname)
     return host_shortname + "." + host_site + ".grid5000.fr"
+
+def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None):
+    """Get metric values from Grid'5000 metrology API
+
+    :param hosts: List of hosts
+
+    :param metric: Grid'5000 metrology metric to fetch (eg: "power",
+      "cpu_user")
+
+    :param from_ts: Time from which metric is collected (as a unix
+      timestamp, optional)
+
+    :param to_ts: Time until which metric is collected (as a unix
+      timestamp, optional)
+
+    :return: A dict of host -> List of (timestamp, metric value)
+      retrieved from API
+    """
+    grouped_hosts = group_hosts(hosts)
+    res = {}
+    for site in grouped_hosts.keys():
+        hosts_site = [ h for cluster in grouped_hosts[site].values() for h in cluster ]
+        path = "sites/%s/metrics/%s/timeseries?resolution=1&only=%s%s%s" \
+               % (site, metric,
+                  ','.join([ get_host_shortname(host) for host in hosts_site ]),
+                  '&from=' + str(int(from_ts)) if from_ts else '',
+                  '&to=' + str(int(to_ts)) if to_ts else '')
+        for apires in get_resource_attributes(path)['items']:
+            res["%s.%s.grid5000.fr" % (apires['uid'], site)] = [
+                (apires['from']+apires['resolution']*i, apires['values'][i])
+                for i in range(len(apires['values']))]
+    return res
