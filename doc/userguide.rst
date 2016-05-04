@@ -183,7 +183,7 @@ sender, then wait for *process_B* termination, then kill
 
  from execo import *
  with SshProcess("nc -l -p 6543", "<host1>").start() as receiver:
-   receiver.expect("^[Ll]istening on", timeout=10)
+   sleep(1)
    sender = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>").run()
  receiver.wait()
  print receiver.stdout
@@ -213,8 +213,8 @@ This example also illustrates *method chaining*:
   the result can be affected to the sender variable because run()
   returns the object itself.
 
-In this example, We sleep for 1 second after starting the servers to
-make sure that they are ready to receive incoming connections (without
+In this example, We sleep for 1 second after starting the server to
+make sure that it is ready to receive incoming connections (without
 this sleep, it may work, perhaps most of the time, because netcat is
 fast, but we can't be sure). A better way to make sure the server is
 ready is to scan its verbose output (we add option ``-v`` to netcat
@@ -230,7 +230,8 @@ receiver)::
 Of course, this kind of code only works if you are sure that the
 version of netcat which is installed on ``<host1>`` is the one you
 expect, which outputs the string ``listening on ...`` on its standard
-output when in verbose mode and when its socket is listening.
+output when in verbose mode and when its socket is listening (on
+debian, you need nc.traditional)
 
 Interaction with processes: writing to a process stdin, expecting from a process stdout, on a remote serial port over ssh
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
