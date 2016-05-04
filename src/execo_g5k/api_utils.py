@@ -48,6 +48,7 @@ import execo
 import httplib2
 import json, re, itertools
 import threading
+import logging
 from os import makedirs, environ, path
 from cPickle import load, dump
 
@@ -87,6 +88,7 @@ def _get_api_password(username):
     with _api_password_lock:
         if not __api_passwords.get(username):
             try:
+                logging.getLogger("keyring").addHandler(logging.NullHandler())
                 import keyring
                 __api_passwords[username] = keyring.get_password("grid5000_api", username)
             except:
