@@ -88,13 +88,11 @@ class ProcessOutputHandler(object):
         if not k in self._buffer:
             self._buffer[k] = ""
         self._buffer[k] += string
-        while True:
-            (line, sep, remaining) = self._buffer[k].partition('\n')
-            if sep != '':
-                self.read_line(process, stream, line + sep, False, False)
-                self._buffer[k] = remaining
-            else:
-                break
+        lines = self._buffer[k].splitlines(True)
+        if len(lines) > 2:
+            for line in lines[:-1]:
+                self.read_line(process, stream, line, False, False)
+            self._buffer[k] = lines[-1]
         if eof or error:
             self.read_line(process, stream, self._buffer[k], eof, error)
             del self._buffer[k]
