@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import configuration, FDEBUG, IODEBUG, TRACE, DETAIL
+from .config import configuration, FDEBUG, IODEBUG, TRACE, DETAIL
 import logging, sys, functools, os
 
 _ansi_styles = {

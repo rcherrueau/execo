@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from utils import comma_join
-from log import style
+from .utils import comma_join
+from .log import style
 
 class Host(object):
 

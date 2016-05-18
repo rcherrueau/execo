@@ -18,7 +18,7 @@
 
 import threading, os, fcntl, math
 import cPickle as pickle
-from log import logger
+from .log import logger
 
 def geom(range_min, range_max, num_steps):
     """Return a geometric progression from range_min to range_max with num_steps"""

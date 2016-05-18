@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import g5k_configuration
+from .config import g5k_configuration
 from execo.action import Remote, ActionNotificationProcessLH, \
     Action, get_remote
 from execo.config import make_connection_params
@@ -28,7 +28,7 @@ from execo.time_utils import format_seconds
 from execo.utils import comma_join, compact_output, singleton_to_collection
 from execo_g5k.config import default_frontend_connection_params
 from execo_g5k.utils import get_frontend_host, get_kavlan_host_name
-from utils import get_default_frontend
+from .utils import get_default_frontend
 import copy
 import re
 import time

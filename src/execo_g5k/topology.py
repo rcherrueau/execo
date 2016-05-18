@@ -28,8 +28,8 @@ All information comes from the Grid'5000 reference API.
 from time import time
 from execo import logger, Host
 from execo.log import style
-from oar import format_date
-from api_utils import get_g5k_sites, get_host_site, \
+from .oar import format_date
+from .api_utils import get_g5k_sites, get_host_site, \
     get_host_cluster, get_g5k_clusters, get_cluster_hosts, \
     get_site_clusters, get_api_data, get_g5k_hosts, \
     get_network_equipment_attributes, get_host_shortname

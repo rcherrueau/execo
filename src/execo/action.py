@@ -19,18 +19,18 @@
 from execo.config import make_connection_params, configuration, SSH, TAKTUK, SCP, CHAINPUT
 from execo.host import Host
 from execo.process import get_process, STDOUT, STDERR, ExpectOutputHandler
-from host import get_hosts_list, get_unique_hosts_list
-from log import style, logger
-from process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
+from .host import get_hosts_list, get_unique_hosts_list
+from .log import style, logger
+from .process import ProcessLifecycleHandler, SshProcess, ProcessOutputHandler, \
     TaktukProcess, Process, SerialSsh
-from report import Report
-from ssh_utils import get_rewritten_host_address, get_scp_command, \
+from .report import Report
+from .ssh_utils import get_rewritten_host_address, get_scp_command, \
     get_taktuk_connector_command, get_ssh_command
-from utils import name_from_cmdline, non_retrying_intr_cond_wait, intr_event_wait, get_port, \
+from .utils import name_from_cmdline, non_retrying_intr_cond_wait, intr_event_wait, get_port, \
     singleton_to_collection
 from traceback import format_exc
-from substitutions import get_caller_context, remote_substitute
-from time_utils import get_seconds, format_date, Timer
+from .substitutions import get_caller_context, remote_substitute
+from .time_utils import get_seconds, format_date, Timer
 import threading, time, pipes, tempfile, os, shutil, stat
 
 class ActionLifecycleHandler(object):

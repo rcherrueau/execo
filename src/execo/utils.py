@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import configuration
+from .config import configuration
 import pipes, subprocess, os, time, sys, traceback, re, functools, threading, random
 
 def comma_join(*args):

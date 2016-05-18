@@ -21,25 +21,25 @@
 Handles remote executions and file copies with ssh or similar tools.
 """
 
-from log import logger
-from config import configuration, default_connection_params, \
+from .log import logger
+from .config import configuration, default_connection_params, \
   SSH, TAKTUK, SCP, CHAINPUT
-from time_utils import sleep, Timer, format_date, format_duration, \
+from .time_utils import sleep, Timer, format_date, format_duration, \
   get_seconds, get_unixts
-from host import Host
-from process import Process, SshProcess, get_process, \
+from .host import Host
+from .process import Process, SshProcess, get_process, \
      ProcessLifecycleHandler, ProcessOutputHandler, \
      PortForwarder, Serial, SerialSsh, STDOUT, STDERR, \
      ExpectOutputHandler
-from action import Action, wait_any_actions, wait_all_actions, \
+from .action import Action, wait_any_actions, wait_all_actions, \
   Remote, Put, Get, TaktukRemote, TaktukPut, TaktukGet, Local, \
   ParallelActions, SequentialActions, default_action_factory, \
   get_remote, get_fileput, get_fileget, \
   ActionLifecycleHandler, ChainPut, filter_bad_hosts, \
   RemoteSerial
-from report import Report
-from exception import ProcessesFailed, ActionsFailed
+from .report import Report
+from .exception import ProcessesFailed, ActionsFailed
 try:
-    from _version import __version__
+    from ._version import __version__
 except:
     pass

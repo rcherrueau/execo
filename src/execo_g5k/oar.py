@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from config import g5k_configuration
+from .config import g5k_configuration
 from execo.config import make_connection_params
 from execo.exception import ProcessesFailed
 from execo.host import Host

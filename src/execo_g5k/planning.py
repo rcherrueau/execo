@@ -18,7 +18,7 @@
 """Module provides functions to help you to plan your experiment on Grid'5000.
 """
 
-from charter import g5k_charter_time, get_next_charter_period
+from .charter import g5k_charter_time, get_next_charter_period
 from copy import deepcopy
 from datetime import timedelta
 from execo import logger, Host

@@ -16,18 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from conductor import the_conductor
-from config import configuration, IODEBUG
+from .conductor import the_conductor
+from .config import configuration, IODEBUG
 from execo.config import make_connection_params
 from execo.host import Host
-from log import style, logger
+from .log import style, logger
 from pty import openpty
-from ssh_utils import get_ssh_command, get_rewritten_host_address
-from time_utils import format_unixts, get_seconds, Timer
-from utils import compact_output, name_from_cmdline, non_retrying_intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
+from .ssh_utils import get_ssh_command, get_rewritten_host_address
+from .time_utils import format_unixts, get_seconds, Timer
+from .utils import compact_output, name_from_cmdline, non_retrying_intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
 from traceback import format_exc
-from report import Report
-from exception import ProcessesFailed
+from .report import Report
+from .exception import ProcessesFailed
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes
 

@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from log import logger
+from .log import logger
 import optparse, os, sys, time, inspect, pipes
-from utils import redirect_outputs, copy_outputs
+from .utils import redirect_outputs, copy_outputs
 
 _engineargs = sys.argv[1:]
 

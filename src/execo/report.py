@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from log import style
-from time_utils import format_date, format_duration
+from .log import style
+from .time_utils import format_date, format_duration
 import sys
 
 #def sort_reports(reports):

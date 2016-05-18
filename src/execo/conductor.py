@@ -16,10 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from log import style, logger, logger_handler
-from time_utils import format_unixts
-from utils import compact_output
-from config import configuration
+from .log import style, logger, logger_handler
+from .time_utils import format_unixts
+from .utils import compact_output
+from .config import configuration
 import Queue, errno, fcntl, logging, os, select, \
   signal, sys, thread, threading, time, traceback, \
   subprocess, resource, heapq

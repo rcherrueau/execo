@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from log import logger
+from .log import logger
 import datetime, calendar, time, re
 
 def timedelta_to_seconds(td):
