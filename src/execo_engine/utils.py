@@ -21,7 +21,7 @@ import os, unicodedata, re, sys, ctypes, signal
 
 def _redirect_fd(fileno, filename):
     # create and open file filename, and redirect open file fileno to it
-    f = os.open(filename, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0644)
+    f = os.open(filename, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o644)
     os.dup2(f, fileno)
     os.close(f)
 
