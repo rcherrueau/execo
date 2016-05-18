@@ -503,7 +503,7 @@ class Remote(Action):
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": name_from_cmdline(self.cmd)})
         super(Remote, self).__init__(**kwargs)
         self.connection_params = connection_params
@@ -775,7 +775,7 @@ class TaktukRemote(Action):
         self.cmd = cmd
         """The command to run remotely. substitions described in
         `execo.substitutions.remote_substitute` will be performed."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": name_from_cmdline(self.cmd)})
         super(TaktukRemote, self).__init__(**kwargs)
         self.connection_params = connection_params
@@ -959,7 +959,7 @@ class Put(Remote):
         """
         self.hosts = hosts
         """Iterable of `execo.host.Host` onto which to copy the files."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
         super(Remote, self).__init__(**kwargs)
         self.local_files = local_files
@@ -1026,7 +1026,7 @@ class Get(Remote):
         """
         self.hosts = hosts
         """Iterable of `execo.host.Host` from which to get the files."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))})
         super(Remote, self).__init__(**kwargs)
         self.remote_files = remote_files
@@ -1169,7 +1169,7 @@ class TaktukPut(TaktukRemote):
         """
         self.hosts = hosts
         """Iterable of `execo.host.Host` onto which to copy the files."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
         super(TaktukRemote, self).__init__(**kwargs)
         self.local_files = local_files
@@ -1322,7 +1322,7 @@ class TaktukGet(TaktukRemote):
         """
         self.hosts = hosts
         """Iterable of `execo.host.Host` from which to get the files."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s from %i hosts" % (self.__class__.__name__, len(self.hosts))})
         super(TaktukRemote, self).__init__(**kwargs)
         self.remote_files = remote_files
@@ -1389,7 +1389,7 @@ class Local(Action):
         """
         self.cmd = cmd
         """the command to run"""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": name_from_cmdline(self.cmd)})
         super(Local, self).__init__(**kwargs)
         if process_args != None:
@@ -1450,7 +1450,7 @@ class ParallelActions(Action):
 
     def __init__(self, actions, **kwargs):
         self.actions = actions
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s %i actions" % (self.__class__.__name__, len(self.actions))})
         super(ParallelActions, self).__init__(**kwargs)
         self.hide_subactions = False
@@ -1542,7 +1542,7 @@ class SequentialActions(Action):
 
     def __init__(self, actions, **kwargs):
         self.actions = actions
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s %i actions" % (self.__class__.__name__, len(self.actions))})
         super(SequentialActions, self).__init__(**kwargs)
         self.hide_subactions = False
@@ -1712,7 +1712,7 @@ class ChainPut(SequentialActions):
         self.local_files = local_files
         self.remote_location = remote_location
         self.connection_params = connection_params
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
         super(ChainPut, self).__init__([], **kwargs)
         self.hide_subactions = True
@@ -1832,7 +1832,7 @@ class RemoteSerial(Remote):
         """
         self.hosts = hosts
         """Iterable of `execo.host.Host` to which to connect and run the command."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": "%s to %i hosts" % (self.__class__.__name__, len(self.hosts))})
         super(Remote, self).__init__(**kwargs)
         self.connection_params = connection_params

@@ -236,7 +236,7 @@ class Kadeployer(Remote):
         frontends = dict()
         for host in self._unique_hosts:
             frontend = _get_host_frontend(host)
-            if frontends.has_key(frontend):
+            if frontend in frontends:
                 frontends[frontend].append(host)
             else:
                 frontends[frontend] = [host]

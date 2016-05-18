@@ -672,9 +672,9 @@ def sweep_stats(stats):
         counts = dict()
         for comb in combs:
             for k in comb:
-                if not counts.has_key(k):
+                if k not in counts:
                     counts[k] = dict()
-                if not counts[k].has_key(comb[k]):
+                if comb[k] not in counts[k]:
                     counts[k][comb[k]] = 0
                 counts[k][comb[k]] += 1
         return counts
@@ -699,22 +699,22 @@ def sweep_stats(stats):
         inprogress_ratio[k1] = dict()
         done_ratio[k1] = dict()
         for k2 in ctotal[k1]:
-            if cremaining.has_key(k1) and cremaining[k1].has_key(k2):
+            if k1 in cremaining and k2 in cremaining[k1]:
                 r = cremaining[k1][k2]
             else:
                 r = 0
             remaining_ratio[k1][k2] = float(r) / float(ctotal[k1][k2])
-            if cskipped.has_key(k1) and cskipped[k1].has_key(k2):
+            if k1 in cskipped and k2 in cskipped[k1]:
                 s = cskipped[k1][k2]
             else:
                 s = 0
             skipped_ratio[k1][k2] = float(s) / float(ctotal[k1][k2])
-            if cinprogress.has_key(k1) and cinprogress[k1].has_key(k2):
+            if k1 in cinprogress and k2 in cinprogress[k1]:
                 i = cinprogress[k1][k2]
             else:
                 i = 0
             inprogress_ratio[k1][k2] = float(i) / float(ctotal[k1][k2])
-            if cdone.has_key(k1) and cdone[k1].has_key(k2):
+            if k1 in cdone and k2 in cdone[k1]:
                 d = cdone[k1][k2]
             else:
                 d = 0

@@ -52,7 +52,7 @@ def _tee_fd(fileno, filename):
     if pid == 0:
         os.dup2(pr, 0)
         os.dup2(fileno, 1)
-        if (os.sysconf_names.has_key("SC_OPEN_MAX")):
+        if ("SC_OPEN_MAX" in os.sysconf_names):
             maxfd = os.sysconf("SC_OPEN_MAX")
         else:
             maxfd = MAXFD

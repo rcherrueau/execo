@@ -249,12 +249,12 @@ def load_configuration(filename, dicts_confs):
             print "ERROR while reading config file %s:" % (filename,)
             print exc
         for (dictio, conf) in dicts_confs:
-            if jailed_globals.has_key(conf):
+            if conf in jailed_globals:
                 dictio.update(jailed_globals[conf])
 
 def get_user_config_filename():
     _user_conf_file = None
-    if os.environ.has_key('HOME'):
+    if 'HOME' in os.environ:
         _user_conf_file = os.environ['HOME'] + '/.execo.conf.py'
     return _user_conf_file
 

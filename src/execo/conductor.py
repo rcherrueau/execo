@@ -58,7 +58,7 @@ if sys.platform.startswith('darwin') or sys.platform.startswith('win'):
     POLLNVAL=32
 
     def dict_item_and(dic, item, field):
-        if dic.has_key(item):
+        if item in dic:
             dic[item] |= field
         else:
             dic[item] = field
@@ -278,7 +278,7 @@ class _Conductor(object):
             os.umask(0)
             maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
             if (maxfd == resource.RLIM_INFINITY):
-                if (os.sysconf_names.has_key("SC_OPEN_MAX")):
+                if ("SC_OPEN_MAX" in os.sysconf_names):
                     maxfd = maxfd = os.sysconf("SC_OPEN_MAX")
                 else:
                     maxfd = DEFAULT_MAXFD
@@ -398,7 +398,7 @@ class _Conductor(object):
         fileno_stdout = process.stdout_fd
         fileno_stderr = process.stderr_fd
         last_bytes = ""
-        if self.__fds.has_key(fileno_stdout):
+        if fileno_stdout in self.__fds:
             del self.__fds[fileno_stdout]
             self.__poller.unregister(fileno_stdout)
             # read the last data that may be available on stdout of
@@ -410,7 +410,7 @@ class _Conductor(object):
                 else: raise e
         process._handle_stdout(last_bytes, True, False)
         last_bytes = ""
-        if self.__fds.has_key(fileno_stderr):
+        if fileno_stderr in self.__fds:
             del self.__fds[fileno_stderr]
             self.__poller.unregister(fileno_stderr)
             # read the last data that may be available on stderr of
@@ -506,7 +506,7 @@ class _Conductor(object):
                 if fd == self.__rpipe:
                     event_on_rpipe = event
                 else:
-                    if self.__fds.has_key(fd):
+                    if fd in self.__fds:
                         process, stream_handler_func = self.__fds[fd]
                         logger.fdebug("event %s on fd %s, process %s", _event_desc(event), fd, str(process))
                         if event & POLLIN:

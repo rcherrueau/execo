@@ -237,7 +237,7 @@ class g5k_graph(nx.MultiGraph):
             self.add_node(src, kind='renater')
             for lc in equip['linecards']:
                 for port in lc['ports']:
-                    if port.has_key('uid') and 'renater-' in port['uid']:
+                    if 'uid' in port and 'renater-' in port['uid']:
                         bandwidth = lc['rate'] if 'rate' not in port else port['rate']
                         latency = port['latency'] if 'latency' in port \
                             else arbitrary_latency
@@ -538,7 +538,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                                    edge_color=params['color'] if 'color' in params
                                    else _default_color)
     edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
-             if edge[2]['bandwidth'] not in _edges_legend.keys()]
+             if edge[2]['bandwidth'] not in _edges_legend]
 
     nx.draw_networkx_edges(gr, pos, edgelist=edges,
                            width=_edges_legend['default']['width'],

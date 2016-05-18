@@ -1336,7 +1336,7 @@ class SshProcess(Process):
         `execo_g5k.config.default_oarsh_oarcp_params` to set pty to
         True, because oarsh/oarcp are run sudo which forbids to send
         signals)."""
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": name_from_cmdline(self.remote_cmd)})
         super(SshProcess, self).__init__(real_cmd, **kwargs)
         self.host = host
@@ -1366,7 +1366,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
 
     def __init__(self, cmd, host, **kwargs):
         self.remote_cmd = cmd
-        if not kwargs.has_key("name"):
+        if "name" not in kwargs:
             kwargs.update({"name": name_from_cmdline(self.remote_cmd)})
         super(TaktukProcess, self).__init__(cmd, **kwargs)
         self.host = Host(host)

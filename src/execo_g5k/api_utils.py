@@ -52,7 +52,7 @@ import logging
 from os import makedirs, environ, path
 from cPickle import load, dump
 
-if environ.has_key('HOME'):
+if 'HOME' in environ:
     _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
 else:
     _cache_dir = None

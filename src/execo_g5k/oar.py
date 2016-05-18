@@ -442,7 +442,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
     if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
-        if os.environ.has_key('OAR_JOB_ID'):
+        if 'OAR_JOB_ID' in os.environ:
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")
@@ -525,18 +525,18 @@ def wait_oar_job_start(oar_job_id = None, frontend = None,
                                  countdown.remaining(), nolog_exit_code = True,
                                  nolog_timeout = True, nolog_error = True)
         now = time.time()
-        if infos.has_key('start_date') or infos.has_key('scheduled_start'):
-            if infos.has_key('start_date'):
+        if 'start_date' in infos or 'scheduled_start' in infos:
+            if 'start_date' in infos:
                 new_prediction = infos['start_date']
-            elif infos.has_key('scheduled_start'):
+            elif 'scheduled_start' in infos:
                 new_prediction = infos['scheduled_start']
             prediction = check_prediction_changed(prediction, new_prediction)
-        if infos.has_key('state'):
+        if 'state' in infos:
             if infos['state'] == "Terminated" or infos['state'] == "Error":
                 return False
             if infos['state'] == "Running":
                 return True
-        if infos.has_key('start_date') or infos.has_key('scheduled_start'):
+        if 'start_date' in infos or 'scheduled_start' in infos:
             if now >= new_prediction:
                 sleep(checked_min(g5k_configuration.get('tiny_polling_interval'), countdown.remaining()))
                 continue
@@ -571,7 +571,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
     if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
-        if os.environ.has_key('OAR_JOB_ID'):
+        if 'OAR_JOB_ID' in os.environ:
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")
@@ -614,7 +614,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_
     if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
-        if os.environ.has_key('OAR_JOB_ID'):
+        if 'OAR_JOB_ID' in os.environ:
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")
@@ -680,7 +680,7 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_p
     if isinstance(timeout, bool) and timeout == False:
         timeout = g5k_configuration.get('default_timeout')
     if oar_job_id == None:
-        if os.environ.has_key('OAR_JOB_ID'):
+        if 'OAR_JOB_ID' in os.environ:
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
             raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")

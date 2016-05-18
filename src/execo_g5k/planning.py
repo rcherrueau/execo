@@ -641,7 +641,7 @@ def distribute_hosts(resources_available, resources_wanted,
 
     #Distributing hosts on grid5000 elements
     logger.debug(pformat(resources_wanted))
-    if resources_wanted.has_key('grid5000'):
+    if 'grid5000' in resources_wanted:
         g5k_nodes = resources_wanted['grid5000'] if resources_wanted['grid5000'] > 0 else resources_available['grid5000']
 
         total_nodes = 0
@@ -663,7 +663,7 @@ def distribute_hosts(resources_available, resources_wanted,
                 total_nodes += 1
     logger.debug(pformat(resources))
 
-    if resources_wanted.has_key('kavlan'):
+    if 'kavlan' in resources_wanted:
         resources['kavlan'] = resources_available['kavlan']
 
     # apply optional ratio
@@ -682,9 +682,9 @@ def _get_vlans_API(site):
     equips = get_resource_attributes('/sites/'+site+'/network_equipments/')
     vlans = []
     for equip in equips['items']:
-        if equip.has_key('vlans') and len(equip['vlans']) >2:
+        if 'vlans' in equip and len(equip['vlans']) >2:
             for params in equip['vlans'].itervalues():
-                if type( params ) == type({}) and params.has_key('name') \
+                if type( params ) == type({}) and 'name' in params \
                         and int(params['name'].split('-')[1])>3:
                     # > 3 because vlans 1, 2, 3 are not routed
                     vlans.append(params['name'])
@@ -705,9 +705,9 @@ def _get_site_planning_API(site, site_planning, ignore_besteffort):
 
         for host in alive_nodes:
             host_cluster = get_host_cluster(str(host))
-            if site_planning.has_key(host_cluster):
+            if host_cluster in site_planning:
                 site_planning[host_cluster].update({host: {'busy': [], 'free': []}})
-        if site_planning.has_key('vlans'):
+        if 'vlans' in site_planning:
             site_planning['vlans'] = {}
             for vlan in _get_vlans_API(site):
                 site_planning['vlans'][vlan] = {'busy': [], 'free': []}
@@ -739,16 +739,16 @@ def _get_site_planning_API(site, site_planning, ignore_besteffort):
             nodes = attr['assigned_nodes']
             for node in nodes:
                 cluster = node.split('.',1)[0].split('-')[0]
-                if site_planning.has_key(cluster) and site_planning[cluster].has_key(node):
+                if cluster in site_planning and node in site_planning[cluster]:
                     site_planning[cluster][node]['busy'].append( (start_time, end_time))
-            if site_planning.has_key('vlans') and attr['resources_by_type'].has_key('vlans') \
+            if 'vlans' in site_planning and 'vlans' in attr['resources_by_type'] \
                 and int(attr['resources_by_type']['vlans'][0]) > 3:
 
                 kavname ='kavlan-'+str(attr['resources_by_type']['vlans'][0])
                 site_planning['vlans'][kavname]['busy'].append( (start_time, end_time))
-            if site_planning.has_key('subnets') and attr['resources_by_type'].has_key('subnets'):
+            if 'subnets' in site_planning and 'subnets' in attr['resources_by_type']:
                 for subnet in attr['resources_by_type']['subnets']:
-                    if not site_planning['subnets'].has_key(subnet):
+                    if subnet not in site_planning['subnets']:
                         site_planning['subnets'][subnet] = {'busy': [], 'free': []}
                     site_planning['subnets'][subnet]['busy'].append( (start_time, end_time))
             # STORAGE IS MISSING
