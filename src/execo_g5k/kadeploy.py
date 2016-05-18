@@ -64,12 +64,12 @@ class Deployment(object):
         cmd_line = g5k_configuration.get('kadeploy3')
         cmd_line += " " + g5k_configuration.get('kadeploy3_options')
         if self.env_file and self.env_name:
-            raise ValueError, "Deployment cannot have both env_file and env_name"
+            raise ValueError("Deployment cannot have both env_file and env_name")
         if (not self.env_file) and (not self.env_name):
             if g5k_configuration.get('default_env_name') and g5k_configuration.get('default_env_file'):
-                raise Exception, "g5k_configuration cannot have both default_env_name and default_env_file"
+                raise Exception("g5k_configuration cannot have both default_env_name and default_env_file")
             if (not g5k_configuration.get('default_env_name')) and (not g5k_configuration.get('default_env_file')):
-                raise Exception, "no environment name or file found"
+                raise Exception("no environment name or file found")
             if g5k_configuration.get('default_env_name'):
                 cmd_line += " -e %s" % (g5k_configuration['default_env_name'],)
             elif g5k_configuration.get('default_env_file'):
@@ -170,7 +170,7 @@ def _get_host_frontend(host):
             if mo3 != None:
                 frontend = get_default_frontend()
             else:
-                raise ValueError, "unknown frontend for host %s" % host.address
+                raise ValueError("unknown frontend for host %s" % host.address)
     return frontend
 
 class FrontendPrefixWrapper(ProcessOutputHandler):

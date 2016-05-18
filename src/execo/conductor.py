@@ -139,7 +139,7 @@ def _checked_waitpid(pid, options):
     while True:
         try:
             return os.waitpid(pid, options)
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.ECHILD:
                 return 0, 0
             elif e.errno == errno.EINTR:
@@ -160,7 +160,7 @@ def _read_asmuch(fileno):
     while True:
         try:
             tmpstring = os.read(fileno, _MAXREAD)
-        except OSError, err:
+        except OSError as err:
             if err.errno == errno.EAGAIN:
                 break
             else:
@@ -392,7 +392,7 @@ class _Conductor(object):
         # unregister a Process from conductor
         logger.fdebug("removing %s from %s", str(process), self)
         if process not in self.__processes:
-            raise ValueError, "trying to remove a process which was not yet added to conductor"
+            raise ValueError("trying to remove a process which was not yet added to conductor")
         remove_from_heapq(self.__timeline, lambda e: e[1] == process)
         del self.__pids[process.pid]
         fileno_stdout = process.stdout_fd
@@ -405,7 +405,7 @@ class _Conductor(object):
             # this process
             try:
                 (last_bytes, _) = _read_asmuch(fileno_stdout)
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
         process._handle_stdout(last_bytes, True, False)
@@ -417,7 +417,7 @@ class _Conductor(object):
             # this process
             try:
                 (last_bytes, _) = _read_asmuch(fileno_stderr)
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
         process._handle_stderr(last_bytes, True, False)
@@ -532,7 +532,7 @@ class _Conductor(object):
                     finished = True
                 if event_on_rpipe & POLLERR:
                     finished = True
-                    raise IOError, "Error on inter-thread communication pipe"
+                    raise IOError("Error on inter-thread communication pipe")
             with self.lock:
                 while True:
                     try:

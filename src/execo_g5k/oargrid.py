@@ -224,7 +224,7 @@ def get_current_oargrid_jobs(start_between = None,
             oargrid_job_ids = filtered_job_ids
         return oargrid_job_ids
     else:
-        raise ProcessesFailed, [process]
+        raise ProcessesFailed([process])
 
 def get_oargrid_job_info(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
     """Return a dict with informations about an oargrid job.
@@ -304,7 +304,7 @@ def get_oargrid_job_oar_jobs(oargrid_job_id = None, frontend_connection_params =
             job_specs.append((int(m.group(2)), site))
         return job_specs
     else:
-        raise ProcessesFailed, [process]
+        raise ProcessesFailed([process])
 
 def wait_oargrid_job_start(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
     """Sleep until an oargrid job's start time.
@@ -349,7 +349,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connection_params = None, tim
         host_addresses = re.findall("(\S+)", process.stdout, re.MULTILINE)
         return list(set([ Host(host_address) for host_address in host_addresses ]))
     else:
-        raise ProcessesFailed, [process]
+        raise ProcessesFailed([process])
 
 def get_oargrid_job_key(oargrid_job_id = None, frontend_connection_params = None, timeout = False):
     """Return the filename of the oargrid job key

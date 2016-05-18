@@ -286,7 +286,7 @@ if psycopg2:
                             OOC_site_quota, format_seconds(OOC_site_quota)))
                 finally:
                     conn.close()
-        except Exception, e:
+        except Exception as e:
             logger.warn("error connecting to oar database / getting planning from " + site)
             logger.detail("exception:\n" + format_exc())
                 

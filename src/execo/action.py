@@ -188,7 +188,7 @@ class Action(object):
             for handler in list(self.lifecycle_handlers):
                 try:
                     handler.end(self)
-                except Exception, e:
+                except Exception as e:
                     logger.error("action lifecycle handler %s end raised exception for action %s:\n%s" % (
                             handler, self, format_exc()))
             self.ended = True
@@ -203,13 +203,13 @@ class Action(object):
 
         return self"""
         if self.started:
-            raise ValueError, "Actions may be started only once"
+            raise ValueError("Actions may be started only once")
         self.started = True
         logger.debug(style.emph("start:") + " %s", self)
         for handler in list(self.lifecycle_handlers):
             try:
                 handler.start(self)
-            except Exception, e:
+            except Exception as e:
                 logger.error("action lifecycle handler %s start raised exception for action %s:\n%s" % (
                         handler, self, format_exc()))
         return self
@@ -255,7 +255,7 @@ class Action(object):
         for handler in list(self.lifecycle_handlers):
             try:
                 handler.reset(self)
-            except Exception, e:
+            except Exception as e:
                 logger.error("action lifecycle handler %s reset raised exception for action %s:\n%s" % (
                         handler, self, format_exc()))
         self._common_reset()
@@ -635,7 +635,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
             else:
                 s += "empty string"
             return s
-        except Exception, e: #IGNORE:W0703
+        except Exception as e: #IGNORE:W0703
             logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
             logger.critical("line received = %s", string.rstrip('\n'))
             return s
@@ -698,7 +698,7 @@ class _TaktukRemoteOutputHandler(ProcessOutputHandler):
                             self._log_unexpected_output(string)
                 else:
                     self._log_unexpected_output(string)
-        except Exception, e: #IGNORE:W0703
+        except Exception as e: #IGNORE:W0703
             logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
             logger.critical("line received = %s", string.rstrip('\n'))
             raise
@@ -860,7 +860,7 @@ class TaktukRemote(Action):
                 else:
                     check_ports.add(check_default_port)
             if len(check_keyfiles) > 1 or len(check_ports) > 1:
-                raise ValueError, "unable to provide more than one keyfile / port for taktuk remote connection"
+                raise ValueError("unable to provide more than one keyfile / port for taktuk remote connection")
             global_keyfile = None
             global_port = None
             if len(check_keyfiles) == 1:
@@ -1138,7 +1138,7 @@ class _TaktukPutOutputHandler(_TaktukRemoteOutputHandler):
                         process._handle_stderr(line, False, False)
                 else:
                     self._log_unexpected_output(string)
-        except Exception, e: #IGNORE:W0703
+        except Exception as e: #IGNORE:W0703
             logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
             logger.critical("line received = %s", string.rstrip('\n'))
 
@@ -1291,7 +1291,7 @@ class _TaktukGetOutputHandler(_TaktukRemoteOutputHandler):
                         process._handle_stderr(line, False, False)
                 else:
                     self._log_unexpected_output(string)
-        except Exception, e: #IGNORE:W0703
+        except Exception as e: #IGNORE:W0703
             logger.critical("%s: Unexpected exception %s while parsing taktuk output. Please report this message.", self.__class__.__name__, e)
             logger.critical("line received = %s", string.rstrip('\n'))
 
@@ -1739,7 +1739,7 @@ class ChainPut(SequentialActions):
 
             chainscript_filename = tempfile.mktemp(prefix = 'tmp_execo_chainscript_')
             if not _execo_chainput:
-                raise EnvironmentError, "unable to find execo-chainput"
+                raise EnvironmentError("unable to find execo-chainput")
             shutil.copy2(_execo_chainput, chainscript_filename)
             os.chmod(chainscript_filename, os.stat(chainscript_filename).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH )
 
@@ -1906,7 +1906,7 @@ class ActionFactory:
         elif self.remote_tool == TAKTUK:
             return TaktukRemote(*args, **kwargs)
         else:
-            raise KeyError, "no such remote tool: %s" % self.remote_tool
+            raise KeyError("no such remote tool: %s" % self.remote_tool)
 
     def get_fileput(self, *args, **kwargs):
         """Instanciates a `execo.action.Put`, `execo.action.TaktukPut` or `execo.action.ChainPut`"""
@@ -1917,7 +1917,7 @@ class ActionFactory:
         elif self.fileput_tool == CHAINPUT:
             return ChainPut(*args, **kwargs)
         else:
-            raise KeyError, "no such fileput tool: %s" % self.fileput_tool
+            raise KeyError("no such fileput tool: %s" % self.fileput_tool)
 
     def get_fileget(self, *args, **kwargs):
         """Instanciates a `execo.action.Get` or `execo.action.TaktukGet`"""
@@ -1926,7 +1926,7 @@ class ActionFactory:
         elif self.fileget_tool == TAKTUK:
             return TaktukGet(*args, **kwargs)
         else:
-            raise KeyError, "no such fileget tool: %s" % self.fileget_tool
+            raise KeyError("no such fileget tool: %s" % self.fileget_tool)
 
 default_action_factory = ActionFactory()
 

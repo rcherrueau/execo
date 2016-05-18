@@ -284,7 +284,7 @@ def oarsub(job_specs, frontend_connection_params = None, timeout = False, abort_
             failed_processes.append(process)
         oar_job_ids.append((job_id, process.frontend))
     if len(failed_processes) > 0 and abort_on_error:
-        raise ProcessesFailed, failed_processes
+        raise ProcessesFailed(failed_processes)
     else:
         return oar_job_ids
 
@@ -385,7 +385,7 @@ def get_current_oar_jobs(frontends = None,
         else:
             failed_processes.append(process)
     if len(failed_processes) > 0 and abort_on_error:
-        raise ProcessesFailed, failed_processes
+        raise ProcessesFailed(failed_processes)
     else:
         if start_between or end_between:
             filtered_job_ids = []
@@ -445,7 +445,7 @@ def get_oar_job_info(oar_job_id = None, frontend = None,
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
-            raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+            raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")
     process = get_process("oarstat -fj %i" % (oar_job_id,),
                           host = get_frontend_host(frontend),
                           connection_params = make_connection_params(frontend_connection_params,
@@ -574,7 +574,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
-            raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+            raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")
     countdown = Timer(timeout)
     wait_oar_job_start(oar_job_id, frontend, frontend_connection_params, countdown.remaining())
     process = get_process("(oarstat -sj %(oar_job_id)i | grep 'Running\|Terminated\|Error') > /dev/null 2>&1 && oarstat -pj %(oar_job_id)i | oarprint host -f -" % {'oar_job_id': oar_job_id},
@@ -588,7 +588,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
         host_addresses = re.findall("(\S+)", process.stdout, re.MULTILINE)
         return [ Host(host_address) for host_address in host_addresses ]
     else:
-        raise ProcessesFailed, [process]
+        raise ProcessesFailed([process])
 
 def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_params = None, timeout = False):
     """Return a tuple containing an iterable of tuples (IP, MAC) and a dict containing the subnet parameters of the reservation (if any).
@@ -617,7 +617,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
-            raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+            raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")
     countdown = Timer(timeout)
     wait_oar_job_start(oar_job_id, frontend, frontend_connection_params, countdown.remaining())
     # Get ip adresses
@@ -657,7 +657,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_
                 }
         return (subnet_addresses, network_params)
     else:
-        raise ProcessesFailed, [ p for p in [process_net, process_ip] if not p.ok ]
+        raise ProcessesFailed([ p for p in [process_net, process_ip] if not p.ok ])
 
 def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_params = None, timeout = False):
     """Return the vlan id of a job (if any).
@@ -683,7 +683,7 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_p
         if os.environ.has_key('OAR_JOB_ID'):
             oar_job_id = os.environ['OAR_JOB_ID']
         else:
-            raise ValueError, "no oar job id given and no OAR_JOB_ID environment variable found"
+            raise ValueError("no oar job id given and no OAR_JOB_ID environment variable found")
     countdown = Timer(timeout)
     wait_oar_job_start(oar_job_id, frontend, frontend_connection_params, countdown.remaining())
     process = get_process(
@@ -705,7 +705,7 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_p
             return None # handles cases where the job has no kavlan
                         # resource or when kavlan isn't available
     else:
-        raise ProcessesFailed, [process]
+        raise ProcessesFailed([process])
 
 def oarsubgrid(job_specs, reservation_date = None,
                walltime = None, job_type = None,

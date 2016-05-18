@@ -105,7 +105,7 @@ def str_date_to_unixts(d):
             if str_date.group(14) == "+": ts -= offset
             else: ts += offset
         return ts
-    raise ValueError, "unsupported date format %s" % (d,)
+    raise ValueError("unsupported date format %s" % (d,))
 
 _num_str_duration_re = re.compile("^((\d*\.)?\d+)$")
 _str_duration_re = re.compile("^(\d+):(\d?\d):(\d?\d)(\.\d+)?$")
@@ -130,7 +130,7 @@ def str_duration_to_seconds(duration):
         if str_duration.group(4):
             duration += float(str_duration.group(4))
         return duration
-    raise ValueError, "unsupported duration format %s" % (duration,)
+    raise ValueError("unsupported duration format %s" % (duration,))
 
 def get_seconds(duration):
     """Convert a duration to a number of seconds (float).

@@ -63,7 +63,7 @@ def remote_substitute(string, all_hosts, index, frame_context):
     def _subst_iterable(matchobj):
         sequence = eval(matchobj.group(1), frame_context[0], frame_context[1])
         if not hasattr(sequence, '__len__') or not hasattr(sequence, '__getitem__'):
-            raise ValueError, "substitution of %s: %s must evaluate to a sequence" % (matchobj.group(), sequence)
+            raise ValueError("substitution of %s: %s must evaluate to a sequence" % (matchobj.group(), sequence))
         return str(sequence[index % len(sequence)])
 
     string = re.sub("\{\{\{host\}\}\}", all_hosts[index].address, string)

@@ -693,7 +693,7 @@ def _get_vlans_API(site):
 def _get_job_link_attr_API(p):
     try:
         currentThread().attr = get_resource_attributes(p)
-    except Exception, e:
+    except Exception as e:
         currentThread().broken = True
         currentThread().ex = e
 
@@ -752,7 +752,7 @@ def _get_site_planning_API(site, site_planning, ignore_besteffort):
                         site_planning['subnets'][subnet] = {'busy': [], 'free': []}
                     site_planning['subnets'][subnet]['busy'].append( (start_time, end_time))
             # STORAGE IS MISSING
-    except Exception, e:
+    except Exception as e:
         logger.warn('error connecting to oar database / getting planning from ' + site)
         logger.detail("exception:\n" + format_exc())
         currentThread().broken = True
@@ -852,7 +852,7 @@ def _get_site_planning_PGSQL(site, site_planning, ignore_besteffort):
                             site_planning['subnets'][subnet]['busy'].append((start_time, end_time))
             finally:
                 conn.close()
-    except Exception, e:
+    except Exception as e:
         logger.warn('error connecting to oar database / getting planning from ' + site)
         logger.detail("exception:\n" + format_exc())
         currentThread().broken = True

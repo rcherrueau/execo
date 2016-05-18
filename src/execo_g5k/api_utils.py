@@ -420,7 +420,7 @@ def get_site_clusters(site, queues = "default"):
       `execo_g5k.api_utils.filter_clusters`
     """
     if not site in get_g5k_sites():
-        raise ValueError, "unknown g5k site %s" % (site,)
+        raise ValueError("unknown g5k site %s" % (site,))
     return filter_clusters(get_api_data()['hierarchy'][site].keys(), queues)
 
 def get_site_hosts(site, queues = "default"):
@@ -432,7 +432,7 @@ def get_site_hosts(site, queues = "default"):
       `execo_g5k.api_utils.filter_clusters`
     """
     if not site in get_g5k_sites():
-        raise ValueError, "unknown g5k site %s" % (site,)
+        raise ValueError("unknown g5k site %s" % (site,))
     hosts = []
     for cluster in get_site_clusters(site, queues):
         hosts += get_cluster_hosts(cluster)
@@ -441,7 +441,7 @@ def get_site_hosts(site, queues = "default"):
 def get_site_network_equipments(site):
     """Get the list of network elements from a site. Returns an iterable."""
     if not site in get_g5k_sites():
-        raise ValueError, "unknown g5k site %s" % (site,)
+        raise ValueError("unknown g5k site %s" % (site,))
     return get_api_data()['network'][site].keys()
 
 def get_cluster_hosts(cluster):
@@ -449,14 +449,14 @@ def get_cluster_hosts(cluster):
     for site in get_g5k_sites():
         if cluster in get_site_clusters(site, queues = None):
             return get_api_data()['hierarchy'][site][cluster]
-    raise ValueError, "unknown g5k cluster %s" % (cluster,)
+    raise ValueError("unknown g5k cluster %s" % (cluster,))
 
 def get_cluster_network_equipments(cluster):
     """Get the list of the network equipments used by a cluster"""
     if cluster in get_g5k_clusters():
         return list(set([e for h in get_cluster_hosts(cluster, queues = None)
                     for e in get_host_network_equipments(h)]))
-    raise ValueError, "unknown g5k cluster %s" % (cluster,)
+    raise ValueError("unknown g5k cluster %s" % (cluster,))
 
 def get_g5k_clusters(queues = "default"):
     """Get the list of all g5k clusters. Returns an iterable.
@@ -482,7 +482,7 @@ def get_cluster_site(cluster):
     for site in get_g5k_sites():
         if cluster in get_site_clusters(site, queues = None):
             return site
-    raise ValueError, "unknown g5k cluster %s" % (cluster,)
+    raise ValueError("unknown g5k cluster %s" % (cluster,))
 
 __g5k_host_group_regex = re.compile("^([a-zA-Z]+)-\d+(\.(\w+))?")
 
@@ -522,7 +522,7 @@ def get_host_network_equipments(host):
                    filter(lambda n: 'switch' in n and not n['management'] and n['mountable']
                           and n['switch'] and n['interface'] == 'Ethernet',
                           get_host_attributes(_host)['network_adapters']))))
-    raise ValueError, "unknown g5k host %s" % (host,)
+    raise ValueError("unknown g5k host %s" % (host,))
 
 def get_network_equipment_site(equip):
     """Return the site of a network_equipment"""

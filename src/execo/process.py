@@ -656,7 +656,7 @@ class ProcessBase(object):
         for handler in list(self.stdout_handlers):
             try:
                 handle_process_output(self, STDOUT, handler, string, eof, error)
-            except Exception, e:
+            except Exception as e:
                 logger.error("process stdout handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
@@ -678,7 +678,7 @@ class ProcessBase(object):
         for handler in list(self.stderr_handlers):
             try:
                 handle_process_output(self, STDERR, handler, string, eof, error)
-            except Exception, e:
+            except Exception as e:
                 logger.error("process stderr handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
@@ -758,7 +758,7 @@ class ProcessBase(object):
         for handler in list(self.lifecycle_handlers):
             try:
                 handler.reset(self)
-            except Exception, e:
+            except Exception as e:
                 logger.error("process lifecycle handler %s reset raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
         with self._lock:
@@ -1071,7 +1071,7 @@ class Process(ProcessBase):
                 self.stderr_fd = self.process.stderr.fileno()
                 self.stdin_fd = self.process.stdin.fileno()
             self.pid = self.process.pid
-        except OSError, e:
+        except OSError as e:
             start_error = True
         with self._lock:
             self.started = True
@@ -1089,7 +1089,7 @@ class Process(ProcessBase):
         for handler in list(self.lifecycle_handlers):
             try:
                 handler.start(self)
-            except Exception, e:
+            except Exception as e:
                 logger.error("process lifecycle handler %s start raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
         if self.error:
@@ -1097,7 +1097,7 @@ class Process(ProcessBase):
             for handler in list(self.lifecycle_handlers):
                 try:
                     handler.end(self)
-                except Exception, e:
+                except Exception as e:
                     logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
@@ -1139,7 +1139,7 @@ class Process(ProcessBase):
                     additionnal_processes_to_kill = _get_childs(self.pid)
                 try:
                     os.kill(self.pid, sig)
-                except OSError, e:
+                except OSError as e:
                     if e.errno == errno.EPERM:
                         if (self.pty
                             and (sig == signal.SIGTERM
@@ -1152,7 +1152,7 @@ class Process(ProcessBase):
                             try:
                                 other_debug_logs.append("EPERM for signal %s -> closing pty master side of %s" % (sig, str(self)))
                                 os.close(self._ptymaster)
-                            except OSError, e:
+                            except OSError as e:
                                 pass
                         else:
                             other_debug_logs.append(style.emph("EPERM: unable to send signal") + " to %s" % (str(self),))
@@ -1166,7 +1166,7 @@ class Process(ProcessBase):
         for p in additionnal_processes_to_kill:
             try:
                 os.kill(p, sig)
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.EPERM or e.errno == errno.ESRCH:
                     pass
                 else:
@@ -1215,14 +1215,14 @@ class Process(ProcessBase):
             if self._ptymaster != None:
                 try:
                     os.close(self._ptymaster)
-                except OSError, e:
+                except OSError as e:
                     if e.errno == errno.EBADF: pass
                     else: raise e
                 self._ptymaster = None
             if self._ptyslave != None:
                 try:
                     os.close(self._ptyslave)
-                except OSError, e:
+                except OSError as e:
                     if e.errno == errno.EBADF: pass
                     else: raise e
                 self._ptyslave = None
@@ -1241,7 +1241,7 @@ class Process(ProcessBase):
         for handler in list(self.lifecycle_handlers):
             try:
                 handler.end(self)
-            except Exception, e:
+            except Exception as e:
                 logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
@@ -1252,7 +1252,7 @@ class Process(ProcessBase):
             while self.__start_pending:
                 non_retrying_intr_cond_wait(self.started_condition)
             if not self.started:
-                raise ValueError, "Trying to wait a process which has not been started"
+                raise ValueError("Trying to wait a process which has not been started")
         timeout = get_seconds(timeout)
         if timeout != None:
             end = time.time() + timeout
@@ -1285,7 +1285,7 @@ class Process(ProcessBase):
         logger.iodebug("write to fd %s: %r" % (self.stdin_fd, s))
         try:
             os.write(self.stdin_fd, s)
-        except OSError, e:
+        except OSError as e:
             s = None
             with self._lock:
                 if not self.write_error:
@@ -1385,7 +1385,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         # lifecycle handlers outside the lock
         with self._lock:
             if self.started:
-                raise ValueError, "unable to start an already started process"
+                raise ValueError("unable to start an already started process")
             self.started = True
             self.start_date = time.time()
             if self.timeout != None:
@@ -1396,7 +1396,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         for handler in list(self.lifecycle_handlers):
             try:
                 handler.start(self)
-            except Exception, e:
+            except Exception as e:
                 logger.error("process lifecycle handler %s start raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
         return self
@@ -1436,7 +1436,7 @@ class TaktukProcess(ProcessBase): #IGNORE:W0223
         for handler in list(self.lifecycle_handlers):
             try:
                 handler.end(self)
-            except Exception, e:
+            except Exception as e:
                 logger.error("process lifecycle handler %s end raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
@@ -1551,7 +1551,7 @@ class PortForwarder(SshProcess):
         forwarding = intr_event_wait(self.forwarding, self.connection_params['forwarding_timeout'])
         if (not forwarding) or (not self.ok):
             self.kill()
-            raise ProcessesFailed, [ self ]
+            raise ProcessesFailed([ self ])
         return self
 
 class Serial(Process):
