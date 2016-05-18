@@ -5,6 +5,7 @@
 # This file is part of Execo, released under the GNU Lesser Public
 # License, version 3 or later.
 
+from __future__ import print_function
 from distutils.command.clean import clean as _clean
 from distutils.dir_util import remove_tree
 from distutils import log
@@ -88,8 +89,8 @@ def extract_conf(fh, source_file, marker):
     s = read_file(source_file, "# _STARTOF_ " + marker, "# _ENDOF_ " + marker)
     s = textwrap.dedent(s)
     for l in s.splitlines():
-        print >> fh, "# " + l
-    print >> fh, "\n"
+        print("# " + l, file=fh)
+    print("\n", file=fh)
 
 def generate_conf_template(datadir):
     try:
@@ -97,11 +98,11 @@ def generate_conf_template(datadir):
     except os.error:
         pass
     with open(os.path.join(datadir, "share", "execo", "execo.conf.py.sample"), "w") as fh:
-        print >> fh, "# sample execo user configuration"
-        print >> fh, "# copy this file to ~/.execo.conf.py and edit/modify it appropriately"
-        print >> fh
-        print >> fh, "# import logging, os, sys"
-        print >> fh
+        print("# sample execo user configuration", file=fh)
+        print("# copy this file to ~/.execo.conf.py and edit/modify it appropriately", file=fh)
+        print(file=fh)
+        print("# import logging, os, sys", file=fh)
+        print(file=fh)
         extract_conf(fh, os.path.join("src", "execo", "config.py"), "configuration")
         extract_conf(fh, os.path.join("src", "execo", "config.py"), "default_connection_params")
         extract_conf(fh, os.path.join("src", "execo_g5k", "config.py"), "g5k_configuration")

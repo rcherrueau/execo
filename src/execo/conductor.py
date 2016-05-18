@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
+from __future__ import print_function
 from .log import style, logger, logger_handler
 from .time_utils import format_unixts
 from .utils import compact_output
@@ -478,7 +479,7 @@ class _Conductor(object):
         try:
             self.__io_loop()
         except Exception: #IGNORE:W0703
-            print "exception in conductor I/O loop thread"
+            print("exception in conductor I/O loop thread")
             traceback.print_exc()
             thread.interrupt_main()
 
@@ -597,33 +598,33 @@ the_conductor = _Conductor().start()
 
 def debug_dump_processes():
     with the_conductor.lock:
-        print >> sys.stderr, "\n===== %s dump current %i conductor handled processes:\n" % (format_unixts(time.time()), len(the_conductor._Conductor__processes),)
+        print("\n===== %s dump current %i conductor handled processes:\n" % (format_unixts(time.time()), len(the_conductor._Conductor__processes),), file=sys.stderr)
         for process in the_conductor._Conductor__processes:
-            print >> sys.stderr, "====="
-            print >> sys.stderr, str(process)
-            print >> sys.stderr, "stdout:\n" + compact_output(process.stdout)
-            print >> sys.stderr, "stderr:\n" + compact_output(process.stderr)
-            print >> sys.stderr
-        print >> sys.stderr, "=====\n"
+            print("=====", file=sys.stderr)
+            print(str(process), file=sys.stderr)
+            print("stdout:\n" + compact_output(process.stdout), file=sys.stderr)
+            print("stderr:\n" + compact_output(process.stderr), file=sys.stderr)
+            print(file=sys.stderr)
+        print("=====\n", file=sys.stderr)
 
 _debug_thread = None
 _debug_thread_id = None
 _debug_thread_lock = threading.Lock()
 
 def debug_dump_threads():
-    print >> sys.stderr, "\n===== %s dump thread stack frames. %i threads. conductor lock = %s:\n" % (
+    print("\n===== %s dump thread stack frames. %i threads. conductor lock = %s:\n" % (
         format_unixts(time.time()),
         len(sys._current_frames()),
-        the_conductor.lock)
+        the_conductor.lock), file=sys.stderr)
     idx=0
     for thread_id, frame in sys._current_frames().iteritems():
-        print >> sys.stderr, "===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame))
+        print("===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame)), file=sys.stderr)
         if thread_id != _debug_thread_id:
             traceback.print_stack(frame, file = sys.stderr)
         else:
-            print >> sys.stderr, "  debug thread, skipping"
+            print("  debug thread, skipping", file=sys.stderr)
         idx += 1
-    print >> sys.stderr, "=====\n"
+    print("=====\n", file=sys.stderr)
 
 class _DebugThread(threading.Thread):
 

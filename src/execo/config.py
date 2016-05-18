@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
+from __future__ import print_function
 import logging
 import os
 import sys
@@ -246,8 +247,8 @@ def load_configuration(filename, dicts_confs):
         try:
             execfile(filename, jailed_globals)
         except Exception as exc: #IGNORE:W0703
-            print "ERROR while reading config file %s:" % (filename,)
-            print exc
+            print("ERROR while reading config file %s:" % (filename,))
+            print(exc)
         for (dictio, conf) in dicts_confs:
             if conf in jailed_globals:
                 dictio.update(jailed_globals[conf])

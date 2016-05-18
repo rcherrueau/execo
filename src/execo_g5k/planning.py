@@ -393,10 +393,10 @@ def find_free_slot(slots, resources_wanted):
 def find_coorm_slot(slots, resources_wanted):
     """ """
     for start, stop, res in slots:
-        print format_date(start), format_date(stop), res
+        logger.debug("%s %s %s" % (format_date(start), format_date(stop), res))
         slot_ok = True
         for element, cpu in resources_wanted.iteritems():
-            print element, cpu
+            logger.debug("%s %s" % (element, cpu))
             if res[element] < cpu * (stop - start) / 3600:
                 slot_ok = False
         if slot_ok:

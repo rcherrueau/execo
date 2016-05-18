@@ -341,8 +341,8 @@ class g5k_graph(nx.MultiGraph):
                              filter(lambda m: 'switch' in m,
                                     self.data['hosts'][host]['network_adapters']))
         except:
-            logger.warning('Wrong description for host %s', style.host(host))
-            print self.data['hosts'][host]['network_adapters']
+            logger.warning("Wrong description for host %s" % style.host(host))
+            logger.debug("host's network_adapters = %s" % (self.data['hosts'][host]['network_adapters'],))
             return []
 
     def _equip_has_nodes(self, equip):

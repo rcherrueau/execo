@@ -26,10 +26,10 @@ if jobid:
             sleep(1)
             clients.run()
         servers.wait()
-        print Report([ servers, clients ]).to_string()
+        print(Report([ servers, clients ]).to_string())
         for index, p in enumerate(clients.processes):
-            print "client %s -> server %s - stdout:" % (p.host.address,
-                                                        targets[index].address)
-            print p.stdout
+            print("client %s -> server %s - stdout:" % (p.host.address,
+                                                        targets[index].address))
+            print(p.stdout)
     finally:
         oardel([(jobid, site)])
