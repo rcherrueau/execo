@@ -152,10 +152,10 @@ class g5k_graph(nx.MultiGraph):
         lc_data = data['linecards']
         if data['kind'] == 'router':
             router_bw = data['backplane_bps']
-            for i_lc, lc in enumerate(filter(lambda n: 'ports' in n, lc_data)):
+            for i_lc, lc in enumerate([n for n in lc_data if 'ports' in n]):
                 lc_node = equip + '_lc' + str(i_lc)
                 lc_has_element = False
-                for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
+                for port in sorted([p for p in lc['ports'] if 'uid' in p]):
                     kind = port['kind'] if 'kind' in port else lc['kind']
                     bandwidth = lc['rate'] if 'rate' not in port else port['rate']
                     if self.has_node(port['uid']):
@@ -200,8 +200,8 @@ class g5k_graph(nx.MultiGraph):
                                   backplane=backplane)
         else:
             # some switch have two linecards ?? pat, sgraphene1 => REPORT BUG
-            for lc in filter(lambda n: 'ports' in n, lc_data):
-                for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
+            for lc in [n for n in lc_data if 'ports' in n]:
+                for port in sorted([p for p in lc['ports'] if 'uid' in p]):
                     kind = port['kind'] if 'kind' in port else lc['kind']
                     bandwidth = lc['rate'] if 'rate' not in port else port['rate']
                     if self.has_node(port['uid']):
@@ -224,7 +224,7 @@ class g5k_graph(nx.MultiGraph):
         logger.debug('Removing equip %s', style.host(equip))
         self.remove_node(equip)
         if get_network_equipment_attributes(equip)['kind'] == 'router':
-            lc_nodes = filter(lambda x: equip in x, self.nodes())
+            lc_nodes = [x for x in self.nodes() if equip in x]
             logger.debug('Removing router linecard %s', ' '.join(lc_nodes))
             self.remove_nodes_from(lc_nodes)
 
@@ -259,13 +259,11 @@ class g5k_graph(nx.MultiGraph):
                 for dest in dests:
                     gw_src = self.get_site_router(site)[0]
                     gw_dst = self.get_site_router(dest)[0]
-                    for element in filter(lambda el: 'renater' in el,
-                                          nx.shortest_path(self, gw_src, gw_dst)):
+                    for element in [el for el in nx.shortest_path(self, gw_src, gw_dst) if 'renater' in el]:
                         if element not in used_elements:
                             used_elements.append(element)
 
-            for element, _ in filter(lambda n: n[1]['kind'] == 'renater',
-                                     self.nodes_iter(data=True)):
+            for element, _ in [n for n in self.nodes_iter(data=True) if n[1]['kind'] == 'renater']:
                 if element not in used_elements:
                     self.remove_node(element)
 
@@ -277,32 +275,27 @@ class g5k_graph(nx.MultiGraph):
     def get_hosts(self, cluster=None, site=None):
         """Return the list of nodes corresponding to hosts"""
         if cluster:
-            return filter(lambda x: cluster in x[0] and
-                          x[1]['kind'] == 'node', self.nodes(True))
+            return [x for x in self.nodes(True) if cluster in x[0] and
+                          x[1]['kind'] == 'node']
         elif site:
-            return filter(lambda x: site == get_host_site(x[0]) and
-                          x[1]['kind'] == 'node', self.nodes(True))
+            return [x for x in self.nodes(True) if site == get_host_site(x[0]) and
+                          x[1]['kind'] == 'node']
         else:
-            return filter(lambda x: x[1]['kind'] == 'node', self.nodes(True))
+            return [x for x in self.nodes(True) if x[1]['kind'] == 'node']
 
     def get_clusters(self, site=None):
         """Return the list of clusters"""
         if site:
-            return list(set(map(lambda y: get_host_cluster(y[0]),
-                                filter(lambda x: get_host_site(x[0]) and
-                                       x[1]['kind'] == 'node',
-                                       self.nodes(True)))))
+            return list(set([get_host_cluster(x[0]) for x in self.nodes(True) if get_host_site(x[0]) and x[1]['kind'] == 'node']))
         else:
-            return list(set(map(lambda y: get_host_cluster(y[0]),
-                                filter(lambda x: x[1]['kind'] == 'node',
-                                       self.nodes(True)))))
+            return list(set([get_host_cluster(x[0]) for x in self.nodes(True) if x[1]['kind'] == 'node']))
 
     def get_host_neighbours(self, host):
         """Return the compute nodes that are connected to the same switch,
         router or linecard"""
 
         switch = self.get_host_adapters(host)[0]['switch']
-        return filter(lambda x: x != host, self.get_equip_hosts(switch))
+        return [x for x in self.get_equip_hosts(switch) if x != host]
 
     def get_equip_hosts(self, equip):
         """Return the nodes which are connected to the equipment"""
@@ -320,26 +313,26 @@ class g5k_graph(nx.MultiGraph):
 
     def get_site_router(self, site):
         """Return the node corresponding to the router of a site"""
-        return filter(lambda x: x[1]['kind'] == 'router' and site in x[0],
-                      self.nodes(True))[0]
+        return [n for n in self.nodes(True) if n[1]['kind'] == 'router' and site in n[0]][0]
 
     def get_sites(self):
         """Return the list of sites"""
-        return list(set(map(lambda y: get_host_site(y[0]),
-                   filter(lambda x: x[1]['kind'] == 'node', self.nodes(True)))))
+        return list(set([get_host_site(x[0]) for x in self.nodes(True) if x[1]['kind'] == 'node']))
 
     def get_backbone(self):
         """Return """
-        return filter(lambda x: x[1]['kind'] == 'renater', self.nodes(True))
+        return [x for x in self.nodes(True) if x[1]['kind'] == 'renater']
 
     def get_host_adapters(self, host):
         """Return the mountable network interfaces from a host"""
         try:
             if host in self.data['hosts']:
-                return filter(lambda n: not n['management'] and n['mountable']
-                              and n['switch'] and n['interface'] == 'Ethernet',
-                             filter(lambda m: 'switch' in m,
-                                    self.data['hosts'][host]['network_adapters']))
+                return [m for m in self.data['hosts'][host]['network_adapters']
+                        if 'switch' in m
+                        and not m['management']
+                        and m['mountable']
+                        and m['switch']
+                        and m['interface'] == 'Ethernet']
         except:
             logger.warning("Wrong description for host %s" % style.host(host))
             logger.debug("host's network_adapters = %s" % (self.data['hosts'][host]['network_adapters'],))
@@ -350,8 +343,8 @@ class g5k_graph(nx.MultiGraph):
         data = get_network_equipment_attributes(equip)
         if data['kind'] == 'router':
             return True
-        for lc in filter(lambda n: 'ports' in n, data['linecards']):
-            for port in sorted(filter(lambda p: 'uid' in p, lc['ports'])):
+        for lc in [n for n in data['linecards'] if 'ports' in n]:
+            for port in sorted([p for p in lc['ports'] if 'uid' in p]):
                 kind = port['kind'] if 'kind' in port else lc['kind']
                 if kind == 'node' and self.has_node(port['uid']):
                     return True
@@ -481,16 +474,14 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
         elements = ['renater', 'router', 'switch', 'node', 'linecard']
     else:
         for site in gr.get_sites():
-            for cluster, data in gr.get_clusters().iteritems():
+            for cluster, data in gr.get_clusters().items():
                 for equip, radicals in data['equips'].items():
                     gr.add_node(cluster + '\n' + radicals,
                                 {'kind': 'cluster'})
                     gr.add_edge(cluster + '\n' + radicals, equip,
                                 {'bandwidth': data['bandwidth']})
 
-        gr.remove_nodes_from(map(lambda n: n[0],
-                                 filter(lambda n: n[1]['kind'] == 'node',
-                                        gr.nodes(True))))
+        gr.remove_nodes_from([n[0] for n in gr.nodes(True) if n[1]['kind'] == 'node'])
 
         elements = ['renater', 'router', 'switch', 'cluster']
 
@@ -528,7 +519,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                                        _default_width)
 
     # Adding the edges
-    for bandwidth, params in _edges_legend.iteritems():
+    for bandwidth, params in _edges_legend.items():
         if bandwidth != 'other':
             edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
                      if 'bandwidth' in edge[2] and edge[2]['bandwidth'] == bandwidth]
@@ -553,7 +544,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
         else:
             _nodes_labels['default']['nodes'][node] = _nodes_labels['default']['str_func'](node)
 
-    for data in _nodes_labels.itervalues():
+    for data in _nodes_labels.values():
         nx.draw_networkx_labels(gr, pos, labels=data['nodes'],
                                 font_size=data['font_size']
                                 if 'font_size' in data else _default_font_size,

@@ -10,7 +10,7 @@ class g5k_tcp_congestion(Engine):
         params = {
             "num_flows": igeom(1, 20, 5),
             "tcp_congestion_control": ["cubic", "reno"],
-            "repeat": range(0, 3),
+            "repeat": list(range(0, 3)),
             }
         combs = sweep(params)
         sweeper = ParamSweeper(self.result_dir + "/sweeper", combs)
@@ -21,9 +21,9 @@ class g5k_tcp_congestion(Engine):
         wanted = {'grid5000': 0}
         start_date, end_date, resources = find_first_slot(slots, wanted)
         actual_resources = dict(
-            { list(clusters)[0]:1 for site,clusters in
+            list({ list(clusters)[0]:1 for site,clusters in
               itertools.groupby(sorted([ cluster
-                                         for cluster, n_nodes in resources.iteritems()
+                                         for cluster, n_nodes in resources.items()
                                          if cluster in get_g5k_clusters() and n_nodes > 0
                                          and 1e9 ==
                                          [adapter
@@ -32,7 +32,7 @@ class g5k_tcp_congestion(Engine):
                                            cluster + "-1." + get_cluster_site(cluster) + ".grid5000.fr"][0]["rate"]],
                                        lambda c1, c2: cmp(get_cluster_site(c1),
                                                           get_cluster_site(c2))),
-                                get_cluster_site) }.items()[0:2])
+                                get_cluster_site) }.items())[0:2])
         if len(actual_resources) >= 2:
             logger.info("try to reserve " + str(actual_resources))
             job_specs = get_jobs_specs(actual_resources)

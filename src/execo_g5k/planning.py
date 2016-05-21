@@ -145,9 +145,9 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
     if out_of_chart:
         _add_charter_to_planning(planning, starttime, endtime)
 
-    for site_pl in planning.itervalues():
-        for res_pl in site_pl.itervalues():
-            for el_planning in res_pl.itervalues():
+    for site_pl in planning.values():
+        for res_pl in site_pl.values():
+            for el_planning in res_pl.values():
                 el_planning['busy'].sort()
                 _merge_el_planning(el_planning['busy'])
                 _trunc_el_planning(el_planning['busy'], starttime, endtime)
@@ -155,8 +155,8 @@ def get_planning(elements=['grid5000'], vlan=False, subnet=False, storage=False,
 
     # cleaning
     real_planning = deepcopy(planning)
-    for site, site_pl in planning.iteritems():
-        for cl, cl_pl in site_pl.iteritems():
+    for site, site_pl in planning.items():
+        for cl, cl_pl in site_pl.items():
             if cl in ['vlans']:
                 continue
             keep_cluster = False
@@ -202,8 +202,8 @@ def compute_slots(planning, walltime, excluded_elements=None):
     kavlan = False
     kavlan_global = False
     if len(planning) > 0:
-        if 'vlans' in (planning.itervalues().next().keys()):
-            if len(planning.keys()) > 1:
+        if 'vlans' in next(iter(planning.values())):
+            if len(planning) > 1:
                 kavlan_global = True
             else:
                 kavlan = True
@@ -215,14 +215,14 @@ def compute_slots(planning, walltime, excluded_elements=None):
         if kavlan_global:
             free_vlans_global = []
 
-        for site, site_planning in planning.iteritems():
+        for site, site_planning in planning.items():
             free_elements[site] = 0
 
-            for cluster, cluster_planning in site_planning.iteritems():
+            for cluster, cluster_planning in site_planning.items():
 
                 if cluster in get_g5k_clusters(queues=None):
                     free_elements[cluster] = 0
-                    for host, host_planning in cluster_planning.iteritems():
+                    for host, host_planning in cluster_planning.items():
                         host_free = False
                         for free_slot in host_planning['free']:
                             if free_slot[0] <= limit and free_slot[1] >= limit + walltime:
@@ -235,7 +235,7 @@ def compute_slots(planning, walltime, excluded_elements=None):
 
             if kavlan:
                 free_vlans = 0
-                for vlan, vlan_planning in site_planning['vlans'].iteritems():
+                for vlan, vlan_planning in site_planning['vlans'].items():
                     if int(vlan.split('-')[1]) < 10:
                         kavlan_free = False
                         for free_slot in vlan_planning['free']:
@@ -245,7 +245,7 @@ def compute_slots(planning, walltime, excluded_elements=None):
                             free_vlans += 1
                 free_elements['kavlan'] = free_vlans
             elif kavlan_global:
-                for vlan, vlan_planning in site_planning['vlans'].iteritems():
+                for vlan, vlan_planning in site_planning['vlans'].items():
                     if int(vlan.split('-')[1]) > 10:
                         kavlan_global_free = False
                         for free_slot in vlan_planning['free']:
@@ -264,9 +264,9 @@ def compute_slots(planning, walltime, excluded_elements=None):
 def max_resources(planning):
     """ """
     resources = {"grid5000": 0}
-    for site, site_pl in planning.iteritems():
+    for site, site_pl in planning.items():
         resources[site] = 0
-        for cl, cl_pl in site_pl.iteritems():
+        for cl, cl_pl in site_pl.items():
             if cl in ['vlans']:
                 continue
             resources[cl] = 0
@@ -285,12 +285,12 @@ def compute_coorm_slots(planning, excluded_elements=None):
     for start in limits:
         stop = 10 ** 25
         free_cores = {'grid5000': 0}
-        for site, site_planning in planning.iteritems():
+        for site, site_planning in planning.items():
             free_cores[site] = 0
-            for cluster, cluster_planning in site_planning.iteritems():
+            for cluster, cluster_planning in site_planning.items():
                 free_cores[cluster] = 0
                 if cluster in get_g5k_clusters(queues=None):
-                    for host, host_planning in cluster_planning.iteritems():
+                    for host, host_planning in cluster_planning.items():
                         for free_slot in host_planning['free']:
                             if free_slot[0] <= start and free_slot[0] < stop:
                                 free_cores[cluster] += get_host_attributes(host)['architecture']['smt_size']
@@ -318,7 +318,7 @@ def find_first_slot(slots, resources_wanted):
             elif isinstance(slot[2]['kavlan'], list):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False
-        res_nodes = sum([nodes for element, nodes in slot[2].iteritems()
+        res_nodes = sum([nodes for element, nodes in slot[2].items()
                          if element in resources_wanted and element != 'kavlan'])
 
         if res_nodes > 0 and vlan_free:
@@ -344,7 +344,7 @@ def find_max_slot(slots, resources_wanted):
             elif isinstance(slot[2]['kavlan'], list):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False
-        res_nodes = sum([nodes for element, nodes in slot[2].iteritems()
+        res_nodes = sum([nodes for element, nodes in slot[2].items()
                         if element in resources_wanted and element != 'kavlan'])
         if res_nodes > max_nodes and vlan_free:
             max_nodes = res_nodes
@@ -361,7 +361,7 @@ def find_free_slot(slots, resources_wanted):
       ``{'grid5000': 50, 'lyon': 20, 'stremi': 10 }``"""
     # We need to add the clusters nodes to the total nodes of a site
     real_wanted = resources_wanted.copy()
-    for cluster, n_nodes in resources_wanted.iteritems():
+    for cluster, n_nodes in resources_wanted.items():
         if cluster in get_g5k_clusters(queues=None):
             site = get_cluster_site(cluster)
             if site in resources_wanted:
@@ -377,7 +377,7 @@ def find_free_slot(slots, resources_wanted):
                 if len(slot[2]['kavlan']) == 0:
                     vlan_free = False
         slot_ok = True
-        for element, n_nodes in slot[2].iteritems():
+        for element, n_nodes in slot[2].items():
             if element in real_wanted and real_wanted[element] > n_nodes \
                 and real_wanted != 'kavlan':
                 slot_ok = False
@@ -395,7 +395,7 @@ def find_coorm_slot(slots, resources_wanted):
     for start, stop, res in slots:
         logger.debug("%s %s %s" % (format_date(start), format_date(stop), res))
         slot_ok = True
-        for element, cpu in resources_wanted.iteritems():
+        for element, cpu in resources_wanted.items():
             logger.debug("%s %s" % (element, cpu))
             if res[element] < cpu * (stop - start) / 3600:
                 slot_ok = False
@@ -411,17 +411,17 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
 
     :param walltime: duration of reservation
     """
-    hosts = map(lambda x: x.address if isinstance(x, Host) else x, hosts)
+    hosts = [x.address if isinstance(x, Host) else x for x in hosts]
 
     planning = get_planning(elements=hosts, out_of_chart=out_of_chart)
     limits = _slots_limits(planning)
     walltime = get_seconds(walltime)
     for limit in limits:
         all_host_free = True
-        for site_planning in planning.itervalues():
-            for cluster, cluster_planning in site_planning.iteritems():
+        for site_planning in planning.values():
+            for cluster, cluster_planning in site_planning.items():
                 if cluster in get_g5k_clusters(queues=None):
-                    for host_planning in cluster_planning.itervalues():
+                    for host_planning in cluster_planning.values():
                         host_free = False
                         for free_slot in host_planning['free']:
                             if free_slot[0] <= limit and free_slot[1] >= limit + walltime:
@@ -433,10 +433,8 @@ def get_hosts_jobs(hosts, walltime, out_of_chart=False):
             break
 
     jobs_specs = []
-    for site in planning.keys():
-        site_hosts = map(get_host_longname,
-                         filter(lambda h: get_host_site(h) == site,
-                                hosts))
+    for site in planning:
+        site_hosts = [ get_host_longname(h) for h in hosts if get_host_site(h) == site ]
         sub_res = "{host in ('" + "','".join(site_hosts) + "')}/nodes=" + str(len(site_hosts))
         jobs_specs.append((OarSubmission(resources=sub_res,
                                          reservation_date=startdate), site))
@@ -453,7 +451,7 @@ def show_resources(resources, msg='Resources', max_resources=None, queues='defau
 
     for site in get_g5k_sites():
         site_added = False
-        if site in resources.keys():
+        if site in resources:
             log += style.log_header(site).ljust(20) + ' ' + str(resources[site])
             if site in max_resources:
                 log += '/' + str(max_resources[site])
@@ -467,7 +465,7 @@ def show_resources(resources, msg='Resources', max_resources=None, queues='defau
                     log += '/' + str(max_resources[site])
                 log += ' '
                 site_added = True
-            if cluster in resources.keys():
+            if cluster in resources:
                 log += style.emph(cluster) + ': ' + str(resources[cluster])
                 if cluster in max_resources:
                     log += '/' + str(max_resources[cluster])
@@ -475,7 +473,7 @@ def show_resources(resources, msg='Resources', max_resources=None, queues='defau
                 total_hosts += resources[cluster]
         if site_added:
             log += '\n'
-    if 'grid5000' in resources.keys():
+    if 'grid5000' in resources:
         log += style.log_header('Grid5000').ljust(20) + str(resources['grid5000'])
         if "grid5000" in max_resources:
             log += '/' + str(max_resources["grid5000"])
@@ -502,7 +500,7 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
     # Creating the list of sites used
     sites = []
     real_resources = resources.copy()
-    for resource in resources.iterkeys():
+    for resource in resources:
         if resource in get_g5k_sites() and resource not in sites:
             sites.append(resource)
         if resource in get_g5k_clusters(queues=None):
@@ -518,7 +516,7 @@ def get_jobs_specs(resources, excluded_elements=None, name=None):
     if get_kavlan:
         kavlan = 'kavlan'
         n_sites = 0
-        for resource in real_resources.keys():
+        for resource in real_resources:
             if resource in sites:
                 n_sites += 1
             if n_sites > 1:
@@ -610,10 +608,10 @@ def distribute_hosts(resources_available, resources_wanted,
     resources = {}
     #Defining the cluster you want
     clusters_wanted = {}
-    for element, n_nodes in resources_wanted.iteritems():
+    for element, n_nodes in resources_wanted.items():
         if element in get_g5k_clusters(queues=None):
             clusters_wanted[element] = n_nodes
-    for cluster, n_nodes in clusters_wanted.iteritems():
+    for cluster, n_nodes in clusters_wanted.items():
         nodes = n_nodes if n_nodes > 0 else resources_available[cluster]
         resources_available[get_cluster_site(cluster)] -= nodes
         resources[cluster] = nodes
@@ -627,10 +625,10 @@ def distribute_hosts(resources_available, resources_wanted,
 
     #Defining the sites you want
     sites_wanted = {}
-    for element, n_nodes in resources_wanted.iteritems():
+    for element, n_nodes in resources_wanted.items():
         if element in get_g5k_sites() and element not in excluded_elements:
             sites_wanted[element] = n_nodes
-    for site, n_nodes in sites_wanted.iteritems():
+    for site, n_nodes in sites_wanted.items():
         resources[site] = n_nodes if n_nodes > 0 else resources_available[site]
 
     # Blacklisting sites
@@ -646,11 +644,11 @@ def distribute_hosts(resources_available, resources_wanted,
 
         total_nodes = 0
 
-        sites = [element for element in resources_available.keys() if element in get_g5k_sites() ]
+        sites = [element for element in resources_available if element in get_g5k_sites() ]
         iter_sites = cycle(sites)
 
         while total_nodes < g5k_nodes:
-            site = iter_sites.next()
+            site = next(iter_sites)
             if resources_available[site] == 0:
                 sites.remove(site)
                 iter_sites = cycle(sites)
@@ -683,7 +681,7 @@ def _get_vlans_API(site):
     vlans = []
     for equip in equips['items']:
         if 'vlans' in equip and len(equip['vlans']) >2:
-            for params in equip['vlans'].itervalues():
+            for params in equip['vlans'].values():
                 if type( params ) == type({}) and 'name' in params \
                         and int(params['name'].split('-')[1])>3:
                     # > 3 because vlans 1, 2, 3 are not routed
@@ -761,12 +759,12 @@ def _get_planning_API(planning, ignore_besteffort):
     """Retrieve the planning using the 3.0 Grid'5000 API """
     broken_sites = []
     threads = {}
-    for site in planning.iterkeys():
+    for site in planning:
         t = Thread(target = _get_site_planning_API, args = (site, planning[site], ignore_besteffort))
         threads[site] = t
         t.broken = False
         t.start()
-    for site, t in threads.iteritems():
+    for site, t in threads.items():
         t.join()
         if t.broken:
             broken_sites.append(site)
@@ -861,12 +859,12 @@ def _get_planning_PGSQL(planning, ignore_besteffort):
     """Retrieve the planning using the oar2 database"""
     broken_sites = []
     threads = {}
-    for site in planning.iterkeys():
+    for site in planning:
         t = Thread(target = _get_site_planning_PGSQL, args = (site, planning[site], ignore_besteffort))
         threads[site] = t
         t.broken = False
         t.start()
-    for site, t in threads.iteritems():
+    for site, t in threads.items():
         t.join()
         if t.broken:
             broken_sites.append(site)
@@ -881,12 +879,12 @@ def _remove_excluded(planning, excluded_resources):
         if element in get_g5k_sites() and element in planning:
             del planning[element]
     # then removing specific clusters
-    for site_pl in planning.itervalues():
-        for res in site_pl.keys():
+    for site_pl in planning.values():
+        for res in list(site_pl):
             if res in excluded_resources:
                 del site_pl[res]
                 continue
-            for element in site_pl[res].keys():
+            for element in list(site_pl[res]):
                 if element in excluded_resources:
                     del site_pl[res][element]
 
@@ -960,9 +958,9 @@ def _fill_el_planning_free(el_planning, starttime, endtime):
 def _slots_limits(planning):
     """Return the limits of slots, defined by a resource state change."""
     limits = set()
-    for site in planning.itervalues():
-        for res_pl in site.itervalues():
-            for el_planning in res_pl.itervalues():
+    for site in planning.values():
+        for res_pl in site.values():
+            for el_planning in res_pl.values():
                     for start, stop in el_planning['busy']:
                         limits.add(start)
                         limits.add(stop)
@@ -978,8 +976,8 @@ def _slots_limits(planning):
 def _add_charter_to_planning(planning, starttime, endtime):
     charter_el_planning = get_charter_el_planning(starttime, endtime)
 
-    for site in planning.itervalues():
-        for res_pl in site.itervalues():
+    for site in planning.values():
+        for res_pl in site.values():
             for el_planning in res_pl.values():
                 el_planning['busy'] += charter_el_planning
                 el_planning['busy'].sort()
@@ -1046,14 +1044,14 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
     if colors is None:
         colors = _set_colors()
 
-    n_sites = len(planning.keys())
+    n_sites = len(planning)
     startstamp = None
     endstamp = None
 
-    for clusters_hosts in planning.itervalues():
-        for hosts_kinds in clusters_hosts.itervalues():
-            for kinds_slots in hosts_kinds.itervalues():
-                for slots in kinds_slots.itervalues():
+    for clusters_hosts in planning.values():
+        for hosts_kinds in clusters_hosts.values():
+            for kinds_slots in hosts_kinds.values():
+                for slots in kinds_slots.values():
                     for slot in slots:
                         if startstamp == None or slot[0] < startstamp:
                             startstamp = slot[0]
@@ -1082,9 +1080,9 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
     fig = PLT.figure(figsize=(15, 5 * n_row), dpi=80)
 
     i_site = 1
-    for site, clusters in planning.iteritems():
+    for site, clusters in planning.items():
         n_hosts = 0
-        for hosts in clusters.itervalues():
+        for hosts in clusters.values():
             n_hosts += len(hosts)
         if n_hosts == 0: continue
         ax = fig.add_subplot(n_row, n_col, i_site, title=site.title())
@@ -1102,16 +1100,16 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         inc = 1. / n_hosts
 
         ylabel = ''
-        for cluster, hosts in clusters.iteritems():
+        for cluster, hosts in clusters.items():
             ylabel += cluster + ' '
             i_host = 0
-            for key in sorted(hosts.keys(), key = lambda name: (name.split('.',1)[0].split('-')[0],
+            for key in sorted(list(hosts), key = lambda name: (name.split('.',1)[0].split('-')[0],
                                         int( name.split('.',1)[0].split('-')[1] ))):
                 slots = hosts[key]
                 i_host +=1
                 cl_colors = {'free': colors[cluster], 'busy': colors['busy']}
 
-                for kind in cl_colors.iterkeys():
+                for kind in cl_colors:
                     for freeslot in slots[kind]:
                         edate, bdate = [MD.date2num(item) for item in
                                             (unixts_to_datetime(freeslot[1]), unixts_to_datetime(freeslot[0]))]
@@ -1174,7 +1172,7 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
             slot_limits.append(slots[i_slot + 1][0])
             i_slot += 1
 
-        for element, n_nodes in slot[2].iteritems():
+        for element, n_nodes in slot[2].items():
             if element in get_g5k_clusters(queues=None):
                 if not element in max_nodes:
                     max_nodes[element] = []
@@ -1215,7 +1213,7 @@ def draw_slots(slots, colors=None, show=False, save=True, outfile=None):
     p_legend = []
     p_rects = []
     p_colors = []
-    for key, value in sorted(iter(max_nodes.iteritems())):
+    for key, value in sorted(max_nodes.items()):
         if key != 'grid5000':
             max_nodes_list.append(value)
             p_legend.append(key)

@@ -109,7 +109,7 @@ class _KadeployStdoutHandler(ProcessOutputHandler):
 
     def __init__(self):
         super(_KadeployStdoutHandler, self).__init__()
-        self._SECTION_NONE, self._SECTION_DEPLOYED_NODES, self._SECTION_UNDEPLOYED_NODES = range(3)
+        self._SECTION_NONE, self._SECTION_DEPLOYED_NODES, self._SECTION_UNDEPLOYED_NODES = list(range(3))
         self._current_section = self._SECTION_NONE
 
     def action_reset(self):
@@ -242,7 +242,7 @@ class Kadeployer(Remote):
                 frontends[frontend] = [host]
         lifecycle_handler = ActionNotificationProcessLH(self, len(frontends))
         deploy_stdout_handler = _KadeployStdoutHandler()
-        for frontend in frontends.keys():
+        for frontend in frontends:
             kadeploy_command = self.deployment._get_common_kadeploy_command_line()
             for host in frontends[frontend]:
                 kadeploy_command += " -m %s" % (host.address,)
@@ -411,7 +411,7 @@ def deploy(deployment,
             for host in undeployed_hosts:
                 deployment_hostnames_mapping[host] = host
         deployed_check = get_remote(check_deployed_command,
-                                    deployment_hostnames_mapping.keys(),
+                                    list(deployment_hostnames_mapping),
                                     connection_params = node_connection_params)
         for p in deployed_check.processes:
                 p.nolog_exit_code = True

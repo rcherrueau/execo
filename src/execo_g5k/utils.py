@@ -128,7 +128,7 @@ def get_kavlan_network(kavlan, site):
         if 'vlans' in equip and equip['kind'] == "router":
             all_vlans = equip['vlans']
             break
-    for info in all_vlans.itervalues():
+    for info in all_vlans.values():
         if type(info) == type({}) and 'name' in info \
             and info['name'] == 'kavlan-' + str(kavlan):
             network, _, mask_size = info['addresses'][0].partition('/',)
@@ -146,7 +146,7 @@ def get_kavlan_ip_mac(kavlan, site):
            if ip[3] not in [0, 254, 255] and ip[2] >= min_2]]
     macs = get_mac_addresses(len(ips))
 
-    return zip(ips, macs)
+    return list(zip(ips, macs))
 
 def get_ipv4_range(network, mask_size):
     """Generate the ipv4 range from a network and a mask_size"""
@@ -161,15 +161,15 @@ def get_ipv4_range(network, mask_size):
               (ip & 0xff0000) >> 16,
               (ip & 0xff00) >> 8,
               ip & 0xff)
-             for ip in xrange(ip_start, ip_end + 1)]
+             for ip in range(ip_start, ip_end + 1)]
 
 def get_mac_addresses(n):
     """Generate unique MAC addresses"""
     def _random_mac():
-        return ':'.join(map(lambda x: "%02x" % x, [0x00, 0x020, 0x4e,
-                                                  randint(0x00, 0xff),
-                                                  randint(0x00, 0xff),
-                                                  randint(0x00, 0xff)]))
+        return ':'.join(["%02x" % x for x in [0x00, 0x020, 0x4e,
+                                              randint(0x00, 0xff),
+                                              randint(0x00, 0xff),
+                                              randint(0x00, 0xff)]])
     macs = []
     for i in range(n):
         mac = _random_mac()

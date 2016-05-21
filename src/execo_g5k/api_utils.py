@@ -290,7 +290,7 @@ def __get_site(site):
         t = threading.Thread(target = __get_host_attrs, args = (site, cluster))
         t.start()
         host_attrs_th[cluster] = t
-    for t in [ site_attrs_th, site_network_th ] + cluster_attrs_th.values() + host_attrs_th.values():
+    for t in [ site_attrs_th, site_network_th ] + list(cluster_attrs_th.values()) + list(host_attrs_th.values()):
         t.join()
     threading.currentThread().site_data = site_attrs_th.site_data
     threading.currentThread().network_data = site_network_th.network_data
@@ -313,7 +313,7 @@ def _get_api():
         t.start()
         site_th[site] = t
 
-    for t in [ backbone_th ] + site_th.values():
+    for t in [ backbone_th ] + list(site_th.values()):
         t.join()
 
     data = {'network': {},
@@ -344,7 +344,7 @@ def _write_api_cache(cache_dir, data):
         logger.detail('Cache directory is present')
 
     logger.detail('Writing data to cache ...')
-    for e, d in data.iteritems():
+    for e, d in data.items():
         with open(cache_dir + e, 'w') as f:
             dump(d, f)
     with open(cache_dir + 'api_commit', 'w') as f:
@@ -409,7 +409,7 @@ def filter_clusters(clusters, queues = "default"):
 def get_g5k_sites():
 
     """Get the list of Grid5000 sites. Returns an iterable."""
-    return get_api_data()['hierarchy'].keys()
+    return list(get_api_data()['hierarchy'])
 
 def get_site_clusters(site, queues = "default"):
     """Get the list of clusters from a site. Returns an iterable.
@@ -421,7 +421,7 @@ def get_site_clusters(site, queues = "default"):
     """
     if not site in get_g5k_sites():
         raise ValueError("unknown g5k site %s" % (site,))
-    return filter_clusters(get_api_data()['hierarchy'][site].keys(), queues)
+    return filter_clusters(list(get_api_data()['hierarchy'][site]), queues)
 
 def get_site_hosts(site, queues = "default"):
     """Get the list of hosts from a site. Returns an iterable.
@@ -442,7 +442,7 @@ def get_site_network_equipments(site):
     """Get the list of network elements from a site. Returns an iterable."""
     if not site in get_g5k_sites():
         raise ValueError("unknown g5k site %s" % (site,))
-    return get_api_data()['network'][site].keys()
+    return list(get_api_data()['network'][site])
 
 def get_cluster_hosts(cluster):
     """Get the list of hosts from a cluster. Returns an iterable."""
@@ -464,7 +464,7 @@ def get_g5k_clusters(queues = "default"):
     :param queues: queues filter, see
       `execo_g5k.api_utils.filter_clusters`
     """
-    return filter_clusters(get_api_data()['clusters'].keys(), queues)
+    return filter_clusters(list(get_api_data()['clusters']), queues)
 
 def get_g5k_hosts(queues = "default"):
     """Get the list of all g5k hosts. Returns an iterable.
@@ -518,10 +518,13 @@ def get_host_network_equipments(host):
     """"""
     _host = get_host_shortname(host)
     if _host in get_g5k_hosts():
-        return list(set(map(lambda x: x['switch'],
-                   filter(lambda n: 'switch' in n and not n['management'] and n['mountable']
-                          and n['switch'] and n['interface'] == 'Ethernet',
-                          get_host_attributes(_host)['network_adapters']))))
+        return list(set([n['switch']
+                         for n in get_host_attributes(_host)['network_adapters']
+                         if 'switch' in n
+                         and not n['management']
+                         and n['mountable']
+                         and n['switch']
+                         and n['interface'] == 'Ethernet']))
     raise ValueError("unknown g5k host %s" % (host,))
 
 def get_network_equipment_site(equip):
@@ -641,7 +644,7 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None):
     """
     grouped_hosts = group_hosts(hosts)
     res = {}
-    for site in grouped_hosts.keys():
+    for site in grouped_hosts:
         hosts_site = [ h for cluster in grouped_hosts[site].values() for h in cluster ]
         path = "sites/%s/metrics/%s/timeseries?resolution=1&only=%s%s%s" \
                % (site, metric,

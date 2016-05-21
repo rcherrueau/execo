@@ -30,7 +30,7 @@ logger.info('Communication between %s and %s go through '
 logger.info('Active links between nodes %s and %s are: \n%s',
             style.host(path[0]),
             style.host(path[1]),
-            {k: v for k, v in g.edge[path[0]][path[1]].iteritems()
+            {k: v for k, v in g.edge[path[0]][path[1]].items()
                      if v['active']})
 
 logger.info('Generating graphical representation')

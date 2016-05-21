@@ -617,7 +617,7 @@ def debug_dump_threads():
         len(sys._current_frames()),
         the_conductor.lock), file=sys.stderr)
     idx=0
-    for thread_id, frame in sys._current_frames().iteritems():
+    for thread_id, frame in sys._current_frames().items():
         print("===== thread #%i [%#x] refcount = %s" % (idx, thread_id, sys.getrefcount(frame)), file=sys.stderr)
         if thread_id != _debug_thread_id:
             traceback.print_stack(frame, file = sys.stderr)

@@ -85,7 +85,7 @@ class Report(object):
         aggstats = stats.copy()
         no_end_date = False
         for substats in stats['sub_stats']:
-            for k in substats.keys():
+            for k in substats:
                 if k == 'start_date':
                     if (substats[k] != None
                         and (aggstats[k] == None or substats[k] < aggstats[k])):

@@ -314,7 +314,7 @@ if psycopg2:
             t.remaining = {}
             threads[site] = t
             t.start()
-        for site, t in threads.iteritems():
+        for site, t in threads.items():
             t.join()
             remaining.update(t.remaining)
         return remaining

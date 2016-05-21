@@ -10,7 +10,7 @@ slots = compute_slots(planning, 60*10, excluded_elements = blacklisted)
 wanted = {'grid5000': 0}
 start_date, end_date, resources = find_first_slot(slots, wanted)
 actual_resources = { cluster: 1
-                     for cluster, n_nodes in resources.iteritems()
+                     for cluster, n_nodes in resources.items()
                      if cluster in get_g5k_clusters() and n_nodes > 0 }
 logger.info("try to reserve " + str(actual_resources))
 job_specs = get_jobs_specs(actual_resources, blacklisted)
