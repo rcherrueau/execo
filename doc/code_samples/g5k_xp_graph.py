@@ -37,7 +37,7 @@ logger.info('Generating graphical representation')
 plt = treemap(g)
 plt.show()
 
-save = raw_input('Save the figure ? (y/[N]):')
+save = raw_input('Save the figure ? (y/[N]):') # use input instead of raw_input on python3
 if save in ['y', 'Y', 'yes']:
     outfile = 'g5k_xp_graph.png'
     plt.savefig(outfile)
