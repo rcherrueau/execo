@@ -477,7 +477,7 @@ class ParamSweeper(object):
                     if filtr:
                         remaining = filtr(remaining)
                     try:
-                        combination = iter(remaining).next()
+                        combination = next(iter(remaining))
                     except StopIteration:
                         logger.trace("%s no new combination", self.__name)
                         logger.trace(self)
