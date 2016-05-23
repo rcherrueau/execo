@@ -19,6 +19,10 @@
 from .log import style
 from .time_utils import format_date, format_duration
 import sys
+if sys.version_info.major >= 3:
+    _BIGNUM = sys.maxsize
+else:
+    _BIGNUM = sys.maxint
 
 #def sort_reports(reports):
 #    reports.sort(key = lambda report: report.stats().get('start_date') or sys.maxint)
@@ -267,7 +271,7 @@ class Report(object):
         stats = self.stats()
         if not brief and len(stats['sub_stats']) > 0:
             for sub_stats in sorted(stats['sub_stats'],
-                key = lambda stats: stats.get('start_date') or sys.maxint):
+                                    key = lambda stats: stats.get('start_date') or _BIGNUM):
                 output += recurse_stats(sub_stats, 0)
             if wide:
                 output += "--------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
