@@ -245,7 +245,10 @@ def load_configuration(filename, dicts_confs):
     if os.path.isfile(filename):
         jailed_globals = {}
         try:
-            execfile(filename, jailed_globals)
+            with open(filename) as f:
+                code = f.read()
+                ccode = compile(code, filename, 'exec')
+                exec(ccode, jailed_globals)
         except Exception as exc: #IGNORE:W0703
             print("ERROR while reading config file %s:" % (filename,))
             print(exc)
