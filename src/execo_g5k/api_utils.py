@@ -541,18 +541,12 @@ def group_hosts(hosts):
     """Given a sequence of hosts, group them in a dict by sites and clusters"""
     grouped_hosts = {}
     for site, site_hosts in itertools.groupby(
-        sorted(hosts,
-               lambda h1, h2: cmp(
-                   get_host_site(h1),
-                   get_host_site(h2))),
-        get_host_site):
+            sorted(hosts, key = get_host_site),
+            get_host_site):
         grouped_hosts[site] = {}
         for cluster, cluster_hosts in itertools.groupby(
-            sorted(site_hosts,
-                   lambda h1, h2: cmp(
-                       get_host_cluster(h1),
-                       get_host_cluster(h2))),
-            get_host_cluster):
+                sorted(site_hosts, key = get_host_cluster),
+                get_host_cluster):
             grouped_hosts[site][cluster] = list(cluster_hosts)
     return grouped_hosts
 
