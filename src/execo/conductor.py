@@ -115,7 +115,7 @@ if sys.platform.startswith('darwin') or sys.platform.startswith('win'):
             for fd in ready_readfds: dict_item_and(fd_events, fd, POLLIN)
             for fd in ready_writefds: dict_item_and(fd_events, fd, POLLOUT)
             for fd in ready_exceptfds: dict_item_and(fd_events, fd, POLLERR)
-            return list(fd_events.iteritems())
+            return list(fd_events.items())
 
 else:
     from select import poll, POLLIN, POLLPRI, POLLOUT, POLLERR, POLLHUP, POLLNVAL
