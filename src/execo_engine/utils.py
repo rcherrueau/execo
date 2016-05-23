@@ -31,14 +31,14 @@ def _disable_sigs(sigs):
     # fragile and not portable. Code taken and modified from
     # http://stackoverflow.com/questions/3791398/how-to-stop-python-from-propagating-signals-to-subprocesses#3792294
     libc = ctypes.CDLL('libc.so.6')
-    SIGSET_NWORDS = 1024 / (8 *  ctypes.sizeof(ctypes.c_ulong))
+    SIGSET_NWORDS = 1024 // (8 *  ctypes.sizeof(ctypes.c_ulong))
     class SIGSET(ctypes.Structure):
         _fields_ = [
             ('val', ctypes.c_ulong * SIGSET_NWORDS)
             ]
     sigset = (ctypes.c_ulong * SIGSET_NWORDS)()
     for sig in sigs:
-        ulongindex = sig / ctypes.sizeof(ctypes.c_ulong)
+        ulongindex = sig // ctypes.sizeof(ctypes.c_ulong)
         ulongoffset = sig % ctypes.sizeof(ctypes.c_ulong)
         sigset[ulongindex] |= 1 << (ulongoffset - 1)
     mask = SIGSET(sigset)

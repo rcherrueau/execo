@@ -25,7 +25,7 @@ def comma_join(*args):
 def compact_output(s):
     thresh = configuration.get('compact_output_threshold')
     if thresh == 0 or len(s) <= thresh: return s
-    return s[:thresh/2] + "\n[...]\n" + s[(thresh/2)-thresh:]
+    return s[:thresh//2] + "\n[...]\n" + s[(thresh//2)-thresh:]
 
 def str_from_cmdline(cmdline):
     if hasattr(cmdline, '__iter__'):

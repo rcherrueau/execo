@@ -188,7 +188,7 @@ def _zone3339(timetuple):
     """Return a string with the locale timezone in rfc-3339 format."""
     dst = timetuple[8]
     offs = (time.timezone, time.timezone, time.altzone)[1 + dst]
-    return '%+.2d:%.2d' % (offs / -3600, abs(offs / 60) % 60)
+    return '%+.2d:%.2d' % (offs // -3600, abs(offs // 60) % 60)
 
 def format_unixts(secs, showms = False):
     """Return a string with the formatted date (year, month, day, hour, min, sec, ms) in locale timezone and in rfc-3339 format for pretty printing.
@@ -216,11 +216,11 @@ def format_seconds(secs, showms = False):
     if secs == None:
         return None
     s = secs
-    d = (s - (s % 86400)) / 86400
+    d = (s - (s % 86400)) // 86400
     s -= d * 86400
-    h = (s - (s % 3600)) / 3600
+    h = (s - (s % 3600)) // 3600
     s -= h * 3600
-    m = (s - (s % 60)) / 60
+    m = (s - (s % 60)) // 60
     s -= m * 60
     formatted_duration = ""
     if secs >= 86400: formatted_duration += "%id" % d

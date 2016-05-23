@@ -1097,7 +1097,7 @@ def draw_gantt(planning, colors = None, show = False, save = True, outfile = Non
         ax.get_yaxis().set_ticks([])
         ax.yaxis.label.set_fontsize(16)
         pos = 0.0
-        inc = 1. / n_hosts
+        inc = 1.0 / n_hosts
 
         ylabel = ''
         for cluster, hosts in clusters.items():

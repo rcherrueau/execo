@@ -72,9 +72,9 @@ def format_oar_duration(duration):
     """
     duration = get_seconds(duration)
     s = duration
-    h = (s - (s % 3600)) / 3600
+    h = (s - (s % 3600)) // 3600
     s -= h * 3600
-    m = (s - (s % 60)) / 60
+    m = (s - (s % 60)) // 60
     s -= m * 60
     s = int(s)
     formatted_duration = ""
