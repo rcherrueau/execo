@@ -18,7 +18,7 @@
 
 import threading, os, fcntl, math, sys
 import pickle as pickle
-if sys.version_info.major >= 3:
+if sys.version_info >= (3,):
     import pickle
 else:
     import cPickle as pickle

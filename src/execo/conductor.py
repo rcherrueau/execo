@@ -24,7 +24,7 @@ from .config import configuration
 import errno, fcntl, logging, os, select, \
   signal, sys, threading, time, traceback, \
   subprocess, resource, heapq
-if sys.version_info.major >= 3:
+if sys.version_info >= (3,):
     import queue, _thread
 else:
     import Queue as queue, thread as _thread

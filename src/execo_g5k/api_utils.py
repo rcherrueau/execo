@@ -50,7 +50,7 @@ import json, re, itertools
 import threading
 import logging, sys
 from os import makedirs, environ, path
-if sys.version_info.major >= 3:
+if sys.version_info >= (3,):
     from pickle import load, dump
 else:
     from cPickle import load, dump

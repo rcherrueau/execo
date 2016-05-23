@@ -19,7 +19,7 @@
 from .log import style
 from .time_utils import format_date, format_duration
 import sys
-if sys.version_info.major >= 3:
+if sys.version_info >= (3,):
     _BIGNUM = sys.maxsize
 else:
     _BIGNUM = sys.maxint
