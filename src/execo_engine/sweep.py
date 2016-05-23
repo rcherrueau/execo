@@ -16,12 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-import threading, os, fcntl, math
+import threading, os, fcntl, math, sys
 import pickle as pickle
 if sys.version_info.major >= 3:
     import pickle
 else:
-    cPickle as pickle
+    import cPickle as pickle
 from .log import logger
 
 def geom(range_min, range_max, num_steps):

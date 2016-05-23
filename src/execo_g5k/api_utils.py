@@ -48,7 +48,7 @@ import execo
 import httplib2
 import json, re, itertools
 import threading
-import logging
+import logging, sys
 from os import makedirs, environ, path
 if sys.version_info.major >= 3:
     from pickle import load, dump
