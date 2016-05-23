@@ -100,8 +100,14 @@ def slugify(value):
     more or less inspired / copy pasted from django (see
     http://stackoverflow.com/questions/295135/turn-a-string-into-a-valid-filename-in-python)
     """
-    value = unicode(str(value))
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
-    value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
-    value = unicode(re.sub('[-\s]+', '-', value))
+    if sys.version_info.major >= 3:
+        value = str(value)
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+        value = re.sub('[^\w\s-]', '', value).strip().lower()
+        value = re.sub('[-\s]+', '-', value)
+    else:
+        value = unicode(str(value))
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore')
+        value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
+        value = unicode(re.sub('[-\s]+', '-', value))
     return value
