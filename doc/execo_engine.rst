@@ -68,11 +68,6 @@ HashableDict
 .. autoclass:: execo_engine.sweep.HashableDict
    :members:
 
-ArgsOptionParser
-----------------
-.. autoclass:: execo_engine.engine.ArgsOptionParser
-   :members:
-
 redirect_outputs
 ----------------
 .. autofunction:: execo_engine.utils.redirect_outputs

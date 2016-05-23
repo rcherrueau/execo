@@ -17,56 +17,59 @@
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
 from .log import logger
-import optparse, os, sys, time, inspect, pipes
+import os, sys, time, inspect, pipes
 from .utils import redirect_outputs, copy_outputs
 
 _engineargs = sys.argv[1:]
 
-class ArgsOptionParser(optparse.OptionParser):
+if sys.version_info < (2, 7):
+    import optparse
+    class ArgumentParser(optparse.OptionParser):
 
-    """optparse.OptionParser subclass which keeps tracks of arguments for proper help string generation.
+        """optparse.OptionParser subclass which keeps tracks of arguments for proper help string generation.
 
-    This class is a rather quick and dirty hack. Using ``argparse``
-    would be better but it's only available in python 2.7.
-    """
+        This class is a rather quick and dirty hack to alleviate the lack of argparse under python 2.6.
+        """
 
-    def __init__(self, *args, **kwargs):
-        self.arguments = []
-        optparse.OptionParser.__init__(self, *args, **kwargs)
+        def __init__(self, *args, **kwargs):
+            self.arguments = []
+            optparse.OptionParser.__init__(self, *args, **kwargs)
 
-    def add_argument(self, arg_name, description):
-        """Add an arg_name to the arg_name list."""
-        self.arguments.append((arg_name, description))
+        def add_argument(self, arg_name, description):
+            """Add an arg_name to the arg_name list."""
+            self.arguments.append((arg_name, description))
 
-    def num_arguments(self):
-        """Returns the number of expected arguments."""
-        return len(self.arguments)
+        def num_arguments(self):
+            """Returns the number of expected arguments."""
+            return len(self.arguments)
 
-    def format_arguments(self, formatter=None):
-        if formatter is None:
-            formatter = self.formatter
-        result = []
-        result.append(formatter.format_heading("Arguments"))
-        formatter.indent()
-        for argument in self.arguments:
-            result.append(formatter._format_text("%s: %s" % (argument[0], argument[1])))
+        def format_arguments(self, formatter=None):
+            if formatter is None:
+                formatter = self.formatter
+            result = []
+            result.append(formatter.format_heading("Arguments"))
+            formatter.indent()
+            for argument in self.arguments:
+                result.append(formatter._format_text("%s: %s" % (argument[0], argument[1])))
+                result.append("\n")
+            formatter.dedent()
             result.append("\n")
-        formatter.dedent()
-        result.append("\n")
-        return "".join(result)
+            return "".join(result)
 
-    def format_help(self, formatter=None):
-        if formatter is None:
-            formatter = self.formatter
-        result = []
-        if self.usage:
-            result.append(self.get_usage() + "\n")
-        if self.description:
-            result.append(self.format_description(formatter) + "\n")
-        result.append(self.format_arguments(formatter))
-        result.append(self.format_option_help(formatter))
-        result.append(self.format_epilog(formatter))
-        return "".join(result)
+        def format_help(self, formatter=None):
+            if formatter is None:
+                formatter = self.formatter
+            result = []
+            if self.usage:
+                result.append(self.get_usage() + "\n")
+            if self.description:
+                result.append(self.format_description(formatter) + "\n")
+            result.append(self.format_arguments(formatter))
+            result.append(self.format_option_help(formatter))
+            result.append(self.format_epilog(formatter))
+            return "".join(result)
+else:
+    from argparse import ArgumentParser
 
 def run_meth_on_engine_ancestors(instance, method_name):
     engine_ancestors = [ cls for cls in inspect.getmro(instance.__class__) if issubclass(cls, Engine) ]
@@ -160,12 +163,8 @@ class Engine(object):
         mymodule = sys.modules[self.__module__]
         if hasattr(mymodule, "__file__"):
             self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(mymodule.__file__)))
-        self.options_parser = ArgsOptionParser(usage = "usage: <program> [options] <arguments>")
-        """An instance of
-        `execo_engine.engine.ArgsOptionParser`. Subclasses of
-        `execo_engine.engine.Engine` can register options and args to
-        this options parser in `execo_engine.engine.Engine.init`.
-        """
+        self.options_parser = ArgumentParser(usage = "usage: <program> [options] <arguments>")
+        """Subclasses of `execo_engine.engine.Engine` can register options and args to this options parser in `execo_engine.engine.Engine.init`."""
         self.options_parser.add_option(
             "-l", dest = "log_level", default = None,
             help = "log level (int or string). Default = inherit execo logger level")
