@@ -19,57 +19,9 @@
 from .log import logger
 import os, sys, time, inspect, pipes
 from .utils import redirect_outputs, copy_outputs
+from argparse import ArgumentParser
 
 _engineargs = sys.argv[1:]
-
-if sys.version_info < (2, 7):
-    import optparse
-    class ArgumentParser(optparse.OptionParser):
-
-        """optparse.OptionParser subclass which keeps tracks of arguments for proper help string generation.
-
-        This class is a rather quick and dirty hack to alleviate the lack of argparse under python 2.6.
-        """
-
-        def __init__(self, *args, **kwargs):
-            self.arguments = []
-            optparse.OptionParser.__init__(self, *args, **kwargs)
-
-        def add_argument(self, arg_name, description):
-            """Add an arg_name to the arg_name list."""
-            self.arguments.append((arg_name, description))
-
-        def num_arguments(self):
-            """Returns the number of expected arguments."""
-            return len(self.arguments)
-
-        def format_arguments(self, formatter=None):
-            if formatter is None:
-                formatter = self.formatter
-            result = []
-            result.append(formatter.format_heading("Arguments"))
-            formatter.indent()
-            for argument in self.arguments:
-                result.append(formatter._format_text("%s: %s" % (argument[0], argument[1])))
-                result.append("\n")
-            formatter.dedent()
-            result.append("\n")
-            return "".join(result)
-
-        def format_help(self, formatter=None):
-            if formatter is None:
-                formatter = self.formatter
-            result = []
-            if self.usage:
-                result.append(self.get_usage() + "\n")
-            if self.description:
-                result.append(self.format_description(formatter) + "\n")
-            result.append(self.format_arguments(formatter))
-            result.append(self.format_option_help(formatter))
-            result.append(self.format_epilog(formatter))
-            return "".join(result)
-else:
-    from argparse import ArgumentParser
 
 def run_meth_on_engine_ancestors(instance, method_name):
     engine_ancestors = [ cls for cls in inspect.getmro(instance.__class__) if issubclass(cls, Engine) ]
@@ -104,9 +56,7 @@ class Engine(object):
 
     - `execo_engine.engine.Engine.result_dir`
 
-    - `execo_engine.engine.Engine.options_parser`
-
-    - `execo_engine.engine.Engine.options`
+    - `execo_engine.engine.Engine.args_parser`
 
     - `execo_engine.engine.Engine.args`
 
@@ -126,14 +76,13 @@ class Engine(object):
 
     A typical, non-reusable engine would override
     `execo_engine.engine.Engine.init`, adding options / arguments to
-    `execo_engine.engine.Engine.options_parser`, and override
+    `execo_engine.engine.Engine.args_parser`, and override
     `execo_engine.engine.Engine.run`, putting all the experiment code
     inside it, being sure that all initializations are done when
     ``run`` is called: results directory is initialized and created
     (possibly reusing a previous results directory, to restart from a
     previously stopped experiment), log level is set, stdout / stderr
     are redirected as needed, and options and arguments are in
-    `execo_engine.engine.Engine.options` and
     `execo_engine.engine.Engine.args`.
 
     A typical usage of a `execo_engine.utils.ParamSweeper` in an
@@ -163,35 +112,30 @@ class Engine(object):
         mymodule = sys.modules[self.__module__]
         if hasattr(mymodule, "__file__"):
             self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(mymodule.__file__)))
-        self.options_parser = ArgumentParser(usage = "usage: <program> [options] <arguments>")
+        self.args_parser = ArgumentParser(usage = "usage: <program> [options] <arguments>",
+                                          description = "engine: " + self.__class__.__name__)
         """Subclasses of `execo_engine.engine.Engine` can register options and args to this options parser in `execo_engine.engine.Engine.init`."""
-        self.options_parser.add_option(
+        self.args_parser.add_argument(
             "-l", dest = "log_level", default = None,
             help = "log level (int or string). Default = inherit execo logger level")
-        self.options_parser.add_option(
+        self.args_parser.add_argument(
             "-L", dest = "output_mode", action="store_const", const = "copy", default = False,
             help = "copy stdout / stderr to log files in the experiment result directory. Default = %default")
-        self.options_parser.add_option(
+        self.args_parser.add_argument(
             "-R", dest = "output_mode", action="store_const", const = "redirect", default = False,
             help = "redirect stdout / stderr to log files in the experiment result directory. Default = %default")
-        self.options_parser.add_option(
+        self.args_parser.add_argument(
             "-M", dest = "merge_outputs", action="store_true", default = False,
             help = "when copying or redirecting outputs, merge stdout / stderr in a single file. Default = %default")
-        self.options_parser.add_option(
+        self.args_parser.add_argument(
             "-c", dest = "use_dir", default = None, metavar = "DIR",
             help = "use experiment directory DIR")
-        self.options_parser.set_description("engine: " + self.__class__.__name__)
-        self.options = None
-        """Options given on the command line. Available after the
-        command line has been parsed, in
-        `execo_engine.engine.Engine.run` (not in
-        `execo_engine.engine.Engine.init`)
-        """
         self.args = None
-        """Arguments given on the command line. Available after the
-        command line has been parsed, in
+        """Arguments and options given on the command line. Available after
+        the command line has been parsed, in
         `execo_engine.engine.Engine.run` (not in
         `execo_engine.engine.Engine.init`)
+
         """
         self.run_name = None
         """Name of the current experiment. If you want to modify it,
@@ -206,7 +150,7 @@ class Engine(object):
         experiment should be located.
         """
 
-    def start(self, args = _engineargs):
+    def start(self, engineargs = _engineargs):
         """Start the engine.
 
         Properly initialize the experiment Engine instance, then call
@@ -214,7 +158,7 @@ class Engine(object):
         the overridden run() method of the requested experiment
         Engine.
         """
-        (self.options, self.args) = self.options_parser.parse_args(args = args)
+        self.args = self.args_parser.parse_args(args = engineargs)
         # _engineargs hack: to make running an engine from ipython
         # more convenient: if ipython is run from command line as
         #
@@ -226,32 +170,33 @@ class Engine(object):
         # instanciate or start the engine interactively, we need to
         # parse the right args from sys.argv which is thus saved at
         # engine load time.
-        if self.options.log_level != None:
+        if self.args.log_level != None:
             try:
-                log_level = int(self.options.log_level)
+                log_level = int(self.args.log_level)
             except:
-                log_level = self.options.log_level
+                log_level = self.args.log_level
             logger.setLevel(log_level)
-        if len(self.args) < self.options_parser.num_arguments():
-            self.options_parser.print_help(sys.stderr)
-            exit(1)
+        if sys.version_info < (2, 7):
+            if len(self.args) < self.args_parser.num_arguments():
+                self.args_parser.print_help(sys.stderr)
+                exit(1)
         self.setup_run_name()
-        if self.options.use_dir:
-            self.result_dir = self.options.use_dir
+        if self.args.use_dir:
+            self.result_dir = self.args.use_dir
         else:
             self.setup_result_dir()
         self._create_result_dir()
-        if self.options.output_mode:
-            if self.options.merge_outputs:
+        if self.args.output_mode:
+            if self.args.merge_outputs:
                 stdout_fname = self.result_dir + "/stdout+stderr"
                 stderr_fname = self.result_dir + "/stdout+stderr"
             else:
                 stdout_fname = self.result_dir + "/stdout"
                 stderr_fname = self.result_dir + "/stderr"
-            if self.options.output_mode == "copy":
+            if self.args.output_mode == "copy":
                 copy_outputs(stdout_fname, stderr_fname)
                 logger.info("dup stdout / stderr to %s and %s", stdout_fname, stderr_fname)
-            elif self.options.output_mode == "redirect":
+            elif self.args.output_mode == "redirect":
                 redirect_outputs(stdout_fname, stderr_fname)
                 logger.info("redirect stdout / stderr to %s and %s", stdout_fname, stderr_fname)
         logger.info("command line arguments: %s" % (sys.argv,))
