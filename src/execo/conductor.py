@@ -21,9 +21,13 @@ from .log import style, logger, logger_handler
 from .time_utils import format_unixts
 from .utils import compact_output
 from .config import configuration
-import Queue, errno, fcntl, logging, os, select, \
-  signal, sys, thread, threading, time, traceback, \
+import errno, fcntl, logging, os, select, \
+  signal, sys, threading, time, traceback, \
   subprocess, resource, heapq
+if sys.version_info.major >= 3:
+    import queue, _thread
+else:
+    import Queue as queue, thread as _thread
 
 # assuming import of this module is triggered from "the main" thread,
 # the following call is intended to workaround python issue #7980
@@ -252,7 +256,7 @@ class _Conductor(object):
                                 #
                                 # values: their `Process`
         self.__timeline = [] # heapq of `Process` with a timeout date
-        self.__process_actions = Queue.Queue()
+        self.__process_actions = queue.Queue()
                                 # thread-safe FIFO used to send requests
                                 # from main thread and conductor thread:
                                 # we enqueue tuples (function to call,
@@ -481,7 +485,7 @@ class _Conductor(object):
         except Exception: #IGNORE:W0703
             print("exception in conductor I/O loop thread")
             traceback.print_exc()
-            thread.interrupt_main()
+            _thread.interrupt_main()
 
     def __io_loop(self):
         # conductor thread infinite I/O loop
@@ -540,7 +544,7 @@ class _Conductor(object):
                         # call (in the right order!) all functions
                         # enqueued from other threads
                         func, args = self.__process_actions.get_nowait()
-                    except Queue.Empty:
+                    except queue.Empty:
                         break
                     func(*args)
                 self.__update_terminated_processes()

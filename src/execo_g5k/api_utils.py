@@ -50,7 +50,10 @@ import json, re, itertools
 import threading
 import logging
 from os import makedirs, environ, path
-from cPickle import load, dump
+if sys.version_info.major >= 3:
+    from pickle import load, dump
+else:
+    from cPickle import load, dump
 
 if 'HOME' in environ:
     _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
