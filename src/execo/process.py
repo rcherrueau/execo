@@ -887,7 +887,7 @@ class ProcessBase(object):
 def _get_childs(pid):
     childs = []
     try:
-        s = subprocess.Popen(("ps", "--ppid", str(pid)), stdout=subprocess.PIPE).communicate()[0]
+        s = subprocess.Popen(("ps", "--ppid", str(pid)), stdout=subprocess.PIPE, universal_newlines=True).communicate()[0]
         tmp_childs = [ int(c) for c in re.findall("^\s*(\d+)\s+", s, re.MULTILINE) ]
         childs.extend(tmp_childs)
         for child in tmp_childs:
@@ -1058,6 +1058,7 @@ class Process(ProcessBase):
                                                 stderr = subprocess.PIPE,
                                                 close_fds = True,
                                                 shell = self.shell,
+                                                universal_newlines=True,
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
                 self.stdout_fd = self._ptymaster
                 self.stderr_fd = self.process.stderr.fileno()
@@ -1069,6 +1070,7 @@ class Process(ProcessBase):
                                                 stderr = subprocess.PIPE,
                                                 close_fds = True,
                                                 shell = self.shell,
+                                                universal_newlines=True,
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
                 self.stdout_fd = self.process.stdout.fileno()
                 self.stderr_fd = self.process.stderr.fileno()

@@ -40,7 +40,7 @@ except:
 
 # max number of bytes read when reading asynchronously from a pipe
 try:
-    _MAXREAD = int(subprocess.Popen(["getconf", "_POSIX_SSIZE_MAX"], stdout=subprocess.PIPE).communicate()[0])
+    _MAXREAD = int(subprocess.Popen(["getconf", "_POSIX_SSIZE_MAX"], stdout=subprocess.PIPE, universal_newlines=True).communicate()[0])
 except:
     _MAXREAD = 32767
 
