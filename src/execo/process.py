@@ -29,7 +29,7 @@ from traceback import format_exc
 from .report import Report
 from .exception import ProcessesFailed
 import errno, os, re, shlex, signal, subprocess
-import threading, time, pipes
+import threading, time, pipes, sys
 
 STDOUT = 1
 """Identifier for the stdout stream"""
