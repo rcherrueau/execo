@@ -24,7 +24,7 @@ from .log import style, logger
 from pty import openpty
 from .ssh_utils import get_ssh_command, get_rewritten_host_address
 from .time_utils import format_unixts, get_seconds, Timer
-from .utils import compact_output, name_from_cmdline, non_retrying_intr_cond_wait, get_port, intr_event_wait, singleton_to_collection
+from .utils import compact_output, name_from_cmdline, non_retrying_intr_cond_wait, get_port, intr_event_wait, singleton_to_collection, is_string
 from traceback import format_exc
 from .report import Report
 from .exception import ProcessesFailed
@@ -140,7 +140,7 @@ def handle_process_output(process, stream, handler, string, eof, error):
         handler.read(process, stream, string, eof, error)
     elif hasattr(handler, "write"):
         handler.write(string)
-    elif isinstance(handler, basestring):
+    elif is_string(handler):
         k = (handler, stream)
         if not process._out_files.get(k):
             process._out_files[k] = open(handler, "w")
@@ -986,15 +986,18 @@ class Process(ProcessBase):
 
     def _actual_cmd(self):
         # return actual cmd
-        if self.shell == False and (isinstance(self.cmd, str) or isinstance(self.cmd, unicode)):
+        if self.shell == False and (is_string(self.cmd)):
             return shlex.split(self.cmd)
         elif self.shell == True and hasattr(self.cmd, '__iter__'):
             return str(" ".join([ pipes.quote(arg) for arg in self.cmd ]))
         else:
-            if isinstance(self.cmd, unicode):
-                return str(self.cmd)
-            else:
+            if sys.version_info >= (3,):
                 return self.cmd
+            else:
+                if isinstance(self.cmd, unicode):
+                    return str(self.cmd)
+                else:
+                    return self.cmd
 
     def _common_reset(self):
         super(Process, self)._common_reset()

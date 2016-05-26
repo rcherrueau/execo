@@ -114,3 +114,10 @@ def singleton_to_collection(arg):
         return [ arg ]
     else:
         return arg
+
+if sys.version_info >= (3,):
+    def is_string(s):
+        return isinstance(s, str)
+else:
+    def is_string(s):
+        return isinstance(s, basestring)
