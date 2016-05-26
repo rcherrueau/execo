@@ -84,8 +84,8 @@ platforms
 prerequisites
 -------------
 
-execo installation absolutely requires ``python`` (>=
-2.6). ``execo_g5k`` needs ``python-httplib2``. Optionnal packages are
+execo installation absolutely requires ``python`` 2.6 / 2.7 or
+3.x. ``execo_g5k`` needs ``python-httplib2``. Optionnal packages are
 (debian package names, in order of decreasing importance):
 
 - under python 2.6, ``python-argparse`` is needed for `execo.engine`
@@ -168,6 +168,8 @@ How to contribute
 - start contributing by sending clean patches or report bugs.
 
 - stay consistent with the coding and naming style
+
+- code must be compatible with python 2.6, 2.7 and 3.x
 
 - use the core systems provided (eg. the configuration system, the tty
   coloring system, the logger, etc.) instead of developing your own.
