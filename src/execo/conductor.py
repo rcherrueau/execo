@@ -236,6 +236,8 @@ class _Conductor(object):
                                             # _read_asmuch() relies on
                                             # file descriptors to be non
                                             # blocking
+        _set_fd_nonblocking(self.__wpipe)   # because we call
+                                            # signal.set_wakeup_fd on this pipe
         self.__poller = poll()   # asynchronous I/O with all
                                  # subprocesses filehandles
         self.__poller.register(self.__rpipe,
