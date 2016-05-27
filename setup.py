@@ -197,7 +197,7 @@ if __name__ == "__main__":
                           'Intended Audience :: Science/Research',
                           'Intended Audience :: System Administrators',
                           'Operating System :: POSIX :: Linux',
-                          'Programming Language :: Python :: 2.5',
+                          'Programming Language :: Python :: 2.6',
                           'Topic :: Software Development',
                           'Topic :: System :: Clustering',
                           'Topic :: System :: Distributed Computing'],
