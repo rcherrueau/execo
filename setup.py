@@ -32,7 +32,8 @@ def get_git_version():
     # returns None if not available
     try:
         p = subprocess.Popen(["git", "describe", "--tags", "--dirty", "--always"],
-                             stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+                             stdout = subprocess.PIPE, stderr = subprocess.PIPE,
+                             universal_newlines = True)
     except EnvironmentError:
         return None
     version = p.communicate()[0].rstrip()
