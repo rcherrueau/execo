@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Execo.  If not, see <http://www.gnu.org/licenses/>
 
-from subprocess import MAXFD
+from execo.utils import MAXFD
 import os, unicodedata, re, sys, ctypes, signal
 
 def _redirect_fd(fileno, filename):

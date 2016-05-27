@@ -19,7 +19,7 @@
 from __future__ import print_function
 from .log import style, logger, logger_handler
 from .time_utils import format_unixts
-from .utils import compact_output
+from .utils import compact_output, MAXFD
 from .config import configuration
 import errno, fcntl, logging, os, select, \
   signal, sys, threading, time, traceback, \
@@ -43,8 +43,6 @@ try:
     _MAXREAD = int(subprocess.Popen(["getconf", "_POSIX_SSIZE_MAX"], stdout=subprocess.PIPE, universal_newlines=True).communicate()[0])
 except:
     _MAXREAD = 32767
-
-DEFAULT_MAXFD = 1024
 
 if sys.platform.startswith('darwin') or sys.platform.startswith('win'):
 
@@ -283,10 +281,7 @@ class _Conductor(object):
             os.umask(0)
             maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
             if (maxfd == resource.RLIM_INFINITY):
-                if ("SC_OPEN_MAX" in os.sysconf_names):
-                    maxfd = maxfd = os.sysconf("SC_OPEN_MAX")
-                else:
-                    maxfd = DEFAULT_MAXFD
+                maxfd = MAXFD
             for fd in range(0, maxfd):
                 try: os.close(fd)
                 except OSError: pass

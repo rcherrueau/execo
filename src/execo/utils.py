@@ -121,3 +121,8 @@ if sys.version_info >= (3,):
 else:
     def is_string(s):
         return isinstance(s, basestring)
+
+if ("SC_OPEN_MAX" in os.sysconf_names):
+    MAXFD = os.sysconf("SC_OPEN_MAX")
+else:
+    MAXFD = 1024
