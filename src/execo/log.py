@@ -101,26 +101,57 @@ class Logger(logging.getLoggerClass()):
         self.log(DETAIL, message, *args, **kwargs)
 
     # copied from logging, modified to handle cases for custom log levels
-    def findCaller(self):
-        """
-        Find the stack frame of the caller so that we can note the source
-        file name, line number and function name.
-        """
-        f = logging.currentframe()
-        #On some versions of IronPython, currentframe() returns None if
-        #IronPython isn't run with -X:Frames.
-        if f is not None:
-            f = f.f_back
-        rv = "(unknown file)", 0, "(unknown function)"
-        while hasattr(f, "f_code"):
-            co = f.f_code
-            filename = os.path.normcase(co.co_filename)
-            if filename == _srcfile or filename == logging._srcfile:
+    if sys.version_info >= (3,):
+        def findCaller(self, stack_info=False):
+            """
+            Find the stack frame of the caller so that we can note the source
+            file name, line number and function name.
+            """
+            f = logging.currentframe()
+            #On some versions of IronPython, currentframe() returns None if
+            #IronPython isn't run with -X:Frames.
+            if f is not None:
                 f = f.f_back
-                continue
-            rv = (co.co_filename, f.f_lineno, co.co_name)
-            break
-        return rv
+            rv = "(unknown file)", 0, "(unknown function)", None
+            while hasattr(f, "f_code"):
+                co = f.f_code
+                filename = os.path.normcase(co.co_filename)
+                if filename == _srcfile or filename == logging._srcfile:
+                    f = f.f_back
+                    continue
+                sinfo = None
+                if stack_info:
+                    sio = io.StringIO()
+                    sio.write('Stack (most recent call last):\n')
+                    traceback.print_stack(f, file=sio)
+                    sinfo = sio.getvalue()
+                    if sinfo[-1] == '\n':
+                        sinfo = sinfo[:-1]
+                    sio.close()
+                rv = (co.co_filename, f.f_lineno, co.co_name, sinfo)
+                break
+            return rv
+    else:
+        def findCaller(self):
+            """
+            Find the stack frame of the caller so that we can note the source
+            file name, line number and function name.
+            """
+            f = logging.currentframe()
+            #On some versions of IronPython, currentframe() returns None if
+            #IronPython isn't run with -X:Frames.
+            if f is not None:
+                f = f.f_back
+            rv = "(unknown file)", 0, "(unknown function)"
+            while hasattr(f, "f_code"):
+                co = f.f_code
+                filename = os.path.normcase(co.co_filename)
+                if filename == _srcfile or filename == logging._srcfile:
+                    f = f.f_back
+                    continue
+                rv = (co.co_filename, f.f_lineno, co.co_name)
+                break
+            return rv
 
 
 # logger is the execo logging object
