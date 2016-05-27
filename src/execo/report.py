@@ -25,7 +25,7 @@ else:
     _BIGNUM = sys.maxint
 
 #def sort_reports(reports):
-#    reports.sort(key = lambda report: report.stats().get('start_date') or sys.maxint)
+#    reports.sort(key = lambda report: report.stats().get('start_date') or _BIGNUM)
 
 class Report(object):
 
