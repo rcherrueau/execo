@@ -233,12 +233,11 @@ def _is_cache_old_and_reachable(cache_dir):
     it with latest commit, return True if remote commit is different
     from cache commit"""
     try:
-        f = open(cache_dir + 'api_commit')
+        with open(cache_dir + 'api_commit') as f:
+            local_commit = f.readline()
     except:
         logger.detail('No commit version found')
         return True
-    local_commit = f.readline()
-    f.close()
     try:
         api_commit = get_resource_attributes('')['version']
     except:
@@ -348,7 +347,7 @@ def _write_api_cache(cache_dir, data):
 
     logger.detail('Writing data to cache ...')
     for e, d in data.items():
-        with open(cache_dir + e, 'w') as f:
+        with open(cache_dir + e, 'wb') as f:
             dump(d, f)
     with open(cache_dir + 'api_commit', 'w') as f:
         f.write(data['network']['backbone'][0]['version'])
@@ -361,10 +360,8 @@ def _read_api_cache(cache_dir):
     data = {}
     logger.detail('Reading data from cache ...')
     for e in ['network', 'sites', 'clusters', 'hosts', 'hierarchy']:
-        f = open(cache_dir + e)
-        data[e] = load(f)
-        f.close()
-
+        with open(cache_dir + e, 'rb') as f:
+            data[e] = load(f)
     return data
 
 
