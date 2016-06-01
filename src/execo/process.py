@@ -31,6 +31,12 @@ from .exception import ProcessesFailed
 import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes, sys
 
+if sys.version_info >= (3,):
+    import codecs, locale, functools
+    _decode = functools.partial(codecs.decode, encoding=locale.getpreferredencoding())
+else:
+    _decode = lambda x: yeld
+
 STDOUT = 1
 """Identifier for the stdout stream"""
 STDERR = 2
@@ -638,46 +644,48 @@ class ProcessBase(object):
         with self._lock:
             return self.started and not self.ended
 
-    def _handle_stdout(self, string, eof, error):
+    def _handle_stdout(self, buf, eof, error):
         """Handle stdout activity.
 
-        :param string: available stream output in string
+        :param buf: available stream output
 
         :param eof: True if end of file on stream
 
         :param error: True if error on stream
         """
+        buf = _decode(buf)
         if logger.getEffectiveLevel() <= IODEBUG:
-            _debugio_handler.read(self, STDOUT, string, eof, error)
+            _debugio_handler.read(self, STDOUT, buf, eof, error)
         if self.default_stdout_handler:
-            self.stdout += string
+            self.stdout += buf
         if error == True:
             self.stdout_ioerror = True
         for handler in list(self.stdout_handlers):
             try:
-                handle_process_output(self, STDOUT, handler, string, eof, error)
+                handle_process_output(self, STDOUT, handler, buf, eof, error)
             except Exception as e:
                 logger.error("process stdout handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
 
-    def _handle_stderr(self, string, eof, error):
+    def _handle_stderr(self, buf, eof, error):
         """Handle stderr activity.
 
-        :param string: available stream output in string
+        :param buf: available stream output
 
         :param eof: True if end of file on stream
 
         :param error: True if error on stream
         """
+        buf = _decode(buf)
         if logger.getEffectiveLevel() <= IODEBUG:
-            _debugio_handler.read(self, STDERR, string, eof, error)
+            _debugio_handler.read(self, STDERR, buf, eof, error)
         if self.default_stderr_handler:
-            self.stderr += string
+            self.stderr += buf
         if error == True:
             self.stderr_ioerror = True
         for handler in list(self.stderr_handlers):
             try:
-                handle_process_output(self, STDERR, handler, string, eof, error)
+                handle_process_output(self, STDERR, handler, buf, eof, error)
             except Exception as e:
                 logger.error("process stderr handler %s raised exception for process %s:\n%s" % (
                         handler, self, format_exc()))
@@ -1058,7 +1066,6 @@ class Process(ProcessBase):
                                                 stderr = subprocess.PIPE,
                                                 close_fds = True,
                                                 shell = self.shell,
-                                                universal_newlines=True,
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
                 self.stdout_fd = self._ptymaster
                 self.stderr_fd = self.process.stderr.fileno()
@@ -1070,7 +1077,6 @@ class Process(ProcessBase):
                                                 stderr = subprocess.PIPE,
                                                 close_fds = True,
                                                 shell = self.shell,
-                                                universal_newlines=True,
                                                 preexec_fn = lambda: os.setpgid(0, the_conductor.pgrp))
                 self.stdout_fd = self.process.stdout.fileno()
                 self.stderr_fd = self.process.stderr.fileno()
