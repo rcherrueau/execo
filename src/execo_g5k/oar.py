@@ -27,7 +27,7 @@ from execo.utils import comma_join
 from execo_g5k.config import default_frontend_connection_params
 from execo.utils import checked_min, singleton_to_collection
 from execo_g5k.utils import get_frontend_host
-import os, re, time
+import os, re, time, codecs
 
 def _date_in_range(date, date_range):
     """Check that a date is inside a range. If range is None, return True."""
@@ -101,12 +101,12 @@ def oar_date_to_unixts(date):
         os.environ["TZ"] = "Europe/Paris"
         time.tzset()
         ts = str_date_to_unixts(date)
-        os.write(wend, str(ts))
+        os.write(wend, codecs.encode(str(ts)))
         os._exit(0)
     else:
         os.close(wend)
-        f = os.fdopen(rend)
-        ts = float(f.read())
+        f = os.fdopen(rend, 'rb')
+        ts = float(codecs.decode(f.read()))
         f.close()
         os.waitpid(pid, 0)
         return ts
