@@ -180,6 +180,8 @@ class MyFormatter(logging.Formatter):
                           + "".join([_ansi_styles[attr] for attr in configuration['color_styles'][record.levelno]])
                           + "%(levelname)s:"
                           + _ansi_styles['default'] + " %(message)s" )
+        if sys.version_info >= (3,2):
+            self._style._fmt = self._fmt
         return logging.Formatter.format(self, record)
 
 logger_handler.setFormatter(MyFormatter())
