@@ -198,6 +198,8 @@ class APIConnection(object):
                                          headers = self.headers)
         if response['status'] not in ['200', '304']:
             raise APIGetException(uri, response, content)
+        if sys.version_info >= (3,):
+            content = content.decode('utf-8')
         return response, content
 
 def get_resource_attributes(path):
