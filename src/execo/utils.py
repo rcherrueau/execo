@@ -28,10 +28,10 @@ def compact_output(s):
     return s[:thresh//2] + "\n[...]\n" + s[(thresh//2)-thresh:]
 
 def str_from_cmdline(cmdline):
-    if hasattr(cmdline, '__iter__'):
-        return " ".join([ pipes.quote(arg) for arg in cmdline ])
-    else:
+    if is_string(cmdline):
         return cmdline
+    else:
+        return " ".join([ pipes.quote(arg) for arg in cmdline ])
 
 def name_from_cmdline(cmdline):
     cmdline = str_from_cmdline(cmdline)
@@ -110,7 +110,7 @@ def get_port():
 
 def singleton_to_collection(arg):
     """Converts single object (including strings) to list of length one containing it"""
-    if not hasattr(arg, "__iter__"):
+    if not hasattr(arg, "__iter__") or is_string(arg):
         return [ arg ]
     else:
         return arg

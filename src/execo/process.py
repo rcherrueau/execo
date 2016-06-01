@@ -988,7 +988,7 @@ class Process(ProcessBase):
         # return actual cmd
         if self.shell == False and (is_string(self.cmd)):
             return shlex.split(self.cmd)
-        elif self.shell == True and hasattr(self.cmd, '__iter__'):
+        elif self.shell == True and not is_string(self.cmd):
             return str(" ".join([ pipes.quote(arg) for arg in self.cmd ]))
         else:
             if sys.version_info >= (3,):
@@ -1330,7 +1330,7 @@ class SshProcess(Process):
                                     host.port,
                                     connection_params)
                     + (get_rewritten_host_address(host.address, connection_params),))
-        if hasattr(cmd, '__iter__'):
+        if not is_string(cmd):
             real_cmd += cmd
         else:
             real_cmd += (cmd,)
