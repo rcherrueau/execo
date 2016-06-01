@@ -399,7 +399,7 @@ class _Conductor(object):
         del self.__pids[process.pid]
         fileno_stdout = process.stdout_fd
         fileno_stderr = process.stderr_fd
-        last_bytes = ""
+        last_bytes = b''
         if fileno_stdout in self.__fds:
             del self.__fds[fileno_stdout]
             self.__poller.unregister(fileno_stdout)
@@ -408,10 +408,10 @@ class _Conductor(object):
             try:
                 (last_bytes, _) = _read_asmuch(fileno_stdout)
             except OSError as e:
-                if e.errno == errno.EBADF: last_bytes = ""
+                if e.errno == errno.EBADF: last_bytes = b''
                 else: raise e
         process._handle_stdout(last_bytes, True, False)
-        last_bytes = ""
+        last_bytes = b''
         if fileno_stderr in self.__fds:
             del self.__fds[fileno_stderr]
             self.__poller.unregister(fileno_stderr)
@@ -420,7 +420,7 @@ class _Conductor(object):
             try:
                 (last_bytes, _) = _read_asmuch(fileno_stderr)
             except OSError as e:
-                if e.errno == errno.EBADF: last_bytes = ""
+                if e.errno == errno.EBADF: last_bytes = b''
                 else: raise e
         process._handle_stderr(last_bytes, True, False)
         self.__processes.remove(process)
