@@ -126,7 +126,7 @@ def sweep(parameters):
     return result
 
 # context manager for opening and locking files
-# beware: for locking purpose, the file is always opened in mode "a+"
+# beware: for locking purpose, the file is always opened in mode "ab+"
 # which is the only mode allowing both locking the file and having
 # read write access to it. but it forces to handle correctly file
 # position and truncation
@@ -136,7 +136,7 @@ class _openlock():
         self.__filename = filename
 
     def __enter__(self):
-        self.__file = open(self.__filename, "a+")
+        self.__file = open(self.__filename, "ab+")
         fcntl.lockf(self.__file, fcntl.LOCK_EX)
         return self.__file
 
