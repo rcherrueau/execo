@@ -150,8 +150,8 @@ def _checked_waitpid(pid, options):
             else:
                 raise
 
-def _read_asmuch(fileno):
-    """Read as much as possible from a file descriptor withour blocking.
+def _read_asmuch_to(buf, fileno):
+    """Read as much as possible from a file descriptor without blocking.
 
     Relies on the file descriptor to have been set non blocking.
 
@@ -159,21 +159,28 @@ def _read_asmuch(fileno):
     a boolean flag.
     """
     eof = False
-    string = ""
     while True:
         try:
-            tmpstring = os.read(fileno, _MAXREAD)
+            tmpbuf = os.read(fileno, _MAXREAD)
         except OSError as err:
             if err.errno == errno.EAGAIN:
                 break
             else:
                 raise
-        if tmpstring == "":
+        if len(tmpbuf) == 0:
             eof = True
             break
         else:
-            string += tmpstring
-    return (string, eof)
+            buf += tmpbuf
+    return (buf, eof)
+
+def _read_asmuch_s(fileno):
+    buf = ''
+    return _read_asmuch_to(buf, fileno)
+
+def _read_asmuch_b(fileno):
+    buf = b''
+    return _read_asmuch_to(buf, fileno)
 
 def _set_fd_nonblocking(fileno):
     """Sets a file descriptor in non blocking mode.
@@ -300,7 +307,7 @@ class _Conductor(object):
 
     def __wakeup(self):
         # wakeup the I/O thread
-        os.write(self.__wpipe, ".")
+        os.write(self.__wpipe, b'.')
 
     def start(self):
         """Start the conductor thread."""
@@ -406,7 +413,7 @@ class _Conductor(object):
             # read the last data that may be available on stdout of
             # this process
             try:
-                (last_bytes, _) = _read_asmuch(fileno_stdout)
+                (last_bytes, _) = _read_asmuch_s(fileno_stdout)
             except OSError as e:
                 if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
@@ -418,7 +425,7 @@ class _Conductor(object):
             # read the last data that may be available on stderr of
             # this process
             try:
-                (last_bytes, _) = _read_asmuch(fileno_stderr)
+                (last_bytes, _) = _read_asmuch_s(fileno_stderr)
             except OSError as e:
                 if e.errno == errno.EBADF: last_bytes = ""
                 else: raise e
@@ -512,7 +519,7 @@ class _Conductor(object):
                         process, stream_handler_func = self.__fds[fd]
                         logger.fdebug("event %s on fd %s, process %s", _event_desc(event), fd, str(process))
                         if event & POLLIN:
-                            (string, eof) = _read_asmuch(fd)
+                            (string, eof) = _read_asmuch_b(fd)
                             stream_handler_func(string, False, False)
                             if eof:
                                 self.__remove_handle(fd)
@@ -526,7 +533,7 @@ class _Conductor(object):
             if event_on_rpipe != None:
                 logger.fdebug("event %s on inter-thread pipe", _event_desc(event_on_rpipe))
                 if event_on_rpipe & POLLIN:
-                    (string, eof) = _read_asmuch(self.__rpipe)
+                    (string, eof) = _read_asmuch_b(self.__rpipe)
                     if eof:
                         # pipe closed -> auto stop the thread
                         finished = True
