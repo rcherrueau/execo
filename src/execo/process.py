@@ -35,7 +35,7 @@ if sys.version_info >= (3,):
     import codecs, locale, functools
     _decode = functools.partial(codecs.decode, encoding=locale.getpreferredencoding())
 else:
-    _decode = lambda x: yeld
+    _decode = lambda x: x
 
 STDOUT = 1
 """Identifier for the stdout stream"""
