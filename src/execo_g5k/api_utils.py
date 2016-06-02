@@ -56,7 +56,7 @@ else:
     from cPickle import load, dump
 
 if 'HOME' in environ:
-    _cache_dir = environ['HOME'] + '/.execo/g5k_api_cache/'
+    _cache_dir = environ['HOME'] + "/.execo/g5k_api_cache-%s.%s/" % (sys.version_info[0], sys.version_info[1])
 else:
     _cache_dir = None
 _data_lock = threading.RLock()
