@@ -24,6 +24,7 @@ Contents:
    User Guide <userguide>
    API Documentation <apidoc>
    Miscellaneous <misc>
+   Python2 / Python3 <python2-python3>
 
 Indices and tables
 ==================
