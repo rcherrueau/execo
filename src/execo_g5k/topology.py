@@ -162,19 +162,20 @@ class g5k_graph(nx.MultiGraph):
                         if kind == 'node':
                             for e in self.get_host_adapters(port['uid']):
                                 if e['switch'] == equip:
-                                    lc_has_element = True
-                                    key1 = lc_node + '_' + port['uid'] + '_' + e['device']
-                                    logger.debug('Adding link between %s and %s',
-                                                 lc_node, port['uid'])
-                                    self.add_edge(lc_node, port['uid'], key1,
-                                                  bandwidth=bandwidth,
-                                                  active=e['mounted'])
+                                    if ('port' in port and port['port'] == e['device']) or ('port' not in port and e['device'] == 'eth0'):
+                                        lc_has_element = True
+                                        key1 = lc_node + '_' + port['uid'] + '_' + e['device']
+                                        logger.debug('Adding link between %s and %s %s' % (
+                                                     lc_node, port['uid'], e['device']))
+                                        self.add_edge(lc_node, port['uid'], key1,
+                                                      bandwidth=bandwidth,
+                                                      active=e['mounted'])
 
-                                    key2 = equip + '_' + lc_node
-                                    logger.debug('Adding link between %s and %s',
-                                                 equip, lc_node)
-                                    self.add_edge(equip, lc_node, key2,
-                                                  bandwidth=router_bw, active=True)
+                                        key2 = equip + '_' + lc_node
+                                        logger.debug('Adding link between %s and %s',
+                                                     equip, lc_node)
+                                        self.add_edge(equip, lc_node, key2,
+                                                      bandwidth=router_bw, active=True)
                         if kind == 'switch':
                             lc_has_element = True
                             key1 = lc_node + '_' + port['uid']
