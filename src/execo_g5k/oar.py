@@ -660,7 +660,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_
         raise ProcessesFailed([ p for p in [process_net, process_ip] if not p.ok ])
 
 def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_params = None, timeout = False):
-    """Return the vlan id of a job (if any).
+    """Return the list of vlan ids of a job (if any).
 
     :param oar_job_id: the oar job id. If None given, will try to get
       it from ``OAR_JOB_ID`` environment variable.
@@ -700,7 +700,7 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_p
     process.run()
     if process.ok:
         try:
-            return int(process.stdout.strip().rstrip())
+            return map(int, process.stdout.strip().rstrip().split('\r\n'))
         except:
             return None # handles cases where the job has no kavlan
                         # resource or when kavlan isn't available
