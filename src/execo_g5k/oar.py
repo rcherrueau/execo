@@ -702,8 +702,8 @@ def get_oar_job_kavlan(oar_job_id = None, frontend = None, frontend_connection_p
         try:
             return [ int(x) for x in process.stdout.strip().rstrip().split('\r\n') ]
         except:
-            return None # handles cases where the job has no kavlan
-                        # resource or when kavlan isn't available
+            return [] # handles cases where the job has no kavlan
+                      # resource or when kavlan isn't available
     else:
         raise ProcessesFailed([process])
 
