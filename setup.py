@@ -10,6 +10,7 @@ from distutils.command.clean import clean as _clean
 from distutils.dir_util import remove_tree
 from distutils import log
 import sys, subprocess, os, textwrap, shutil, re
+import codecs
 
 try:
     from setuptools import setup
@@ -72,7 +73,7 @@ def get_version():
 
 def read_file(filename, start_marker = None, end_marker = None):
     s = ""
-    with open(filename, "r") as ifh:
+    with codecs.open(filename, mode='r', encoding='utf-8') as ifh:
         insection = (start_marker == None)
         for line in ifh:
             line = line.rstrip()
