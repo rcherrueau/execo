@@ -649,6 +649,6 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None):
                   '&to=' + str(int(to_ts)) if to_ts else '')
         for apires in get_resource_attributes(path)['items']:
             res["%s.%s.grid5000.fr" % (apires['uid'], site)] = [
-                (apires['from']+apires['resolution']*i, apires['values'][i])
+                (apires['timestamps'][i], apires['values'][i])
                 for i in range(len(apires['values']))]
     return res
