@@ -111,19 +111,21 @@ def _get_api_password(username):
                         pass
         return __api_passwords[username]
 
-class APIGetException(Exception):
+class APIException(Exception):
     """Raised when an API request fails"""
 
-    def __init__(self, uri, response, content):
+    def __init__(self, uri, method, response, content):
         self.uri = uri
         """the HTTP URI to which the request failed"""
+        self.method = method
+        """the HTTP method of the failed request"""
         self.response = response
         """HTTP response"""
         self.content = content
         """HTTP content"""
 
     def __str__(self):
-        return "<APIGetException uri=%r response=%s content=%r>" % (self.uri, self.response, self.content)
+        return "<APIException uri=%r method=%s response=%s content=%r>" % (self.uri, self.method, self.response, self.content)
 
 class APIConnection(object):
     """Basic class for easily getting url contents.
@@ -175,9 +177,36 @@ class APIConnection(object):
         if self.username and not self.password:
             self.password = _get_api_password(self.username)
         self.timeout = timeout
-
+    
     def get(self, relative_uri):
         """Get the (response, content) tuple for the given path on the server"""
+        http = self._build_http()
+        uri = self._build_uri(relative_uri)
+        response, content = http.request(uri,
+                                         headers = self.headers)
+        if response['status'] not in ['200', '304']:
+            raise APIException(uri, 'GET', response, content)
+        if sys.version_info >= (3,):
+            content = content.decode('utf-8')
+        return response, content
+
+    def post(self, relative_uri, body):
+        """Submit the body to a given path on the server, returns the (response, content) tuple"""
+        http = self._build_http()
+        uri = self._build_uri(relative_uri)
+        response, content = http.request(uri = uri,
+                                         method = 'POST',
+                                         headers = self.headers,
+                                         body = json.dumps(body)
+                                         )
+        if response['status'] not in ['200', '304']:
+            raise APIException(uri, 'POST', response, content)
+        if sys.version_info >= (3,):
+            content = content.decode('utf-8')
+        return response, content
+
+    def _build_http(self):
+        """Create a http object (factorization purpose)"""
         try:
             http = httplib2.Http(timeout = self.timeout,
                                  disable_ssl_certificate_validation = True)
@@ -188,6 +217,9 @@ class APIConnection(object):
             http = httplib2.Http(timeout = self.timeout)
         if self.username and self.password:
             http.add_credentials(self.username, self.password)
+        return http
+
+    def _build_uri(self, relative_uri):
         uri = self.base_uri + "/" + relative_uri.lstrip("/")
         if self.additional_args and len(self.additional_args) > 0:
             args_string = "&".join(self.additional_args)
@@ -195,13 +227,7 @@ class APIConnection(object):
                 uri += "&" + args_string
             else:
                 uri += "?" + args_string
-        response, content = http.request(uri,
-                                         headers = self.headers)
-        if response['status'] not in ['200', '304']:
-            raise APIGetException(uri, response, content)
-        if sys.version_info >= (3,):
-            content = content.decode('utf-8')
-        return response, content
+        return uri
 
 def get_resource_attributes(path):
     """Get generic resource (path on g5k api) attributes as a dict"""
@@ -660,3 +686,29 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=1):
         site_th.join()
         res.update(site_th.res)
     return res
+
+def set_nodes_vlan(site, hosts, interface, vlan_id):
+    """Set the interface of a list of hosts in a given vlan
+
+    :param site: Site name
+
+    :param hosts: List of hosts
+
+    :param interface: The interface to put in the vlan
+
+    :param vlan_id: Id of the vlan to use
+    """
+
+    def _to_network_address(host):
+        """Translate a host to a network address
+
+        e.g:
+        paranoia-20.rennes.grid5000.fr -> paranoia-20-eth2.rennes.grid5000.fr
+        """
+        splitted = host.address.split('.')
+        splitted[0] = splitted[0] + "-" + interface
+        return ".".join(splitted)
+
+    network_addresses = map(_to_network_address, hosts)
+    logger.info("Setting %s in vlan %s of site %s" % (network_addresses, vlan_id, site))
+    return _get_g5k_api().post('/sites/%s/vlans/%s' % (site, str(vlan_id)), {"nodes": network_addresses})
