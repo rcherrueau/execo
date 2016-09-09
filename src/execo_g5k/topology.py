@@ -90,7 +90,7 @@ class g5k_graph(nx.MultiGraph):
             _host = host
         if data:
             power = data['performance']['core_flops']
-            cores = data['architecture']['smt_size']
+            cores = data['architecture']['nb_cores']
         else:
             power = 0
             cores = 0

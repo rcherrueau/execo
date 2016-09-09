@@ -24,7 +24,7 @@ if len(jobs) > 0:
         cores = []
         nodes = sorted(nodes, key=get_host_cluster)
         for cluster, cluster_nodes in itertools.groupby(nodes, key=get_host_cluster):
-            num_cores = get_host_attributes(cluster + "-1")["architecture"]["smt_size"]
+            num_cores = get_host_attributes(cluster + "-1")["architecture"]["nb_cores"]
             for node in cluster_nodes:
                 cores += [ node ] * num_cores
         logger.info("for a total of %i cores" % (len(cores),))

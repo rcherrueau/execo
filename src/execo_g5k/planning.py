@@ -293,9 +293,9 @@ def compute_coorm_slots(planning, excluded_elements=None):
                     for host, host_planning in cluster_planning.items():
                         for free_slot in host_planning['free']:
                             if free_slot[0] <= start and free_slot[0] < stop:
-                                free_cores[cluster] += get_host_attributes(host)['architecture']['smt_size']
-                                free_cores[site] += get_host_attributes(host)['architecture']['smt_size']
-                                free_cores['grid5000'] += get_host_attributes(host)['architecture']['smt_size']
+                                free_cores[cluster] += get_host_attributes(host)['architecture']['nb_cores']
+                                free_cores[site] += get_host_attributes(host)['architecture']['nb_cores']
+                                free_cores['grid5000'] += get_host_attributes(host)['architecture']['nb_cores']
                                 if free_slot[1] < stop:
                                     stop = free_slot[1]
         slots.append((start, stop, free_cores))
