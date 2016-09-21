@@ -40,7 +40,7 @@ from .planning import get_planning, compute_slots, find_first_slot, \
 
 from .api_utils import get_g5k_sites, get_site_clusters, \
     get_cluster_hosts, get_g5k_clusters, get_g5k_hosts, \
-    get_cluster_site, APIConnection, APIGetException, get_host_site, \
+    get_cluster_site, APIConnection, APIException, get_host_site, \
     get_host_cluster, group_hosts, get_resource_attributes, \
     get_site_network_equipments, get_host_attributes, get_cluster_attributes, \
     get_site_attributes, get_network_equipment_attributes, canonical_host_name,\
