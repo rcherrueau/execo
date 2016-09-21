@@ -182,10 +182,10 @@ sender, then wait for *process_B* termination, then kill
 *process_A*::
 
  from execo import *
- with SshProcess("nc -l -p 6543", "<host1>").start() as receiver:
+ with SshProcess("nc -lvp 6543", "<host1>").start() as receiver:
    sleep(1)
    sender = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>").run()
- receiver.wait()
+   receiver.wait()
  print receiver.stdout
 
 This example shows the asynchronous control of processes: while a
@@ -221,10 +221,10 @@ ready is to scan its verbose output (we add option ``-v`` to netcat
 receiver)::
 
  from execo import *
- with SshProcess("nc -vl -p 6543", "<host1>").start() as receiver:
+ with SshProcess("nc -vlp 6543", "<host1>").start() as receiver:
    receiver.expect("^[Ll]istening on")
    sender = SshProcess("echo 'hi there!' | nc -q 0 <host1> 6543", "<host2>").run()
- receiver.wait()
+   receiver.wait()
  print receiver.stdout
 
 Of course, this kind of code only works if you are sure that the
@@ -305,7 +305,7 @@ generate traffic in both directions::
  with servers.start():
    sleep(1)
    clients.run()
- servers.wait()
+   servers.wait()
  print Report([ servers, clients ]).to_string()
  for s in servers.processes + clients.processes:
    print "%s\nstdout:\n%s\nstderr:\n%s" % (s, s.stdout, s.stderr)
