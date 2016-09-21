@@ -44,6 +44,7 @@ This module is thread-safe.
 from execo import logger
 from execo_g5k.config import g5k_configuration
 from execo.utils import singleton_to_collection
+from execo.time_utils import get_unixts, get_seconds
 import execo
 import httplib2
 import json, re, itertools
@@ -566,17 +567,6 @@ def get_network_equipment_attributes(equip):
     site = get_network_equipment_site(equip)
     return get_api_data()['network'][site][equip]
 
-def get_g5k_measures(host, metric, startstamp, endstamp, resolution=5):
-    """ Return a dict with the api values"""
-    host_shortname = get_host_shortname(host)
-    site = get_host_site(host)
-    return get_resource_attributes('/sites/' + site
-                                   + '/metrics/' + metric
-                                   + '/timeseries/' + host_shortname
-                                   + '?resolution=' + str(resolution)
-                                   + '&from=' + str(startstamp)
-                                   + '&to=' + str(endstamp))
-
 __canonical_host_name_regex = re.compile("^([a-zA-Z]+-\d+)(-kavlan-\d+)?(\.([.\w]+))?")
 
 def __canonical_sub_func(matchobj):
@@ -621,7 +611,22 @@ def get_host_longname(host):
         host_site = get_host_site(host_shortname)
     return host_shortname + "." + host_site + ".grid5000.fr"
 
-def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None):
+def __get_site_metrics(site, grouped_hosts):
+    threading.currentThread().res = {}
+    hosts_site = [ h for cluster in grouped_hosts[site].values() for h in cluster ]
+    path = "sites/%s/metrics/%s/timeseries?resolution=%s&only=%s%s%s" \
+           % (site, metric, resolution,
+              ','.join([ get_host_shortname(host) for host in hosts_site ]),
+              '&from=' + from_ts if from_ts else '',
+              '&to=' + to_ts if to_ts else '')
+    for host in hosts_site:
+        for apires in get_resource_attributes(path)['items']:
+            if get_host_shortname(host) == apires['uid']:
+                threading.currentThread().res[host] = [
+                    (apires['timestamps'][i], apires['values'][i])
+                    for i in range(len(apires['values']))]
+
+def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=1):
     """Get metric values from Grid'5000 metrology API
 
     :param hosts: List of hosts
@@ -629,26 +634,29 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None):
     :param metric: Grid'5000 metrology metric to fetch (eg: "power",
       "cpu_user")
 
-    :param from_ts: Time from which metric is collected (as a unix
-      timestamp, optional)
+    :param from_ts: Time from which metric is collected, in any type
+      supported by `execo.time_utils.get_unixts`, optional.
 
-    :param to_ts: Time until which metric is collected (as a unix
-      timestamp, optional)
+    :param to_ts: Time until which metric is collected, in any type
+      supported by `execo.time_utils.get_unixts`, optional.
+
+    :param resolution: time resolution, in any type supported by
+      `execo.time_utils.get_seconds`, default 1 second.
 
     :return: A dict of host -> List of (timestamp, metric value)
       retrieved from API
     """
+    from_ts = get_unixts(from_ts)
+    to_ts = get_unixts(to_ts)
+    resolution = get_seconds(resolution)
     grouped_hosts = group_hosts(hosts)
     res = {}
+    site_threads = []
     for site in grouped_hosts:
-        hosts_site = [ h for cluster in grouped_hosts[site].values() for h in cluster ]
-        path = "sites/%s/metrics/%s/timeseries?resolution=1&only=%s%s%s" \
-               % (site, metric,
-                  ','.join([ get_host_shortname(host) for host in hosts_site ]),
-                  '&from=' + str(int(from_ts)) if from_ts else '',
-                  '&to=' + str(int(to_ts)) if to_ts else '')
-        for apires in get_resource_attributes(path)['items']:
-            res["%s.%s.grid5000.fr" % (apires['uid'], site)] = [
-                (apires['timestamps'][i], apires['values'][i])
-                for i in range(len(apires['values']))]
+        site_th = threading.Thread(target=__get_site_metrics, args=(site, grouped_hosts))
+        site_th.start()
+        site_threads.append(site_th)
+    for site_th in site_threads:
+        site_th.join()
+        res.update(site_th.res)
     return res
