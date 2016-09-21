@@ -177,7 +177,7 @@ class APIConnection(object):
         if self.username and not self.password:
             self.password = _get_api_password(self.username)
         self.timeout = timeout
-    
+
     def get(self, relative_uri):
         """Get the (response, content) tuple for the given path on the server"""
         http = self._build_http()
@@ -197,7 +197,7 @@ class APIConnection(object):
         response, content = http.request(uri = uri,
                                          method = 'POST',
                                          headers = self.headers,
-                                         body = json.dumps(body)
+                                         body = body
                                          )
         if response['status'] not in ['200', '304']:
             raise APIException(uri, 'POST', response, content)
@@ -711,4 +711,4 @@ def set_nodes_vlan(site, hosts, interface, vlan_id):
 
     network_addresses = map(_to_network_address, hosts)
     logger.info("Setting %s in vlan %s of site %s" % (network_addresses, vlan_id, site))
-    return _get_g5k_api().post('/sites/%s/vlans/%s' % (site, str(vlan_id)), {"nodes": network_addresses})
+    return _get_g5k_api().post('/sites/%s/vlans/%s' % (site, str(vlan_id)), json.dumps({"nodes": network_addresses}))
