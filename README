@@ -170,7 +170,8 @@ How to contribute
 
 - stay consistent with the coding and naming style
 
-- code must be compatible with python 2.6, 2.7 and 3.x
+- code must be compatible with python 2.6, 2.7 and 3.x (see
+  http://execo.gforge.inria.fr/doc/latest-stable/python2-python3.html)
 
 - use the core systems provided (eg. the configuration system, the tty
   coloring system, the logger, etc.) instead of developing your own.
