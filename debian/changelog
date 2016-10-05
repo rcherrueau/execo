@@ -1,3 +1,25 @@
+python-execo (2.6) unstable; urgency=low
+
+  * new upstream release:
+
+    - Compatible with python 2.6, 2.7, >3.2. A few API have changed due to this major improvement.
+
+    - Major optimization of Process output handling when dealing with outputs with lots of lines
+
+    - execo_g5k.topology: fix lack of discrimination of links between different interfaces of a node and different linecards of a single network equip
+
+    - execo_g5k: use smt_size instead of nb_cores to accomodate the change in g5k api
+
+    - execo_g5k.api_utils: add get_hosts_metric() and remove get_g5k_measures()
+
+    - execo_g5k.api_utils: get_oar_job_kavlan() now returns a list
+
+    - execo_g5k api_utils add set_nodes_vlan
+
+    - misc bugfixes and improvements
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Wed, 5 Oct 2016 15:25:00 +0200
+
 python-execo (2.5.4) unstable; urgency=low
 
   * new upstream release:
