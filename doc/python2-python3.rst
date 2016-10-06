@@ -1,9 +1,9 @@
-*************************************************************
-Writing code compatible with python 2.6, 2.7 and 3.x in execo
-*************************************************************
+**************************************************************
+Writing code compatible with python 2.6, 2.7 and 3.2+ in execo
+**************************************************************
 
 Here are some guidelines for execo contributors, for writing code
-compatible with python 2.6, 2.7 and 3.x in execo:
+compatible with python 2.6, 2.7 and 3.2+ in execo:
 
 - As always, do *NOT* try to optimize some code for python2 versus
   python3 (eg. by using different codes on python2 and python3),
