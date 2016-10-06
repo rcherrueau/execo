@@ -3,4 +3,5 @@
 # distutils, they are forced at broadcast time. Hence no need for
 # lintian to complain about this
 
-python-execo binary: script-not-executable usr/lib/python2.7/dist-packages/execo/execo-chainput
+python-execo binary: script-not-executable usr/lib/python*/dist-packages/execo/execo-chainput
+python3-execo binary: script-not-executable usr/lib/python*/dist-packages/execo/execo-chainput
