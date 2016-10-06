@@ -10,7 +10,7 @@
 *.orig
 /src/execo/_version.py
 /.pybuild
-/debian/python-execo
+/debian/python-execo/
 /debian/python-execo.debhelper.log
 /debian/python-execo.postinst.debhelper
 /debian/python-execo.prerm.debhelper
@@ -19,3 +19,8 @@
 /debian/debhelper-build-stamp
 setup.cfg
 src/execo.egg-info/
+/debian/python3-execo/
+/debian/python3-execo.debhelper.log
+/debian/python3-execo.postinst.debhelper
+/debian/python3-execo.prerm.debhelper
+/debian/python3-execo.substvars
