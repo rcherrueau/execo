@@ -2,15 +2,21 @@ python-execo (2.6) unstable; urgency=low
 
   * new upstream release:
 
-    - Compatible with python 2.6, 2.7, >3.2. A few API have changed due to this major improvement.
+    - Compatible with python 2.6, 2.7, >3.2. A few API have changed due to
+    this major improvement.
 
-    - Major optimization of Process output handling when dealing with outputs with lots of lines
+    - Major optimization of Process output handling when dealing with
+    outputs with lots of lines
 
-    - execo_g5k.topology: fix lack of discrimination of links between different interfaces of a node and different linecards of a single network equip
+    - execo_g5k.topology: fix lack of discrimination of links between
+    different interfaces of a node and different linecards of a single
+    network equip
 
-    - execo_g5k: use smt_size instead of nb_cores to accomodate the change in g5k api
+    - execo_g5k: use nb_cores instead of smt_size to accommodate the
+    change in g5k api
 
-    - execo_g5k.api_utils: add get_hosts_metric() and remove get_g5k_measures()
+    - execo_g5k.api_utils: add get_hosts_metric() and remove
+    get_g5k_measures()
 
     - execo_g5k.api_utils: get_oar_job_kavlan() now returns a list
 
@@ -24,7 +30,8 @@ python-execo (2.5.4) unstable; urgency=low
 
   * new upstream release:
 
-    - execo_g5k.topology: fix wrong log template causing crash, log messages, documentation
+    - execo_g5k.topology: fix wrong log template causing crash, log
+    messages, documentation
 
     - execo_g5k.planning: handle oar queues in planning
 
@@ -32,7 +39,8 @@ python-execo (2.5.4) unstable; urgency=low
 
     - make execo / execo_g5k runnable with void environment (no $HOME)
 
-    - execo.process: important optimization: bypass heavy string processing of iodebug logger when possible
+    - execo.process: important optimization: bypass heavy string
+    processing of iodebug logger when possible
 
  -- Matthieu Imbert <matthieu.imbert@inria.fr>  Tue, 3 May 2016 17:00:00 +0200
 
@@ -64,8 +72,8 @@ python-execo (2.5.2) unstable; urgency=low
 
     - planning add besteffort option
 
-    - add filtering of g5k clusters on oar queues (allowing auto
-      selection of the relevant clusters by default)
+    - add filtering of g5k clusters on oar queues (allowing auto selection
+    of the relevant clusters by default)
 
     - bugfixes in port forwarders (timeout handling)
 
@@ -75,7 +83,8 @@ python-execo (2.5.1) unstable; urgency=low
 
   * new upstream release:
 
-    - update execo_g5k to postgresql (due to g5k migration from mysql to postgres)
+    - update execo_g5k to postgresql (due to g5k migration from mysql to
+    postgres)
 
     - execo_engine.ParamSweeper: add batched versions of combinations API
 
@@ -85,15 +94,19 @@ python-execo (2.5) unstable; urgency=low
 
   * new upstream release:
 
-    - User-friendly way to write to processes stdin. Processes and Remotes can be used as file-like objects. Additionally, process stdin is not anymore closed by default.
+    - User-friendly way to write to processes stdin. Processes and Remotes
+    can be used as file-like objects. Additionally, process stdin is not
+    anymore closed by default.
 
     - Automatic ignoring of process errors when explicitly killing them
 
     - Add processes and actions context managers
 
-    - Add special processes and actions for communicating with local or remote (through ssh) serial ports
+    - Add special processes and actions for communicating with local or
+    remote (through ssh) serial ports
 
-    - Add expect-like syntax to processes and actions (for easy scripting of interactive local/remote/serial sessions)
+    - Add expect-like syntax to processes and actions (for easy scripting
+    of interactive local/remote/serial sessions)
 
     - The return of the revenge of the infamous keyword arguments
 
