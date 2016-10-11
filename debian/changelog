@@ -1,3 +1,13 @@
+python-execo (2.6.1) unstable; urgency=low
+
+  * new upstream release:
+
+    - fix debian packaging for python2 / python3
+
+    - make it packageable under wheezy
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Tue, 11 Oct 2016 16:22:00 +0200
+
 python-execo (2.6) unstable; urgency=low
 
   * new upstream release:
