@@ -2,14 +2,14 @@ Source: python-execo
 Maintainer: Matthieu Imbert <matthieu.imbert@inria.fr>
 Section: python
 Priority: optional
-Build-Depends: debhelper (>= 9), dh-python, python-all, python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx, graphviz
+Build-Depends: debhelper (>= 9), dh-python, python-all, python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx, graphviz, python-argparse, python-httplib2, python-keyring, python-psycopg2, python-networkx, python-pygraphviz, python-matplotlib, git
 Standards-Version: 3.9.1
 X-Python-Version: >= 2.6
 X-Python3-Version: >= 3.2
 
 Package: python-execo
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}, ${sphinxdoc:Depends}
+Depends: ${misc:Depends}, ${python:Depends}, ${sphinxdoc:Depends}, python-argparse
 Recommends: python-httplib2, python-keyring, python-psycopg2, python-networkx, graphviz, python-pygraphviz, python-matplotlib
 Description: Asynchronous control of local or remote unix processes.
  Execo offers a Python API for asynchronous control of local or remote,

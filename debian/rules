@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 
 export PYBUILD_NAME=execo
-export PYBUILD_AFTER_INSTALL={interpreter} setup.py install_doc --install-layout deb --root {destdir}
+#export PYBUILD_AFTER_INSTALL={interpreter} setup.py install_doc --install-layout deb --root {destdir}
+#export PYBUILD_AFTER_INSTALL=export http_proxy=127.0.0.1:9 ; export https_proxy=127.0.0.1:9 ; PYTHONPATH=./src sphinx-build -N -bhtml doc/ build/sphinx/html ; mkdir -p {destdir}/share/doc/execo/ ; cp -a build/sphinx/html {destdir}/share/doc/execo/
+export PYBUILD_AFTER_INSTALL=export http_proxy=127.0.0.1:9 ; export https_proxy=127.0.0.1:9 ; PYTHONPATH=./src sphinx-build -N -bhtml doc/ build/sphinx/html ; {interpreter} setup.py install_doc --install-layout deb --root {destdir}
 %:
 	dh $@ --with python2,python3,sphinxdoc --buildsystem=pybuild

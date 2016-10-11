@@ -137,7 +137,7 @@ class install(_install):
 
 class install_doc(_install):
     def run(self):
-        self.run_command('build_doc')
+        #self.run_command('build_doc')
         build = self.get_finalized_command('build')
         build_dir = os.path.join(os.path.abspath(build.build_base), "sphinx", "html")
         build_dir = os.path.abspath(build_dir)
@@ -175,6 +175,7 @@ if __name__ == "__main__":
         cmdclass = { 'build_py': build_py,
                      'sdist': sdist,
                      'install': install,
+                     'install_doc': install_doc,
                      'clean': clean }
 
     name = 'execo'
