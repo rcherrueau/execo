@@ -643,8 +643,8 @@ def __get_site_metrics(site, grouped_hosts, metric, from_ts, to_ts, resolution):
     path = "sites/%s/metrics/%s/timeseries?resolution=%s&only=%s%s%s" \
            % (site, metric, resolution,
               ','.join([ get_host_shortname(host) for host in hosts_site ]),
-              '&from=' + from_ts if from_ts else '',
-              '&to=' + to_ts if to_ts else '')
+              '&from=' + str(from_ts) if from_ts else '',
+              '&to=' + str(to_ts) if to_ts else '')
     for host in hosts_site:
         for apires in get_resource_attributes(path)['items']:
             if get_host_shortname(host) == apires['uid']:
