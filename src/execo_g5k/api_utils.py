@@ -637,7 +637,7 @@ def get_host_longname(host):
         host_site = get_host_site(host_shortname)
     return host_shortname + "." + host_site + ".grid5000.fr"
 
-def __get_site_metrics(site, grouped_hosts):
+def __get_site_metrics(site, grouped_hosts, metric, from_ts, to_ts, resolution):
     threading.currentThread().res = {}
     hosts_site = [ h for cluster in grouped_hosts[site].values() for h in cluster ]
     path = "sites/%s/metrics/%s/timeseries?resolution=%s&only=%s%s%s" \
@@ -679,7 +679,10 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=1):
     res = {}
     site_threads = []
     for site in grouped_hosts:
-        site_th = threading.Thread(target=__get_site_metrics, args=(site, grouped_hosts))
+        site_th = threading.Thread(
+            target=__get_site_metrics,
+            args=(site, grouped_hosts, metric, from_ts, to_ts, resolution)
+            )
         site_th.start()
         site_threads.append(site_th)
     for site_th in site_threads:
