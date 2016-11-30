@@ -2,7 +2,7 @@ Source: python-execo
 Maintainer: Matthieu Imbert <matthieu.imbert@inria.fr>
 Section: python
 Priority: optional
-Build-Depends: debhelper (>= 9), dh-python, python-all, python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx, graphviz, python-argparse, python-httplib2, python-keyring, python-psycopg2, python-networkx, python-pygraphviz, python-matplotlib, git
+Build-Depends: debhelper (>= 9), dh-python, python-all, python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx, graphviz, python-argparse, python-requests, python-keyring, python-psycopg2, python-networkx, python-pygraphviz, python-matplotlib, git
 Standards-Version: 3.9.1
 X-Python-Version: >= 2.6
 X-Python3-Version: >= 3.2
@@ -10,7 +10,7 @@ X-Python3-Version: >= 3.2
 Package: python-execo
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}, ${sphinxdoc:Depends}, python-argparse
-Recommends: python-httplib2, python-keyring, python-psycopg2, python-networkx, graphviz, python-pygraphviz, python-matplotlib
+Recommends: python-requests, python-keyring, python-psycopg2, python-networkx, graphviz, python-pygraphviz, python-matplotlib
 Description: Asynchronous control of local or remote unix processes.
  Execo offers a Python API for asynchronous control of local or remote,
  standalone or parallel, unix processes. It is especially well suited
@@ -23,7 +23,7 @@ Description: Asynchronous control of local or remote unix processes.
 Package: python3-execo
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, ${sphinxdoc:Depends}
-Recommends: python3-httplib2, python3-keyring, python3-psycopg2, python3-networkx, graphviz, python3-pygraphviz, python3-matplotlib
+Recommends: python3-requests, python3-keyring, python3-psycopg2, python3-networkx, graphviz, python3-pygraphviz, python3-matplotlib
 Description: Asynchronous control of local or remote unix processes.
  Execo offers a Python API for asynchronous control of local or remote,
  standalone or parallel, unix processes. It is especially well suited

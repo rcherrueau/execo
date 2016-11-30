@@ -32,7 +32,9 @@ g5k_configuration = {
     'default_frontend' : None,
     'api_uri': "https://api.grid5000.fr/3.0/",
     'api_username': None,
-    'api_additional_args': [],
+    'api_additional_args': {},
+    'api_timeout': 30,
+    'api_verify_ssl_cert': True,
     'oar_job_key_file': None,
     'oar_pgsql_ro_db': 'oar2',
     'oar_pgsql_ro_user': 'oarreader',
@@ -84,10 +86,17 @@ g5k_configuration = {
 
 - ``api_additional_args``: additional arguments to append at the end
   all requests to g5k api. May be used to request the testing branch
-  (use: api_additional_args = ["branch=testing"])
+  (use: api_additional_args = ['branch': 'testing'])
+
+- ``api_timeout``: timeout in seconds of all api requests, before
+  raising an exception.
+
+- ``api_verify_ssl_cert``: If set to false, will disable ssl
+  certificates check for api https requests
 
 - ``oar_job_key_file``: ssh key to use for oar. If defined, takes
   precedence over environment variable OAR_JOB_KEY_FILE.
+
 """
 
 def make_default_oarsh_oarcp_params():

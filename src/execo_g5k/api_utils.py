@@ -46,8 +46,8 @@ from execo_g5k.config import g5k_configuration
 from execo.utils import singleton_to_collection
 from execo.time_utils import get_unixts, get_seconds
 import execo
-import httplib2
-import json, re, itertools
+import requests
+import re, itertools
 import threading
 import logging, sys
 from os import makedirs, environ, path
@@ -71,24 +71,27 @@ _api_password_lock = threading.RLock()
 __api_passwords = dict()
 # private dictionnary keyed by username, storing cached passwords
 
-def _ask_password(username, message, password_check_func):
+def _ask_password(username, uri, message, password_check_func):
     import getpass
     for pass_try in range(3):
         password = getpass.getpass(message)
-        if password_check_func(username, password):
+        if password_check_func(username, uri, password):
             return password
     return None
 
-def _get_api_password_check_func(username, password):
-    try:
-        http = httplib2.Http(disable_ssl_certificate_validation = True)
-    except TypeError:
-        http = httplib2.Http()
-    http.add_credentials(username, password)
-    response, content = http.request("https://api.grid5000.fr")
-    return (response['status'] in ['200', '304'])
+def _get_api_password_check_func(username, uri, password):
+    if g5k_configuration['api_verify_ssl_cert'] == False:
+        verify = False
+        requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+    else:
+        verify = True
+    response = requests.get(uri,
+                            auth=(username, password),
+                            verify=verify,
+                            timeout=g5k_configuration.get('api_timeout'))
+    return (response.status_code in [200, 304])
 
-def _get_api_password(username):
+def _get_api_password(username, uri):
     with _api_password_lock:
         if not __api_passwords.get(username):
             try:
@@ -100,6 +103,7 @@ def _get_api_password(username):
                 pass
             if not __api_passwords.get(username):
                 __api_passwords[username] = _ask_password(username,
+                                                          uri,
                                                           "Grid5000 API authentication password for user %s" % (username,),
                                                           _get_api_password_check_func)
                 if __api_passwords[username]:
@@ -114,15 +118,13 @@ def _get_api_password(username):
 class APIException(Exception):
     """Raised when an API request fails"""
 
-    def __init__(self, uri, method, response, content):
+    def __init__(self, uri, method, response):
         self.uri = uri
         """the HTTP URI to which the request failed"""
         self.method = method
         """the HTTP method of the failed request"""
         self.response = response
-        """HTTP response"""
-        self.content = content
-        """HTTP content"""
+        """requests response object"""
 
     def __str__(self):
         return "<APIException uri=%r method=%s response=%s content=%r>" % (self.uri, self.method, self.response, self.content)
@@ -133,10 +135,10 @@ class APIConnection(object):
     Intended to be used to get content from restfull apis, particularly the grid5000 api.
     """
 
-    def __init__(self, base_uri = None,
-                 username = None, password = None,
-                 headers = None, additional_args = None,
-                 timeout = 300):
+    def __init__(self, base_uri=None,
+                 username=None, password=None,
+                 headers=None, additional_args=None,
+                 timeout=g5k_configuration.get('api_timeout')):
         """:param base_uri: server base uri. defaults to
           ``g5k_configuration.get('api_uri')``
 
@@ -152,10 +154,12 @@ class APIConnection(object):
         :param headers: http headers to use. If None (default),
           default headers accepting json answer will be used.
 
-        :param additional_args: a list of optional arguments (strings)
-          to pass at the end of the url of all http requests.
+        :param additional_args: a dict of optional arguments (string
+          to string mappings) to pass at the end of the url of all
+          http requests.
 
         :param timeout: timeout for the http connection.
+
         """
         if not base_uri:
             base_uri = g5k_configuration.get('api_uri')
@@ -168,71 +172,65 @@ class APIConnection(object):
             }
         self.additional_args = g5k_configuration["api_additional_args"]
         if additional_args:
-            self.additional_args.extend(additional_args)
+            self.additional_args.update(additional_args)
         if username:
             self.username = username
         else:
             self.username = g5k_configuration.get('api_username')
         self.password = password
         if self.username and not self.password:
-            self.password = _get_api_password(self.username)
+            self.password = _get_api_password(self.username, self.base_uri)
         self.timeout = timeout
 
     def get(self, relative_uri):
         """Get the (response, content) tuple for the given path on the server"""
-        http = self._build_http()
         uri = self._build_uri(relative_uri)
-        response, content = http.request(uri,
-                                         headers = self.headers)
-        if response['status'] not in ['200', '304']:
-            raise APIException(uri, 'GET', response, content)
-        if sys.version_info >= (3,):
-            content = content.decode('utf-8')
-        return response, content
+        auth, verify = self._get_security_conf()
+        response = requests.get(uri,
+                                params=self.additional_args,
+                                headers=self.headers,
+                                auth=auth,
+                                verify=verify,
+                                timeout=self.timeout)
+        if response.status_code not in [200, 304]:
+            raise APIException(uri, 'GET', response)
+        return response
 
-    def post(self, relative_uri, body):
+    def post(self, relative_uri, json):
         """Submit the body to a given path on the server, returns the (response, content) tuple"""
-        http = self._build_http()
         uri = self._build_uri(relative_uri)
-        response, content = http.request(uri = uri,
-                                         method = 'POST',
-                                         headers = self.headers,
-                                         body = body
-                                         )
-        if response['status'] not in ['200', '304']:
-            raise APIException(uri, 'POST', response, content)
-        if sys.version_info >= (3,):
-            content = content.decode('utf-8')
-        return response, content
-
-    def _build_http(self):
-        """Create a http object (factorization purpose)"""
-        try:
-            http = httplib2.Http(timeout = self.timeout,
-                                 disable_ssl_certificate_validation = True)
-        except TypeError:
-            # probably caused by old httplib2 without option
-            # disable_ssl_certificate_validation, try
-            # without it
-            http = httplib2.Http(timeout = self.timeout)
-        if self.username and self.password:
-            http.add_credentials(self.username, self.password)
-        return http
+        auth, verify = self._get_security_conf()
+        response = requests.post(uri,
+                                 params=self.additional_args,
+                                 headers=self.headers,
+                                 json=json,
+                                 auth=auth,
+                                 verify=verify,
+                                 timeout=self.timeout)
+        if response.status_code not in [200, 304]:
+            raise APIException(uri, 'POST', response)
+        return response
 
     def _build_uri(self, relative_uri):
         uri = self.base_uri + "/" + relative_uri.lstrip("/")
-        if self.additional_args and len(self.additional_args) > 0:
-            args_string = "&".join(self.additional_args)
-            if "?" in uri:
-                uri += "&" + args_string
-            else:
-                uri += "?" + args_string
         return uri
+
+    def _get_security_conf(self):
+        if self.username and self.password:
+            auth = (self.username, self.password)
+        else:
+            auth = None
+        if auth == None or g5k_configuration['api_verify_ssl_cert'] == False:
+            verify = False
+            requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+        else:
+            verify = True
+        return (auth, verify)
 
 def get_resource_attributes(path):
     """Get generic resource (path on g5k api) attributes as a dict"""
-    (_, content) = _get_g5k_api().get(path)
-    attributes = json.loads(content)
+    response = _get_g5k_api().get(path)
+    attributes = response.json()
     return attributes
 
 def _get_g5k_sites_uncached():
@@ -714,4 +712,4 @@ def set_nodes_vlan(site, hosts, interface, vlan_id):
 
     network_addresses = map(_to_network_address, hosts)
     logger.info("Setting %s in vlan %s of site %s" % (network_addresses, vlan_id, site))
-    return _get_g5k_api().post('/sites/%s/vlans/%s' % (site, str(vlan_id)), json.dumps({"nodes": network_addresses}))
+    return _get_g5k_api().post('/sites/%s/vlans/%s' % (site, str(vlan_id)), {"nodes": network_addresses})
