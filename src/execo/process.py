@@ -32,10 +32,10 @@ import errno, os, re, shlex, signal, subprocess
 import threading, time, pipes, sys
 
 if sys.version_info >= (3,):
-    import codecs, locale, functools
-    _decode = functools.partial(codecs.decode, encoding=locale.getpreferredencoding())
+    import codecs, locale
+    _decode = lambda s: codecs.decode(s, locale.getpreferredencoding())
 else:
-    _decode = lambda x: x
+    _decode = lambda s: s
 
 STDOUT = 1
 """Identifier for the stdout stream"""
