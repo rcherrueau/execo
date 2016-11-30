@@ -38,7 +38,6 @@ import networkx as nx
 try:
     import matplotlib.pyplot as plt
 except:
-    logger.warning('Matplotlib not found, no plot can be generated')
     pass
 
 
