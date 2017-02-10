@@ -120,13 +120,13 @@ class Engine(object):
             help = "log level (int or string). Default = inherit execo logger level")
         self.args_parser.add_argument(
             "-L", dest = "output_mode", action="store_const", const = "copy", default = False,
-            help = "copy stdout / stderr to log files in the experiment result directory. Default = %default")
+            help = "copy stdout / stderr to log files in the experiment result directory. Default = %(default)s")
         self.args_parser.add_argument(
             "-R", dest = "output_mode", action="store_const", const = "redirect", default = False,
-            help = "redirect stdout / stderr to log files in the experiment result directory. Default = %default")
+            help = "redirect stdout / stderr to log files in the experiment result directory. Default = %(default)s")
         self.args_parser.add_argument(
             "-M", dest = "merge_outputs", action="store_true", default = False,
-            help = "when copying or redirecting outputs, merge stdout / stderr in a single file. Default = %default")
+            help = "when copying or redirecting outputs, merge stdout / stderr in a single file. Default = %(default)s")
         self.args_parser.add_argument(
             "-c", dest = "use_dir", default = None, metavar = "DIR",
             help = "use experiment directory DIR")
