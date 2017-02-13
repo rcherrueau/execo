@@ -95,7 +95,7 @@ class ProcessOutputHandler(object):
             self._buffer[k] = ""
         self._buffer[k] += string
         lines = self._buffer[k].splitlines(True)
-        if len(lines) > 2:
+        if len(lines) >= 2:
             for line in lines[:-1]:
                 self.read_line(process, stream, line, False, False)
             self._buffer[k] = lines[-1]
