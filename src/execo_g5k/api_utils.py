@@ -670,8 +670,8 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=1):
     :return: A dict of host -> List of (timestamp, metric value)
       retrieved from API
     """
-    from_ts = get_unixts(from_ts)
-    to_ts = get_unixts(to_ts)
+    from_ts = int(get_unixts(from_ts))
+    to_ts = int(get_unixts(to_ts))
     resolution = get_seconds(resolution)
     grouped_hosts = group_hosts(hosts)
     res = {}
