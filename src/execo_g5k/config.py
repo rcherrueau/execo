@@ -86,7 +86,7 @@ g5k_configuration = {
 
 - ``api_additional_args``: additional arguments to append at the end
   all requests to g5k api. May be used to request the testing branch
-  (use: api_additional_args = ['branch': 'testing'])
+  (use: api_additional_args = {'branch': 'testing'})
 
 - ``api_timeout``: timeout in seconds of all api requests, before
   raising an exception.
