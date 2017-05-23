@@ -118,16 +118,26 @@ def _get_api_password(username, uri):
 class APIException(Exception):
     """Raised when an API request fails"""
 
-    def __init__(self, uri, method, response):
+    def __init__(self, uri, method, response=None, exception=None):
         self.uri = uri
         """the HTTP URI to which the request failed"""
         self.method = method
         """the HTTP method of the failed request"""
         self.response = response
         """requests response object"""
+        self.exception = exception
+        """exception which occured"""
 
     def __str__(self):
-        return "<APIException uri=%r method=%s response=%s content=%r>" % (self.uri, self.method, self.response, self.content)
+        s = '<APIException uri=%r method=%s' % (self.uri,
+                                                self.method)
+        if self.response != None: s += ' status=%s/"%s" content="%s"' % (self.response.status_code,
+                                                                         self.response.reason,
+                                                                         self.response.text)
+        if self.exception != None: s += ' exception=%s' % (self.exception,)
+        s += '>'
+        return s
+
 
 class APIConnection(object):
     """Basic class for easily getting url contents.
@@ -186,29 +196,35 @@ class APIConnection(object):
         """Get the (response, content) tuple for the given path on the server"""
         uri = self._build_uri(relative_uri)
         auth, verify = self._get_security_conf()
-        response = requests.get(uri,
-                                params=self.additional_args,
-                                headers=self.headers,
-                                auth=auth,
-                                verify=verify,
-                                timeout=self.timeout)
+        try:
+            response = requests.get(uri,
+                                    params=self.additional_args,
+                                    headers=self.headers,
+                                    auth=auth,
+                                    verify=verify,
+                                    timeout=self.timeout)
+        except Exception as e:
+            raise APIException(uri, 'GET', exception=e)
         if response.status_code not in [200, 304]:
-            raise APIException(uri, 'GET', response)
+            raise APIException(uri, 'GET', response=response)
         return response
 
     def post(self, relative_uri, json):
         """Submit the body to a given path on the server, returns the (response, content) tuple"""
         uri = self._build_uri(relative_uri)
         auth, verify = self._get_security_conf()
-        response = requests.post(uri,
-                                 params=self.additional_args,
-                                 headers=self.headers,
-                                 json=json,
-                                 auth=auth,
-                                 verify=verify,
-                                 timeout=self.timeout)
+        try:
+            response = requests.post(uri,
+                                     params=self.additional_args,
+                                     headers=self.headers,
+                                     json=json,
+                                     auth=auth,
+                                     verify=verify,
+                                     timeout=self.timeout)
+        except Exception as e:
+            raise APIException(uri, 'POST', exception=e)
         if response.status_code not in [200, 304]:
-            raise APIException(uri, 'POST', response)
+            raise APIException(uri, 'POST', response=response)
         return response
 
     def _build_uri(self, relative_uri):
