@@ -663,7 +663,7 @@ def __get_site_metrics(site, grouped_hosts, metric, from_ts, to_ts, resolution):
         for host in hosts_site:
             if get_host_shortname(host) == apires['uid']:
                 # this inner loop to make sure the name under which
-                # the host is returned is the same as how it cas
+                # the host is returned is the same as how it was
                 # called
                 threading.currentThread().res[host] = {}
                 host_entry = threading.currentThread().res[host]
