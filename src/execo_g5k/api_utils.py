@@ -654,19 +654,35 @@ def get_host_longname(host):
 def __get_site_metrics(site, grouped_hosts, metric, from_ts, to_ts, resolution):
     threading.currentThread().res = {}
     hosts_site = [ h for cluster in grouped_hosts[site].values() for h in cluster ]
-    path = "sites/%s/metrics/%s/timeseries?resolution=%s&only=%s%s%s" \
-           % (site, metric, resolution,
-              ','.join([ get_host_shortname(host) for host in hosts_site ]),
-              '&from=' + str(from_ts) if from_ts else '',
-              '&to=' + str(to_ts) if to_ts else '')
+    args = [ 'only=' + ','.join([ get_host_shortname(host) for host in hosts_site ]) ]
+    if from_ts: args.append('from=' + str(from_ts))
+    if to_ts: args.append('to=' + str(to_ts))
+    if resolution: args.append('resolution=' + str(resolution))
+    path = 'sites/%s/metrics/%s/timeseries?%s' % (site, metric, '&'.join(args))
     for apires in get_resource_attributes(path)['items']:
         for host in hosts_site:
             if get_host_shortname(host) == apires['uid']:
-                threading.currentThread().res[host] = [
-                    (apires['timestamps'][i], apires['values'][i])
-                    for i in range(len(apires['values']))]
+                # this inner loop to make sure the name under which
+                # the host is returned is the same as how it cas
+                # called
+                threading.currentThread().res[host] = {}
+                host_entry = threading.currentThread().res[host]
+                # output varies depending on the metric
+                if 'timestamps' in apires:
+                    host_entry['values'] = [ (apires['timestamps'][i], apires['values'][i])
+                                             for i in range(len(apires['values'])) ]
+                else:
+                    host_entry['values'] = [ (ts, apires['values'][i])
+                                             for i, ts in enumerate(range(apires['from'], apires['to'], apires['resolution'])) ]
+                # note: for kwapi metrics, (those having a
+                # 'timestamps' entry), values in from, to, resolution
+                # seem to be inconsistent with the number of
+                # (timestamp, value) tuples
+                for k in ['from', 'to', 'resolution', 'type']:
+                    if k in apires:
+                        host_entry[k] = apires[k]
 
-def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=1):
+def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=None):
     """Get metric values from Grid'5000 metrology API
 
     :param hosts: List of hosts
@@ -681,14 +697,14 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=1):
       supported by `execo.time_utils.get_unixts`, optional.
 
     :param resolution: time resolution, in any type supported by
-      `execo.time_utils.get_seconds`, default 1 second.
+      `execo.time_utils.get_seconds`, optional.
 
     :return: A dict of host -> List of (timestamp, metric value)
       retrieved from API
     """
-    from_ts = int(get_unixts(from_ts))
-    to_ts = int(get_unixts(to_ts))
-    resolution = get_seconds(resolution)
+    if from_ts != None: from_ts = int(get_unixts(from_ts))
+    if to_ts != None: to_ts = int(get_unixts(to_ts))
+    if resolution != None: resolution = get_seconds(resolution)
     grouped_hosts = group_hosts(hosts)
     res = {}
     site_threads = []
