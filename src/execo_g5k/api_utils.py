@@ -699,8 +699,21 @@ def get_hosts_metric(hosts, metric, from_ts=None, to_ts=None, resolution=None):
     :param resolution: time resolution, in any type supported by
       `execo.time_utils.get_seconds`, optional.
 
-    :return: A dict of host -> List of (timestamp, metric value)
-      retrieved from API
+    :return: A dict of host -> dict with entries 'from' (unix
+      timestamp in seconds, as returned from g5k api), 'to' (unix
+      timestamp in seconds, as returned from g5k api), 'resolution'
+      (in seconds, as returned from g5k api), type (the type of
+      metric, as returned by g5k api), 'values': a list of tuples
+      (timestamp, metric value). Some g5k metrics (the kwapi ones)
+      return both the timestamps and values as separate lists, in
+      which case this function only takes care of gathering them in
+      tuples (note also that for these metrics, it seems that 'from',
+      'to', 'resolution' returned by g5k api are inconsistent with the
+      timestamps list. In this case this function makes no correction
+      and returns everything 'as is'). Some other g5k metrics (the
+      ganglia ones) only return the values, in which case this
+      function generates the timestamps of the tuples from 'from',
+      'to', 'resolution'.
     """
     if from_ts != None: from_ts = int(get_unixts(from_ts))
     if to_ts != None: to_ts = int(get_unixts(to_ts))
