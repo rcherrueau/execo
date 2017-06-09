@@ -1,3 +1,21 @@
+python-execo (2.6.2) unstable; urgency=low
+
+  * new upstream release:
+
+    - fix process output decoding for python3 <= 3.4
+
+    - ProcessOutputHandler: fix line handling issue
+
+    - switch from httplib2 to requests
+
+    - fix optparse to argparse migration issue
+
+    - remove unneeded warning in topology
+
+    - fix and improve get_hosts_metric
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Fri, 9 Jun 2017 10:30:00 +0200
+
 python-execo (2.6.1) unstable; urgency=low
 
   * new upstream release:

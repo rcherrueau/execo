@@ -40,7 +40,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'execo'
-copyright = '2009-2016, INRIA Rhone-Alpes, Service Experimentation et Developpement'
+copyright = '2009-2017, INRIA Rhone-Alpes, Service Experimentation et Developpement'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
