@@ -1,0 +1,17 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure(2) do |config|
+  config.vm.box = "debian/wheezy64"
+  config.vm.synced_folder "../", "/home/vagrant/execo.git"
+  config.vm.provision "shell", inline: <<-SHELL
+    #!/bin/bash -x
+    echo 'deb http://ftp.debian.org/debian wheezy-backports main' > /etc/apt/sources.list.d/wheezy-backports.list
+    apt-get update && apt-get -y dist-upgrade
+    apt-get -y --no-install-recommends install build-essential debhelper devscripts python-all python3-all dh-python python-setuptools python3-setuptools python-docutils python-sphinx graphviz python-argparse python-requests python-keyring python-psycopg2 python-networkx python-pygraphviz python-matplotlib git
+  SHELL
+end

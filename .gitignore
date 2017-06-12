@@ -24,3 +24,5 @@ src/execo.egg-info/
 /debian/python3-execo.postinst.debhelper
 /debian/python3-execo.prerm.debhelper
 /debian/python3-execo.substvars
+/wheezy_build/.vagrant
+/wheezy_build/packages
