@@ -25,6 +25,11 @@ whereas edges has bandwidth and latency information.
 All information comes from the Grid'5000 reference API.
 """
 
+try:
+    from networkx.drawing.nx_pydot import graphviz_layout
+except:
+    from networkx import graphviz_layout
+
 from time import time
 from execo import logger, Host
 from execo.log import style
@@ -492,7 +497,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
 
     logger.debug('Defining positions')
     try:
-        pos = nx.graphviz_layout(gr, prog=layout)
+        pos = graphviz_layout(gr, prog=layout)
     except:
         logger.warning('Error in generating graphviz layout, will use ' +
                        'spring layout that does not scale well ...')
