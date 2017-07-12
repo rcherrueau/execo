@@ -102,7 +102,10 @@ execo installation absolutely requires ``python`` 2.6 / 2.7 or
 
 - ``python-matplotlib`` (>= 1.2.0) for some graphical representations.
 
-- ``python-networkx``, ``python-pygraphviz``, ``graphviz``  for module ``execo_g5k.topology``
+- ``python-networkx``, ``python-pygraphviz``, ``graphviz`` for module
+  ``execo_g5k.topology``. Later versions of networkx (at least v1.11)
+  also require ``python-pydotplus``, but this dependency is not
+  explicitely listed in the debian package (as of July 2017).
 
 At runtime, connecting to remote hosts requires ``ssh``, ``scp`` or
 similar connection tools, and optionnaly ``taktuk`` (probably >=
