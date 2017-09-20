@@ -402,7 +402,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                 'switch':
                 {'color': '#F5C9CD', 'shape': 's', 'size': 100,
                  'width': 0.2},
-                'node':
+                'host':
                 {'color': '#F0F7BE', 'shape': 'o', 'size': 30,
                  'width': 0.2},
                 'cluster':
@@ -449,7 +449,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                 {'nodes': {},
                  'font_size': base_size * 4,
                  'font_weight': 'normal'},
-                'node':
+                'host':
                 {'nodes': {},
                  'font_size': base_size * 3,
                  'font_weight': 'normal'},
@@ -463,6 +463,8 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
                  'font_size': base_size * 3,
                  'str_func': lambda n: n.split('_')[1]}
                 }
+
+    grdot = gr.copy()
 
     # Setting legend and labels
     _nodes_legend = _default_nodes_legend()
@@ -478,38 +480,44 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     if not compact:
         elements = ['renater', 'router', 'switch', 'node', 'linecard']
     else:
-        for site in gr.get_sites():
-            for cluster, data in gr.get_clusters().items():
+        for site in grdot.get_sites():
+            for cluster, data in grdot.get_clusters().items():
                 for equip, radicals in data['equips'].items():
-                    gr.add_node(cluster + '\n' + radicals,
+                    grdot.add_node(cluster + '\n' + radicals,
                                 {'kind': 'cluster'})
-                    gr.add_edge(cluster + '\n' + radicals, equip,
+                    grdot.add_edge(cluster + '\n' + radicals, equip,
                                 {'bandwidth': data['bandwidth']})
 
-        gr.remove_nodes_from([n[0] for n in gr.nodes(True) if n[1]['kind'] == 'node'])
+        grdot.remove_nodes_from([n[0] for n in grdot.nodes(True) if n[1]['kind'] == 'node'])
 
         elements = ['renater', 'router', 'switch', 'cluster']
 
     logger.debug('Legend and labels initialized')
+
+    # substitute kind host to kind node in all the graph, as node is a reserved dot word
+    for n in grdot.nodes_iter(True):
+        if n[1].get('kind') == 'node':
+            n[1]['kind'] = 'host'
+
     # Initializing plot
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
 
     logger.debug('Defining positions')
     try:
-        pos = graphviz_layout(gr, prog=layout)
+        pos = graphviz_layout(grdot, prog=layout)
     except:
         logger.warning('Error in generating graphviz layout, will use ' +
                        'spring layout that does not scale well ...')
         raise
-        pos = nx.spring_layout(gr, iterations=100)
+        pos = nx.spring_layout(grdot, iterations=100)
     # Adding the nodes
     for k in elements:
-        nodes = [node[0] for node in gr.nodes_iter(data=True)
+        nodes = [node[0] for node in grdot.nodes_iter(data=True)
                  if 'kind' in node[1] and node[1]['kind'] == k]
         if k not in _nodes_legend:
             _nodes_legend[k] = _nodes_legend['default']
-        nodes = nx.draw_networkx_nodes(gr, pos, nodelist=nodes,
+        nodes = nx.draw_networkx_nodes(grdot, pos, nodelist=nodes,
                                        node_shape=_nodes_legend[k]['shape']
                                        if 'shape' in _nodes_legend[k] else
                                        _default_shape,
@@ -526,21 +534,21 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     # Adding the edges
     for bandwidth, params in _edges_legend.items():
         if bandwidth != 'other':
-            edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
+            edges = [(edge[0], edge[1]) for edge in grdot.edges_iter(data=True)
                      if 'bandwidth' in edge[2] and edge[2]['bandwidth'] == bandwidth]
-            nx.draw_networkx_edges(gr, pos, edgelist=edges,
+            nx.draw_networkx_edges(grdot, pos, edgelist=edges,
                                    width=params['width'] if 'width' in params
                                    else _default_width,
                                    edge_color=params['color'] if 'color' in params
                                    else _default_color)
-    edges = [(edge[0], edge[1]) for edge in gr.edges_iter(data=True)
+    edges = [(edge[0], edge[1]) for edge in grdot.edges_iter(data=True)
              if edge[2]['bandwidth'] not in _edges_legend]
 
-    nx.draw_networkx_edges(gr, pos, edgelist=edges,
+    nx.draw_networkx_edges(grdot, pos, edgelist=edges,
                            width=_edges_legend['default']['width'],
                            edge_color=_edges_legend['default']['color'])
     # Adding the labels
-    for node, data in gr.nodes_iter(data=True):
+    for node, data in grdot.nodes_iter(data=True):
         if 'nodes' not in _nodes_labels[data['kind']]:
             _nodes_labels[data['kind']]['nodes'] = {}
         if data['kind'] in _nodes_labels:
@@ -550,7 +558,7 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
             _nodes_labels['default']['nodes'][node] = _nodes_labels['default']['str_func'](node)
 
     for data in _nodes_labels.values():
-        nx.draw_networkx_labels(gr, pos, labels=data['nodes'],
+        nx.draw_networkx_labels(grdot, pos, labels=data['nodes'],
                                 font_size=data['font_size']
                                 if 'font_size' in data else _default_font_size,
                                 font_weight=data['font_weight']
@@ -560,8 +568,8 @@ def treemap(gr, nodes_legend=None, edges_legend=None, nodes_labels=None,
     plt.tight_layout()
 
     title = 'Created by execo_g5k.topology \n%s\nAPI commit %s' % \
-        (gr.graph['date'], gr.graph['api_commit'])
+        (grdot.graph['date'], grdot.graph['api_commit'])
     plt.text(0.1, 0, title, transform=ax.transAxes)
-    
+
     return fig
 
