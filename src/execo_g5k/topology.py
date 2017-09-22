@@ -126,21 +126,17 @@ class g5k_graph(nx.MultiGraph):
     def rm_cluster(self, cluster):
         """Remove the cluster from the graph"""
         for h in get_cluster_hosts(cluster):
-            if self.has_node(h):
-                self.rm_host(h)
+            self.rm_host(h)
 
     def add_site(self, site, data=None):
         """Add a site to the graph"""
-        for c in get_site_clusters(site):
-            for h in get_cluster_hosts(c):
-                self.add_host(h, self.data['hosts'][h])
+        for h in get_site_hosts(site):
+            self.add_host(h, self.data['hosts'][h])
 
     def rm_site(self, site):
         """Remove the site from the graph"""
-        for c in get_site_clusters(site):
-            self.rm_cluster(c)
-        if self.get_site_router(site) in self.nodes():
-            self.rm_equip(self.get_site_router(site))
+        for h in get_site_hosts(site):
+            self.rm_host(h)
 
     def add_equip(self, equip, site):
         """Add a network equipment """
