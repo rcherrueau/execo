@@ -98,17 +98,16 @@ class g5k_graph(nx.MultiGraph):
             power = 0
             cores = 0
 
-        if len(self.get_host_adapters(_host)) > 0:
-            logger.debug('Adding %s', style.host(_host))
-            self.add_node(_host, {'kind': 'node',
-                                  'power': power,
-                                  'cores': cores})
-            for eq in self.get_host_adapters(_host):
-                if eq['mounted']:
-                    self.add_equip(eq['switch'], get_host_site(_host))
-        else:
+        if len(self.get_host_adapters(_host)) == 0:
             logger.warning('Node %s has no valid network connection',
                            _host)
+        logger.debug('Adding %s', style.host(_host))
+        self.add_node(_host, {'kind': 'node',
+                              'power': power,
+                              'cores': cores})
+        for eq in self.get_host_adapters(_host):
+            if eq['mounted']:
+                self.add_equip(eq['switch'], get_host_site(_host))
 
     def rm_host(self, host):
         """Remove the host from the graph"""
