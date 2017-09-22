@@ -69,15 +69,14 @@ class g5k_graph(nx.MultiGraph):
             if isinstance(elements, str):
                 elements = [elements]
             for e in elements:
-                if isinstance(e, Host):
-                    e = get_host_shortname(e.address)
-                e = e.split('.')[0]
                 if e in get_g5k_sites():
                     self.add_site(e, self.data['sites'][e])
-                if e in get_g5k_clusters():
+                elif e in get_g5k_clusters():
                     self.add_cluster(e, self.data['clusters'][e])
-                if e in get_g5k_hosts():
-                    self.add_host(e, self.data['hosts'][e])
+                else:
+                    e = get_host_shortname(e)
+                    if e in get_g5k_hosts():
+                        self.add_host(e, self.data['hosts'][e])
             if len(self.get_sites()) > 1:
                 self.add_backbone()
 
