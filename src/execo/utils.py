@@ -95,6 +95,13 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
+_do_once_mem = {}
+
+def do_once(key, func, *args, **kwargs):
+    if (func, key) not in _do_once_mem:
+        _do_once_mem[(func, key)] = func(*args, **kwargs)
+    return _do_once_mem[(func, key)]
+
 _port_lock = threading.RLock()
 
 def get_port():

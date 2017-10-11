@@ -119,6 +119,9 @@ class Logger(logging.getLoggerClass()):
                 if filename == _srcfile or filename == logging._srcfile:
                     f = f.f_back
                     continue
+                if co.co_name == 'do_once':
+                    f = f.f_back
+                    continue
                 sinfo = None
                 if stack_info:
                     sio = io.StringIO()
@@ -147,6 +150,9 @@ class Logger(logging.getLoggerClass()):
                 co = f.f_code
                 filename = os.path.normcase(co.co_filename)
                 if filename == _srcfile or filename == logging._srcfile:
+                    f = f.f_back
+                    continue
+                if co.co_name == 'do_once':
                     f = f.f_back
                     continue
                 rv = (co.co_filename, f.f_lineno, co.co_name)
