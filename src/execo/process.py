@@ -1056,7 +1056,7 @@ class Process(ProcessBase):
             if self.timeout != None:
                 self.timeout_date = self.start_date + self.timeout
         logger.debug(style.emph("start: ") + str(self))
-        start_error = False
+        start_error = None
         try:
             if self.pty:
                 (self._ptymaster, self._ptyslave) = openpty()
@@ -1083,16 +1083,16 @@ class Process(ProcessBase):
                 self.stdin_fd = self.process.stdin.fileno()
             self.pid = self.process.pid
         except OSError as e:
-            start_error = True
+            start_error = e
         with self._lock:
             self.started = True
             self.__start_pending = False
             self.started_condition.notify_all()
         self.started_event.set()
-        if start_error:
+        if start_error != None :
             with self._lock:
                 self.error = True
-                self.error_reason = e
+                self.error_reason = start_error
                 self.ended = True
                 self.end_date = time.time()
                 self.ended_condition.notify_all()
