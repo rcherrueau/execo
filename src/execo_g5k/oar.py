@@ -582,7 +582,7 @@ def get_oar_job_nodes(oar_job_id = None, frontend = None,
                           connection_params = make_connection_params(frontend_connection_params,
                                                                      default_frontend_connection_params))
     process.timeout = countdown.remaining()
-    process.pty = True
+    process.shell = process.pty = True
     process.run()
     if process.ok:
         host_addresses = re.findall("(\S+)", process.stdout, re.MULTILINE)
@@ -628,7 +628,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_
             frontend_connection_params,
             default_frontend_connection_params))
     process_ip.timeout = countdown.remaining()
-    process_ip.pty = True
+    process_ip.shell = process_ip.pty = True
     process_ip.run()
     # Get network parameters
     process_net = get_process(
@@ -638,7 +638,7 @@ def get_oar_job_subnets(oar_job_id = None, frontend = None, frontend_connection_
             frontend_connection_params,
             default_frontend_connection_params))
     process_net.timeout = countdown.remaining()
-    process_net.pty = True
+    process_net.shell = process_net.pty = True
     process_net.run()
 
     if process_net.ok and process_ip.ok:

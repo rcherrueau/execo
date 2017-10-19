@@ -343,7 +343,7 @@ def get_oargrid_job_nodes(oargrid_job_id, frontend_connection_params = None, tim
                           connection_params = make_connection_params(frontend_connection_params,
                                                                      default_frontend_connection_params))
     process.timeout = timeout
-    process.pty = True
+    process.shell = process.pty = True
     process.run()
     if process.ok:
         host_addresses = re.findall("(\S+)", process.stdout, re.MULTILINE)
