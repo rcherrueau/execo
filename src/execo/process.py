@@ -1442,8 +1442,8 @@ def get_process(*args, **kwargs):
     if kwargs.get("host") != None:
         return SshProcess(*args, **kwargs)
     else:
-        del kwargs["host"]
-        if "connection_params" in kwargs: del kwargs["connection_params"]
+        if 'host' in kwargs: del kwargs['host']
+        if 'connection_params' in kwargs: del kwargs['connection_params']
         return Process(*args, **kwargs)
 
 class port_forwarder_stderr_handler(ProcessOutputHandler):
