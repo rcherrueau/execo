@@ -171,7 +171,6 @@ class Action(object):
                   "num_ok=%r" % (stats['num_ok'],),
                   "num_finished_ok=%r" % (stats['num_finished_ok'],),
                   "ok=%r" % (self.ok,) ]
-        if self.default_expect_timeout != None: infos.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
         return infos
 
     def __repr__(self):
@@ -538,10 +537,7 @@ class Remote(Action):
         return kwargs
 
     def _infos(self):
-        infos = []
-        if self.connection_params: infos.append("connection_params=%r" % (self.connection_params,))
-        if len(self.process_args) > 0: infos.append("process_args=%r" % (self.process_args,))
-        return infos
+        return Action._infos(self)
 
     def _init_processes(self):
         self.processes = []
@@ -985,11 +981,6 @@ class Put(Remote):
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
 
-    def _infos(self):
-        infos = []
-        if self.connection_params: infos.append("connection_params=%r" % (self.connection_params,))
-        return infos
-
     def _init_processes(self):
         self.processes = []
         if len(self.local_files) > 0:
@@ -1050,11 +1041,6 @@ class Get(Remote):
         kwargs.append("local_location=%r" % (self.local_location,))
         if self.connection_params: kwargs.append("connection_params=%r" % (self.connection_params,))
         return kwargs
-
-    def _infos(self):
-        infos = []
-        if self.connection_params: infos.append("connection_params=%r" % (self.connection_params,))
-        return infos
 
     def _init_processes(self):
         self.processes = []

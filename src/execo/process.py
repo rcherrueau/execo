@@ -592,23 +592,7 @@ class ProcessBase(object):
         # to be implemented in all subclasses. Must return a list with
         # all relevant infos other than those returned by _args(), for
         # use in __str__ methods.
-        infos = []
-        if self.timeout: infos.append("timeout=%r" % (self.timeout,))
-        if self.ignore_exit_code != False: infos.append("ignore_exit_code=%r" % (self.ignore_exit_code,))
-        if self.ignore_timeout != False: infos.append("ignore_timeout=%r" % (self.ignore_timeout,))
-        if self.ignore_error != False: infos.append("ignore_error=%r" % (self.ignore_error,))
-        if self.nolog_exit_code != False: infos.append("nolog_exit_code=%r" % (self.nolog_exit_code,))
-        if self.nolog_timeout != False: infos.append("nolog_timeout=%r" % (self.nolog_timeout,))
-        if self.nolog_error != False: infos.append("nolog_error=%r" % (self.nolog_error,))
-        if self.ignore_expect_fail != False: infos.append("ignore_expect_fail=%r" % (self.ignore_expect_fail,))
-        if self.nolog_expect_fail != False: infos.append("nolog_expect_fail=%r" % (self.nolog_expect_fail,))
-        if self.ignore_write_error != False: infos.append("ignore_write_error=%r" % (self.ignore_write_error,))
-        if self.nolog_write_error != False: infos.append("nolog_write_error=%r" % (self.nolog_write_error,))
-        if self.default_expect_timeout != None: infos.append("default_expect_timeout=%r" % (self.default_expect_timeout,))
-        if self.default_stdout_handler != True: infos.append("default_stdout_handler=%r" % (self.default_stdout_handler,))
-        if self.default_stderr_handler != True: infos.append("default_stderr_handler=%r" % (self.default_stderr_handler,))
-        if self.forced_kill: infos.append("forced_kill=%s" % (self.forced_kill,))
-        infos.extend([
+        infos = [
             "name=%s" % (self.name,),
             "started=%s" % (self.started,),
             "start_date=%s" % (format_unixts(self.start_date),),
@@ -621,7 +605,8 @@ class ProcessBase(object):
             "expect_fail=%s" % (self.expect_fail,),
             "write_error=%s" % (self.write_error,),
             "exit_code=%s" % (self.exit_code,),
-            "ok=%s" % (self.ok,) ])
+            "ok=%s" % (self.ok,) ]
+        if self.forced_kill: infos.append("forced_kill=%s" % (self.forced_kill,))
         return infos
 
     def __repr__(self):
@@ -1029,11 +1014,7 @@ class Process(ProcessBase):
         return kwargs
 
     def _infos(self):
-        infos = []
-        if self.shell != False: infos.append("shell=%r" % (self.shell,))
-        if self.pty != False: infos.append("pty=%r" % (self.pty,))
-        if self.kill_subprocesses != None: infos.append("kill_subprocesses=%r" % (self.kill_subprocesses,))
-        infos.append("pid=%s" % (self.pid,))
+        infos = ["pid=%s" % (self.pid,)]
         return ProcessBase._infos(self) + infos
 
     def start(self):
@@ -1362,7 +1343,7 @@ class SshProcess(Process):
         return kwargs
 
     def _infos(self):
-        return [ "real cmd=%r" % (self.cmd,) ] + Process._infos(self)
+        return Process._infos(self) + [ "real cmd=%r" % (self.cmd,) ]
 
 def _escape_taktuk_cmd_args(s):
     # [ ] are used as taktuk argument delimiter
@@ -1554,7 +1535,7 @@ class PortForwarder(SshProcess):
                  repr(self.bind_address) ] + self._kwargs()
 
     def _infos(self):
-        return [ "forwarding=%r" % (self.forwarding,) ] + SshProcess._infos(self)
+        return SshProcess._infos(self) + [ "forwarding=%r" % (self.forwarding,) ]
 
     def __enter__(self):
         """Context manager enter function: waits for the forwarding port to be ready"""
