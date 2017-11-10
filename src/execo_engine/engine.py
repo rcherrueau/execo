@@ -124,7 +124,7 @@ class Engine(object):
         mymodule = sys.modules[self.__module__]
         if hasattr(mymodule, "__file__"):
             self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(mymodule.__file__)))
-        self.args_parser = ArgumentParser(usage = "usage: <program> [options] <arguments>",
+        self.args_parser = ArgumentParser(usage = "<program> [options] <arguments>",
                                           description = "engine: " + self.__class__.__name__)
         """Subclasses of `execo_engine.engine.Engine` can register options and args to this options parser in `__init__()`."""
         self.args_parser.add_argument(
