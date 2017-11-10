@@ -74,16 +74,28 @@ class Engine(object):
 
     - `execo_engine.engine.Engine.setup_result_dir`
 
-    A typical, non-reusable engine would override
-    `execo_engine.engine.Engine.init`, adding options / arguments to
-    `execo_engine.engine.Engine.args_parser`, and override
-    `execo_engine.engine.Engine.run`, putting all the experiment code
-    inside it, being sure that all initializations are done when
-    ``run`` is called: results directory is initialized and created
+    A typical, non-reusable engine would start by adding options /
+    arguments to `execo_engine.engine.Engine.args_parser` in `__init__()`,
+    then override `execo_engine.engine.Engine.init` to perform further
+    initialization if needed.  It would then implement all the experiment
+    code by overriding `execo_engine.engine.Engine.run`.  This ensures
+    that all initialization steps are performed by the engine before the
+    experiment runs: results directory is initialized and created
     (possibly reusing a previous results directory, to restart from a
-    previously stopped experiment), log level is set, stdout / stderr
-    are redirected as needed, and options and arguments are in
+    previously stopped experiment), log level is set, stdout / stderr are
+    redirected as needed, and options and arguments are in
     `execo_engine.engine.Engine.args`.
+
+    Example engine with custom command-line arguments::
+
+     class MyEngine(execo_engine.Engine):
+         def __init__(self):
+             super(MyEngine, self).__init__()
+             self.args_parser.add_argument('--myoption', default='foo',
+                                           help='An option to control how the experiment is done')
+         def run(self):
+             if self.args.myoption == "foo":
+                 ...
 
     A typical usage of a `execo_engine.utils.ParamSweeper` in an
     engine would be to intialize one at the beggining of
@@ -114,7 +126,7 @@ class Engine(object):
             self.engine_dir = os.path.abspath(os.path.dirname(os.path.realpath(mymodule.__file__)))
         self.args_parser = ArgumentParser(usage = "usage: <program> [options] <arguments>",
                                           description = "engine: " + self.__class__.__name__)
-        """Subclasses of `execo_engine.engine.Engine` can register options and args to this options parser in `execo_engine.engine.Engine.init`."""
+        """Subclasses of `execo_engine.engine.Engine` can register options and args to this options parser in `__init__()`."""
         self.args_parser.add_argument(
             "-l", dest = "log_level", default = None,
             help = "log level (int or string). Default = inherit execo logger level")
