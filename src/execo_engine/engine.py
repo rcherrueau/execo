@@ -98,9 +98,9 @@ class Engine(object):
                  ...
 
     A typical usage of a `execo_engine.utils.ParamSweeper` in an
-    engine would be to intialize one at the beggining of
-    `execo_engine.engine.Engine.run`, using a persistence file in the
-    results directory. example code::
+    engine would be to initialize an instance at the beginning of
+    `execo_engine.engine.Engine.run`, using a persistent file in the
+    results directory. Example code::
 
      def run(self):
          sweeps = sweep({<parameters and their values>})
