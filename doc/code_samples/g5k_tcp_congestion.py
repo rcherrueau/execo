@@ -30,8 +30,7 @@ class g5k_tcp_congestion(Engine):
                                           for adapter in get_host_attributes(cluster + "-1")["network_adapters"]
                                           if adapter.get("network_address") ==
                                            cluster + "-1." + get_cluster_site(cluster) + ".grid5000.fr"][0]["rate"]],
-                                       lambda c1, c2: cmp(get_cluster_site(c1),
-                                                          get_cluster_site(c2))),
+                                       key = get_cluster_site),
                                 get_cluster_site) }.items())[0:2])
         if len(actual_resources) >= 2:
             logger.info("try to reserve " + str(actual_resources))
