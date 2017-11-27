@@ -76,7 +76,7 @@ def redirect_outputs(stdout_filename, stderr_filename):
     # additionnaly force stdout unbuffered by reopening stdout
     # file descriptor with write mode
     # and 0 as the buffer size (unbuffered)
-    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1 if sys.version_info >= (3,) else 0)
 
 def copy_outputs(stdout_filename, stderr_filename):
     """Copy, and optionnaly merge, stdout and stderr to file(s)"""
@@ -87,7 +87,7 @@ def copy_outputs(stdout_filename, stderr_filename):
     # additionnaly force stdout unbuffered by reopening stdout
     # file descriptor with write mode
     # and 0 as the buffer size (unbuffered)
-    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1 if sys.version_info >= (3,) else 0)
 
 def slugify(value):
     """
