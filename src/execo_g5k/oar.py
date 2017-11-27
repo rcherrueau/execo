@@ -55,12 +55,12 @@ def format_oar_date(ts):
         time.tzset()
         t = time.localtime(ts)
         formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", t)
-        os.write(wend, formatted_time)
+        os.write(wend, codecs.encode(formatted_time))
         os._exit(0)
     else:
         os.close(wend)
-        f = os.fdopen(rend)
-        formatted_time = f.read()
+        f = os.fdopen(rend, 'rb')
+        formatted_time = codecs.decode(f.read())
         f.close()
         os.waitpid(pid, 0)
         return formatted_time
