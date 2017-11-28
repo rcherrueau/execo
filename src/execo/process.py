@@ -33,7 +33,7 @@ import threading, time, pipes, sys
 
 if sys.version_info >= (3,):
     import codecs, locale
-    _decode = lambda s: codecs.decode(s, locale.getpreferredencoding())
+    _decode = lambda s: codecs.decode(s, encoding=locale.getpreferredencoding(), errors='surrogateescape')
 else:
     _decode = lambda s: s
 
