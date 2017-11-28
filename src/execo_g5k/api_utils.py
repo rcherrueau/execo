@@ -238,7 +238,11 @@ class APIConnection(object):
             auth = None
         if auth == None or g5k_configuration['api_verify_ssl_cert'] == False:
             verify = False
-            requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+            try:
+                requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+            except:
+                # special case for older versions of requests
+                pass
         else:
             verify = True
         return (auth, verify)
