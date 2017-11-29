@@ -215,6 +215,10 @@ def format_seconds(secs, showms = False):
     """
     if secs == None:
         return None
+    formatted_duration = ""
+    if secs < 0:
+        secs = -secs
+        formatted_duration += "-"
     s = secs
     d = (s - (s % 86400)) // 86400
     s -= d * 86400
@@ -222,7 +226,6 @@ def format_seconds(secs, showms = False):
     s -= h * 3600
     m = (s - (s % 60)) // 60
     s -= m * 60
-    formatted_duration = ""
     if secs >= 86400: formatted_duration += "%id" % d
     if secs >= 3600: formatted_duration += "%ih" % h
     if secs >= 60: formatted_duration += "%im" % m
