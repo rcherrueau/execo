@@ -12,6 +12,7 @@ Vagrant.configure(2) do |config|
     #!/bin/bash -x
     echo 'deb http://ftp.debian.org/debian wheezy-backports main' > /etc/apt/sources.list.d/wheezy-backports.list
     apt-get update && apt-get -y dist-upgrade
-    apt-get -y --no-install-recommends install build-essential debhelper devscripts python-all python3-all dh-python python-setuptools python3-setuptools python-docutils python-sphinx graphviz python-argparse python-requests python-keyring python-psycopg2 python-networkx python-pygraphviz python-matplotlib git
+    apt-get -y --no-install-recommends install build-essential debhelper devscripts python-all python3-all dh-python python-setuptools python3-setuptools python-docutils python-sphinx graphviz python-argparse python-keyring python-psycopg2 python-networkx python-pygraphviz python-matplotlib git
+    apt-get -y --no-install-recommends -t wheezy-backports install python-requests
   SHELL
 end
