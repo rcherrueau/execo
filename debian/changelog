@@ -1,3 +1,20 @@
+python-execo (2.6.3) unstable; urgency=low
+
+  * new upstream release:
+
+    - add vagrant vm + scripts for building debian wheezy compatible
+    packages
+
+    - major fixes and improvements in topology
+
+    - fix various python 3 compatibility issues
+
+    - engine: fix doc
+
+    - various other fixes and improvements
+
+ -- Matthieu Imbert <matthieu.imbert@inria.fr>  Wed, 29 Nov 2017 16:48:00 +0100
+
 python-execo (2.6.2) unstable; urgency=low
 
   * new upstream release:
