@@ -559,7 +559,7 @@ def get_host_site(host):
             return m.group(3)
         else:
             return get_cluster_site(m.group(1))
-    else: return None 
+    else: return None
 
 def get_host_network_equipments(host):
     """"""
@@ -578,7 +578,7 @@ def get_network_equipment_site(equip):
     """Return the site of a network_equipment"""
     for site in get_g5k_sites():
         if equip in get_site_network_equipments(site):
-            return site 
+            return site
     return None
 
 def group_hosts(hosts):
@@ -759,6 +759,6 @@ def set_nodes_vlan(site, hosts, interface, vlan_id):
         splitted[0] = splitted[0] + "-" + interface
         return ".".join(splitted)
 
-    network_addresses = map(_to_network_address, hosts)
+    network_addresses = list(map(_to_network_address, hosts))
     logger.info("Setting %s in vlan %s of site %s" % (network_addresses, vlan_id, site))
     return _get_g5k_api().post('/sites/%s/vlans/%s' % (site, str(vlan_id)), {"nodes": network_addresses})
